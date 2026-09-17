@@ -1,0 +1,57 @@
+<launch>
+  <arg name="morai_ip"/>
+  <arg name="morai_port" default="9093"/>
+  <arg name="config" default="$(find unita_launch)/config/field_check.yaml"/>
+  <arg name="sensor_config" default="$(find sensor_bridge)/config/sensors.yaml"/>
+  <arg name="field_mode" default="true"/>
+  <arg name="window" default="5.0"/>
+  <arg name="stamp_timeout" default="1.0"/>
+  <arg name="service_timeout" default="2.0"/>
+  <arg name="start_rosbridge" default="false"/>
+  <arg name="rosbridge_port" default="9090"/>
+  <arg name="start_sensor_bridge" default="true"/>
+  <arg name="east_offset" default="0.0"/>
+  <arg name="north_offset" default="0.0"/>
+  <arg name="require_rear_camera" default="false"/>
+  <arg name="enable_rear_camera" default="$(arg require_rear_camera)"/>
+  <arg name="require_lidar" default="true"/>
+  <arg name="enable_lidar" default="true"/>
+  <arg name="lidar_launch" default="VLP16_points.launch"/>
+  <arg name="lidar_rpm" default="600"/>
+  <arg name="lidar_port" default="9210"/>
+  <arg name="lidar_topic" default="/lidar3D"/>
+  <arg name="monitor_control" default="false"/>
+  <include if="$(arg start_rosbridge)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+    <arg name="port" value="$(arg rosbridge_port)"/>
+  </include>
+  <include if="$(arg start_sensor_bridge)" file="$(find sensor_bridge)/launch/sensor_bridge.launch">
+    <arg name="config" value="$(arg sensor_config)"/>
+    <arg name="east_offset" value="$(arg east_offset)"/>
+    <arg name="north_offset" value="$(arg north_offset)"/>
+    <arg name="enable_rear_camera" value="$(arg enable_rear_camera)"/>
+    <arg name="enable_lidar" value="$(arg enable_lidar)"/>
+    <arg name="lidar_launch" value="$(arg lidar_launch)"/>
+    <arg name="lidar_rpm" value="$(arg lidar_rpm)"/>
+    <arg name="lidar_port" value="$(arg lidar_port)"/>
+    <arg name="lidar_topic" value="$(arg lidar_topic)"/>
+  </include>
+  <node pkg="unita_launch" type="field_check.py" name="field_check" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="morai_ip" value="$(arg morai_ip)"/>
+    <param name="morai_port" value="$(arg morai_port)"/>
+    <param name="sensor_config" value="$(arg sensor_config)"/>
+    <param name="field_mode" value="$(arg field_mode)"/>
+    <param name="window" value="$(arg window)"/>
+    <param name="stamp_timeout" value="$(arg stamp_timeout)"/>
+    <param name="service_timeout" value="$(arg service_timeout)"/>
+    <param name="rosbridge_port" value="$(arg rosbridge_port)"/>
+    <param name="east_offset" value="$(arg east_offset)"/>
+    <param name="north_offset" value="$(arg north_offset)"/>
+    <param name="require_rear_camera" value="$(arg require_rear_camera)"/>
+    <param name="require_lidar" value="$(arg require_lidar)"/>
+    <param name="enable_lidar" value="$(arg enable_lidar)"/>
+    <param name="lidar_port" value="$(arg lidar_port)"/>
+    <param name="lidar_topic" value="$(arg lidar_topic)"/>
+    <param name="monitor_control" value="$(arg monitor_control)"/>
+  </node>
+</launch>

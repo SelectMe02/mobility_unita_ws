@@ -51,6 +51,12 @@ nearest 탐색과 lookahead 탐색 모두 마지막/첫 지점 경계를 넘어�
 
 RViz의 경로·궤적·오차 분석, 카메라 보기와 I 키 초기 위치 설정은
 [`unita_launch/README.md`](src/unita_launch/README.md)를 참고하세요.
+Windows MORAI PC와 Ubuntu PC를 LAN으로 연결하는 현장 구성은
+[`5분 현장점검 절차`](src/unita_launch/README.md#field-check--5분-현장점검-절차)를
+먼저 따릅니다. 센서 Destination/ROS Bridge IP는 Ubuntu Ethernet IPv4,
+제어 `morai_ip`는 Windows Ethernet IPv4입니다. 현장에서는 위 로컬 예제의
+`127.0.0.1`을 사용하지 않습니다. `field_check.launch`는 진단과 센서 수신만
+시작하며 차량 제어 노드는 시작하지 않습니다.
 UDP 제어 설정은 [`control/README.md`](src/control/README.md),
 센서 설정은 [`sensor_bridge/README.md`](src/sensor_bridge/README.md)에 있습니다.
 

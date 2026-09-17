@@ -1,0 +1,11 @@
+# Diagnostic only. No waypoint follower or vehicle UDP transmitter is started.
+field_mode: true
+window: 5.0
+stamp_timeout: 1.0
+service_timeout: 2.0
+require_rear_camera: false
+require_lidar: true
+monitor_control: false
+rosbridge_port: 9090
+morai_port: 9093
+mode_service: /Service_MoraiEventCmd

@@ -3,6 +3,12 @@
 `~/catkin_ws`의 기존 `morai_msgs`를 사용합니다. 이 패키지는 센서 수신만
 수행하며 차량 제어 명령을 보내지 않습니다.
 
+3-camera 구성에서는 `sensor_bridge.launch`에 `enable_rear_camera:=false`를
+지정하면 네 번째 카메라 수신기만 제외할 수 있습니다. 단독 실행 기본값은
+기존처럼 true입니다. 현장 통신 진단은 `unita_launch/field_check.launch`를
+사용하며 [현장점검 절차](../unita_launch/README.md#field-check--5분-현장점검-절차)를
+참고하세요.
+
 | 센서 | MORAI Host | ROS PC Destination | ROS 토픽 | 메시지 |
 | --- | ---: | ---: | --- | --- |
 | Camera-1 | 9101 | 9201 | `/camera/image/front` | `sensor_msgs/Image` (`bgr8`) |

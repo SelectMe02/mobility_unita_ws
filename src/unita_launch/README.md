@@ -3,6 +3,219 @@
 기존 waypoint follower와 GPS+IMU localization을 조합해 기준 경로, 실제 궤적,
 차량 방향과 경로 오차를 표시합니다.
 
+## Field Check / 5분 현장점검 절차
+
+현장에서는 Windows MORAI Client PC와 Ubuntu Algorithm PC를 Ethernet LAN으로
+연결합니다. 아래 순서로 **통신을 먼저 점검**합니다. `field_check.launch`는 기존
+센서 수신기와 진단 노드만 시작합니다. follower, UDP 제어 송신기, RViz는
+시작하지 않으며 속도·조향 명령을 발행하거나 모드·기어를 변경하지 않습니다.
+이미 실행 중인 주행 노드는 중지하지 않으므로 최초 점검 전 별도로 종료하세요.
+
+### 출발 전 준비
+
+두 workspace가 아래 위치에 있어야 합니다. underlay를 먼저 빌드합니다.
+
+```bash
+source /opt/ros/noetic/setup.bash
+cd ~/catkin_ws
+catkin_make
+source ~/catkin_ws/devel/setup.bash
+cd ~/unita_ws
+catkin_make
+source ~/unita_ws/devel/setup.bash
+catkin_make run_tests
+catkin_test_results
+rospack find morai_msgs
+rospack find rosbridge_server
+rospack find velodyne_pointcloud
+```
+
+패키지가 없으면 출발 전에 설치/빌드합니다. ROS apt 저장소가 설정된 Noetic
+Ubuntu에서 `sudo apt install ros-noetic-rosbridge-server ros-noetic-velodyne`
+을 사용할 수 있습니다. `morai_msgs`는 `~/catkin_ws`의 메시지 패키지입니다.
+추가 pip 설치는 필요 없습니다.
+
+### 1. LAN 연결과 IP 확인
+
+Windows에서 `ipconfig`, Ubuntu에서 아래 명령으로 **Ethernet** IPv4를 확인합니다.
+양쪽 주소와 netmask는 현장 담당자와 정한 같은 subnet에 맞춥니다. Wi-Fi 또는
+Tailscale 주소를 센서/제어 주소로 사용하지 않습니다. 이 진단은 네트워크 설정을
+변경하지 않습니다.
+
+```bash
+ip -4 addr
+ip route
+```
+
+**모든 Ubuntu 터미널에서** 다음 설정을 실행합니다. 아래 두 IP는 예시이며
+반드시 현장에서 확인한 실제 Ethernet IP로 바꾸세요.
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+source ~/unita_ws/devel/setup.bash
+export UBUNTU_IP=192.168.0.10
+export MORAI_IP=192.168.0.20
+unset ROS_HOSTNAME
+export ROS_IP="$UBUNTU_IP"
+export ROS_MASTER_URI=http://localhost:11311
+```
+
+`ROS_MASTER_URI`의 localhost는 Ubuntu 자체의 master 주소이므로 정상입니다.
+반면 Sensor Destination, ROS Bridge IP, 제어 `morai_ip`의 `127.0.0.1`은
+다른 PC에 도달하지 않습니다. 양쪽 PC 사이의 TCP 9090과 아래 센서 UDP 포트를
+방화벽에서 허용해야 합니다. ping이 막혀도 센서와 서비스가 통과하면 ICMP만
+차단된 것일 수 있습니다.
+
+### 2. ROS와 ROS Bridge 실행
+
+Terminal 1 (이미 master가 있으면 중복 실행하지 않음):
+
+```bash
+roscore
+```
+
+Terminal 2:
+
+```bash
+roslaunch rosbridge_server rosbridge_websocket.launch port:=9090
+```
+
+### 3. Windows MORAI Network Settings 확인
+
+- ROS Bridge 연결 IP = **Ubuntu Ethernet IPv4**, port = **9090**, 연결 ON.
+- Sensor 프로토콜 = UDP, 각 Destination IP = **Ubuntu Ethernet IPv4**, Connect ON.
+- Ego Network의 **Cmd Control** = UDP, 제어 수신 port = **9093**.
+  수신 IP를 지정하는 항목이 있으면 **Windows Ethernet IPv4**로 맞춥니다.
+- Ego Network의 **Service** = ROS, `/Service_MoraiEventCmd` 연결 ON.
+  기본 모드 조회는 ROS 서비스를 사용하므로 Ego Status Publisher를 UDP로 바꿀
+  필요가 없습니다. Publisher/Subscriber는 필요한 기존 ROS 설정을 유지합니다.
+- Ubuntu 제어 코드의 `morai_ip` = **Windows Ethernet IPv4**.
+  Sensor의 Host port와 Ubuntu 수신 Destination port는 서로 다릅니다.
+
+| 센서 | Windows Host port | Ubuntu Destination port | ROS 토픽 |
+| --- | ---: | ---: | --- |
+| Front camera | 9101 | 9201 | `/camera/image/front` |
+| Left camera | 9102 | 9202 | `/camera/image/left` |
+| Right camera | 9103 | 9203 | `/camera/image/right` |
+| Rear camera (선택) | 9104 | 9204 | `/camera/image/rear` |
+| LiDAR | 9110 | 9210 | `/lidar3D` |
+| IMU | 9120 | 9220 | `/imu` |
+| GPS | 9130 | 9230 | `/gps` |
+
+LiDAR 드라이버 기본값은 **VLP16, 600 RPM**입니다. 실제 대회 SIM의 모델/RPM과
+일치하는지 확인하고 필요하면 `lidar_launch`, `lidar_rpm`을 변경합니다.
+기본 모델이 대회 센서와 같다고 가정하지 마세요.
+
+### 4. 진단 실행
+
+Terminal 3에서 실행한 뒤 Windows SIM이 센서를 전송하는지 확인합니다.
+
+```bash
+roslaunch unita_launch field_check.launch \
+  morai_ip:="$MORAI_IP" morai_port:=9093
+```
+
+기본 측정 시간은 5초이며 `window:=10`처럼 변경할 수 있습니다. 센서 수신기
+시작 직후 실패했다면 SIM Connect를 확인하고, 아래 재점검 명령으로 다시 측정합니다.
+이 launch는 출력 완료 후에도 센서 수신기를 유지합니다. 종료하려면 Ctrl+C입니다.
+
+rear는 기본 optional이고 수신기도 시작하지 않습니다. rear까지 필수로 확인하려면
+`require_rear_camera:=true`를 추가합니다. rear를 optional 상태로 수신만 하려면
+`enable_rear_camera:=true`를 추가합니다. 기존 `sensor_bridge.launch`의 단독 실행은
+4개 camera 수신 기본값을 유지합니다.
+
+LiDAR를 제외하는 테스트는 **`enable_lidar:=false require_lidar:=false`**를 둘 다
+추가합니다. 수신기만 끄고 필수 조건을 유지하면 LiDAR가 FAIL로 나옵니다.
+센서 브릿지가 이미 실행 중이면 `start_sensor_bridge:=false`로 포트 중복 바인딩을
+피합니다. ROS Bridge도 함께 시작하려면 별도 Terminal 2 대신 `start_rosbridge:=true`
+를 사용합니다. 같은 TCP port의 rosbridge를 중복 실행하지 마세요.
+
+GPS UDP에 map offsets는 포함되지 않습니다. offset 0이어도 GPS 좌표·fix·갱신은
+검사하고, offset 문제는 **GPS Map Offset WARN**으로 분리합니다. 실제 map 값을
+알면 진단 launch에 다음 인자를 추가합니다.
+
+```bash
+# 현재 저장된 K-city waypoint의 값입니다. 다른 대회 map에 그대로 사용하지 마세요.
+roslaunch unita_launch field_check.launch \
+  morai_ip:="$MORAI_IP" east_offset:=302595 north_offset:=4124145
+```
+
+현재 receiver 설정을 유지한 채 다시 진단하거나 종료 코드를 확인할 때:
+
+```bash
+rosrun unita_launch field_check.py _morai_ip:="$MORAI_IP"
+echo $?
+```
+
+map offsets를 설정했다면 위 `rosrun`에도 `_east_offset:=실제숫자`,
+`_north_offset:=실제숫자`를 지정합니다. `실제숫자` 문자열 자체를 입력하지 않습니다.
+진단 **프로세스**의 종료 코드는 FAIL이 있으면 1, PASS/WARN만 있으면 0입니다.
+`roslaunch`는 수신기들을 계속 실행하므로 shell 종료 코드 대신 출력의
+`Diagnostic exit code`를 보거나 단독 `rosrun`의 `$?`를 확인하세요.
+
+### 5. 결과 판정과 확인 목록
+
+| 점검 | 통과 기준 |
+| --- | --- |
+| ROS 환경 | Noetic, master 연결, 모든 필수 패키지 발견 |
+| Ethernet | 활성 wired IPv4 존재, Windows IP로 가는 route가 Ethernet 사용 |
+| ROS Bridge | 로컬 TCP 9090 listener와 MORAI Event Service 응답 |
+| Camera 3개 | Image 타입, 메시지/크기/data 유효, 측정 Hz·frame_id 표시 |
+| LiDAR | PointCloud2 타입, 유효 point data 수신, Hz·frame_id 표시 |
+| GPS | 유한 좌표, 0/0 아님, status > 0, 갱신·timestamp 정상 |
+| IMU | 유한 비영 quaternion, orientation 사용 가능, 갱신·timestamp 정상 |
+| 시간 | 수신 지속, stamp가 진행하고 기본 age 1초 이내; stamp 0은 WARN |
+| 제어 구성 | `morai_ip`/port 유효, launch 인자 존재, `/ctrl_cmd`가 있으면 CtrlCmd 타입 |
+
+각 항목은 `[PASS]`, `[WARN]`, `[FAIL]`과 가능한 원인을 출력합니다.
+수신 Hz는 실제 측정값이며 고정 30/50 Hz 기준으로 합격을 강제하지 않습니다.
+1개만 수신하면 Hz 계산은 불가능하다고 표시합니다. WARN이 없으면 `READY`,
+WARN만 있으면 `READY WITH WARNINGS`, 필수 항목 FAIL이 있으면 `NOT READY`입니다.
+없는 rear와 미설정 offset은 WARN이므로 3-camera 구성의 정상 결과는 보통
+`READY WITH WARNINGS`입니다. **이 판정은 통신 진단이며 주행 성능 보장이 아닙니다.**
+주행 전에는 map offsets, waypoint/map 좌표 정합, 실제 제어 수신을 별도로 확인합니다.
+
+서비스 검사는 `option=0, gear=-1` 조회만 합니다. 서비스 응답 mode는
+1=Manual, 3=ExternalCtrl, 6=Built-in이고 **Manual이어도 서비스 연결은 PASS**입니다.
+기어/모드를 설정하지 않습니다. TCP listener만으로 Windows 연결을 증명하지 않으므로
+서비스 응답과 센서 수신을 함께 확인합니다. UDP listener와 ROS data 검사도 패킷의
+송신 PC를 인증하지 않습니다. 예상치 못한 publisher가 있으면 `rostopic info /gps`와
+각 image 토픽을 확인하여 ROS/UDP 브릿지의 중복 센서 발행을 제거합니다.
+
+콘솔 진단 결과와 같은 내용은 `/tmp/unita_field_check_YYYYMMDD_HHMMSS.log`에
+저장되고 마지막에 정확한 파일 경로가 표시됩니다. 장애 시 그 파일을 공유하세요.
+필수 센서 FAIL이면 출력된 Destination IP/port, Connect, firewall, receiver를
+확인합니다. timestamp가 미래/과거이면 ROS clock와 두 PC 시간을 확인합니다.
+기본 센서 브릿지는 Ubuntu 수신 시각으로 stamp를 찍으므로 stamp가 정상이어도
+SIM 내부 timestamp 동기화까지 확인한 것은 아닙니다.
+
+통신 확인 후 실제 주행은 **별도 명령**입니다. 진단의 receiver에 해당 map의
+실제 offsets가 적용된 것을 확인하고 실행합니다. offset을 나중에 바꾸면 Terminal 3의
+진단 launch를 Ctrl+C로 종료하고 올바른 offsets로 재실행합니다.
+
+```bash
+roslaunch unita_launch waypoint_udp_tracking.launch \
+  morai_ip:="$MORAI_IP" morai_port:=9093
+```
+
+이미 주행 중인 노드를 읽기만 하는 추가 진단:
+
+```bash
+roslaunch unita_launch field_check.launch \
+  morai_ip:="$MORAI_IP" start_sensor_bridge:=false monitor_control:=true
+```
+
+이 옵션은 `/ctrl_cmd`, `/control/sim_mode`, `/control/udp_status`를 추가 구독하고
+현재 sender의 IP/port를 비교합니다. `/control/sim_mode`는 service 응답 숫자와
+달리 내부 정규화 값 1=Manual, 2=ExternalCtrl, 0=Built-in/기타/unknown입니다.
+`SENDING`은 Ubuntu 송신 성공만 뜻하며 Windows 수신/차량 적용 ACK가 아닙니다.
+watchdog의 `BRAKE` 상태는 WARN으로 표시됩니다. 진단 자체는 패킷을 보내지 않습니다.
+
+현장 진단 파일: `scripts/field_check.py`, `src/unita_visualization/field_diagnostics.py`,
+`launch/field_check.launch`, `config/field_check.yaml`, `test/test_field_diagnostics.py`.
+기존 driving algorithm과 sensor/control UDP protocol은 변경하지 않았습니다.
+
 ## I 키로 실제 차량을 웨이포인트 시작점에 초기화
 
 `config/waypoint_start.json`은 MORAI의 **MapInitSetting** 형식입니다.

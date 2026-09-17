@@ -6,6 +6,7 @@
   <arg name="east_offset" default="0.0"/>
   <arg name="north_offset" default="0.0"/>
   <arg name="enable_cameras" default="true"/>
+  <arg name="enable_rear_camera" default="true"/>
   <arg name="enable_imu" default="true"/>
   <arg name="enable_gps" default="true"/>
   <arg name="enable_lidar" default="true"/>
@@ -38,7 +39,7 @@
       <arg name="source_ip" value="$(arg source_ip)"/>
       <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
     </include>
-    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+    <include if="$(arg enable_rear_camera)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
       <arg name="sensor" value="camera_rear"/>
       <arg name="config" value="$(arg config)"/>
       <arg name="bind_ip" value="$(arg bind_ip)"/>
