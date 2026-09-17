@@ -1,0 +1,73 @@
+<launch>
+  <arg name="config" default="$(find sensor_bridge)/config/sensors.yaml"/>
+  <arg name="bind_ip" default="0.0.0.0"/>
+  <arg name="source_ip" default=""/>
+  <arg name="use_sensor_stamp" default="false"/>
+  <arg name="east_offset" default="0.0"/>
+  <arg name="north_offset" default="0.0"/>
+  <arg name="enable_cameras" default="true"/>
+  <arg name="enable_imu" default="true"/>
+  <arg name="enable_gps" default="true"/>
+  <arg name="enable_lidar" default="true"/>
+  <!-- Select the launch file matching the SIM model; VLP16 is only a default. -->
+  <arg name="lidar_launch" default="VLP16_points.launch"/>
+  <arg name="lidar_port" default="9210"/>
+  <arg name="lidar_topic" default="/lidar3D"/>
+  <arg name="lidar_frame" default="lidar"/>
+  <arg name="lidar_rpm" default="600"/>
+
+  <group if="$(arg enable_cameras)">
+    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+      <arg name="sensor" value="camera_front"/>
+      <arg name="config" value="$(arg config)"/>
+      <arg name="bind_ip" value="$(arg bind_ip)"/>
+      <arg name="source_ip" value="$(arg source_ip)"/>
+      <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
+    </include>
+    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+      <arg name="sensor" value="camera_left"/>
+      <arg name="config" value="$(arg config)"/>
+      <arg name="bind_ip" value="$(arg bind_ip)"/>
+      <arg name="source_ip" value="$(arg source_ip)"/>
+      <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
+    </include>
+    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+      <arg name="sensor" value="camera_right"/>
+      <arg name="config" value="$(arg config)"/>
+      <arg name="bind_ip" value="$(arg bind_ip)"/>
+      <arg name="source_ip" value="$(arg source_ip)"/>
+      <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
+    </include>
+    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+      <arg name="sensor" value="camera_rear"/>
+      <arg name="config" value="$(arg config)"/>
+      <arg name="bind_ip" value="$(arg bind_ip)"/>
+      <arg name="source_ip" value="$(arg source_ip)"/>
+      <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
+    </include>
+  </group>
+  <include if="$(arg enable_imu)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
+    <arg name="sensor" value="imu"/>
+    <arg name="config" value="$(arg config)"/>
+    <arg name="bind_ip" value="$(arg bind_ip)"/>
+    <arg name="source_ip" value="$(arg source_ip)"/>
+    <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
+  </include>
+  <include if="$(arg enable_gps)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
+    <arg name="sensor" value="gps"/>
+    <arg name="config" value="$(arg config)"/>
+    <arg name="bind_ip" value="$(arg bind_ip)"/>
+    <arg name="source_ip" value="$(arg source_ip)"/>
+    <arg name="east_offset" value="$(arg east_offset)"/>
+    <arg name="north_offset" value="$(arg north_offset)"/>
+  </include>
+  <group if="$(arg enable_lidar)">
+    <remap from="velodyne_points" to="$(arg lidar_topic)"/>
+    <include file="$(find velodyne_pointcloud)/launch/$(arg lidar_launch)">
+      <arg name="device_ip" value="$(arg source_ip)"/>
+      <arg name="port" value="$(arg lidar_port)"/>
+      <arg name="frame_id" value="$(arg lidar_frame)"/>
+      <arg name="rpm" value="$(arg lidar_rpm)"/>
+    </include>
+  </group>
+</launch>

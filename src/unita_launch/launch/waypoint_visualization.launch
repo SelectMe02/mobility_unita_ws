@@ -1,0 +1,11 @@
+<launch>
+  <arg name="start_localization" default="true"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="localization_config" default="$(find localization)/config/gps_imu.yaml"/>
+  <arg name="rviz_config" default="$(find unita_launch)/config/waypoint_tracking.rviz"/>
+  <include if="$(arg start_localization)" file="$(find localization)/launch/gps_imu_localization.launch">
+    <arg name="config" value="$(arg localization_config)"/>
+  </include>
+  <node pkg="unita_launch" type="waypoint_visualizer.py" name="waypoint_visualizer" output="screen"/>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="waypoint_rviz" args="-d $(arg rviz_config)"/>
+</launch>

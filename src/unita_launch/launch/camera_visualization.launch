@@ -1,0 +1,6 @@
+<launch>
+  <!-- Start sensor_bridge separately; this launch only opens the image viewer. -->
+  <arg name="rviz_config" default="$(find unita_launch)/config/cameras.rviz"/>
+  <node pkg="rviz" type="rviz" name="camera_rviz"
+        args="-d $(arg rviz_config)" output="screen"/>
+</launch>

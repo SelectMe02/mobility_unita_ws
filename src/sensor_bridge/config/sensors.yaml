@@ -1,0 +1,48 @@
+# MORAI sends from Host to Destination (this ROS PC).
+# Receivers bind destination_port; host_port is informational, not a local bind.
+# LiDAR uses the launch arguments lidar_port/lidar_topic (defaults match below).
+sensors:
+  camera_front:
+    kind: camera
+    frame_id: camera_front_optical
+    host_port: 9101
+    destination_port: 9201
+    topic: /camera/image/front
+  camera_left:
+    kind: camera
+    frame_id: camera_left_optical
+    host_port: 9102
+    destination_port: 9202
+    topic: /camera/image/left
+  camera_right:
+    kind: camera
+    frame_id: camera_right_optical
+    host_port: 9103
+    destination_port: 9203
+    topic: /camera/image/right
+  camera_rear:
+    kind: camera
+    frame_id: camera_rear_optical
+    host_port: 9104
+    destination_port: 9204
+    topic: /camera/image/rear
+  lidar3d:
+    kind: velodyne
+    frame_id: lidar
+    host_port: 9110
+    destination_port: 9210
+    topic: /lidar3D
+  imu:
+    kind: imu
+    frame_id: imu
+    host_port: 9120
+    destination_port: 9220
+    topic: /imu
+    message_type: sensor_msgs/Imu
+  gps:
+    kind: gps
+    frame_id: gps
+    host_port: 9130
+    destination_port: 9230
+    topic: /gps
+    message_type: morai_msgs/GPSMessage

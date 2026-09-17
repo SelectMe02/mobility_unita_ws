@@ -1,0 +1,57 @@
+<launch>
+
+    <arg name="waypoint_file"
+         default="$(find unita_waypoint)/config/waypoints.csv" />
+
+    <arg name="waypoint_format"
+         default="local_xy" />
+    <arg name="loop_path" default="true" />
+
+    <node pkg="unita_waypoint"
+          type="gps_waypoint_follower.py"
+          name="gps_waypoint_follower"
+          output="screen">
+
+        <param name="waypoint_file"
+               value="$(arg waypoint_file)" />
+
+        <param name="waypoint_format"
+               value="$(arg waypoint_format)" />
+        <param name="loop_path" value="$(arg loop_path)" />
+
+        <param name="gps_topic"
+               value="/gps" />
+
+        <param name="imu_topic"
+               value="/imu" />
+
+        <param name="ctrl_topic"
+               value="/ctrl_cmd" />
+
+        <param name="utm_zone"
+               value="52" />
+
+        <param name="wheelbase"
+               value="2.7" />
+
+        <param name="lookahead_distance"
+               value="5.0" />
+
+        <param name="target_speed_kmh"
+               value="20.0" />
+
+        <param name="max_steering_rad"
+               value="0.5" />
+
+        <param name="steering_sign"
+               value="1.0" />
+
+        <param name="goal_tolerance"
+               value="2.0" />
+
+        <param name="control_rate"
+               value="20.0" />
+
+    </node>
+
+</launch>

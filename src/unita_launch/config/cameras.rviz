@@ -1,0 +1,50 @@
+Panels:
+- Class: rviz/Displays
+  Name: Displays
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Name: root
+  Global Options:
+    Fixed Frame: map
+    Background Color: 32; 32; 32
+    Frame Rate: 30
+  Displays:
+  - Class: rviz/Image
+    Name: Front camera
+    Enabled: true
+    Image Topic: /camera/image/front
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Left camera
+    Enabled: true
+    Image Topic: /camera/image/left
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Right camera
+    Enabled: true
+    Image Topic: /camera/image/right
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Rear camera
+    Enabled: true
+    Image Topic: /camera/image/rear
+    Transport Hint: raw
+    Queue Size: 1
+  Tools:
+  - Class: rviz/Interact
+  - Class: rviz/MoveCamera
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Name: Current View
+      Target Frame: <Fixed Frame>
+    Saved: []
+Window Geometry:
+  Width: 1400
+  Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: false

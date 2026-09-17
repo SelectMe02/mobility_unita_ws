@@ -1,0 +1,22 @@
+<launch>
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="morai_port" default="9093"/>
+  <arg name="status_port" default="9092"/>
+  <arg name="mode_source" default="service"/>
+  <arg name="max_steering_deg" default="36.25"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+  <arg name="waypoint_format" default="local_xy"/>
+  <arg name="loop_path" default="true"/>
+  <include file="$(find unita_waypoint)/launch/gps_waypoint.launch">
+    <arg name="waypoint_file" value="$(arg waypoint_file)"/>
+    <arg name="waypoint_format" value="$(arg waypoint_format)"/>
+    <arg name="loop_path" value="$(arg loop_path)"/>
+  </include>
+  <include file="$(find control)/launch/morai_udp_control.launch">
+    <arg name="morai_ip" value="$(arg morai_ip)"/>
+    <arg name="morai_port" value="$(arg morai_port)"/>
+    <arg name="status_port" value="$(arg status_port)"/>
+    <arg name="mode_source" value="$(arg mode_source)"/>
+    <arg name="max_steering_deg" value="$(arg max_steering_deg)"/>
+  </include>
+</launch>

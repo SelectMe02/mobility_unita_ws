@@ -1,0 +1,94 @@
+Panels:
+- Class: rviz/Displays
+  Name: Displays
+- Class: rviz/Views
+  Name: Views
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Name: root
+  Global Options:
+    Fixed Frame: map
+    Background Color: 32; 32; 32
+    Frame Rate: 30
+  Displays:
+  - Class: rviz/Grid
+    Name: Grid (1 m)
+    Enabled: true
+    Cell Size: 1
+    Plane Cell Count: 200
+    Reference Frame: <Fixed Frame>
+    Color: 80; 80; 80
+    Alpha: 0.3
+  - Class: rviz/Path
+    Name: Reference (cyan)
+    Enabled: true
+    Topic: /waypoint_debug/reference
+    Color: 0; 220; 255
+    Alpha: 1
+    Buffer Length: 1
+    Line Style: Billboards
+    Line Width: 0.18
+    Pose Style: None
+  - Class: rviz/Path
+    Name: Actual trajectory (orange)
+    Enabled: true
+    Topic: /waypoint_debug/trajectory
+    Color: 255; 150; 0
+    Alpha: 1
+    Buffer Length: 1
+    Line Style: Billboards
+    Line Width: 0.12
+    Pose Style: None
+  - Class: rviz/MarkerArray
+    Name: Vehicle and errors
+    Enabled: true
+    Marker Topic: /waypoint_debug/markers
+    Queue Size: 10
+    Namespaces: {}
+  - Class: rviz/Image
+    Name: Front camera
+    Enabled: true
+    Image Topic: /camera/image/front
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Left camera
+    Enabled: true
+    Image Topic: /camera/image/left
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Right camera
+    Enabled: true
+    Image Topic: /camera/image/right
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Rear camera
+    Enabled: true
+    Image Topic: /camera/image/rear
+    Transport Hint: raw
+    Queue Size: 1
+  Tools:
+  - Class: rviz/Interact
+  - Class: rviz/MoveCamera
+  - Class: rviz/Select
+  - Class: rviz/FocusCamera
+  - Class: rviz/Measure
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: Current View
+      Target Frame: <Fixed Frame>
+      Scale: 15
+      Angle: 0
+      X: -131.69
+      Y: -428.33
+      Near Clip Distance: 0.01
+    Saved: []
+Window Geometry:
+  Width: 1400
+  Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: false

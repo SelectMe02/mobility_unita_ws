@@ -1,0 +1,19 @@
+<launch>
+  <!-- Starts the existing driving controller; sensor_bridge runs separately. -->
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+  <arg name="waypoint_format" default="local_xy"/>
+  <arg name="loop_path" default="true"/>
+  <arg name="start_localization" default="true"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="localization_config" default="$(find localization)/config/gps_imu.yaml"/>
+  <include file="$(find unita_waypoint)/launch/gps_waypoint.launch">
+    <arg name="waypoint_file" value="$(arg waypoint_file)"/>
+    <arg name="waypoint_format" value="$(arg waypoint_format)"/>
+    <arg name="loop_path" value="$(arg loop_path)"/>
+  </include>
+  <include file="$(find unita_launch)/launch/waypoint_visualization.launch">
+    <arg name="start_localization" value="$(arg start_localization)"/>
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+    <arg name="localization_config" value="$(arg localization_config)"/>
+  </include>
+</launch>

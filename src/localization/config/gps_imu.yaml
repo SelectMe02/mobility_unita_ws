@@ -1,0 +1,15 @@
+gps_topic: /gps
+imu_topic: /imu
+pose_topic: /localization/pose
+valid_topic: /localization/valid
+utm_zone: 52
+utm_south: false
+map_frame: map
+base_frame: base_link
+publish_rate: 20.0
+sensor_timeout: 1.0
+max_sensor_skew: 0.2
+# Bridge GPSMessage.status is NMEA GGA fix quality: 0 means no fix.
+require_gps_fix: true
+# Radians added to IMU yaw; assumes axes aligned with the MORAI map.
+yaw_offset: 0.0

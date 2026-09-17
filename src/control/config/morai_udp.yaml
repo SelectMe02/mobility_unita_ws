@@ -1,0 +1,17 @@
+ctrl_topic: /ctrl_cmd
+gps_topic: /gps
+imu_topic: /imu
+send_rate: 20.0
+command_timeout: 0.5
+sensor_timeout: 1.0
+max_speed_kmh: 30.0
+steering_sign: 1.0
+bind_ip: 0.0.0.0
+# Optional fixed source port. 0 lets the OS choose an available port.
+local_port: 0
+# Default: query existing ROS Service; vehicle commands still use UDP.
+mode_source: service
+mode_service: /Service_MoraiEventCmd
+# Only used for mode_source:=udp (optional dedicated Ego Vehicle Status).
+status_port: 9092
+status_timeout: 0.3

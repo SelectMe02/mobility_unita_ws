@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.0.2)
+project(localization)
+find_package(catkin REQUIRED COMPONENTS geometry_msgs morai_msgs rospy sensor_msgs std_msgs tf2_ros)
+catkin_python_setup()
+catkin_package(CATKIN_DEPENDS geometry_msgs morai_msgs rospy sensor_msgs std_msgs tf2_ros)
+catkin_install_python(PROGRAMS scripts/gps_imu_localization.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(DIRECTORY config launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(FILES README.md DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/test_estimator.py)
+endif()

@@ -1,0 +1,19 @@
+<launch>
+  <arg name="sensor"/>
+  <arg name="config"/>
+  <arg name="bind_ip" default="0.0.0.0"/>
+  <arg name="source_ip" default=""/>
+  <arg name="use_sensor_stamp" default="false"/>
+  <arg name="east_offset" default="0.0"/>
+  <arg name="north_offset" default="0.0"/>
+  <node pkg="sensor_bridge" type="udp_sensor_bridge.py"
+        name="$(arg sensor)_udp_bridge" output="screen" required="true">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="sensor" value="$(arg sensor)"/>
+    <param name="bind_ip" value="$(arg bind_ip)"/>
+    <param name="source_ip" value="$(arg source_ip)"/>
+    <param name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
+    <param name="east_offset" value="$(arg east_offset)"/>
+    <param name="north_offset" value="$(arg north_offset)"/>
+  </node>
+</launch>

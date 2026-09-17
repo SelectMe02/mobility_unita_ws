@@ -1,0 +1,19 @@
+<launch>
+  <arg name="config" default="$(find control)/config/morai_udp.yaml"/>
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="morai_port" default="9093"/>
+  <arg name="status_port" default="9092"/>
+  <arg name="mode_source" default="service"/>
+  <arg name="gear" default="4"/>
+  <!-- MORAI manual examples: Niro/Ioniq=36.25 deg. Match actual vehicle. -->
+  <arg name="max_steering_deg" default="36.25"/>
+  <node pkg="control" type="morai_udp_control.py" name="morai_udp_control" output="screen" required="true">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="morai_ip" value="$(arg morai_ip)"/>
+    <param name="morai_port" value="$(arg morai_port)"/>
+    <param name="status_port" value="$(arg status_port)"/>
+    <param name="mode_source" value="$(arg mode_source)"/>
+    <param name="gear" value="$(arg gear)"/>
+    <param name="max_steering_deg" value="$(arg max_steering_deg)"/>
+  </node>
+</launch>
