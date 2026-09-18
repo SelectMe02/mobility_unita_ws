@@ -1,5 +1,14 @@
 # control — MORAI UDP 차량 제어
 
+대회에서 SIM 통신 전체를 UDP로 요구하면 별도
+`unita_launch/competition_udp_tracking.launch`를 사용합니다.
+새 `scripts/competition_udp_control.py`는 ROS Bridge/모드 조회 없이
+공식 예제의 AutoMode=2를 UDP 요청하고, EgoStatus UDP를 수신합니다.
+기존 아래 ROS 서비스 기반 동작은 그대로 유지합니다.
+GPS + EgoStatus heading이 기본 입력이며 실제 IMU는 옵션입니다.
+실행·GUI 포트·중지 방법은 [대회용 UDP 전용 주행](../unita_launch/README.md#대회용-udp-전용-주행)을
+참고하세요. 새 packet encoder는 기존 encoder의 검증/조향 정규화를 재사용합니다.
+
 `/ctrl_cmd` (`morai_msgs/CtrlCmd`)를 받아 MORAI **Ego Ctrl Cmd** 55-byte UDP
 패킷으로 변환하고 SIM의 Cmd Control 수신 주소로 20 Hz 송신합니다.
 기존 waypoint follower의 `/ctrl_cmd`를 사용하며 센서 UDP와 차량 제어 UDP는 별개입니다.

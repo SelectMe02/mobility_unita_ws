@@ -4,6 +4,11 @@ ROS1 Noetic용 MORAI 센서 UDP 브릿지, GPS/IMU localization, waypoint 주행
 RViz 시각화 워크스페이스입니다. MORAI 메시지는 별도 `catkin_ws`에서 먼저
 빌드한 다음 이 워크스페이스를 overlay로 빌드합니다.
 
+현장 규정에서 ROS Bridge를 허용하지 않으면
+[대회용 UDP 전용 주행](src/unita_launch/README.md#대회용-udp-전용-주행)의
+`competition_udp_tracking.launch`를 사용합니다. 아래 기존 로컬/ROS 서비스
+구성과 별도로 유지하며, Manual에서도 UDP AutoMode를 요청합니다.
+
 처음 내려받을 때 워크스페이스 폴더 이름을 아래처럼 지정합니다.
 
 ```bash

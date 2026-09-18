@@ -1,0 +1,66 @@
+<launch>
+  <!-- Separate competition entrypoint: no rosbridge or MORAI ROS service. -->
+  <arg name="morai_ip"/>
+  <arg name="morai_port" default="9093"/>
+  <arg name="status_port" default="9092"/>
+  <arg name="heading_source" default="ego_status"/>
+  <arg name="heading_topic" default="$(eval '/competition/heading_imu' if arg('heading_source') == 'ego_status' else '/imu')"/>
+  <arg name="start_sensor_bridge" default="true"/>
+  <arg name="enable_imu" default="$(eval arg('heading_source') == 'imu')"/>
+  <arg name="enable_rear_camera" default="true"/>
+  <arg name="enable_lidar" default="true"/>
+  <arg name="lidar_launch" default="VLP16_points.launch"/>
+  <arg name="lidar_rpm" default="600"/>
+  <arg name="east_offset" default="302595"/>
+  <arg name="north_offset" default="4124145"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+  <arg name="waypoint_format" default="local_xy"/>
+  <arg name="loop_path" default="true"/>
+  <arg name="target_speed_kmh" default="25.0"/>
+  <arg name="wheelbase" default="2.7"/>
+  <arg name="lookahead_distance" default="5.0"/>
+  <arg name="steering_sign" default="1.0"/>
+  <arg name="max_steering_deg" default="36.25"/>
+  <arg name="ego_yaw_offset_deg" default="0.0"/>
+  <arg name="start_rviz" default="true"/>
+  <include if="$(arg start_sensor_bridge)" file="$(find sensor_bridge)/launch/sensor_bridge.launch">
+    <arg name="source_ip" value="$(arg morai_ip)"/>
+    <arg name="east_offset" value="$(arg east_offset)"/>
+    <arg name="north_offset" value="$(arg north_offset)"/>
+    <arg name="enable_imu" value="$(arg enable_imu)"/>
+    <arg name="enable_rear_camera" value="$(arg enable_rear_camera)"/>
+    <arg name="enable_lidar" value="$(arg enable_lidar)"/>
+    <arg name="lidar_launch" value="$(arg lidar_launch)"/>
+    <arg name="lidar_rpm" value="$(arg lidar_rpm)"/>
+  </include>
+  <!-- Reuse the original Pure Pursuit without changing its algorithm. -->
+  <node pkg="unita_waypoint" type="gps_waypoint_follower.py" name="gps_waypoint_follower" output="screen">
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <param name="waypoint_format" value="$(arg waypoint_format)"/>
+    <param name="loop_path" value="$(arg loop_path)"/>
+    <param name="gps_topic" value="/gps"/>
+    <param name="imu_topic" value="$(arg heading_topic)"/>
+    <param name="ctrl_topic" value="/ctrl_cmd"/>
+    <param name="target_speed_kmh" value="$(arg target_speed_kmh)"/>
+    <param name="wheelbase" value="$(arg wheelbase)"/>
+    <param name="lookahead_distance" value="$(arg lookahead_distance)"/>
+    <param name="steering_sign" value="1.0"/>
+  </node>
+  <node pkg="control" type="competition_udp_control.py" name="competition_udp_control" output="screen" required="true">
+    <rosparam command="load" file="$(find control)/config/competition_udp.yaml"/>
+    <param name="morai_ip" value="$(arg morai_ip)"/>
+    <param name="morai_port" value="$(arg morai_port)"/>
+    <param name="status_port" value="$(arg status_port)"/>
+    <param name="heading_source" value="$(arg heading_source)"/>
+    <param name="steering_sign" value="$(arg steering_sign)"/>
+    <param name="max_steering_deg" value="$(arg max_steering_deg)"/>
+    <param name="ego_yaw_offset_deg" value="$(arg ego_yaw_offset_deg)"/>
+  </node>
+  <node pkg="localization" type="gps_imu_localization.py" name="gps_imu_localization" output="screen">
+    <rosparam command="load" file="$(find localization)/config/gps_imu.yaml"/>
+    <param name="imu_topic" value="$(arg heading_topic)"/>
+  </node>
+  <node pkg="unita_launch" type="waypoint_visualizer.py" name="waypoint_visualizer" output="screen"/>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="waypoint_rviz"
+        args="-d $(find unita_launch)/config/waypoint_tracking.rviz"/>
+</launch>

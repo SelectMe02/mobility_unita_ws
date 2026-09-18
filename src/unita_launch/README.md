@@ -3,6 +3,109 @@
 기존 waypoint follower와 GPS+IMU localization을 조합해 기준 경로, 실제 궤적,
 차량 방향과 경로 오차를 표시합니다.
 
+## 대회용 UDP 전용 주행
+
+대회 측에서 ROS Bridge를 허용하지 않는 경우 아래 **별도 entrypoint**를 사용합니다.
+기존 `waypoint_udp_tracking.launch`와 ROS 서비스 기반 코드는 그대로 유지합니다.
+새 launch는 SIM과 GPS/Camera/LiDAR/EgoStatus/CmdControl UDP로만 통신하며,
+우리 Ubuntu 내부의 노드 연결과 RViz에는 ROS를 사용합니다. rosbridge와
+`/Service_MoraiEventCmd`를 실행하거나 조회하지 않습니다. 기존 `field_check`는
+ROS 서비스가 필수인 이전 구성의 진단이므로 UDP 전용 합격 판정용으로 쓰지 않습니다.
+
+공식 [MORAI-NetworkModule CmdControl 예제](https://github.com/MORAI-Autonomous/MORAI-NetworkModule/blob/24.R2.0/EgoNetwork/CmdControl/MoraiCmdController.py)의
+55-byte EgoCtrlCmd를 사용하며 **ctrl_mode=2(AutoMode), gear=4(D)**를 송신합니다.
+기존 송신기의 ctrl_mode=0 유지 및 서비스 mode gate와 달리 Manual 응답이어도
+AutoMode를 요청하므로 Q로 미리 전환하지 않습니다. 해당 대회 SIM이 요청을
+수락했는지는 `/control/sim_mode`와 `/competition/ego_status`로 확인합니다.
+
+IMU의 `No UDP packet`은 IMU 수신 port 9220에 패킷이 오지 않았다는 뜻입니다.
+새 구성은 기본적으로 GPS 위치와 **Ego Vehicle Status UDP의 ENU heading**으로
+주행합니다. heading을 quaternion으로 바꾼 `/competition/heading_imu`는 실제 IMU
+센서 측정이 아니며 orientation만 제공합니다. `/imu`의 수신 문제를 고친 것처럼
+표시하지 않습니다. 기본값에서는 실제 IMU 수신기를 시작하지 않습니다.
+
+### Windows SIM 설정
+
+현재 현장 IP는 Windows `192.168.0.1`, Ubuntu `192.168.0.10`입니다.
+
+| 항목 | 설정 |
+| --- | --- |
+| Cmd Control | UDP, Windows Host IP `192.168.0.1`, Host 수신 port `9093`, Connect ON |
+| Publisher / Ego Vehicle Status (MoraiInfoPublisher) | UDP, Destination IP `192.168.0.10`, Destination port **9092**, Connect ON |
+| GPS | UDP, Host port 9130, Destination `192.168.0.10:9230`, Connect ON |
+| Camera Front/Left/Right | UDP, Host 9101/9102/9103, Destination `192.168.0.10:9201/9202/9203`, Connect ON |
+| LiDAR | UDP, Host 9110, Destination `192.168.0.10:9210`, Connect ON |
+| Subscriber / Service | 대회 규정에 따라 UDP 선택; 이 주행은 이들 항목의 명령/응답을 사용하지 않음 |
+
+EgoStatus의 Host port는 SIM 측 설정을 유지하고 **Destination port만 Ubuntu의
+`status_port`와 맞춥니다**. 9092가 대회 고정값이라는 뜻은 아닙니다. 현장 지정 포트가
+다르면 SIM Destination port와 launch `status_port`를 같은 값으로 바꿉니다.
+Cmd Control 역시 실제 Host 수신 port가 다르면 `morai_port`를 바꿉니다.
+현재 decoder는 공식 23.R1+의 181-byte 및 24.R2.0의 229-byte 상태 패킷을 지원합니다.
+
+### 실행
+
+기존 주행 launch와 sensor_bridge/field_check launch를 Ctrl+C로 종료합니다.
+동일 UDP port 수신기 및 `/ctrl_cmd` 송신기를 중복 실행하지 않습니다. 기존 rosbridge도
+종료해 SIM ROS 연결을 사용하지 않습니다. 기존 roscore가 있으면 그대로 유지합니다.
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+source ~/unita_ws/devel/setup.bash
+unset ROS_HOSTNAME
+export ROS_IP=192.168.0.10
+export ROS_MASTER_URI=http://localhost:11311
+
+roslaunch unita_launch competition_udp_tracking.launch \
+  morai_ip:=192.168.0.1 morai_port:=9093 status_port:=9092 \
+  east_offset:=302595 north_offset:=4124145
+```
+
+이 offsets는 현재 K-city waypoint용입니다. 다른 map이면 실제 값을 지정합니다.
+위 launch 하나가 sensor_bridge, waypoint follower, UDP 제어, localization,
+visualizer, RViz를 실행합니다. 별도로 sensor_bridge를 실행할 필요가 없습니다.
+기본 속도는 최초 확인용 **10 km/h**, 경로는 무한 반복입니다.
+확인 후 `target_speed_kmh:=20` 등으로 변경합니다.
+
+### 확인과 종료
+
+```bash
+rostopic echo /control/udp_status
+rostopic echo /competition/ego_status
+rostopic echo /control/sim_mode
+rostopic echo /localization/valid
+rostopic hz /competition/heading_imu
+rostopic hz /localization/pose
+```
+
+정상 상태는 `SENDING`, 실제 UDP mode `2`, localization valid `true`입니다.
+`SENDING`은 로컬 송신 성공이며 SIM 수신 ACK는 아닙니다.
+`BRAKE: missing/stale/frozen Ego UDP status`이면 Publisher의 Connect, Destination
+IP/port를 확인합니다. GPS 또는 heading/IMU가 무효하거나 오래됐거나 command가
+오래된 경우에도 속도·조향 대신 full brake를 송신합니다. 같은 timestamp의 패킷을
+재송신해도 계속 주행하지 않습니다. SIM timestamp는 Sync Mode에서 다른 clock일 수
+있으므로 heading은 수신 시각으로 ROS stamp를 만들고 source timestamp 진행과
+wall timeout도 검사합니다.
+
+AutoMode를 반복 요청하므로 실행 중 Q만으로 Manual에 복귀하는 방식은 사용하지
+않습니다. 수동 복귀는 launch를 Ctrl+C로 종료합니다. 종료 시 제동과 Keyboard
+mode=1을 UDP로 송신합니다. launch를 유지하면서 중지/수동 복귀할 때는
+**Ubuntu 내부만 사용하는** 서비스를 이용할 수 있습니다(SIM ROS Service 불필요).
+
+```bash
+rosservice call /competition_udp_control/set_enabled "data: false"
+# 재개
+rosservice call /competition_udp_control/set_enabled "data: true"
+```
+
+실제 IMU sensor를 쓰려면 `heading_source:=imu`를 추가합니다. 이때 IMU UDP
+Host 9120 → Destination `192.168.0.10:9220`을 Connect ON으로 설정합니다.
+EgoStatus UDP는 실제 상태 확인과 freshness 판정을 위해 계속 필요합니다.
+차량 모델이 바뀌면 `wheelbase`, `max_steering_deg`를 실제 차량 설정과 맞춥니다.
+조향은 기존 부호를 유지합니다. 실제 반전이 확인된 경우에만 `steering_sign:=-1`을
+UDP 변환 측에 적용할 수 있습니다. follower 측은 항상 +1로 이중 반전을 피합니다.
+
 ## Field Check / 5분 현장점검 절차
 
 현장에서는 Windows MORAI Client PC와 Ubuntu Algorithm PC를 Ethernet LAN으로

@@ -51,6 +51,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>morai_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
   <exec_depend>roslaunch</exec_depend>
   <exec_depend>unita_waypoint</exec_depend>
   <test_depend>python3-nose</test_depend>
