@@ -1,0 +1,45 @@
+# Checkpoints supplied for 25.S4.MolitComp03.  XY is MORAI map-local meters.
+checkpoints:
+  - {id: start_end, x: -131.68979755061446, y: -428.3310229377821, z: 28.543960281954277, yaw_deg: 61.298126221}
+  - {id: 1, x: -96.34194502758328, y: -364.8851077128202, z: 28.53881740888334, yaw_deg: 64.052734375}
+  - {id: 2, x: -104.71588468790287, y: -275.14425209118053, z: 28.48829083410744, yaw_deg: 60.959838867}
+  - {id: 3, x: -79.9685367429629, y: -230.3942881319672, z: 28.401036010337744, yaw_deg: 61.097732543}
+  - {id: 4, x: -59.88466601172695, y: -124.55752767482772, z: 28.380910298729233, yaw_deg: 90.095718383}
+  - {id: 5, x: -60.34860723745078, y: -0.21668933285400271, z: 28.383039161118077, yaw_deg: 90.321304321}
+  - {id: 6, x: -41.70069433480967, y: 98.73265545303002, z: 28.358756220677893, yaw_deg: 0.456359863}
+  - {id: 7, x: 2.9027890474535525, y: 114.94218392064795, z: 28.430466193056173, yaw_deg: 91.440628051}
+  - {id: 8, x: -99.44168814341538, y: 291.20583281712607, z: 28.379763120717023, yaw_deg: 90.260665893}
+  - {id: 9, x: -65.32824593910482, y: 342.2530235303566, z: 28.484, yaw_deg: 3.828613281}
+  - {id: 10, x: 62.073913682601415, y: 256.4949275725521, z: 28.268789437406806, yaw_deg: -89.012939453}
+  - {id: 11, x: 66.88496106746607, y: 89.19790052389726, z: 28.29935643790693, yaw_deg: -89.312222534}
+  - {id: 12, x: 75.41420370276319, y: -217.855053961277, z: 28.382283640697267, yaw_deg: -94.612335205}
+  - {id: 13, x: 70.21414883446414, y: -365.74847655789927, z: 28.301585314776467, yaw_deg: -90.049835205}
+  - {id: 14, x: 43.761510782991536, y: -476.41094469698146, z: 28.294397987369784, yaw_deg: -137.400207519}
+  - {id: 15, x: -74.86074459552765, y: -544.5780326710083, z: 28.429146234972457, yaw_deg: -153.528732299}
+
+normal_max_speed_kmh: 60.0
+high_speed_max_speed_kmh: 100.0
+high_speed_start_checkpoint: 10
+high_speed_end_checkpoint: 13
+checkpoint_match_tolerance: 1.0
+
+# The reference code looks about 50 samples ahead/behind and uses
+# v=sqrt(radius*9.8*friction).  This 0.5 m path uses the equivalent 25 m
+# window; 2.94 m/s^2 corresponds to an effective friction coefficient 0.30.
+curvature_window_m: 25.0
+lateral_accel_limit: 2.94
+min_curve_speed_kmh: 25.0
+max_profile_accel_mps2: 2.0
+max_profile_decel_mps2: 3.5
+
+# Speed-proportional Pure Pursuit look-ahead: Ld = gain * speed(m/s).
+min_lookahead_distance: 5.0
+max_lookahead_distance: 30.0
+lookahead_speed_gain: 0.78
+
+# Gains act on km/h error and produce normalized MORAI accel/brake (0..1).
+pid_kp: 0.08
+pid_ki: 0.002
+pid_kd: 0.01
+pid_integral_limit: 20.0
+speed_feedback_timeout: 0.5

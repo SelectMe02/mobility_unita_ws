@@ -4,6 +4,7 @@
 import math
 import os
 import re
+import time
 
 import rospy
 
@@ -11,9 +12,130 @@ from pyproj import Proj
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import Float64, String
 from tf.transformations import euler_from_quaternion
 
 from morai_msgs.msg import GPSMessage, CtrlCmd
+
+
+def clamp(value, lower, upper):
+    return max(lower, min(upper, value))
+
+
+class PIDController:
+    """PID with bounded integral/output for MORAI's normalized pedals."""
+
+    def __init__(self, kp, ki, kd, integral_limit=20.0, output_limit=1.0):
+        values = (kp, ki, kd, integral_limit, output_limit)
+        if (not all(math.isfinite(value) for value in values)
+                or min(kp, ki, kd) < 0.0
+                or integral_limit <= 0.0 or output_limit <= 0.0):
+            raise ValueError("invalid PID gains or limits")
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.integral_limit = integral_limit
+        self.output_limit = output_limit
+        self.integral = 0.0
+        self.previous_error = None
+
+    def reset(self):
+        self.integral = 0.0
+        self.previous_error = None
+
+    def update(self, target, current, dt):
+        if not all(math.isfinite(value) for value in (target, current, dt)):
+            raise ValueError("PID input must be finite")
+        dt = clamp(dt, 1e-3, 0.2)
+        error = target - current
+        derivative = (0.0 if self.previous_error is None
+                      else (error - self.previous_error) / dt)
+        candidate = clamp(self.integral + error * dt,
+                          -self.integral_limit, self.integral_limit)
+        unclamped = self.kp * error + self.ki * candidate + self.kd * derivative
+        output = clamp(unclamped, -self.output_limit, self.output_limit)
+        # Anti-windup: integrate while unsaturated or while unwinding saturation.
+        if (output == unclamped
+                or (output > 0.0 and error < 0.0)
+                or (output < 0.0 and error > 0.0)):
+            self.integral = candidate
+        self.previous_error = error
+        return output
+
+
+def three_point_curvature(first, middle, last):
+    """Absolute curvature (1/m) of the circumcircle through three points."""
+    ab = math.hypot(first[0] - middle[0], first[1] - middle[1])
+    bc = math.hypot(middle[0] - last[0], middle[1] - last[1])
+    ca = math.hypot(last[0] - first[0], last[1] - first[1])
+    if min(ab, bc, ca) <= 1e-6:
+        return 0.0
+    twice_area = abs((middle[0] - first[0]) * (last[1] - first[1])
+                     - (middle[1] - first[1]) * (last[0] - first[0]))
+    return 2.0 * twice_area / (ab * bc * ca)
+
+
+def build_curvature_speed_profile(points, speed_limits_kmh, loop_path,
+                                  curvature_window_m, lateral_accel_limit,
+                                  min_curve_speed_kmh, max_accel, max_decel):
+    """Plan speed from path curvature, then add acceleration/braking envelopes."""
+    count = len(points)
+    if count < 3 or len(speed_limits_kmh) != count:
+        raise ValueError("speed profile requires matching path and limit arrays")
+    segment_lengths = [math.hypot(points[i + 1][0] - points[i][0],
+                                  points[i + 1][1] - points[i][1])
+                       for i in range(count - 1)]
+    if loop_path:
+        segment_lengths.append(math.hypot(points[0][0] - points[-1][0],
+                                          points[0][1] - points[-1][1]))
+    positive = [length for length in segment_lengths if length > 1e-6]
+    if not positive:
+        raise ValueError("waypoint path has no length")
+    mean_spacing = sum(positive) / len(positive)
+    span = max(1, int(round(curvature_window_m / mean_spacing)))
+    span = min(span, max(1, (count - 1) // 2))
+
+    curvatures = []
+    raw_speed_mps = []
+    for index in range(count):
+        if loop_path:
+            previous = points[(index - span) % count]
+            following = points[(index + span) % count]
+        else:
+            previous = points[max(0, index - span)]
+            following = points[min(count - 1, index + span)]
+        curvature = three_point_curvature(previous, points[index], following)
+        curvatures.append(curvature)
+        curve_speed_kmh = math.sqrt(
+            lateral_accel_limit / max(curvature, 1e-6)) * 3.6
+        planned_kmh = max(min_curve_speed_kmh,
+                          min(speed_limits_kmh[index], curve_speed_kmh))
+        raw_speed_mps.append(planned_kmh / 3.6)
+
+    speeds = list(raw_speed_mps)
+    # Multiple circular passes make the start/end boundary obey the same
+    # acceleration and braking constraints as the rest of a loop.
+    passes = 3 if loop_path else 1
+    for _ in range(passes):
+        for index in range(count):
+            if index == 0 and not loop_path:
+                continue
+            previous = (index - 1) % count
+            distance = segment_lengths[previous]
+            speeds[index] = min(
+                speeds[index],
+                math.sqrt(max(0.0, speeds[previous] ** 2
+                                   + 2.0 * max_accel * distance)))
+        for index in range(count - 1, -1, -1):
+            if index == count - 1 and not loop_path:
+                continue
+            following = (index + 1) % count
+            distance = segment_lengths[index]
+            speeds[index] = min(
+                speeds[index],
+                math.sqrt(max(0.0, speeds[following] ** 2
+                                   + 2.0 * max_decel * distance)))
+    return [speed * 3.6 for speed in speeds], curvatures
 
 
 class GPSWaypointFollower:
@@ -103,6 +225,67 @@ class GPSWaypointFollower:
                 or self.position_reset_distance <= 0):
             raise ValueError("position_reset_distance must be positive and finite")
 
+        self.enable_velocity_planning = bool(rospy.get_param(
+            "~enable_velocity_planning", False))
+        self.longitudinal_control_mode = rospy.get_param(
+            "~longitudinal_control_mode", "velocity")
+        if self.longitudinal_control_mode not in ("velocity", "pid"):
+            raise ValueError("longitudinal_control_mode must be velocity or pid")
+        self.speed_topic = rospy.get_param(
+            "~speed_topic", "/competition/ego_speed_kmh")
+        self.speed_feedback_timeout = float(rospy.get_param(
+            "~speed_feedback_timeout", 0.5))
+        self.min_lookahead_distance = float(rospy.get_param(
+            "~min_lookahead_distance", self.lookahead_distance))
+        self.max_lookahead_distance = float(rospy.get_param(
+            "~max_lookahead_distance", self.lookahead_distance))
+        self.lookahead_speed_gain = float(rospy.get_param(
+            "~lookahead_speed_gain", 0.0))
+
+        self.normal_max_speed_kmh = float(rospy.get_param(
+            "~normal_max_speed_kmh", self.target_speed_kmh))
+        self.high_speed_max_speed_kmh = float(rospy.get_param(
+            "~high_speed_max_speed_kmh", self.normal_max_speed_kmh))
+        self.high_speed_start_checkpoint = rospy.get_param(
+            "~high_speed_start_checkpoint", 10)
+        self.high_speed_end_checkpoint = rospy.get_param(
+            "~high_speed_end_checkpoint", 13)
+        self.checkpoint_match_tolerance = float(rospy.get_param(
+            "~checkpoint_match_tolerance", 1.0))
+        self.checkpoints = rospy.get_param("~checkpoints", [])
+        self.curvature_window_m = float(rospy.get_param(
+            "~curvature_window_m", 25.0))
+        self.lateral_accel_limit = float(rospy.get_param(
+            "~lateral_accel_limit", 2.94))
+        self.min_curve_speed_kmh = float(rospy.get_param(
+            "~min_curve_speed_kmh", 25.0))
+        self.max_profile_accel = float(rospy.get_param(
+            "~max_profile_accel_mps2", 2.0))
+        self.max_profile_decel = float(rospy.get_param(
+            "~max_profile_decel_mps2", 3.5))
+
+        positive_parameters = (
+            self.speed_feedback_timeout, self.min_lookahead_distance,
+            self.max_lookahead_distance, self.normal_max_speed_kmh,
+            self.high_speed_max_speed_kmh, self.checkpoint_match_tolerance,
+            self.curvature_window_m, self.lateral_accel_limit,
+            self.min_curve_speed_kmh, self.max_profile_accel,
+            self.max_profile_decel)
+        if (not all(math.isfinite(value) and value > 0.0
+                    for value in positive_parameters)
+                or not math.isfinite(self.lookahead_speed_gain)
+                or self.lookahead_speed_gain < 0.0
+                or self.min_lookahead_distance > self.max_lookahead_distance
+                or self.normal_max_speed_kmh > self.high_speed_max_speed_kmh
+                or self.min_curve_speed_kmh > self.normal_max_speed_kmh):
+            raise ValueError("invalid velocity planning/look-ahead parameters")
+
+        self.speed_pid = PIDController(
+            float(rospy.get_param("~pid_kp", 0.08)),
+            float(rospy.get_param("~pid_ki", 0.002)),
+            float(rospy.get_param("~pid_kd", 0.01)),
+            float(rospy.get_param("~pid_integral_limit", 20.0)))
+
         # ============================================================
         # State
         # ============================================================
@@ -121,6 +304,12 @@ class GPSWaypointFollower:
         self.current_waypoint_index = 0
         self.first_nearest_search = True
         self.last_tracking_position = None
+        self.current_speed_kmh = None
+        self.last_speed_received = None
+        self.last_pid_update = None
+        self.speed_profile = []
+        self.path_curvatures = []
+        self.checkpoint_indices = {}
 
         # raw waypoint:
         # latlon -> [(lat, lon), ...]
@@ -158,6 +347,14 @@ class GPSWaypointFollower:
             queue_size=1,
             latch=True
         )
+        self.target_speed_pub = rospy.Publisher(
+            "/waypoint_debug/target_speed_kmh", Float64, queue_size=1)
+        self.current_speed_pub = rospy.Publisher(
+            "/waypoint_debug/current_speed_kmh", Float64, queue_size=1)
+        self.curvature_pub = rospy.Publisher(
+            "/waypoint_debug/path_curvature", Float64, queue_size=1)
+        self.speed_zone_pub = rospy.Publisher(
+            "/waypoint_debug/speed_zone", String, queue_size=1)
 
         rospy.Subscriber(
             self.gps_topic,
@@ -165,6 +362,14 @@ class GPSWaypointFollower:
             self.gps_callback,
             queue_size=1
         )
+
+        if self.longitudinal_control_mode == "pid":
+            rospy.Subscriber(
+                self.speed_topic,
+                Float64,
+                self.speed_callback,
+                queue_size=1
+            )
 
         rospy.Subscriber(
             self.imu_topic,
@@ -183,6 +388,7 @@ class GPSWaypointFollower:
         if self.waypoint_format == "local_xy":
             self.waypoints = list(self.raw_waypoints)
             self.path_ready = True
+            self.prepare_velocity_profile()
             self.publish_path()
 
         rospy.loginfo("======================================")
@@ -192,10 +398,19 @@ class GPSWaypointFollower:
         rospy.loginfo(" CTRL topic     : %s", self.ctrl_topic)
         rospy.loginfo(" waypoint file  : %s", self.waypoint_file)
         rospy.loginfo(" waypoint type  : %s", self.waypoint_format)
-        rospy.loginfo(" target speed   : %.1f km/h",
-                      self.target_speed_kmh)
-        rospy.loginfo(" lookahead      : %.2f m",
-                      self.lookahead_distance)
+        if self.enable_velocity_planning:
+            rospy.loginfo(" speed limits   : normal %.1f / CP %s-%s %.1f km/h",
+                          self.normal_max_speed_kmh,
+                          self.high_speed_start_checkpoint,
+                          self.high_speed_end_checkpoint,
+                          self.high_speed_max_speed_kmh)
+        else:
+            rospy.loginfo(" target speed   : %.1f km/h", self.target_speed_kmh)
+        rospy.loginfo(" longitudinal   : %s", self.longitudinal_control_mode)
+        rospy.loginfo(" lookahead      : %.2f..%.2f m (gain %.2f)",
+                      self.min_lookahead_distance,
+                      self.max_lookahead_distance,
+                      self.lookahead_speed_gain)
         rospy.loginfo(" loop path      : %s", self.loop_path)
         rospy.loginfo("======================================")
 
@@ -330,6 +545,17 @@ class GPSWaypointFollower:
         self.current_yaw = yaw
         self.imu_ready = True
 
+    def speed_callback(self, msg):
+        if math.isfinite(msg.data) and msg.data >= 0.0:
+            self.current_speed_kmh = msg.data
+            self.last_speed_received = time.monotonic()
+
+    def speed_feedback_is_fresh(self):
+        return (self.current_speed_kmh is not None
+                and self.last_speed_received is not None
+                and 0.0 <= time.monotonic() - self.last_speed_received
+                <= self.speed_feedback_timeout)
+
     # ================================================================
     # Lat/Lon waypoint -> MORAI local xy
     # ================================================================
@@ -356,6 +582,7 @@ class GPSWaypointFollower:
 
         self.waypoints = local_points
         self.path_ready = True
+        self.prepare_velocity_profile()
 
         rospy.loginfo(
             "Converted %d GPS waypoints to MORAI local XY",
@@ -363,6 +590,98 @@ class GPSWaypointFollower:
         )
 
         self.publish_path()
+
+    # ================================================================
+    # checkpoint zones / curvature velocity planning
+    # ================================================================
+
+    def prepare_velocity_profile(self):
+        if not self.enable_velocity_planning:
+            self.speed_profile = []
+            self.path_curvatures = []
+            return
+
+        count = self.tracking_waypoint_count()
+        tracking_points = self.waypoints[:count]
+        if not self.checkpoints:
+            raise ValueError("velocity planning requires checkpoint configuration")
+
+        self.checkpoint_indices = {}
+        for checkpoint in self.checkpoints:
+            try:
+                identifier = str(checkpoint["id"])
+                x, y = float(checkpoint["x"]), float(checkpoint["y"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("invalid checkpoint entry: {!r}".format(checkpoint))
+            index, _ = min(
+                enumerate(tracking_points),
+                key=lambda item: math.hypot(item[1][0] - x, item[1][1] - y))
+            distance = math.hypot(tracking_points[index][0] - x,
+                                  tracking_points[index][1] - y)
+            if distance > self.checkpoint_match_tolerance:
+                raise ValueError(
+                    "checkpoint {} is {:.2f} m from waypoint path".format(
+                        identifier, distance))
+            self.checkpoint_indices[identifier] = index
+
+        start_id = str(self.high_speed_start_checkpoint)
+        end_id = str(self.high_speed_end_checkpoint)
+        if start_id not in self.checkpoint_indices or end_id not in self.checkpoint_indices:
+            raise ValueError("high-speed checkpoint IDs are missing")
+        start_index = self.checkpoint_indices[start_id]
+        end_index = self.checkpoint_indices[end_id]
+
+        speed_limits = [self.normal_max_speed_kmh] * count
+        if start_index <= end_index:
+            high_speed_indices = range(start_index, end_index + 1)
+        elif self.loop_path:
+            high_speed_indices = list(range(start_index, count)) + list(
+                range(0, end_index + 1))
+        else:
+            raise ValueError("high-speed zone runs backward on a non-loop path")
+        for index in high_speed_indices:
+            speed_limits[index] = self.high_speed_max_speed_kmh
+
+        self.speed_profile, self.path_curvatures = build_curvature_speed_profile(
+            tracking_points,
+            speed_limits,
+            self.loop_path,
+            self.curvature_window_m,
+            self.lateral_accel_limit,
+            self.min_curve_speed_kmh,
+            self.max_profile_accel,
+            self.max_profile_decel)
+        rospy.loginfo(
+            "Velocity profile ready: CP %s idx=%d -> CP %s idx=%d, "
+            "planned %.1f..%.1f km/h",
+            start_id, start_index, end_id, end_index,
+            min(self.speed_profile), max(self.speed_profile))
+
+    def target_speed_for_index(self, index):
+        if self.enable_velocity_planning and self.speed_profile:
+            return self.speed_profile[index % len(self.speed_profile)]
+        return self.target_speed_kmh
+
+    def speed_zone_for_index(self, index):
+        if not self.enable_velocity_planning or not self.checkpoint_indices:
+            return "constant"
+        start = self.checkpoint_indices[str(self.high_speed_start_checkpoint)]
+        end = self.checkpoint_indices[str(self.high_speed_end_checkpoint)]
+        inside = (start <= index <= end if start <= end
+                  else index >= start or index <= end)
+        return ("high_speed_cp{}_{}".format(
+            self.high_speed_start_checkpoint,
+            self.high_speed_end_checkpoint) if inside else "normal")
+
+    def update_dynamic_lookahead(self):
+        if self.lookahead_speed_gain <= 0.0:
+            return
+        speed_kmh = (self.current_speed_kmh
+                     if self.current_speed_kmh is not None else 0.0)
+        self.lookahead_distance = clamp(
+            self.lookahead_speed_gain * speed_kmh / 3.6,
+            self.min_lookahead_distance,
+            self.max_lookahead_distance)
 
     # ================================================================
     # RViz Path visualization
@@ -542,21 +861,39 @@ class GPSWaypointFollower:
         velocity
     ):
         cmd = CtrlCmd()
-
-        # Velocity control
-        cmd.longlCmdType = 2
-
-        cmd.accel = 0.0
-        cmd.brake = 0.0
-
         cmd.steering = steering
-
-        # km/h
-        cmd.velocity = velocity
-
         cmd.acceleration = 0.0
 
+        if self.longitudinal_control_mode == "pid":
+            now = time.monotonic()
+            dt = (1.0 / self.control_rate if self.last_pid_update is None
+                  else now - self.last_pid_update)
+            self.last_pid_update = now
+            output = self.speed_pid.update(
+                velocity, self.current_speed_kmh, dt)
+            cmd.longlCmdType = 1
+            cmd.velocity = 0.0
+            cmd.accel = max(0.0, output)
+            cmd.brake = max(0.0, -output)
+        else:
+            cmd.longlCmdType = 2
+            cmd.accel = 0.0
+            cmd.brake = 0.0
+            cmd.velocity = velocity
+
         self.ctrl_pub.publish(cmd)
+
+    def publish_full_stop(self):
+        cmd = CtrlCmd()
+        cmd.longlCmdType = 1
+        cmd.accel = 0.0
+        cmd.brake = 1.0
+        cmd.steering = 0.0
+        cmd.velocity = 0.0
+        cmd.acceleration = 0.0
+        self.ctrl_pub.publish(cmd)
+        self.speed_pid.reset()
+        self.last_pid_update = None
 
     # ================================================================
     # main control loop
@@ -584,6 +921,14 @@ class GPSWaypointFollower:
             )
             return
 
+        if (self.longitudinal_control_mode == "pid"
+                and not self.speed_feedback_is_fresh()):
+            self.publish_full_stop()
+            rospy.logwarn_throttle(
+                1.0,
+                "Waiting for fresh vehicle speed on %s" % self.speed_topic)
+            return
+
         # ------------------------------------------------------------
         # nearest waypoint
         # ------------------------------------------------------------
@@ -601,6 +946,8 @@ class GPSWaypointFollower:
 
         self.current_waypoint_index = \
             self.find_nearest_waypoint()
+
+        self.update_dynamic_lookahead()
 
         # ------------------------------------------------------------
         # check final goal
@@ -668,10 +1015,18 @@ class GPSWaypointFollower:
         # MORAI control
         # ------------------------------------------------------------
 
-        self.publish_control(
-            steering,
-            self.target_speed_kmh
-        )
+        target_speed_kmh = self.target_speed_for_index(
+            self.current_waypoint_index)
+        self.publish_control(steering, target_speed_kmh)
+
+        self.target_speed_pub.publish(Float64(data=target_speed_kmh))
+        if self.current_speed_kmh is not None:
+            self.current_speed_pub.publish(Float64(data=self.current_speed_kmh))
+        if self.path_curvatures:
+            self.curvature_pub.publish(Float64(
+                data=self.path_curvatures[self.current_waypoint_index]))
+        self.speed_zone_pub.publish(String(
+            data=self.speed_zone_for_index(self.current_waypoint_index)))
 
         rospy.loginfo_throttle(
             0.5,
@@ -680,7 +1035,7 @@ class GPSWaypointFollower:
                 "pos=(%.2f, %.2f) | "
                 "yaw=%.1f deg | "
                 "steer=%.3f rad | "
-                "speed=%.1f km/h"
+                "target/current=%.1f/%.1f km/h | Ld=%.1f m | zone=%s"
             )
             % (
                 self.current_waypoint_index,
@@ -692,7 +1047,10 @@ class GPSWaypointFollower:
                     self.current_yaw
                 ),
                 steering,
-                self.target_speed_kmh
+                target_speed_kmh,
+                self.current_speed_kmh if self.current_speed_kmh is not None else -1.0,
+                self.lookahead_distance,
+                self.speed_zone_for_index(self.current_waypoint_index)
             )
         )
 

@@ -3,6 +3,60 @@
 기존 waypoint follower와 GPS+IMU localization을 조합해 기준 경로, 실제 궤적,
 차량 방향과 경로 오차를 표시합니다.
 
+## 수동조작용 센서 시각화
+
+`manual_sensor_visualization.launch`는 센서 UDP 수신기와 RViz만 실행합니다.
+`/ctrl_cmd`, waypoint follower, UDP 제어 송신기를 시작하지 않으므로 MORAI 차량은
+키보드 수동조작 상태를 유지합니다. 로컬 SIM에서 전체 센서를 보려면 다음 하나만
+실행합니다. 별도 `sensor_bridge.launch`나 rosbridge는 필요하지 않습니다.
+
+```bash
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+source ~/unita_ws/devel/setup.bash
+roslaunch unita_launch manual_sensor_visualization.launch
+```
+
+대회장처럼 SIM PC가 분리되어 있으면 `morai_ip`만 실제 SIM PC IP로 지정합니다.
+
+```bash
+roslaunch unita_launch manual_sensor_visualization.launch \
+  morai_ip:=192.168.0.1
+```
+
+각 센서를 독립적으로 선택할 수 있습니다. 예를 들어 전방 카메라와 LiDAR만 켜려면:
+
+```bash
+roslaunch unita_launch manual_sensor_visualization.launch \
+  enable_front_camera:=true \
+  enable_left_camera:=false enable_right_camera:=false \
+  enable_rear_camera:=false enable_lidar:=true \
+  enable_gps:=false enable_imu:=false
+```
+
+선택 가능한 인자는 `enable_front_camera`, `enable_left_camera`,
+`enable_right_camera`, `enable_rear_camera`, `enable_lidar`, `enable_gps`,
+`enable_imu`입니다. GPS와 IMU가 모두 켜져 있으면 기본적으로
+`/localization/pose`와 차량 자세도 표시합니다. 둘 중 하나를 끄면 localization은
+자동으로 시작하지 않습니다. 둘 다 수신하되 자세 계산만 끄려면
+`enable_localization:=false`를 지정합니다.
+
+RViz의 Fixed Frame은 `lidar`입니다. 카메라는 각 Image 패널, LiDAR는 중앙의
+`LiDAR 3D`, GPS+IMU 결합 자세는 초록색 `GPS and IMU pose` 화살표로 표시됩니다.
+센서를 끈 경우 해당 RViz 패널에 `No Image` 또는 `No messages`가 보이는 것은
+정상이며 Displays에서 그 항목의 체크를 해제할 수 있습니다.
+
+```bash
+rostopic hz /camera/image/front
+rostopic hz /lidar3D
+rostopic hz /gps
+rostopic hz /imu
+rostopic info /ctrl_cmd
+```
+
+마지막 명령의 Publishers가 `None`이면 이 launch가 차량 제어를 보내지 않는
+상태입니다.
+
 ## 대회용 UDP 전용 주행
 
 대회 측에서 ROS Bridge를 허용하지 않는 경우 아래 **별도 entrypoint**를 사용합니다.
@@ -65,22 +119,55 @@ roslaunch unita_launch competition_udp_tracking.launch \
 이 offsets는 현재 K-city waypoint용입니다. 다른 map이면 실제 값을 지정합니다.
 위 launch 하나가 sensor_bridge, waypoint follower, UDP 제어, localization,
 visualizer, RViz를 실행합니다. 별도로 sensor_bridge를 실행할 필요가 없습니다.
-기본 속도는 최초 확인용 **10 km/h**, 경로는 무한 반복입니다.
-확인 후 `target_speed_kmh:=20` 등으로 변경합니다.
+경로는 무한 반복합니다. 기본 속도 상한은 일반 구간 **60 km/h**, 체크포인트
+10부터 13까지 **100 km/h**입니다. 이 값은 고정 명령 속도가 아니라 상한입니다.
+경로 곡률과 횡가속도 한계로 목표속도를 낮추고, 가속·제동 한계로 속도 프로파일을
+앞뒤 방향으로 평활화하므로 곡선에 도착하기 전에 감속합니다. 실제 속도는 Ego
+Vehicle Status UDP의 `signed_vel`을 `/competition/ego_speed_kmh`로 발행해 PID에
+피드백합니다. Pure Pursuit 전방주시거리는 실제 속도에 따라 5–30 m로 변합니다.
+
+체크포인트와 기본 튜닝값은
+`unita_waypoint/config/competition_speed_profile.yaml`에 있습니다. 실행 시 상한만
+바꾸려면 다음처럼 launch 인자를 사용합니다.
+
+```bash
+roslaunch unita_launch competition_udp_tracking.launch \
+  morai_ip:=192.168.0.1 \
+  normal_max_speed_kmh:=60 high_speed_max_speed_kmh:=100
+```
 
 ### 확인과 종료
 
 ```bash
 rostopic echo /control/udp_status
 rostopic echo /competition/ego_status
+rostopic hz /competition/ego_speed_kmh
 rostopic echo /control/sim_mode
 rostopic echo /localization/valid
 rostopic hz /competition/heading_imu
 rostopic hz /localization/pose
+rostopic echo /waypoint_debug/speed_zone
+rostopic echo /waypoint_debug/target_speed_kmh
 ```
+
+목표속도와 실제속도를 함께 그래프로 보려면 아래 명령을 별도 터미널에서 실행합니다.
+
+```bash
+rqt_plot /waypoint_debug/target_speed_kmh/data \
+  /waypoint_debug/current_speed_kmh/data
+```
+
+`speed_zone`은 일반 구간에서 `normal`, 10–13 구간에서
+`high_speed_cp10_13`입니다. 10번 직후에는 60에서 100으로 즉시 뛰지 않고 설정된
+가속도 한계에 맞춰 상승하며, 13번 전에는 다음 60 km/h 구간과 곡선을 위해 미리
+감속할 수 있습니다. `/ctrl_cmd`는 `longlCmdType: 1`이어야 하며 `accel` 또는
+`brake`가 PID 출력으로 0–1 범위에서 변합니다.
 
 정상 상태는 `SENDING`, 실제 UDP mode `2`, localization valid `true`입니다.
 `SENDING`은 로컬 송신 성공이며 SIM 수신 ACK는 아닙니다.
+첫 유효 상태를 받기 전 `PAUSED: waiting for first valid Ego UDP status`이면 제어
+패킷을 전혀 보내지 않으므로 SIM의 I/Q 키를 사용할 수 있습니다. Publisher의 Connect,
+Destination IP/port를 확인합니다. 한 번 주행을 시작한 뒤
 `BRAKE: missing/stale/frozen Ego UDP status`이면 Publisher의 Connect, Destination
 IP/port를 확인합니다. GPS 또는 heading/IMU가 무효하거나 오래됐거나 command가
 오래된 경우에도 속도·조향 대신 full brake를 송신합니다. 같은 timestamp의 패킷을

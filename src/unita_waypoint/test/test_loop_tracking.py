@@ -2,7 +2,9 @@ import importlib.util
 import math
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import yaml
 
 
 PACKAGE = Path(__file__).resolve().parents[1]
@@ -30,6 +32,17 @@ class LoopTrackingTests(unittest.TestCase):
         obj.steering_sign = 1.0
         obj.max_steering_rad = 0.5
         obj.target_speed_kmh = 20.0
+        obj.enable_velocity_planning = False
+        obj.longitudinal_control_mode = "velocity"
+        obj.lookahead_speed_gain = 0.0
+        obj.current_speed_kmh = None
+        obj.speed_profile = []
+        obj.path_curvatures = []
+        obj.checkpoint_indices = {}
+        obj.target_speed_pub = MagicMock()
+        obj.current_speed_pub = MagicMock()
+        obj.curvature_pub = MagicMock()
+        obj.speed_zone_pub = MagicMock()
         obj.commands = []
         obj.publish_control = lambda steering, velocity: obj.commands.append(
             (steering, velocity))
@@ -126,6 +139,77 @@ class LoopTrackingTests(unittest.TestCase):
         obj = self.follower([(0.0, 0.0), (-10.0, 0.0), (0.0, 0.0)])
         self.run_loop(obj)
         self.assertEqual(obj.commands[-1], (0.0, 0.0))
+
+    def test_pid_accelerates_brakes_and_clamps_pedals(self):
+        pid = module.PIDController(0.08, 0.002, 0.01)
+        self.assertEqual(pid.update(100.0, 0.0, 0.05), 1.0)
+        pid.reset()
+        self.assertEqual(pid.update(0.0, 100.0, 0.05), -1.0)
+        pid.reset()
+        output = pid.update(50.0, 48.0, 0.05)
+        self.assertGreater(output, 0.0)
+        self.assertLess(output, 1.0)
+
+    def test_pid_mode_publishes_normalized_throttle_control(self):
+        obj = module.GPSWaypointFollower.__new__(module.GPSWaypointFollower)
+        obj.longitudinal_control_mode = "pid"
+        obj.control_rate = 20.0
+        obj.last_pid_update = None
+        obj.current_speed_kmh = 40.0
+        obj.speed_pid = module.PIDController(0.08, 0.002, 0.01)
+        obj.ctrl_pub = MagicMock()
+        obj.publish_control(0.12, 60.0)
+        command = obj.ctrl_pub.publish.call_args.args[0]
+        self.assertEqual(command.longlCmdType, 1)
+        self.assertGreater(command.accel, 0.0)
+        self.assertEqual(command.brake, 0.0)
+        self.assertEqual(command.velocity, 0.0)
+        self.assertAlmostEqual(command.steering, 0.12)
+
+    def test_speed_proportional_lookahead_is_bounded(self):
+        obj = module.GPSWaypointFollower.__new__(module.GPSWaypointFollower)
+        obj.lookahead_speed_gain = 0.78
+        obj.min_lookahead_distance = 5.0
+        obj.max_lookahead_distance = 30.0
+        obj.current_speed_kmh = 100.0
+        obj.update_dynamic_lookahead()
+        self.assertAlmostEqual(obj.lookahead_distance, 21.6666667, places=5)
+        obj.current_speed_kmh = 0.0
+        obj.update_dynamic_lookahead()
+        self.assertEqual(obj.lookahead_distance, 5.0)
+
+    def test_checkpoint_coordinates_match_the_recorded_path(self):
+        points = self.actual_points()[:-1]
+        with (PACKAGE / "config/competition_speed_profile.yaml").open() as stream:
+            config = yaml.safe_load(stream)
+        matched = {}
+        for checkpoint in config["checkpoints"]:
+            index, point = min(
+                enumerate(points),
+                key=lambda item: math.hypot(
+                    item[1][0] - checkpoint["x"],
+                    item[1][1] - checkpoint["y"]))
+            distance = math.hypot(point[0] - checkpoint["x"],
+                                  point[1] - checkpoint["y"])
+            self.assertLess(distance, 1e-6, checkpoint["id"])
+            matched[str(checkpoint["id"])] = index
+        self.assertEqual(matched["10"], 2275)
+        self.assertEqual(matched["13"], 3529)
+
+    def test_curvature_profile_obeys_60_and_100_kmh_zones(self):
+        points = self.actual_points()[:-1]
+        limits = [60.0] * len(points)
+        for index in range(2275, 3529 + 1):
+            limits[index] = 100.0
+        speeds, curvatures = module.build_curvature_speed_profile(
+            points, limits, True, 25.0, 2.94, 25.0, 2.0, 3.5)
+        self.assertEqual(len(speeds), len(points))
+        self.assertEqual(len(curvatures), len(points))
+        self.assertLessEqual(max(speeds[:2275]), 60.0 + 1e-9)
+        self.assertLessEqual(max(speeds[3530:]), 60.0 + 1e-9)
+        self.assertGreater(max(speeds[2275:3530]), 99.0)
+        self.assertLess(speeds[3231], 80.0)  # bend around checkpoint 12
+        self.assertLess(speeds[1297], 45.0)  # tight bend around checkpoint 7
 
 
 if __name__ == "__main__":

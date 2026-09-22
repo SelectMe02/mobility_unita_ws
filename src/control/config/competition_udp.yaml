@@ -4,7 +4,7 @@ command_timeout: 0.5
 sensor_timeout: 1.0
 status_timeout: 1.0
 gear: 4
-max_speed_kmh: 30.0
+max_speed_kmh: 100.0
 bind_ip: 0.0.0.0
 local_port: 0
 ego_yaw_offset_deg: 0.0

@@ -1,0 +1,97 @@
+Panels:
+- Class: rviz/Displays
+  Name: Displays
+- Class: rviz/Views
+  Name: Views
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Name: root
+  Global Options:
+    Fixed Frame: lidar
+    Background Color: 32; 32; 32
+    Frame Rate: 30
+  Displays:
+  - Class: rviz/Grid
+    Name: LiDAR grid
+    Enabled: true
+    Cell Size: 1
+    Plane Cell Count: 100
+    Reference Frame: <Fixed Frame>
+    Color: 80; 80; 80
+    Alpha: 0.35
+  - Class: rviz/PointCloud2
+    Name: LiDAR 3D
+    Enabled: true
+    Topic: /lidar3D
+    Queue Size: 5
+    Style: Points
+    Size (Pixels): 2
+    Size (m): 0.03
+    Decay Time: 0.2
+    Position Transformer: XYZ
+    Color Transformer: Intensity
+    Autocompute Intensity Bounds: true
+    Use Fixed Frame: true
+  - Class: rviz/Pose
+    Name: GPS and IMU pose
+    Enabled: true
+    Topic: /localization/pose
+    Queue Size: 10
+    Shape: Arrow
+    Color: 0; 255; 80
+    Alpha: 1
+    Shaft Length: 3
+    Shaft Radius: 0.15
+    Head Length: 0.8
+    Head Radius: 0.3
+  - Class: rviz/Axes
+    Name: Ego axes
+    Enabled: true
+    Reference Frame: base_link
+    Length: 3
+    Radius: 0.12
+  - Class: rviz/Image
+    Name: Front camera
+    Enabled: true
+    Image Topic: /camera/image/front
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Left camera
+    Enabled: true
+    Image Topic: /camera/image/left
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Right camera
+    Enabled: true
+    Image Topic: /camera/image/right
+    Transport Hint: raw
+    Queue Size: 1
+  - Class: rviz/Image
+    Name: Rear camera
+    Enabled: true
+    Image Topic: /camera/image/rear
+    Transport Hint: raw
+    Queue Size: 1
+  Tools:
+  - Class: rviz/Interact
+  - Class: rviz/MoveCamera
+  - Class: rviz/Select
+  - Class: rviz/FocusCamera
+  - Class: rviz/Measure
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Name: Sensor View
+      Target Frame: <Fixed Frame>
+      Distance: 35
+      Pitch: 0.75
+      Yaw: 0.8
+    Saved: []
+Window Geometry:
+  Width: 1500
+  Height: 950
+  Hide Left Dock: false
+  Hide Right Dock: false

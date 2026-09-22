@@ -1,0 +1,68 @@
+<launch>
+  <!-- Sensor reception and visualization only. No /ctrl_cmd publisher exists here. -->
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="bind_ip" default="0.0.0.0"/>
+  <arg name="east_offset" default="302595"/>
+  <arg name="north_offset" default="4124145"/>
+
+  <arg name="enable_front_camera" default="true"/>
+  <arg name="enable_left_camera" default="true"/>
+  <arg name="enable_right_camera" default="true"/>
+  <arg name="enable_rear_camera" default="true"/>
+  <arg name="enable_lidar" default="true"/>
+  <arg name="enable_gps" default="true"/>
+  <arg name="enable_imu" default="true"/>
+  <arg name="enable_localization" default="true"/>
+  <arg name="localization_active"
+       default="$(eval arg('enable_localization') and arg('enable_gps') and arg('enable_imu'))"/>
+
+  <arg name="lidar_launch" default="VLP16_points.launch"/>
+  <arg name="lidar_port" default="9210"/>
+  <arg name="lidar_topic" default="/lidar3D"/>
+  <arg name="lidar_frame" default="lidar"/>
+  <arg name="lidar_rpm" default="600"/>
+  <arg name="rviz_config" default="$(find unita_launch)/config/manual_sensors.rviz"/>
+
+  <include file="$(find sensor_bridge)/launch/sensor_bridge.launch">
+    <!-- Individual camera args override the legacy all-camera switch. -->
+    <arg name="enable_cameras" value="false"/>
+    <arg name="enable_front_camera" value="$(arg enable_front_camera)"/>
+    <arg name="enable_left_camera" value="$(arg enable_left_camera)"/>
+    <arg name="enable_right_camera" value="$(arg enable_right_camera)"/>
+    <arg name="enable_rear_camera" value="$(arg enable_rear_camera)"/>
+    <arg name="enable_lidar" value="$(arg enable_lidar)"/>
+    <arg name="enable_gps" value="$(arg enable_gps)"/>
+    <arg name="enable_imu" value="$(arg enable_imu)"/>
+    <arg name="bind_ip" value="$(arg bind_ip)"/>
+    <arg name="source_ip" value="$(arg morai_ip)"/>
+    <arg name="east_offset" value="$(arg east_offset)"/>
+    <arg name="north_offset" value="$(arg north_offset)"/>
+    <arg name="lidar_launch" value="$(arg lidar_launch)"/>
+    <arg name="lidar_port" value="$(arg lidar_port)"/>
+    <arg name="lidar_topic" value="$(arg lidar_topic)"/>
+    <arg name="lidar_frame" value="$(arg lidar_frame)"/>
+    <arg name="lidar_rpm" value="$(arg lidar_rpm)"/>
+  </include>
+
+  <!-- Optional: GPS position + IMU attitude -> /localization/pose and map->base_link. -->
+  <group if="$(arg localization_active)">
+    <node pkg="localization" type="gps_imu_localization.py"
+          name="manual_gps_imu_localization" output="screen">
+      <rosparam command="load" file="$(find localization)/config/gps_imu.yaml"/>
+      <param name="gps_topic" value="/gps"/>
+      <param name="imu_topic" value="/imu"/>
+      <param name="publish_tf" value="true"/>
+    </node>
+    <!-- Identity is for raw visualization; replace with measured LiDAR extrinsics if known. -->
+    <node pkg="tf2_ros" type="static_transform_publisher"
+          name="manual_base_to_lidar_tf"
+          args="0 0 0 0 0 0 base_link $(arg lidar_frame)"/>
+  </group>
+  <!-- Keep RViz's fixed frame valid for camera/LiDAR-only selections. -->
+  <node unless="$(arg localization_active)" pkg="tf2_ros"
+        type="static_transform_publisher" name="manual_lidar_frame_tf"
+        args="0 0 0 0 0 0 map $(arg lidar_frame)"/>
+
+  <node pkg="rviz" type="rviz" name="manual_sensor_rviz"
+        args="-d $(arg rviz_config)" output="screen"/>
+</launch>

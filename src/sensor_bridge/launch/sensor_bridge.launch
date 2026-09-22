@@ -6,7 +6,10 @@
   <arg name="east_offset" default="0.0"/>
   <arg name="north_offset" default="0.0"/>
   <arg name="enable_cameras" default="true"/>
-  <arg name="enable_rear_camera" default="true"/>
+  <arg name="enable_front_camera" default="$(arg enable_cameras)"/>
+  <arg name="enable_left_camera" default="$(arg enable_cameras)"/>
+  <arg name="enable_right_camera" default="$(arg enable_cameras)"/>
+  <arg name="enable_rear_camera" default="$(arg enable_cameras)"/>
   <arg name="enable_imu" default="true"/>
   <arg name="enable_gps" default="true"/>
   <arg name="enable_lidar" default="true"/>
@@ -17,22 +20,22 @@
   <arg name="lidar_frame" default="lidar"/>
   <arg name="lidar_rpm" default="600"/>
 
-  <group if="$(arg enable_cameras)">
-    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+  <group>
+    <include if="$(arg enable_front_camera)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
       <arg name="sensor" value="camera_front"/>
       <arg name="config" value="$(arg config)"/>
       <arg name="bind_ip" value="$(arg bind_ip)"/>
       <arg name="source_ip" value="$(arg source_ip)"/>
       <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
     </include>
-    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+    <include if="$(arg enable_left_camera)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
       <arg name="sensor" value="camera_left"/>
       <arg name="config" value="$(arg config)"/>
       <arg name="bind_ip" value="$(arg bind_ip)"/>
       <arg name="source_ip" value="$(arg source_ip)"/>
       <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
     </include>
-    <include file="$(find sensor_bridge)/launch/udp_receiver.launch">
+    <include if="$(arg enable_right_camera)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
       <arg name="sensor" value="camera_right"/>
       <arg name="config" value="$(arg config)"/>
       <arg name="bind_ip" value="$(arg bind_ip)"/>

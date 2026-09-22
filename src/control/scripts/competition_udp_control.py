@@ -9,7 +9,7 @@ import time
 import rospy
 from morai_msgs.msg import CtrlCmd, GPSMessage
 from sensor_msgs.msg import Imu
-from std_msgs.msg import String, UInt8
+from std_msgs.msg import Float64, String, UInt8
 from std_srvs.srv import SetBool, SetBoolResponse
 from unita_control.competition_protocol import (
     CompetitionCommandEncoder, StatusFreshness, decode_ego_status)
@@ -56,6 +56,7 @@ class CompetitionUDPControl:
         self.status_pub = rospy.Publisher('/control/udp_status', String, queue_size=1, latch=True)
         self.mode_pub = rospy.Publisher('/control/sim_mode', UInt8, queue_size=1, latch=True)
         self.ego_pub = rospy.Publisher('/competition/ego_status', String, queue_size=1, latch=True)
+        self.speed_pub = rospy.Publisher('/competition/ego_speed_kmh', Float64, queue_size=1)
         self.heading_pub = (rospy.Publisher('/competition/heading_imu', Imu, queue_size=1)
                             if self.heading_source == 'ego_status' else None)
         self.subscribers = [
@@ -125,6 +126,7 @@ class CompetitionUDPControl:
             with self.lock:
                 changed = self.freshness.update(status.stamp, received)
             self.mode_pub.publish(UInt8(data=status.mode))
+            self.speed_pub.publish(Float64(data=abs(status.speed_kmh)))
             self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m pos={}'.format(
                 status.mode, status.gear, status.speed_kmh, status.yaw_deg, status.steering_deg, status.wheelbase, status.position)))
             if changed and self.heading_pub is not None:
@@ -147,14 +149,19 @@ class CompetitionUDPControl:
                 self.receive_status()
                 with self.lock:
                     if self.enabled:
-                        self.was_active = True
                         if self.freshness.fresh(time.monotonic()):
+                            self.was_active = True
                             packet, state = self.watchdog.select(time.monotonic(), rospy.Time.now().to_sec(), self.encoder.stop())
-                        else:
+                            # No mode gate: AutoMode=2 is explicitly requested even
+                            # when the last reported mode was Manual.
+                            self.sock.sendto(packet, self.destination)
+                        elif self.was_active:
                             packet, state = self.encoder.stop(), 'BRAKE: missing/stale/frozen Ego UDP status'
-                        # No mode gate: AutoMode=2 is explicitly requested even
-                        # when the last reported mode was Manual.
-                        self.sock.sendto(packet, self.destination)
+                            self.sock.sendto(packet, self.destination)
+                        else:
+                            # Until the correct Publisher is verified, do not force
+                            # AutoMode and do not interfere with SIM I/Q keyboard input.
+                            state = 'PAUSED: waiting for first valid Ego UDP status; no control packets'
                     else:
                         if self.was_active:
                             for _ in range(3):

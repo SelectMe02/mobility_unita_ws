@@ -32,6 +32,8 @@ class EgoStatus:
 
 
 def decode_ego_status(packet):
+    if packet[:11] != b'#MoraiInfo$':
+        raise ValueError('expected #MoraiInfo$ Ego status, got {!r}'.format(packet[:16]))
     mode, stamp = decode_status_mode(packet)
     speed = struct.unpack_from('<f', packet, 37)[0]
     wheelbase = struct.unpack_from('<f', packet, 69)[0]

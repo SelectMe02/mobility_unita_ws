@@ -58,6 +58,10 @@ class CompetitionTests(unittest.TestCase):
         for packet in (status_packet()[:-1], bytes(229)):
             with self.assertRaises(ValueError):
                 decode_ego_status(packet)
+        collision = bytearray(181)
+        collision[:15] = b'#CollisionData$'
+        with self.assertRaisesRegex(ValueError, 'CollisionData'):
+            decode_ego_status(collision)
 
     def test_frozen_status_expires_and_reset_recovers(self):
         tracker = StatusFreshness(.3)

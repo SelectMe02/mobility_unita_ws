@@ -16,11 +16,14 @@
   <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
   <arg name="waypoint_format" default="local_xy"/>
   <arg name="loop_path" default="true"/>
-  <arg name="target_speed_kmh" default="25.0"/>
+  <arg name="normal_max_speed_kmh" default="60.0"/>
+  <arg name="high_speed_max_speed_kmh" default="100.0"/>
+  <arg name="control_max_speed_kmh" default="100.0"/>
   <arg name="wheelbase" default="2.7"/>
   <arg name="lookahead_distance" default="5.0"/>
   <arg name="steering_sign" default="1.0"/>
   <arg name="max_steering_deg" default="36.25"/>
+  <arg name="max_steering_rad" default="0.632681853"/>
   <arg name="ego_yaw_offset_deg" default="0.0"/>
   <arg name="start_rviz" default="true"/>
   <include if="$(arg start_sensor_bridge)" file="$(find sensor_bridge)/launch/sensor_bridge.launch">
@@ -33,17 +36,23 @@
     <arg name="lidar_launch" value="$(arg lidar_launch)"/>
     <arg name="lidar_rpm" value="$(arg lidar_rpm)"/>
   </include>
-  <!-- Reuse the original Pure Pursuit without changing its algorithm. -->
+  <!-- Pure Pursuit + curvature speed planning + pedal PID. -->
   <node pkg="unita_waypoint" type="gps_waypoint_follower.py" name="gps_waypoint_follower" output="screen">
+    <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile.yaml"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
     <param name="waypoint_format" value="$(arg waypoint_format)"/>
     <param name="loop_path" value="$(arg loop_path)"/>
     <param name="gps_topic" value="/gps"/>
     <param name="imu_topic" value="$(arg heading_topic)"/>
     <param name="ctrl_topic" value="/ctrl_cmd"/>
-    <param name="target_speed_kmh" value="$(arg target_speed_kmh)"/>
+    <param name="enable_velocity_planning" value="true"/>
+    <param name="longitudinal_control_mode" value="pid"/>
+    <param name="speed_topic" value="/competition/ego_speed_kmh"/>
+    <param name="normal_max_speed_kmh" value="$(arg normal_max_speed_kmh)"/>
+    <param name="high_speed_max_speed_kmh" value="$(arg high_speed_max_speed_kmh)"/>
     <param name="wheelbase" value="$(arg wheelbase)"/>
     <param name="lookahead_distance" value="$(arg lookahead_distance)"/>
+    <param name="max_steering_rad" value="$(arg max_steering_rad)"/>
     <param name="steering_sign" value="1.0"/>
   </node>
   <node pkg="control" type="competition_udp_control.py" name="competition_udp_control" output="screen" required="true">
@@ -54,6 +63,7 @@
     <param name="heading_source" value="$(arg heading_source)"/>
     <param name="steering_sign" value="$(arg steering_sign)"/>
     <param name="max_steering_deg" value="$(arg max_steering_deg)"/>
+    <param name="max_speed_kmh" value="$(arg control_max_speed_kmh)"/>
     <param name="ego_yaw_offset_deg" value="$(arg ego_yaw_offset_deg)"/>
   </node>
   <node pkg="localization" type="gps_imu_localization.py" name="gps_imu_localization" output="screen">
