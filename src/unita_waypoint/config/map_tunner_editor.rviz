@@ -1,0 +1,59 @@
+Panels:
+- Class: unita_waypoint/MapTunnerPanel
+  Name: K-City 경로 편집
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Name: root
+  Global Options:
+    Fixed Frame: map
+    Background Color: 28; 28; 28
+    Frame Rate: 30
+  Displays:
+  - Class: rviz/Map
+    Name: K-City 사진 대체 표시
+    Enabled: false
+    Topic: /map_tunner/map
+    Alpha: 1
+    Color Scheme: map
+    Draw Behind: true
+  - Class: rviz/Marker
+    Name: K-City 컬러 배경사진
+    Enabled: true
+    Marker Topic: /map_tunner/photo
+    Queue Size: 1
+  - Class: rviz/MarkerArray
+    Name: 전체 경로와 구간
+    Enabled: true
+    Marker Topic: /map_tunner/markers
+    Queue Size: 10
+    Namespaces: {}
+  - Class: rviz/InteractiveMarkers
+    Name: 체크포인트와 선택한 점
+    Enabled: true
+    Update Topic: /map_tunner/interactive/update
+    Show Descriptions: false
+  Tools:
+  - Class: rviz/Interact
+  - Class: rviz/MoveCamera
+  - Class: rviz/Select
+  - Class: unita_waypoint/MapTunnerTool
+  - Class: rviz/PublishPoint
+    Single click: true
+    Topic: /clicked_point
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: Top view
+      Target Frame: <Fixed Frame>
+      Scale: 1.0
+      Angle: -1.570796327
+      X: -42
+      Y: -102
+      Near Clip Distance: 0.01
+    Saved: []
+Window Geometry:
+  Width: 1600
+  Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: true

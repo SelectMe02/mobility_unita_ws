@@ -1,0 +1,89 @@
+# K-City Map Tuner
+
+ROS 1 Noetic RViz에서 구간별 경로점과 속도를 편집하는 도구입니다. START→1이 S1,
+1→2가 S2, …, 14→START가 S15입니다. 각 구간은 독립된 Raceline 1~3을
+가지며, 초기 상태에는 `config/waypoints.csv`에서 가져온 Raceline 1만 있습니다.
+새 차선을 추가하면 빈 Raceline이 생성됩니다.
+
+## 사진과 waypoint 맞추기
+
+기본 배경은 `config/kcity_map_sim.png`입니다. 별도 Python 창에서 사진을
+waypoint에 맞춘 뒤 RViz에서 같은 위치를 사용할 수 있습니다.
+
+```bash
+source ~/unita_ws/devel/setup.bash
+rosrun unita_waypoint map_waypoint_calibration.py
+```
+
+- 하늘색 선은 원본 waypoint이며 초록색 표시는 체크포인트입니다. 이 둘은 고정되어
+  있고 사진만 움직입니다.
+- 사진 안쪽을 드래그하면 이동합니다. 노란 모서리를 드래그하면 가로세로 비율을
+  유지해 확대하거나 축소합니다. 파란 변 중앙을 드래그하면 해당 방향으로만
+  늘어나거나 줄어듭니다. 분홍 원을 드래그하면 사진이 회전합니다.
+- 마우스 휠로 화면을 확대하고 `전체 보기`로 돌아옵니다. `되돌리기` 또는
+  `Ctrl+Z`로 직전 조작을 취소합니다.
+- `RViz용 배치 저장` 또는 `Ctrl+S`를 누르면 `config/map_tunner_calibration.yaml`에
+  사진의 네 모서리 좌표를 저장합니다. 실행 중인 Map Tuner도 약 1초 간격으로
+  변경을 감지하여 지도를 갱신합니다. waypoint 좌표는 변경되지 않습니다.
+
+RViz의 `K-City 컬러 배경사진` 표시는 같은 배치 좌표로 원본 색상을 표시합니다.
+기본 `Map` 표시는 컬러 표시에 문제가 있을 때를 위한 회색 대체 화면입니다.
+
+## 실행
+
+```bash
+source ~/unita_ws/devel/setup.bash
+roslaunch unita_waypoint map_tunner.launch
+```
+
+ROS master가 없다면 별도 터미널에서 `roscore`를 먼저 실행하세요. MORAI나 GPS
+센서 없이도 편집할 수 있습니다. 이전 RViz 창이 열려 있다면 닫고 위 명령으로
+새 창을 실행해야 고정 편집 패널이 나타납니다.
+
+## 화면 읽기
+
+- 왼쪽 **K-City 경로 편집** 패널이 조작부입니다. RViz의 `Displays` 속성 목록은
+  편집 버튼이 아닙니다.
+- **파란 점**은 체크포인트, **하늘색 선**은 다른 구간의 기존 경로입니다.
+  선택한 구간의 Raceline 1은 **빨간 선**, Raceline 2는 **파란 선**,
+  Raceline 3은 **초록 선**으로 보입니다. **노란 점**은 현재 선택한 경로점입니다.
+- 사진과 경로가 세로로 보이거나 화면 밖으로 나가면 맨 위의
+  **↶ 90° 회전 · 전체 지도 보기**를 누르세요. 사진과 waypoint가 함께 가로로
+  표시되며 전체 지도가 화면 안에 들어옵니다. RViz에서 마우스 휠로 확대할 수
+  있습니다.
+
+## 경로 편집
+
+1. **구간 선택** 목록에서 S1~S15를 고릅니다. 지도에서 파란 체크포인트를
+   `Interact`로 눌러도 해당 체크포인트에서 시작하는 구간을 고를 수 있습니다.
+2. **＋ 차선 추가**는 현재 구간에 빈 Raceline 2, 이후 빈 Raceline 3을 만듭니다.
+   **－ 마지막 차선 삭제**는 번호가 가장 큰 차선과 그 점들을 삭제합니다.
+   Raceline 1은 삭제할 수 없습니다. `실행 취소`로 마지막 편집을 되돌릴 수 있습니다.
+3. **편집할 Raceline** 목록에서 경로를 고릅니다. 구간과 Raceline은 각각
+   독립적이므로 현재 선택한 경로의 점만 바뀝니다.
+4. **점 추가 모드**를 누르고 RViz 상단 **Publish Point** 도구로 사진을 클릭하면
+   점이 추가됩니다. 기존 경로에는 가장 가까운 선분 뒤로 삽입하며, 빈 경로에는
+   클릭한 순서대로 쌓입니다. **점 선택 모드**에서 같은 도구로 기존 점 가까이
+   클릭하면 점을 선택합니다.
+5. 선택한 노란 점은 RViz 상단 **Interact** 도구로 끌어 위치를 바꿉니다.
+   `-1 km/h`, `+1 km/h`는 그 점의 속도를 1 km/h씩 바꾸고,
+   **선택한 점 삭제**는 그 점을 지웁니다. 허용 속도는 0~200 km/h입니다.
+6. **JSON 저장**을 누르면 `config/map_tunner_project.json`에 기록됩니다.
+   저장하지 않은 편집이 있으면 버튼에 ●가 표시됩니다. 원본
+   `config/waypoints.csv`는 변경하지 않습니다.
+
+추가 점의 `z`는 원본 경로에서 가장 가까운 waypoint의 값을 복사합니다.
+지도에서 점을 움직이면 `x`, `y`만 바뀝니다. JSON의 각 점에는
+`id`, `x`, `y`, `z`, `speed_kmh`가 저장됩니다. 출력 경로는
+`project_file:=/absolute/path/project.json`으로 바꿀 수 있습니다.
+
+## 사진 위치 보정
+
+위의 별도 Python 보정 창에서 사진을 이동·회전·늘린 뒤 저장하세요. 사진 버전이
+달라 도로 구조 자체가 다른 구간은 사진 배치만으로 경로가 일치하지 않을 수
+있습니다. 그때는 해당 구간의 waypoint를 따로 편집해야 합니다.
+
+편집 노드는 `/map_tunner/map`, `/map_tunner/markers`,
+`/map_tunner/interactive/update`, `/map_tunner/status`를 발행합니다. 기존
+GPS waypoint follower는 여전히 `waypoints.csv`를 읽으며, 이 JSON의
+차선이나 속도 정보를 자동으로 사용하지는 않습니다.

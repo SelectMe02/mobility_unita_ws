@@ -1,0 +1,16 @@
+<launch>
+  <arg name="model_path" default="$(find perception)/../../best.pt"/>
+  <arg name="image_topic" default="/camera/image/front"/>
+  <arg name="confidence" default="0.5"/>
+  <arg name="inference_rate" default="2.0"/>
+  <arg name="image_timeout" default="2.0"/>
+  <arg name="device" default="cpu"/>
+  <node pkg="perception" type="traffic_light_test.py" name="traffic_light_test" output="screen">
+    <param name="model_path" value="$(arg model_path)"/>
+    <param name="image_topic" value="$(arg image_topic)"/>
+    <param name="confidence" value="$(arg confidence)"/>
+    <param name="inference_rate" value="$(arg inference_rate)"/>
+    <param name="image_timeout" value="$(arg image_timeout)"/>
+    <param name="device" value="$(arg device)"/>
+  </node>
+</launch>

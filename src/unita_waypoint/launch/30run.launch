@@ -1,0 +1,31 @@
+<launch>
+  <!-- Manual 30 km/h control without a waypoint follower or ROS bridge service. -->
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="morai_port" default="9093"/>
+  <arg name="status_port" default="9092"/>
+  <arg name="gps_port" default="9230"/>
+  <arg name="max_steering_deg" default="36.25"/>
+  <arg name="max_steering_rad" default="0.5"/>
+
+  <node pkg="sensor_bridge" type="udp_sensor_bridge.py"
+        name="gps_udp_bridge" output="screen" required="true">
+    <rosparam command="load" file="$(find sensor_bridge)/config/sensors.yaml"/>
+    <param name="sensor" value="gps"/>
+    <param name="source_ip" value="$(arg morai_ip)"/>
+    <param name="sensors/gps/destination_port" value="$(arg gps_port)"/>
+  </node>
+
+  <node pkg="control" type="competition_udp_control.py"
+        name="competition_udp_control" output="screen" required="true">
+    <rosparam command="load" file="$(find control)/config/competition_udp.yaml"/>
+    <param name="morai_ip" value="$(arg morai_ip)"/>
+    <param name="morai_port" value="$(arg morai_port)"/>
+    <param name="status_port" value="$(arg status_port)"/>
+    <param name="max_speed_kmh" value="30.0"/>
+    <param name="max_steering_deg" value="$(arg max_steering_deg)"/>
+  </node>
+
+  <node pkg="unita_waypoint" type="30run.py" name="run30" output="screen" required="true">
+    <param name="max_steering_rad" value="$(arg max_steering_rad)"/>
+  </node>
+</launch>

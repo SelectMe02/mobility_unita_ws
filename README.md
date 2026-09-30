@@ -65,6 +65,10 @@ Windows MORAI PC와 Ubuntu PC를 LAN으로 연결하는 현장 구성은
 UDP 제어 설정은 [`control/README.md`](src/control/README.md),
 센서 설정은 [`sensor_bridge/README.md`](src/sensor_bridge/README.md)에 있습니다.
 
+K-City 2025 지도 위에서 sector별 차선 수, raceline 좌표, waypoint 속도를
+편집하려면 `roslaunch unita_waypoint map_tunner.launch`를 실행합니다.
+조작 및 지도 보정 방법은 [`MAP_TUNNER.md`](src/unita_waypoint/MAP_TUNNER.md)에 있습니다.
+
 ```bash
 catkin_make run_tests
 catkin_test_results

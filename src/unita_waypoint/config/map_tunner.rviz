@@ -1,0 +1,56 @@
+Panels:
+- Class: rviz/Displays
+  Name: Displays
+- Class: rviz/Views
+  Name: Views
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Name: root
+  Global Options:
+    Fixed Frame: map
+    Background Color: 30; 30; 30
+    Frame Rate: 30
+  Displays:
+  - Class: rviz/Map
+    Name: K-City aerial (grayscale)
+    Enabled: true
+    Topic: /map_tunner/map
+    Alpha: 1
+    Color Scheme: map
+    Draw Behind: true
+  - Class: rviz/MarkerArray
+    Name: Sector paths and labels
+    Enabled: true
+    Marker Topic: /map_tunner/markers
+    Queue Size: 10
+    Namespaces: {}
+  - Class: rviz/InteractiveMarkers
+    Name: Editing controls
+    Enabled: true
+    Update Topic: /map_tunner/interactive/update
+  Tools:
+  - Class: rviz/Interact
+  - Class: rviz/MoveCamera
+  - Class: rviz/Select
+  - Class: rviz/FocusCamera
+  - Class: rviz/Measure
+  - Class: rviz/PublishPoint
+    Single click: true
+    Topic: /clicked_point
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: Top view
+      Target Frame: <Fixed Frame>
+      Scale: 4
+      Angle: 0
+      X: -45
+      Y: -100
+      Near Clip Distance: 0.01
+    Saved: []
+Window Geometry:
+  Width: 1500
+  Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: false

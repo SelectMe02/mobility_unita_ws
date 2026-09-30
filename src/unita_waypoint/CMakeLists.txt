@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(unita_waypoint)
+add_compile_options(-std=c++11)
+set(CMAKE_AUTOMOC ON)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -9,13 +11,19 @@ project(unita_waypoint)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  interactive_markers
   morai_msgs
   nav_msgs
+  pluginlib
+  roscpp
   rospy
+  rviz
   sensor_msgs
   std_msgs
   tf
+  visualization_msgs
 )
+find_package(Qt5Widgets REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -107,8 +115,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES unita_waypoint
+  INCLUDE_DIRS include
+  LIBRARIES map_tunner_panel
 #  CATKIN_DEPENDS geometry_msgs morai_msgs nav_msgs rospy sensor_msgs std_msgs tf
 #  DEPENDS system_lib
 )
@@ -120,9 +128,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
+
+add_library(map_tunner_panel
+  src/map_tunner_panel.cpp src/map_tunner_tool.cpp
+  include/unita_waypoint/map_tunner_panel.h include/unita_waypoint/map_tunner_tool.h)
+target_link_libraries(map_tunner_panel ${catkin_LIBRARIES} Qt5::Widgets)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -210,8 +223,17 @@ include_directories(
 # catkin_add_nosetests(test)
 
 catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
+  scripts/30run.py
+  scripts/map_tunner.py
+  scripts/map_waypoint_calibration.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(DIRECTORY config launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(FILES scripts/map_tunner_core.py scripts/map_tunner_map.py
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts)
+install(TARGETS map_tunner_panel LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+install(FILES plugin_description.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_loop_tracking.py)
+  catkin_add_nosetests(test/test_map_tunner.py)
 endif()

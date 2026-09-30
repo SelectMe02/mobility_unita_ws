@@ -9,7 +9,8 @@ find_package(catkin REQUIRED COMPONENTS
 )
 catkin_package(CATKIN_DEPENDS geometry_msgs rospy sensor_msgs std_msgs)
 
-# Register executable ROS nodes with catkin_install_python when added.
+catkin_install_python(PROGRAMS scripts/traffic_light_test.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 # Add catkin_python_setup() when src/ contains an installable Python package.
 install(DIRECTORY config launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}

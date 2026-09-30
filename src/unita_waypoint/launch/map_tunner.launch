@@ -1,0 +1,15 @@
+<launch>
+  <arg name="start_rviz" default="true"/>
+  <arg name="project_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
+  <arg name="image_file" default="$(find unita_waypoint)/config/kcity_map_sim.png"/>
+  <arg name="calibration_file" default="$(find unita_waypoint)/config/map_tunner_calibration.yaml"/>
+  <node pkg="unita_waypoint" type="map_tunner.py" name="map_tunner" output="screen">
+    <param name="project_file" value="$(arg project_file)"/>
+    <param name="image_file" value="$(arg image_file)"/>
+    <param name="calibration_file" value="$(arg calibration_file)"/>
+  </node>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="map_tunner_rviz"
+        args="-d $(find unita_waypoint)/config/map_tunner_editor.rviz" output="screen">
+    <env name="DISABLE_ROS1_EOL_WARNINGS" value="1"/>
+  </node>
+</launch>

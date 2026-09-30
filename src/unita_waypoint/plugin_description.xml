@@ -1,0 +1,12 @@
+<library path="lib/libmap_tunner_panel">
+  <class name="unita_waypoint/MapTunnerPanel"
+         type="unita_waypoint::MapTunnerPanel"
+         base_class_type="rviz::Panel">
+    <description>Fixed controls for the K-City sector and raceline editor.</description>
+  </class>
+  <class name="unita_waypoint/MapTunnerTool"
+         type="unita_waypoint::MapTunnerTool"
+         base_class_type="rviz::Tool">
+    <description>Left click to edit map waypoints and right click to smooth them.</description>
+  </class>
+</library>
