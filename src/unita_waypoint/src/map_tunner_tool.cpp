@@ -22,7 +22,7 @@ void MapTunnerTool::onInitialize() {
 }
 
 void MapTunnerTool::activate() {
-  setStatus(QString::fromUtf8("지도 좌클릭: 현재 모드의 추가·선택·보간·스무딩 적용"));
+  setStatus(QString::fromUtf8("지도 좌클릭: 현재 모드의 추가·선택·보간·스무딩·속도 구간 선택"));
 }
 
 void MapTunnerTool::deactivate() {}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Log traffic-light detections from best.pt and a ROS camera Image topic."""
+"""Log traffic-light detections from best1.pt and a ROS camera Image topic."""
 
 from pathlib import Path
 import threading
@@ -22,7 +22,7 @@ SIGNALS = {
 
 class TrafficLightTest:
     def __init__(self):
-        model_path = Path(rospy.get_param("~model_path", "best.pt")).expanduser()
+        model_path = Path(rospy.get_param("~model_path", "best1.pt")).expanduser()
         if not model_path.is_file():
             raise ValueError("모델 파일이 없습니다: %s (~model_path를 지정하세요)" % model_path)
         self.confidence = float(rospy.get_param("~confidence", 0.5))

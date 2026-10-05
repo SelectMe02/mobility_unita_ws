@@ -2,7 +2,7 @@
 
 ## 신호등 모델 테스트
 
-`traffic_light_test.py`는 전방 카메라의 `sensor_msgs/Image`를 받아 `best.pt`로
+`traffic_light_test.py`는 전방 카메라의 `sensor_msgs/Image`를 받아 `best1.pt`로
 신호등을 감지하고 상태, 학습 클래스명, 신뢰도, bbox(x1, y1, x2, y2)를 ROS 로그로 출력합니다.
 초록 / 초록+좌회전 / 좌회전 / 빨강 / 빨강+노랑 / 노랑을 구분합니다.
 여러 신호등은 각각 출력하며 주행 대상 신호등 선정이나 차량 제어는 수행하지 않습니다.
@@ -22,11 +22,11 @@ source devel/setup.bash
 roslaunch perception traffic_light_test.launch
 ```
 
-기본 모델 경로는 소스 워크스페이스 루트의 `best.pt`입니다.
+기본 모델 경로는 소스 워크스페이스 루트의 `best1.pt`입니다.
 다른 경로나 install 공간에서 실행할 때는 절대 경로로 지정하세요.
 
 ```bash
-roslaunch perception traffic_light_test.launch model_path:=/absolute/path/best.pt image_topic:=/camera/image/front confidence:=0.5 device:=cpu
+roslaunch perception traffic_light_test.launch model_path:=/absolute/path/best1.pt image_topic:=/camera/image/front confidence:=0.5 device:=cpu
 ```
 
 `device:=0`은 CUDA GPU 선택입니다. 기본값은 CPU입니다.

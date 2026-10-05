@@ -29,6 +29,7 @@ class MapTunnerPanel : public rviz::Panel {
   void activateEditTool();
   void activateInteractTool();
   void applySpeed();
+  void applyRangeSpeed();
 
   ros::NodeHandle node_;
   ros::Publisher command_pub_;
@@ -38,8 +39,10 @@ class MapTunnerPanel : public rviz::Panel {
   QLabel* sector_label_;
   QLabel* lane_label_;
   QLabel* point_label_;
+  QLabel* range_label_;
   QLabel* status_label_;
   QLineEdit* speed_edit_;
+  QLineEdit* range_speed_edit_;
   QPushButton* add_lane_button_;
   QPushButton* remove_lane_button_;
   QPushButton* add_point_button_;
@@ -48,8 +51,11 @@ class MapTunnerPanel : public rviz::Panel {
   QPushButton* smooth_button_;
   QPushButton* resize_button_;
   QPushButton* speed_apply_button_;
+  QPushButton* range_button_;
+  QPushButton* range_apply_button_;
   QPushButton* delete_point_button_;
   QPushButton* save_button_;
+  int last_selected_id_ = -1;
 };
 
 }  // namespace unita_waypoint

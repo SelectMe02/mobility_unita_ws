@@ -70,6 +70,24 @@ class MapTunnerTest(unittest.TestCase):
             loaded = load_project(path)
         self.assertEqual(loaded, editor.project)
 
+    def test_speed_range_is_inclusive_local_and_one_undo_step(self):
+        editor = ProjectEditor(copy.deepcopy(self.original))
+        lane = editor.lane(3, 1)
+        original = copy.deepcopy(lane)
+        other_sector = copy.deepcopy(editor.lane(4, 1))
+        first_id, last_id = lane[3]['id'], lane[7]['id']
+        self.assertEqual(editor.set_speed_range(3, 1, last_id, first_id, 37), 5)
+        self.assertEqual([point['speed_kmh'] for point in lane[:3]], [20] * 3)
+        self.assertEqual([point['speed_kmh'] for point in lane[3:8]], [37] * 5)
+        self.assertEqual(lane[8:], original[8:])
+        self.assertEqual(editor.lane(4, 1), other_sector)
+        with self.assertRaises(ValueError):
+            editor.set_speed_range(3, 1, first_id, other_sector[0]['id'], 40)
+        with self.assertRaises(ValueError):
+            editor.set_speed_range(3, 1, first_id, last_id, 201)
+        self.assertTrue(editor.undo())
+        self.assertEqual(editor.lane(3, 1), original)
+
     def test_aerial_waypoint_anchor_round_trip(self):
         config = ROOT / 'config'
         checkpoints = load_checkpoints(config / 'map_tunner_checkpoints.yaml')

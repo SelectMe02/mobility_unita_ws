@@ -49,11 +49,11 @@ def marker_base(namespace, marker_id, marker_type, scale, position=None):
     return marker
 
 
-def text_marker(namespace, marker_id, label, x, y, z, size, rgb):
+def text_marker(namespace, marker_id, label, x, y, z, size, rgb, alpha=1.0):
     marker = marker_base(namespace, marker_id, Marker.TEXT_VIEW_FACING,
                          (0.0, 0.0, size), (x, y, z))
     marker.text = label
-    color(marker, rgb)
+    color(marker, rgb, alpha)
     return marker
 
 
@@ -84,6 +84,8 @@ class MapTunner:
         self.active_lane = 1
         self.mode = 'select'
         self.selected_id = None
+        self.range_start_id = None
+        self.range_end_id = None
         self.pending_calibration = None
         self.interpolation_start = None
         self.resize_base = None
@@ -161,6 +163,7 @@ class MapTunner:
             rospy.loginfo('%s', state)
         self.status_pub.publish(String(data=state))
         selected = self.selected_point()
+        range_points = self.speed_range_points()
         self.state_pub.publish(String(data=json.dumps({
             'sector': self.active_sector,
             'from': sector['from'],
@@ -170,6 +173,9 @@ class MapTunner:
             'mode': self.mode,
             'point_id': selected['id'] if selected else None,
             'speed_kmh': selected['speed_kmh'] if selected else None,
+            'range_start_id': self.range_start_id,
+            'range_end_id': self.range_end_id,
+            'range_count': len(range_points),
             'dirty': self.editor.dirty,
             'calibration': self.pending_calibration is not None,
             'interpolation_start': self.interpolation_start is not None,
@@ -212,6 +218,20 @@ class MapTunner:
         return next((point for point in self.editor.lane(self.active_sector, self.active_lane)
                      if point['id'] == self.selected_id), None)
 
+    def speed_range_points(self):
+        if self.range_start_id is None or self.range_end_id is None:
+            return []
+        points = self.editor.lane(self.active_sector, self.active_lane)
+        indices = {point['id']: index for index, point in enumerate(points)}
+        if self.range_start_id not in indices or self.range_end_id not in indices:
+            return []
+        first, last = sorted((indices[self.range_start_id], indices[self.range_end_id]))
+        return points[first:last + 1]
+
+    def clear_speed_range(self):
+        self.range_start_id = None
+        self.range_end_id = None
+
     def refresh(self, message=None):
         with self.lock:
             if self.active_lane > self.editor.sector(self.active_sector)['lane_count']:
@@ -219,6 +239,12 @@ class MapTunner:
                 self.selected_id = None
             if self.selected_point() is None:
                 self.selected_id = None
+            ids = {point['id'] for point in self.editor.lane(self.active_sector,
+                                                              self.active_lane)}
+            if self.range_start_id not in ids:
+                self.clear_speed_range()
+            elif self.range_end_id not in ids:
+                self.range_end_id = None
             self.publish_markers()
             self.publish_interactive()
             self.status(message)
@@ -257,11 +283,30 @@ class MapTunner:
             body = marker_base('checkpoint_boxes', index, Marker.CUBE,
                                (width, 17.0, 1.0), (x, y, 2.5))
             color(body, (0.12, 0.95, 0.16) if index == self.active_sector - 1
-                  else (0.0, 0.55, 0.02))
+                  else (0.0, 0.55, 0.02), 0.45)
             markers.append(body)
             markers.append(text_marker('checkpoint_numbers', index,
                                        name.upper(), x, y, 3.7, 11.0,
-                                       (1.0, 1.0, 1.0)))
+                                       (1.0, 1.0, 1.0), 0.78))
+        range_points = self.speed_range_points()
+        if range_points:
+            line = marker_base('speed_range', 0, Marker.LINE_STRIP, (4.0, 0.0, 0.0))
+            line.points = [Point(point['x'], point['y'], 1.25) for point in range_points]
+            color(line, (1.0, 0.85, 0.05), 0.9)
+            markers.append(line)
+        current_points = self.editor.lane(self.active_sector, self.active_lane)
+        for marker_id, point_id, label, rgb in (
+                (0, self.range_start_id, '속도 시작', (1.0, 0.55, 0.05)),
+                (1, self.range_end_id, '속도 끝', (0.95, 0.2, 0.8))):
+            point = next((item for item in current_points if item['id'] == point_id), None)
+            if point is None:
+                continue
+            ball = marker_base('speed_range_ends', marker_id, Marker.SPHERE,
+                               (4.0, 4.0, 2.0), (point['x'], point['y'], 2.0))
+            color(ball, rgb, 0.9)
+            markers.append(ball)
+            markers.append(text_marker('speed_range_labels', marker_id, label,
+                                       point['x'], point['y'], 4.5, 4.0, rgb))
         if self.interpolation_start:
             x, y = self.interpolation_start
             start = marker_base('interpolation_start', 0, Marker.SPHERE,
@@ -317,8 +362,8 @@ class MapTunner:
             marker = InteractiveMarker()
             marker.header.frame_id = 'map'
             marker.name = 'selected_point'
-            marker.description = 'Drag in XY; right-click for speed/delete'
-            marker.scale = 4.0
+            marker.description = '좌클릭 드래그: 위치 이동 · 우클릭: 속도/삭제'
+            marker.scale = 8.0
             marker.pose.position.x = selected['x']
             marker.pose.position.y = selected['y']
             marker.pose.position.z = 1.5
@@ -329,7 +374,7 @@ class MapTunner:
             control.always_visible = True
             control.orientation.w = math.sqrt(0.5)
             control.orientation.y = math.sqrt(0.5)
-            body = marker_base('selected', 0, Marker.SPHERE, (2.0, 2.0, 2.0))
+            body = marker_base('selected', 0, Marker.SPHERE, (6.0, 6.0, 2.5))
             color(body, (1.0, 1.0, 0.0))
             control.markers.append(body)
             marker.controls.append(control)
@@ -391,6 +436,21 @@ class MapTunner:
                 self.smooth_at(x, y)
                 return
             points = self.editor.lane(self.active_sector, self.active_lane)
+            if self.mode == 'speed_range':
+                index, distance = nearest_point(points, x, y)
+                if index is None or distance > 8.0:
+                    self.refresh('8 m 이내에 경로점이 없습니다. 확대해서 다시 선택하세요.')
+                    return
+                point_id = points[index]['id']
+                if self.range_start_id is None or self.range_end_id is not None:
+                    self.range_start_id = point_id
+                    self.range_end_id = None
+                    self.refresh('속도 시작점 #{} 선택. 끝점을 좌클릭하세요.'.format(point_id))
+                else:
+                    self.range_end_id = point_id
+                    self.refresh('속도 구간 #{} → #{} ({}점) 선택. 속도를 입력하세요.'.format(
+                        self.range_start_id, point_id, len(self.speed_range_points())))
+                return
             if self.mode == 'select':
                 index, distance = nearest_point(points, x, y)
                 if index is None or distance > 8.0:
@@ -460,7 +520,9 @@ class MapTunner:
             if feedback.marker_name == 'selected_point':
                 if feedback.event_type == InteractiveMarkerFeedback.MOUSE_UP:
                     selected = self.selected_point()
-                    if selected:
+                    if selected and math.isfinite(feedback.pose.position.x) and math.isfinite(feedback.pose.position.y) and math.hypot(
+                            feedback.pose.position.x - selected['x'],
+                            feedback.pose.position.y - selected['y']) > 1e-4:
                         self.editor.change_point(self.active_sector, self.active_lane,
                                                  selected['id'],
                                                  x=feedback.pose.position.x,
@@ -495,6 +557,7 @@ class MapTunner:
                     self.editor.sector(sector)
                     self.active_sector = sector
                     self.selected_id = None
+                    self.clear_speed_range()
                     self.interpolation_start = None
                     self.refresh('S{} 구간 선택'.format(sector))
                 elif command.startswith('lane:'):
@@ -510,6 +573,16 @@ class MapTunner:
                     self.editor.change_point(self.active_sector, self.active_lane,
                                              selected['id'], speed_kmh=int(value))
                     self.refresh('점 #{} 속도 {} km/h'.format(selected['id'], value))
+                elif command.startswith('speed_range:'):
+                    value = command.split(':', 1)[1]
+                    if not value.isdecimal() or not 0 <= int(value) <= 200:
+                        raise ValueError('속도는 0~200 km/h 정수로 입력하세요.')
+                    if self.range_start_id is None or self.range_end_id is None:
+                        raise ValueError('시작점과 끝점을 차례로 선택하세요.')
+                    count = self.editor.set_speed_range(
+                        self.active_sector, self.active_lane,
+                        self.range_start_id, self.range_end_id, int(value))
+                    self.refresh('현재 Raceline의 {}개 점에 {} km/h 적용'.format(count, value))
                 else:
                     self.perform(command)
             except (ValueError, TypeError) as error:
@@ -520,19 +593,23 @@ class MapTunner:
             try:
                 if action == 'select_sector':
                     self.selected_id = None
+                    self.clear_speed_range()
                     self.interpolation_start = None
                 elif action in ('prev_sector', 'next_sector'):
                     step = -1 if action == 'prev_sector' else 1
                     self.active_sector = (self.active_sector - 1 + step) % 15 + 1
                     self.selected_id = None
+                    self.clear_speed_range()
                     self.interpolation_start = None
                 elif action == 'add_lane':
                     self.active_lane = self.editor.add_lane(self.active_sector)
                     self.selected_id = None
+                    self.clear_speed_range()
                     self.mode = 'add'
                     self.interpolation_start = None
                 elif action == 'remove_lane':
                     removed = self.editor.remove_lane(self.active_sector)
+                    self.clear_speed_range()
                     if self.active_lane == removed:
                         self.active_lane -= 1
                         self.selected_id = None
@@ -542,9 +619,17 @@ class MapTunner:
                     self.editor.lane(self.active_sector, lane)
                     self.active_lane = lane
                     self.selected_id = None
+                    self.clear_speed_range()
                     self.interpolation_start = None
                 elif action in ('mode_add', 'mode_select', 'mode_interpolate', 'mode_smooth'):
                     self.mode = action.split('_', 1)[1]
+                    if action == 'mode_select':
+                        self.selected_id = None
+                    self.interpolation_start = None
+                elif action == 'mode_speed_range':
+                    self.mode = 'speed_range'
+                    self.selected_id = None
+                    self.clear_speed_range()
                     self.interpolation_start = None
                 elif action == 'mode_resize':
                     self.mode = 'resize'
@@ -589,7 +674,8 @@ class MapTunner:
                 'add_lane': '빈 차선 추가',
                 'remove_lane': '마지막 차선 삭제',
                 'mode_add': '점 추가 모드: 지도에서 좌클릭하세요.',
-                'mode_select': '점 선택 모드: 점 근처를 좌클릭하세요.',
+                'mode_select': '점 선택 모드: 점을 좌클릭하면 노란 점을 바로 드래그할 수 있습니다.',
+                'mode_speed_range': '속도 구간: 시작점과 끝점을 차례로 좌클릭하세요.',
                 'mode_interpolate': '선 보간 모드: 빈 Raceline에 시작점과 끝점을 좌클릭하세요.',
                 'mode_smooth': '스무딩 모드: 점을 좌클릭하면 주변 앞뒤 15개를 스무딩합니다.',
                 'mode_resize': '사진 손잡이를 드래그하세요. 모서리는 비율 유지, 변은 한 방향만 변경합니다.',

@@ -1,5 +1,5 @@
 <launch>
-  <arg name="model_path" default="$(find perception)/../../best.pt"/>
+  <arg name="model_path" default="$(find perception)/../../best1.pt"/>
   <arg name="image_topic" default="/camera/image/front"/>
   <arg name="confidence" default="0.5"/>
   <arg name="inference_rate" default="2.0"/>

@@ -228,6 +228,22 @@ class ProjectEditor:
         point.update(changed)
         return point
 
+    def set_speed_range(self, sector, lane, start_id, end_id, speed_kmh):
+        """Set one speed on an inclusive span of one sector raceline."""
+        points = self.lane(sector, lane)
+        indices = {point['id']: index for index, point in enumerate(points)}
+        if start_id not in indices or end_id not in indices:
+            raise ValueError('시작점과 끝점이 현재 Raceline에 있어야 합니다.')
+        if isinstance(speed_kmh, bool) or not isinstance(speed_kmh, int) or not 0 <= speed_kmh <= 200:
+            raise ValueError('속도는 0~200 km/h 정수로 입력하세요.')
+        first, last = sorted((indices[start_id], indices[end_id]))
+        if all(point['speed_kmh'] == speed_kmh for point in points[first:last + 1]):
+            return last - first + 1
+        self._checkpoint()
+        for point in points[first:last + 1]:
+            point['speed_kmh'] = speed_kmh
+        return last - first + 1
+
     def remove_point(self, sector, lane, point_id):
         points = self.lane(sector, lane)
         index = next((i for i, point in enumerate(points) if point['id'] == point_id), None)

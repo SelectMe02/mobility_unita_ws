@@ -19,6 +19,7 @@
 #include <QLineEdit>
 #include <QMetaObject>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -41,7 +42,12 @@ QPushButton* button(const QString& text, const QString& tooltip) {
 }  // namespace
 
 MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
-  auto* outer = new QVBoxLayout(this);
+  auto* panel_layout = new QVBoxLayout(this);
+  panel_layout->setContentsMargins(0, 0, 0, 0);
+  auto* scroll = new QScrollArea(this);
+  scroll->setWidgetResizable(true);
+  auto* content = new QWidget(scroll);
+  auto* outer = new QVBoxLayout(content);
   outer->setSpacing(8);
 
   auto* title = note(QString::fromUtf8("K-City 경로 편집"));
@@ -106,14 +112,33 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
   point_layout->addWidget(smooth_button_, 1, 1);
   point_layout->addWidget(note(QString::fromUtf8(
       "점 추가/선택/보간/스무딩: 지도 좌클릭\n"
-      "노란 선택 점 이동: RViz 상단 Interact 도구로 끌기")), 2, 0, 1, 2);
+      "점을 선택하면 노란 점을 바로 드래그해 이동")), 2, 0, 1, 2);
   point_layout->addWidget(point_label_, 3, 0, 1, 2);
   point_layout->addWidget(speed_edit_, 4, 0);
   point_layout->addWidget(speed_apply_button_, 4, 1);
   point_layout->addWidget(delete_point_button_, 5, 0, 1, 2);
   outer->addWidget(point_group);
 
-  auto* image_group = new QGroupBox(QString::fromUtf8("3. 사진 크기와 위치"));
+  auto* range_group = new QGroupBox(QString::fromUtf8("3. 구간 속도 적용"));
+  auto* range_layout = new QGridLayout(range_group);
+  range_button_ = button(QString::fromUtf8("시작점·끝점 선택"),
+                         QString::fromUtf8("현재 Raceline에서 시작점과 끝점을 차례로 좌클릭합니다."));
+  range_label_ = note(QString::fromUtf8("시작점과 끝점을 선택하세요."));
+  range_speed_edit_ = new QLineEdit();
+  range_speed_edit_->setValidator(new QIntValidator(0, 200, range_speed_edit_));
+  range_speed_edit_->setPlaceholderText(QString::fromUtf8("속도 0~200 km/h"));
+  range_apply_button_ = button(QString::fromUtf8("구간 전체에 적용"),
+                               QString::fromUtf8("양 끝을 포함한 모든 점에 같은 속도를 설정합니다."));
+  range_layout->addWidget(range_button_, 0, 0, 1, 2);
+  range_layout->addWidget(range_label_, 1, 0, 1, 2);
+  range_layout->addWidget(range_speed_edit_, 2, 0);
+  range_layout->addWidget(range_apply_button_, 2, 1);
+  range_layout->addWidget(note(QString::fromUtf8(
+      "현재 Sector와 Raceline의 두 점 사이에만 적용됩니다. 다시 선택하려면 위 버튼을 누르세요.")),
+      3, 0, 1, 2);
+  outer->addWidget(range_group);
+
+  auto* image_group = new QGroupBox(QString::fromUtf8("4. 사진 크기와 위치"));
   auto* image_layout = new QVBoxLayout(image_group);
   resize_button_ = button(QString::fromUtf8("사진 크기 조절"),
                           QString::fromUtf8("사진의 모서리 또는 변 중앙 손잡이를 드래그합니다."));
@@ -135,14 +160,20 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
   status_label_->setStyleSheet("QLabel { color: #315d89; }");
   outer->addWidget(status_label_);
   outer->addStretch();
+  scroll->setWidget(content);
+  panel_layout->addWidget(scroll);
 
   command_pub_ = node_.advertise<std_msgs::String>("/map_tunner/command", 10);
   state_sub_ = node_.subscribe("/map_tunner/state", 10, &MapTunnerPanel::stateCallback, this);
 
   connect(sector_box_, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-          this, [this](int index) { command("sector:" + std::to_string(index + 1)); });
+          this, [this](int index) {
+            command("sector:" + std::to_string(index + 1));
+          });
   connect(lane_box_, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-          this, [this](int index) { command("lane:" + std::to_string(index + 1)); });
+          this, [this](int index) {
+            command("lane:" + std::to_string(index + 1));
+          });
   connect(add_lane_button_, &QPushButton::clicked, this, [this]() {
     command("add_lane"); activateEditTool();
   });
@@ -159,11 +190,20 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
   connect(smooth_button_, &QPushButton::clicked, this, [this]() {
     command("mode_smooth"); activateEditTool();
   });
+  connect(range_button_, &QPushButton::clicked, this, [this]() {
+    command("mode_speed_range"); activateEditTool();
+  });
   connect(resize_button_, &QPushButton::clicked, this, [this]() {
     command("mode_resize"); activateInteractTool();
   });
   connect(speed_apply_button_, &QPushButton::clicked, this, [this]() { applySpeed(); });
   connect(speed_edit_, &QLineEdit::returnPressed, this, [this]() { applySpeed(); });
+  connect(range_apply_button_, &QPushButton::clicked, this, [this]() { applyRangeSpeed(); });
+  connect(range_speed_edit_, &QLineEdit::returnPressed, this, [this]() { applyRangeSpeed(); });
+  connect(range_speed_edit_, &QLineEdit::textChanged, this, [this]() {
+    range_apply_button_->setEnabled(range_speed_edit_->isEnabled() &&
+                                    range_speed_edit_->hasAcceptableInput());
+  });
   connect(delete_point_button_, &QPushButton::clicked, this, [this]() { command("delete_point"); });
   connect(undo_button, &QPushButton::clicked, this, [this]() { command("undo"); });
   connect(save_button_, &QPushButton::clicked, this, [this]() { command("save"); });
@@ -208,6 +248,12 @@ void MapTunnerPanel::applySpeed() {
   }
 }
 
+void MapTunnerPanel::applyRangeSpeed() {
+  if (range_speed_edit_->hasAcceptableInput()) {
+    command("speed_range:" + range_speed_edit_->text().toStdString());
+  }
+}
+
 void MapTunnerPanel::command(const std::string& value) {
   std_msgs::String message;
   message.data = value;
@@ -232,6 +278,8 @@ void MapTunnerPanel::updateState(const QString& json) {
   const int lane_count = state.value("lane_count").toInt(1);
   const int lane = state.value("lane").toInt(1);
   const bool has_point = !state.value("point_id").isNull();
+  const bool has_range_start = state.value("range_start_id").isDouble();
+  const bool has_range_end = state.value("range_end_id").isDouble();
   {
     QSignalBlocker block(sector_box_);
     sector_box_->setCurrentIndex(sector - 1);
@@ -265,13 +313,32 @@ void MapTunnerPanel::updateState(const QString& json) {
     point_label_->setText(QString::fromUtf8("선택된 점 없음"));
     speed_edit_->clear();
   }
+  if (has_range_start && has_range_end) {
+    range_label_->setText(QString::fromUtf8("시작 #%1 → 끝 #%2 · %3개 점 (양 끝 포함)")
+        .arg(state.value("range_start_id").toInt())
+        .arg(state.value("range_end_id").toInt())
+        .arg(state.value("range_count").toInt()));
+  } else if (has_range_start) {
+    range_label_->setText(QString::fromUtf8("시작 #%1 선택됨 · 끝점을 좌클릭하세요.")
+        .arg(state.value("range_start_id").toInt()));
+  } else {
+    range_label_->setText(QString::fromUtf8("시작점과 끝점을 차례로 좌클릭하세요."));
+  }
+  range_speed_edit_->setEnabled(has_range_end);
+  range_apply_button_->setEnabled(has_range_end && range_speed_edit_->hasAcceptableInput());
   const QString mode = state.value("mode").toString();
   const QString active_style = "QPushButton { background: #efad54; font-weight: bold; }";
   add_point_button_->setStyleSheet(mode == "add" ? active_style : "");
   select_point_button_->setStyleSheet(mode == "select" ? active_style : "");
   interpolate_button_->setStyleSheet(mode == "interpolate" ? active_style : "");
   smooth_button_->setStyleSheet(mode == "smooth" ? active_style : "");
+  range_button_->setStyleSheet(mode == "speed_range" ? active_style : "");
   resize_button_->setStyleSheet(mode == "resize" ? active_style : "");
+  const int point_id = has_point ? state.value("point_id").toInt() : -1;
+  if (mode == "select" && point_id != -1 && point_id != last_selected_id_) {
+    activateInteractTool();
+  }
+  last_selected_id_ = point_id;
   interpolate_button_->setEnabled(lane > 1);
   const bool dirty = state.value("dirty").toBool();
   save_button_->setText(dirty ? QString::fromUtf8("JSON 저장 ●") : QString::fromUtf8("JSON 저장"));
