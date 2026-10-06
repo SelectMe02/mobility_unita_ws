@@ -68,8 +68,15 @@ class ProtocolTests(unittest.TestCase):
         result = list(parse_gps(b'$GPRMC,ignored\r\n' + sentence + b'\x00' * 20))
         self.assertLess(result[0][0], 0)
         self.assertLess(result[0][1], 0)
-        self.assertEqual(list(parse_gps(sentence.replace(b',1,08', b',0,08'))), [])
+        no_fix = list(parse_gps(sentence.replace(b',1,08', b',0,08')))
+        self.assertEqual(len(no_fix), 1)
+        self.assertEqual(no_fix[0][3], 0)
         self.assertEqual(list(parse_gps(sentence.replace(b'4807.038', b'4867.038'))), [])
+
+    def test_zero_coordinate_blackout_is_forwarded_with_no_fix(self):
+        packet = (b'$GPGGA,123519,0000.0000,N,00000.0000,E,0,00,0.9,'
+                  b'0.0,M,0.0,M,,\r\n')
+        self.assertEqual(list(parse_gps(packet)), [(0., 0., 0., 0)])
 
 
 if __name__ == '__main__':

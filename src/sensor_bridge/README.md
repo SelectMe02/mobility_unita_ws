@@ -100,9 +100,11 @@ rostopic echo -n 1 --noarr /camera/image/rear
 ## GPS 지도 좌표와 시간
 
 GPS UDP는 NMEA RMC/GGA이고 **eastOffset/northOffset을 전송하지 않습니다**.
-위도·경도·고도는 유효한 GGA에서 발행하며 `status`에는 GGA fix quality를 넣습니다.
-RMC는 GGA와 중복되는 좌표여서 별도 발행하지 않습니다. 체크섬이 있으면 검증하고,
-fix가 없거나 형식이 잘못된 문장은 버립니다.
+숫자 좌표가 있는 GGA를 발행하며 `status`에는 GGA fix quality를 넣습니다.
+`status=0`도 전달하므로 MORAI Denied Area의 `0/0` GPS blackout을 주행
+state machine에서 볼 수 있습니다. 위치 추정기는 이 값을 유효한 위치로 사용하지
+않습니다. RMC는 GGA와 중복되는 좌표여서 별도 발행하지 않습니다. 체크섬이
+있으면 검증하고, 좌표가 비어 있거나 형식이 잘못된 문장은 버립니다.
 
 기존 `gps_waypoint_follower.py`는 UTM 좌표에서 offsets를 빼므로, 주행 전에
 현재 MORAI 지도의 실제 보정값을 전달해야 합니다. 기본값은 0이며 경고가 출력됩니다.

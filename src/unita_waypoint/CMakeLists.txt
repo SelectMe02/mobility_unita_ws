@@ -224,18 +224,28 @@ target_link_libraries(map_tunner_panel ${catkin_LIBRARIES} Qt5::Widgets)
 # catkin_add_nosetests(test)
 
 catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
+  scripts/lidar_obstacles.py
+  scripts/raceline_test_follower.py
   scripts/30run.py
   scripts/map_tunner.py
   scripts/map_debug.py
   scripts/map_waypoint_calibration.py
+  scripts/extract_stoplines.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-install(DIRECTORY config launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY config launch scenarios DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(FILES scripts/map_tunner_core.py scripts/map_tunner_map.py
+  scripts/local_avoidance_core.py
+  scripts/lane_corridor.py
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts)
 install(TARGETS map_tunner_panel LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 install(FILES plugin_description.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_loop_tracking.py)
+  catkin_add_nosetests(test/test_extract_stoplines.py)
   catkin_add_nosetests(test/test_map_tunner.py)
+  catkin_add_nosetests(test/test_map_debug.py)
+  catkin_add_nosetests(test/test_raceline_selection.py)
+  catkin_add_nosetests(test/test_local_avoidance.py)
+  catkin_add_nosetests(test/test_lane_corridor.py)
 endif()

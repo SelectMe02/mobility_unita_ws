@@ -1,0 +1,45 @@
+<launch>
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="morai_port" default="9093"/>
+  <arg name="status_port" default="9096"/>
+  <arg name="start_rviz" default="false"/>
+  <arg name="start_sensor_bridge" default="true"/>
+  <arg name="heading_source" default="imu"/>
+  <arg name="enable_rear_camera" default="true"/>
+  <arg name="enable_lidar" default="true"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
+  <arg name="enable_local_avoidance" default="true"/>
+  <arg name="preferred_raceline" default="3"/>
+  <arg name="preferred_raceline_sector" default="11"/>
+  <arg name="preferred_raceline_end_checkpoint" default="11"/>
+  <arg name="preferred_raceline_after_checkpoint" default="1"/>
+  <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
+  <arg name="raceline_width" default=""/>
+  <arg name="normal_max_speed_kmh" default="60.0"/>
+  <arg name="high_speed_max_speed_kmh" default="100.0"/>
+  <param name="gps_waypoint_follower/raceline_config" value="$(arg raceline_config)"/>
+  <param name="gps_waypoint_follower/use_project_speed_limits" value="true"/>
+  <param if="$(eval arg('raceline_width') != '')" name="gps_waypoint_follower/raceline_width" value="$(arg raceline_width)" type="double"/>
+  <param unless="$(eval arg('raceline_width') != '')" name="gps_waypoint_follower/raceline_width" value="" type="str"/>
+  <include file="$(find unita_launch)/launch/competition_udp_tracking.launch">
+    <arg name="follower_node_type" value="raceline_test_follower.py"/>
+    <arg name="morai_ip" value="$(arg morai_ip)"/>
+    <arg name="morai_port" value="$(arg morai_port)"/>
+    <arg name="status_port" value="$(arg status_port)"/>
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+    <arg name="start_sensor_bridge" value="$(arg start_sensor_bridge)"/>
+    <arg name="heading_source" value="$(arg heading_source)"/>
+    <arg name="enable_rear_camera" value="$(arg enable_rear_camera)"/>
+    <arg name="enable_lidar" value="$(arg enable_lidar)"/>
+    <arg name="enable_local_avoidance" value="$(arg enable_local_avoidance)"/>
+    <arg name="preferred_raceline" value="$(arg preferred_raceline)"/>
+    <arg name="preferred_raceline_sector" value="$(arg preferred_raceline_sector)"/>
+    <arg name="preferred_raceline_end_checkpoint" value="$(arg preferred_raceline_end_checkpoint)"/>
+    <arg name="preferred_raceline_after_checkpoint" value="$(arg preferred_raceline_after_checkpoint)"/>
+    <arg name="raceline_config" value="$(arg raceline_config)"/>
+    <arg name="raceline_width" value="$(arg raceline_width)"/>
+    <arg name="waypoint_file" value="$(arg waypoint_file)"/>
+    <arg name="normal_max_speed_kmh" value="$(arg normal_max_speed_kmh)"/>
+    <arg name="high_speed_max_speed_kmh" value="$(arg high_speed_max_speed_kmh)"/>
+  </include>
+</launch>

@@ -2,6 +2,7 @@
 """Persistent, ROS-independent data model for the K-City RViz map tuner."""
 
 import copy
+from bisect import bisect_left
 import json
 import math
 import os
@@ -149,6 +150,116 @@ def primary_route(project):
     return route, sectors
 
 
+def raceline_layout_settings(project, config_file, raceline_width=None):
+    """Prefer the saved lane width, then YAML; an explicit width overrides both."""
+    with Path(config_file).open() as stream:
+        defaults = yaml.safe_load(stream) or {}
+    saved = project.get('generated_racelines', {}).get('settings', {})
+    width = (raceline_width if raceline_width not in (None, '') else
+             saved.get('raceline_width', defaults.get('raceline_width', 3.5)))
+    return float(width)
+
+
+def saved_lane_indices(project, route, sectors):
+    """Map saved lanes to R1 progress, including manual southbound S11 points."""
+    route_ids = {p['id']: i for i, p in enumerate(route)}
+    result = {n: {} for n in (2, 3)}
+    for sector in project['sectors']:
+        for n in (2, 3):
+            points = sector['racelines'].get(str(n), [])
+            result[n].update({route_ids[p['source_id']]: (p['x'], p['y'])
+                              for p in points if p.get('source_id') in route_ids})
+            if sector['number'] != 11 or len(points) < 2:
+                continue
+            # Manual points have no source_id. Interpolate inside their saved
+            # Y range; never truncate the lane at the last generated point.
+            ordered = sorted(points, key=lambda p: p['y'])
+            ys = [p['y'] for p in ordered]
+            for i, point in enumerate(route):
+                y = point['y']
+                if sectors[i] != 11 or not ys[0] <= y <= ys[-1]:
+                    continue
+                j = bisect_left(ys, y)
+                if j == 0 or ys[j] == y:
+                    result[n][i] = (ordered[j]['x'], y)
+                else:
+                    a, b = ordered[j-1], ordered[j]
+                    t = (y-a['y'])/(b['y']-a['y'])
+                    result[n][i] = (a['x']+t*(b['x']-a['x']), y)
+    return result
+
+
+def generate_racelines(project, raceline_width=3.5, waypoint_file=None):
+    """Keep Sector 11 Raceline 1 on the CSV and translate R2/R3 to its left."""
+    width = float(raceline_width)
+    if not math.isfinite(width) or width <= 0:
+        raise ValueError('raceline width must be positive and finite')
+    validate_project(project)
+    result = copy.deepcopy(project)
+    sector = result['sectors'][10]
+    csv_path = (Path(waypoint_file).expanduser() if waypoint_file is not None else
+                Path(__file__).resolve().parents[1] / 'config/waypoints.csv')
+    csv_points = load_csv(csv_path)
+    first, last = sector['source_indices']
+    reference = csv_points[first:last + 1]
+    current_r1 = sector['racelines']['1']
+    if len(reference) != len(current_r1):
+        raise ValueError('Sector 11 Raceline 1 point count differs from waypoints.csv')
+    settings = {'raceline_width': width}
+    existing = project.get('generated_racelines')
+    if (existing and existing.get('settings') == settings
+            and existing.get('layout_version') == 2
+            and all((point['x'], point['y'], point['z']) == tuple(xyz)
+                    for point, xyz in zip(current_r1, reference))):
+        return result
+
+    # Keep waypoint IDs and edited speed limits; restore the CSV's exact XYZ.
+    base = copy.deepcopy(current_r1)
+    for point, (x, y, z) in zip(base, reference):
+        point.update(x=x, y=y, z=z)
+    anchor = min(range(len(base)), key=lambda i:
+                 math.hypot(base[i]['x'] - 63.47, base[i]['y'] - 146.13))
+    anchor_x = base[anchor]['x']
+    start = next((i for i in range(anchor + 1, len(base))
+                  if base[i]['x'] > anchor_x), None)
+    if start is None:
+        raise ValueError('Sector 11 never crosses the reference waypoint X')
+    stop = next((i for i in range(start, len(base))
+                 if base[i]['y'] < -122.90), None)
+    if stop is None or stop - start < 2:
+        raise ValueError('Sector 11 must continue south across y=-122.90')
+    if any(base[i + 1]['y'] > base[i]['y'] for i in range(start, stop - 1)):
+        raise ValueError('three-lane reference must run south')
+    if not existing and any(sector['racelines'].get(str(n)) for n in (2, 3)):
+        raise ValueError('reference sector already contains manual R2/R3; use a separate project file')
+
+    lanes = {'1': base}
+    for number in (2, 3):
+        previous = {p.get('source_id'): p['id']
+                    for p in sector['racelines'].get(str(number), [])}
+        lane = []
+        for original in base[start:stop]:
+            point = copy.deepcopy(original)
+            identifier = previous.get(original['id'])
+            if identifier is None:
+                identifier = result['next_point_id']
+                result['next_point_id'] += 1
+            point.update(id=identifier, source_id=original['id'],
+                         x=original['x'] + (number - 1) * width)
+            lane.append(point)
+        lanes[str(number)] = lane
+    sector['lane_count'] = 3
+    sector['racelines'] = lanes
+    result['generated_racelines'] = {
+        'settings': settings, 'layout_version': 2, 'sector': sector['number'],
+        'start_index': start, 'stop_index': stop,
+        'reference': [63.47, 146.13], 'end_y': -122.90,
+        'base_raceline1': copy.deepcopy(base),
+    }
+    validate_project(result)
+    return result
+
+
 def save_project(path, project):
     validate_project(project)
     target = Path(path).expanduser()
@@ -272,28 +383,34 @@ class ProjectEditor:
         self._checkpoint()
         return points.pop(index)
 
-    def fill_interpolated_lane(self, sector, lane, start_xy, end_xy):
-        """Fill an empty raceline with the raceline 1 point count, including endpoints."""
-        points = self.lane(sector, lane)
-        reference = self.lane(sector, 1)
-        if points:
-            raise ValueError('선 보간은 빈 Raceline에서만 가능합니다')
-        if len(reference) < 2:
-            raise ValueError('Raceline 1에 기준점이 두 개 이상 필요합니다')
+    def append_continuous_points(self, sector, lane, start_xy, end_xy, interior_count):
+        """Append both endpoints and the requested number of evenly spaced points."""
+        if (isinstance(interior_count, bool) or not isinstance(interior_count, int)
+                or not 0 <= interior_count <= 10000):
+            raise ValueError('사이 점 개수는 0~10000 정수로 입력하세요')
         coordinates = tuple(start_xy) + tuple(end_xy)
         if len(coordinates) != 4 or not all(math.isfinite(float(v)) for v in coordinates):
             raise ValueError('유효한 시작점과 끝점을 찍어주세요')
         x0, y0, x1, y1 = map(float, coordinates)
-        count = len(reference)
-        z0, z1 = reference[0]['z'], reference[-1]['z']
+        if math.hypot(x1 - x0, y1 - y0) < 1e-6:
+            raise ValueError('시작점과 끝점은 서로 다른 위치에 찍어주세요')
+        points = self.lane(sector, lane)
+        reference = points or self.lane(sector, 1)
+        if not reference:
+            raise ValueError('높이 기준 경로점이 필요합니다')
+        first, _ = nearest_point(reference, x0, y0)
+        last, _ = nearest_point(reference, x1, y1)
+        z0, z1 = reference[first]['z'], reference[last]['z']
+        speed = reference[first]['speed_kmh']
+        count = interior_count + 2
         self._checkpoint()
-        for index, original in enumerate(reference):
+        for index in range(count):
             fraction = index / (count - 1)
             points.append({'id': self.project['next_point_id'],
                            'x': x0 + (x1 - x0) * fraction,
                            'y': y0 + (y1 - y0) * fraction,
                            'z': z0 + (z1 - z0) * fraction,
-                           'speed_kmh': original['speed_kmh']})
+                           'speed_kmh': speed})
             self.project['next_point_id'] += 1
         return count
 

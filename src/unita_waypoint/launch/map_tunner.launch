@@ -1,9 +1,14 @@
 <launch>
+  <!-- Empty overrides use the common YAML defaults. -->
+  <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
+  <arg name="raceline_width" default=""/>
   <arg name="start_rviz" default="true"/>
   <arg name="project_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
   <arg name="image_file" default="$(find unita_waypoint)/config/kcity_map_sim.png"/>
   <arg name="calibration_file" default="$(find unita_waypoint)/config/map_tunner_calibration.yaml"/>
   <node pkg="unita_waypoint" type="map_tunner.py" name="map_tunner" output="screen">
+    <param name="raceline_config" value="$(arg raceline_config)"/>
+    <param if="$(eval arg('raceline_width') != '')" name="raceline_width" value="$(arg raceline_width)" type="double"/>
     <param name="project_file" value="$(arg project_file)"/>
     <param name="image_file" value="$(arg image_file)"/>
     <param name="calibration_file" value="$(arg calibration_file)"/>

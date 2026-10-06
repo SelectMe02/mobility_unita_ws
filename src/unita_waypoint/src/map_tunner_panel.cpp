@@ -94,8 +94,11 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
                              QString::fromUtf8("지도에서 좌클릭하면 현재 Raceline에 점이 추가됩니다."));
   select_point_button_ = button(QString::fromUtf8("점 선택"),
                                 QString::fromUtf8("지도에서 점 근처를 좌클릭해 선택합니다."));
-  interpolate_button_ = button(QString::fromUtf8("↔ 선 보간"),
-                               QString::fromUtf8("빈 Raceline에서 시작점과 끝점을 좌클릭합니다."));
+  interpolate_button_ = button(QString::fromUtf8("연속 점찍기"),
+                               QString::fromUtf8("사이 점 개수를 입력하고 시작점·끝점을 좌클릭하면 현재 Raceline 끝에 추가합니다."));
+  continuous_count_edit_ = new QLineEdit("10");
+  continuous_count_edit_->setValidator(new QIntValidator(0, 10000, continuous_count_edit_));
+  continuous_count_edit_->setToolTip(QString::fromUtf8("시작점과 끝점을 제외한 사이 점 개수 (0~10000)"));
   smooth_button_ = button(QString::fromUtf8("〰 스무딩"),
                           QString::fromUtf8("경로점에서 우클릭하면 앞뒤 15개 점을 참조해 스무딩합니다."));
   point_label_ = note(QString::fromUtf8("선택된 점 없음"));
@@ -110,13 +113,15 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
   point_layout->addWidget(select_point_button_, 0, 1);
   point_layout->addWidget(interpolate_button_, 1, 0);
   point_layout->addWidget(smooth_button_, 1, 1);
+  point_layout->addWidget(note(QString::fromUtf8("사이 점 개수 (시작·끝 제외):")), 2, 0);
+  point_layout->addWidget(continuous_count_edit_, 2, 1);
   point_layout->addWidget(note(QString::fromUtf8(
-      "점 추가/선택/보간/스무딩: 지도 좌클릭\n"
-      "점을 선택하면 노란 점을 바로 드래그해 이동")), 2, 0, 1, 2);
-  point_layout->addWidget(point_label_, 3, 0, 1, 2);
-  point_layout->addWidget(speed_edit_, 4, 0);
-  point_layout->addWidget(speed_apply_button_, 4, 1);
-  point_layout->addWidget(delete_point_button_, 5, 0, 1, 2);
+      "점 추가/선택/연속 점찍기/스무딩: 지도 좌클릭\n"
+      "점을 선택하면 노란 점을 바로 드래그해 이동")), 3, 0, 1, 2);
+  point_layout->addWidget(point_label_, 4, 0, 1, 2);
+  point_layout->addWidget(speed_edit_, 5, 0);
+  point_layout->addWidget(speed_apply_button_, 5, 1);
+  point_layout->addWidget(delete_point_button_, 6, 0, 1, 2);
   outer->addWidget(point_group);
 
   auto* range_group = new QGroupBox(QString::fromUtf8("3. 구간 속도 적용"));
@@ -185,7 +190,12 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
     command("mode_select"); activateEditTool();
   });
   connect(interpolate_button_, &QPushButton::clicked, this, [this]() {
-    command("mode_interpolate"); activateEditTool();
+    if (!continuous_count_edit_->hasAcceptableInput()) {
+      status_label_->setText(QString::fromUtf8("사이 점 개수는 0~10000 정수로 입력하세요."));
+      return;
+    }
+    command("continuous_points:" + continuous_count_edit_->text().toStdString());
+    activateEditTool();
   });
   connect(smooth_button_, &QPushButton::clicked, this, [this]() {
     command("mode_smooth"); activateEditTool();
@@ -339,7 +349,7 @@ void MapTunnerPanel::updateState(const QString& json) {
     activateInteractTool();
   }
   last_selected_id_ = point_id;
-  interpolate_button_->setEnabled(lane > 1);
+  interpolate_button_->setEnabled(true);
   const bool dirty = state.value("dirty").toBool();
   save_button_->setText(dirty ? QString::fromUtf8("JSON 저장 ●") : QString::fromUtf8("JSON 저장"));
   QString status = state.value("message").toString();

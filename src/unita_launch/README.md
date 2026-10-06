@@ -668,3 +668,63 @@ rosbag record -O waypoint_tracking.bag \
 catkin_make run_tests_unita_launch
 catkin_test_results build/test_results/unita_launch
 ```
+
+## 장애물에 따른 Raceline 자동 선택
+
+```bash
+source ~/unita_ws/devel/setup.bash
+roslaunch unita_launch test_map_raceline.launch morai_ip:=127.0.0.1
+```
+
+이 launch는 sensor bridge, LiDAR 장애물 추적, 주행 follower, UDP 제어,
+localization을 함께 실행합니다. `competition_udp_tracking.launch`와 동시에
+실행하지 않습니다. 방향각은 기본적으로 `/imu`를 사용합니다. MORAI IMU UDP의
+Host 9120 → Destination `127.0.0.1:9220`을 Connect ON으로 설정하세요
+(위 localhost 실행 예시 기준).
+기본적으로 RViz 창을 열지 않으므로 지도를 보려면 별도 터미널에서
+`roslaunch unita_waypoint map_debug.launch`를 실행하세요.
+
+Sector 11에서 checkpoint 11까지(해당 checkpoint 포함)는 장애물이 없고
+안전하게 진입할 수 있으면 Raceline 3을 최우선으로 추종합니다.
+`preferred_raceline:=3`, `preferred_raceline_sector:=11`,
+`preferred_raceline_end_checkpoint:=11`이 기본 설정입니다.
+checkpoint 11을 통과하면 안전한 간격이 확보되는 대로 Raceline 1로 복귀합니다
+(`preferred_raceline_after_checkpoint:=1`). R3이 막히면 다른 저장 차선(보통 R2)으로 추월하고,
+우선 구간 안에서는 R3의 전방 경로와 후방 간격이 확보된 뒤 복귀합니다. 후방 55 m와 측방도
+LiDAR로 추적하고, 접근 속도에 따른 간격 및 차선 변경 중 예상 충돌을 검사합니다.
+R1에서 R3으로 이동할 때 가로지르는 R2의 차량도 검사합니다.
+후방 차량이 가까우면 현재 차선을 유지하며 `LANE_WAIT` 또는 `TAILING`으로
+대기합니다. 새로 인지된 후방 차량의 속도 분류가 끝나기 전에도 변경을 기다립니다.
+차선을 10초씩 주행하는 타이머는 없습니다.
+
+현재 지도에서 Raceline 2와 3은 **Sector 11의 일부 구간**에 저장되어 있습니다.
+다른 구간에서는 Raceline 1을 사용하며, 저장된 차선 끝에 도착하기 전에 감속하고
+R1으로 복귀합니다. 안전한 복귀 경로가 없거나 LiDAR 입력이 끊기면 정지합니다.
+
+프로젝트 JSON에 저장된 차선 폭을 기본으로 사용합니다. 배치가 없다면
+`unita_waypoint/config/raceline_layout.yaml`의 설정으로 메모리에서 생성합니다.
+차선 폭 `raceline_width`는 전체 폭(m)이며, 기본 3.2 m이면 각 raceline의
+양옆 1.6 m 안에서만 장애물을 인지합니다. 차선 밖 점·객체·예측 추적은 버리고
+회피 판단과 debug 표시에서 제외합니다. 실제 주행 raceline과 폭을
+`/waypoint_debug/lane_geometry`로 공유하므로 map_debug도 같은 기준을 사용합니다.
+폭을 명시적으로 바꾸려면 다음처럼 지정합니다.
+
+```bash
+roslaunch unita_launch test_map_raceline.launch morai_ip:=127.0.0.1 raceline_width:=3.2
+rostopic echo /waypoint_debug/tracking_state
+```
+
+`tracking_state`의 `raceline`과 `local_lane`은 선택한 목표 차선 번호이며,
+차량이 차선 중앙에 도착했다는 의미는 아닙니다. `driving_state`는 `RACELINE`,
+`LANE_CHANGING`, `LANE_WAIT`, `TAILING`, `OVERTAKING`, `RETURNING`,
+`BLOCKED`, `SENSOR_HOLD`입니다. `current_raceline`은 가장 가까운 저장 차선,
+`preferred_raceline`은 현재 구간의 우선 차선이며 `lane_change_reason`은 변경 대기 사유입니다.
+`obstacle_kind`와 `obstacle_distance_m`은 장애물 분류와 거리입니다.
+`/waypoint_path`는 Raceline 1 글로벌 경로이고,
+`/waypoint_debug/local_path`는 실제 추종하는 회피·복귀 임시 경로입니다.
+`map_debug` 왼쪽 패널에는 선택 차선과 주행 상태가 표시됩니다.
+
+각 점의 `speed_kmh`와 기존 곡률 속도 계획을 상한으로 사용합니다.
+회피 중에는 `pass_speed_kmh` 상한(기본 20 km/h)도 적용합니다.
+기능을 끄려면 `enable_local_avoidance:=false`를 지정합니다.
+장애물 회피를 켠 상태에서는 `enable_lidar:=true`와 정상적인 점군 입력이 필요합니다.

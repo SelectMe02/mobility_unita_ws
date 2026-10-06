@@ -34,6 +34,19 @@ Visualization Manager:
     Marker Topic: /map_debug/vehicle
     Queue Size: 10
     Namespaces: {}
+  - Class: rviz/Path
+    Name: 장애물 회피 Local Path
+    Enabled: true
+    Topic: /waypoint_debug/local_path
+    Color: 255; 80; 80
+    Line Style: Lines
+    Line Width: 0.15
+  - Class: rviz/MarkerArray
+    Name: 인지 장애물 Box (동적 빨강 / 정적 파랑 / 분류 중 노랑)
+    Enabled: true
+    Marker Topic: /map_debug/obstacles
+    Queue Size: 10
+    Namespaces: {}
   Tools:
   - Class: rviz/MoveCamera
   - Class: rviz/Select

@@ -21,7 +21,8 @@ from visualization_msgs.msg import (InteractiveMarker, InteractiveMarkerControl,
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from map_tunner_core import (ProjectEditor, create_project, insert_index,
                              load_checkpoints, load_csv, load_project,
-                             nearest_point, save_project)
+                             nearest_point, save_project, generate_racelines,
+                             raceline_layout_settings)
 from map_tunner_map import AerialMap
 
 
@@ -73,7 +74,12 @@ class MapTunner:
             project = create_project(self.waypoint_file, self.checkpoint_file,
                                      rospy.get_param('~default_speed_kmh', 20))
             save_project(self.project_file, project)
-        self.editor = ProjectEditor(project)
+        width = raceline_layout_settings(
+            project, rospy.get_param('~raceline_config', str(config / 'raceline_layout.yaml')),
+            rospy.get_param('~raceline_width', None))
+        generated = generate_racelines(project, width, self.waypoint_file)
+        self.editor = ProjectEditor(generated)
+        self.editor.dirty = generated != project
         self.aerial = AerialMap(rospy.get_param('~image_file', str(config / 'kcity_map_sim.png')),
                                 self.calibration_file, self.checkpoints,
                                 rospy.get_param('~map_resolution', 0.5))
@@ -88,6 +94,7 @@ class MapTunner:
         self.range_end_id = None
         self.pending_calibration = None
         self.interpolation_start = None
+        self.continuous_point_count = 10
         self.resize_base = None
 
         self.map_pub = rospy.Publisher('/map_tunner/map', OccupancyGrid,
@@ -411,24 +418,21 @@ class MapTunner:
                 self.refresh('Image anchor {} -> ({:.1f}, {:.1f})'.format(name, *pixel))
                 return
             if self.mode == 'interpolate':
-                if self.editor.lane(self.active_sector, self.active_lane):
-                    self.refresh('선 보간은 빈 Raceline에서만 가능합니다.')
-                    return
                 if self.interpolation_start is None:
                     self.interpolation_start = (x, y)
                     self.refresh('시작점 지정 완료. 끝점을 좌클릭하세요.')
                     return
                 try:
-                    count = self.editor.fill_interpolated_lane(
+                    count = self.editor.append_continuous_points(
                         self.active_sector, self.active_lane,
-                        self.interpolation_start, (x, y))
+                        self.interpolation_start, (x, y), self.continuous_point_count)
                 except ValueError as error:
                     self.refresh(str(error))
                     return
                 self.interpolation_start = None
                 self.selected_id = None
-                self.refresh('선 보간 완료: 시작/끝 포함 {}점, 사이에 {}점 생성'.format(
-                    count, count - 2))
+                self.refresh('연속 점찍기 완료: 시작·끝 + 사이 {}점 = {}점 추가'.format(
+                    self.continuous_point_count, count))
                 return
             if self.mode == 'resize':
                 return
@@ -563,6 +567,12 @@ class MapTunner:
                 elif command.startswith('lane:'):
                     lane = int(command.split(':', 1)[1])
                     self.perform('lane_{}'.format(lane))
+                elif command.startswith('continuous_points:'):
+                    value = command.split(':', 1)[1]
+                    if not value.isdecimal() or not 0 <= int(value) <= 10000:
+                        raise ValueError('사이 점 개수는 0~10000 정수로 입력하세요')
+                    self.continuous_point_count = int(value)
+                    self.perform('mode_interpolate')
                 elif command.startswith('speed:'):
                     value = command.split(':', 1)[1]
                     if not value.isdecimal() or not 0 <= int(value) <= 200:
@@ -676,7 +686,7 @@ class MapTunner:
                 'mode_add': '점 추가 모드: 지도에서 좌클릭하세요.',
                 'mode_select': '점 선택 모드: 점을 좌클릭하면 노란 점을 바로 드래그할 수 있습니다.',
                 'mode_speed_range': '속도 구간: 시작점과 끝점을 차례로 좌클릭하세요.',
-                'mode_interpolate': '선 보간 모드: 빈 Raceline에 시작점과 끝점을 좌클릭하세요.',
+                'mode_interpolate': '연속 점찍기: 시작점과 끝점을 좌클릭하세요. 사이 {}점을 포함해 경로 끝에 추가합니다.'.format(self.continuous_point_count),
                 'mode_smooth': '스무딩 모드: 점을 좌클릭하면 주변 앞뒤 15개를 스무딩합니다.',
                 'mode_resize': '사진 손잡이를 드래그하세요. 모서리는 비율 유지, 변은 한 방향만 변경합니다.',
                 'speed_up': '속도 +1 km/h',

@@ -1,6 +1,8 @@
 <launch>
   <!-- Sensor reception and visualization only. No /ctrl_cmd publisher exists here. -->
   <arg name="morai_ip" default="127.0.0.1"/>
+  <!-- Use with an existing tracking launch to avoid duplicate UDP/TF publishers. -->
+  <arg name="visualization_only" default="false"/>
   <arg name="bind_ip" default="0.0.0.0"/>
   <arg name="east_offset" default="302595"/>
   <arg name="north_offset" default="4124145"/>
@@ -23,6 +25,7 @@
   <arg name="lidar_rpm" default="600"/>
   <arg name="rviz_config" default="$(find unita_launch)/config/manual_sensors.rviz"/>
 
+  <group unless="$(arg visualization_only)">
   <include file="$(find sensor_bridge)/launch/sensor_bridge.launch">
     <!-- Individual camera args override the legacy all-camera switch. -->
     <arg name="enable_cameras" value="false"/>
@@ -62,6 +65,7 @@
   <node unless="$(arg localization_active)" pkg="tf2_ros"
         type="static_transform_publisher" name="manual_lidar_frame_tf"
         args="0 0 0 0 0 0 map $(arg lidar_frame)"/>
+  </group>
 
   <node pkg="rviz" type="rviz" name="manual_sensor_rviz"
         args="-d $(arg rviz_config)" output="screen"/>

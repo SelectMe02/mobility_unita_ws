@@ -26,10 +26,15 @@ class MapDebugPanel : public rviz::Panel {
   ros::Subscriber subscriber_;
   std::mutex mutex_;
   std::string status_;
+  ros::WallTime status_received_;
   QLabel* speed_;
   QLabel* position_;
   QLabel* heading_;
   QLabel* sector_;
+  QLabel* raceline_;
+  QLabel* driving_state_;
+  QLabel* obstacle_;
+  QLabel* finish_;
   QTimer* timer_;
 };
 

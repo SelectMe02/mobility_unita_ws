@@ -1,0 +1,26 @@
+<launch>
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="model_path" default="$(find perception)/../../best1.pt"/>
+  <arg name="camera_lane_assist" default="true"/>
+  <include file="$(find unita_launch)/launch/competition_udp_tracking.launch">
+    <arg name="morai_ip" value="$(arg morai_ip)"/>
+    <arg name="follower_ctrl_topic" value="/leo/raw_ctrl_cmd"/>
+    <arg name="guard_speed_limit_topic" value="/leo/speed_limit_kmh"/>
+    <arg name="start_rviz" value="false"/>
+    <!-- High speed legal zone has not been independently mapped yet. -->
+    <arg name="normal_max_speed_kmh" value="58.0"/>
+    <arg name="high_speed_max_speed_kmh" value="58.0"/>
+  </include>
+  <node pkg="perception" type="traffic_light_test.py" name="leo_traffic_lights" output="screen">
+    <param name="model_path" value="$(arg model_path)"/>
+    <param name="confidence" value="0.7"/>
+    <param name="inference_rate" value="5.0"/>
+    <param name="image_timeout" value="1.0"/>
+  </node>
+  <node pkg="leo_guard" type="guard_node.py" name="leo_guard" output="screen" required="true">
+    <rosparam command="load" file="$(find leo_guard)/config/guard.yaml"/>
+  </node>
+  <node if="$(arg camera_lane_assist)" pkg="leo_guard" type="camera_lane_node.py" name="leo_camera_lane" output="screen">
+    <rosparam command="load" file="$(find leo_guard)/config/camera.yaml"/>
+  </node>
+</launch>

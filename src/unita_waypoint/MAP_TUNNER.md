@@ -71,7 +71,14 @@ ROS master가 없다면 별도 터미널에서 `roscore`를 먼저 실행하세�
    좌클릭하세요. 두 점 사이가 노란색으로 표시됩니다. 속도 값을 입력하고
    **구간 전체에 적용**을 누르면 양 끝을 포함한 모든 점이 같은 속도가 됩니다.
    선택 순서는 앞뒤 어느 쪽이든 됩니다. 허용 속도는 0~200 km/h입니다.
-7. **JSON 저장**을 누르면 `config/map_tunner_project.json`에 기록됩니다.
+7. **사이 점 개수**에 시작점·끝점을 제외한 점 개수를 입력하고 **연속 점찍기**를
+   누르세요. 지도에서 시작점과 끝점을 차례로 좌클릭하면 두 위치 사이에 균등하게
+   점을 생성하여 현재 Raceline 끝에 추가합니다. 예를 들어 `10`을 입력하면 양 끝을
+   포함해 총 12점이 추가됩니다. 빈 Raceline과 기존 Raceline 모두 사용할 수 있으며,
+   기존 점은 유지됩니다. 기존 경로의 끝부터 이어 그리려면 끝점 위치를 시작점으로
+   클릭하세요. 새 점의 속도는 시작 위치에 가장 가까운 기존 점에서 가져오며 높이는
+   양 끝 근처 점의 높이를 보간합니다. **실행 취소**로 한 번에 되돌릴 수 있습니다.
+8. **JSON 저장**을 누르면 `config/map_tunner_project.json`에 기록됩니다.
    저장하지 않은 편집이 있으면 버튼에 ●가 표시됩니다. 원본
    `config/waypoints.csv`는 변경하지 않습니다.
 
@@ -91,8 +98,10 @@ ROS master가 없다면 별도 터미널에서 `roscore`를 먼저 실행하세�
 `competition_udp_tracking.launch`는 저장된 JSON의 각 Sector Raceline 1을
 순서대로 이어 주행합니다. 편집 후 **JSON 저장**을 누르고 주행 launch를 다시
 시작해야 새 경로가 적용됩니다. 원본 `waypoints.csv`는 그대로 둡니다.
-Raceline 2/3과 편집기 속도 값은 주행에 사용하지 않으며, 기존 곡률 기반
-속도 계획과 `competition_speed_profile.yaml`의 상한을 사용합니다.
+일반 `competition_udp_tracking.launch`는 편집기 속도 값을 적용하지 않고 기존
+곡률 기반 속도 계획과 `competition_speed_profile.yaml`의 상한을 사용합니다.
+`test_map_raceline.launch`는 Raceline 1의 점별 `speed_kmh`를 추가 상한으로
+사용합니다. 차선 전환 중에도 동일한 점별 상한을 적용합니다.
 
 ## 읽기 전용 주행 지도
 
@@ -104,7 +113,62 @@ roslaunch unita_waypoint map_debug.launch
 
 편집기와 같은 사진, 저장된 경로, Sector Checkpoint를 표시합니다. 왼쪽에는
 실제 속도, 지도 좌표, 헤딩, 현재 Sector를 표시하고 지도에는 차량 위치와
-진행 방향을 노란 화살표로 그립니다. `/localization/pose`와
-`/localization/valid`, `/competition/ego_speed_kmh`를 사용합니다. 주행 launch를
+진행 방향을 노란 화살표로 그립니다. 유효한 follower 상태에 담긴 제어 위치와
+헤딩을 우선 사용하여 우선 차선 판정과 차량 표시를 같은 시점에 맞춥니다.
+follower 위치가 없으면 `/localization/pose`와 `/localization/valid`를 사용하고,
+속도는 `/competition/ego_speed_kmh`를 사용합니다. 주행 launch를
 `start_rviz:=false`로 시작하면 RViz 창이 하나만 열립니다. 위치가 유효하지
 않거나 1초 넘게 갱신되지 않으면 차량 표시를 지웁니다.
+
+Map Debug는 `/home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json`을
+고정으로 읽어 모든 Raceline의 선과 점을
+표시합니다. 자동 차선 재생성을 하지 않으므로 수동 연장한 점도 유지됩니다.
+Map Tuner에서 JSON을 저장하면 실행 중인 Map Debug도 약 1초 안에 경로를
+갱신합니다. 실행 로그에는 읽은 파일의 절대 경로와 Sector/Raceline별 점 개수가
+표시됩니다. 주행 노드가 발행한 `lane_geometry`는 장애물 필터에만 사용하며
+저장된 지도 표시를 덮어쓰지 않습니다. `project_file` 인자로 다른 파일을
+지정해도 Debug의 지도 파일은 위 경로로 고정됩니다.
+
+## 기준점으로 3차선 경로 생성
+
+Sector 11의 Raceline 1은 `config/waypoints.csv`의 해당 구간 XYZ 좌표를 그대로
+사용합니다. 점별 `speed_kmh`는 프로젝트 JSON 값을 유지합니다. 기준점
+`(63.47, 146.13)`에 가장 가까운 Raceline 1 점이 차선 1의 기준입니다.
+남쪽으로 주행하는 이 구간에서 왼쪽은 지도 +X 방향입니다.
+
+기준점에 가장 가까운 점의 X 좌표를 **처음 초과하는 다음 점**부터 Raceline 2와
+Raceline 3을 만듭니다. 두 경로는 각각 Raceline 1보다 +X 방향으로
+`raceline_width`, `2 × raceline_width`만큼 이동한 차선 중앙입니다.
+점 개수와 대응 점의 Y/Z 좌표, 연속 점 사이 간격은 Raceline 1과 같습니다.
+두 경로는 `y >= -122.90`인 마지막 점에서 함께 끝나고, 그 뒤에는
+Raceline 1만 이어집니다. Raceline 1의 앞뒤 점과 다른 Sector는 수정하지 않습니다.
+
+`map_tunner.launch`는 저장된 프로젝트의 차선 폭을
+기본으로 표시합니다. 저장된 값이 없으면 공통 설정
+`config/raceline_layout.yaml`의 `raceline_width: 3.5` m를 사용합니다.
+현재 저장된 프로젝트의 폭은 3.2 m입니다. 폭을 바꿔 확인하려면:
+
+```bash
+roslaunch unita_waypoint map_tunner.launch raceline_width:=3.2
+```
+
+폭을 변경하면 CSV의 Raceline 1을 기준으로 Raceline 2/3을 다시 만듭니다.
+Map Tuner에서 **JSON 저장**을 누르면 일반 주행에서도 새 경로를 사용합니다.
+저장 전 수동으로 바꾼 Raceline 2/3 위치는 폭을 변경해 다시 생성할 때
+초기화됩니다. 원본 `waypoints.csv`는 수정하지 않습니다.
+Map Debug의 경로 폭을 바꾸려면 Map Tuner에서 수정하고 JSON을 저장하세요.
+
+Map Debug 왼쪽의 **현재 Sector**와 **추종 Raceline**은 주행 follower의
+`/waypoint_debug/tracking_state`를 받아 표시합니다. Raceline 번호는 차량이
+물리적으로 위치한 차선의 추정값이 아니라 현재 추종하는 목표 경로입니다.
+일반 주행은 Raceline 1이 기본이며, `test_map_raceline.launch`는 저장된 경로가
+있는 Sector 11 구간에서 checkpoint 11까지 Raceline 3을 우선하고,
+checkpoint 11 이후에는 Raceline 1로 복귀합니다. 장애물과 후방 간격에 따라 추월·복귀를
+판단하며, 패널에는 현재 추정 차선 → 목표 차선과 우선 차선이 함께 표시됩니다.
+끝선은 JSON의 S11 끝점 Y=-217.855053961277이며 지도에 흰색 가로선으로 표시합니다.
+차량 뒤쪽 모서리까지 끝선의 남쪽으로 지나야 R1 우선으로 바뀝니다.
+패널의 **CP11 끝선**에서 뒤쪽 Y, 끝선 Y, 후미 통과 여부를 확인할 수 있습니다.
+수동 연장한 R3도 주행 경로에 포함됩니다. 주행은 차선 폭 파라미터와 무관하게
+저장된 JSON 좌표를 그대로 사용합니다. 경로 재생성은 Map Tuner에서 수행하고
+JSON을 저장합니다. 주행 launch의 차선 폭은 장애물 인식 범위에만 적용됩니다.
+추종 상태가 1초 이상 수신되지 않거나 정지 상태이면 Raceline은 대기 중으로 표시합니다.

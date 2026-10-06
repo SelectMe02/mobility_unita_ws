@@ -1,0 +1,29 @@
+# TODO: Verify LiDAR mounting, scan registration and limits in MORAI blackout.
+lidar_to_rear_x_m: 1.4
+min_z_m: -0.8
+max_z_m: 0.8
+max_range_m: 18.0
+voxel_m: 0.25
+max_pair_distance_m: 0.65
+min_pairs: 35
+max_rmse_m: 0.25
+max_correction_m: 0.5
+max_correction_rad: 0.12
+input_timeout_s: 0.6
+# A missing /gps stream triggers blackout after this delay, following a GPS anchor.
+gps_silence_timeout_s: 0.75
+gps_return_grace_s: 1.5
+gps_pose_max_age_s: 1.0
+# The GPS Denied Area covers approximately waypoints 3803-4050; allow a
+# margin for simulator sensor boundaries and rejoin near waypoint 4081.
+blackout_start_index: 3780
+blackout_end_index: 4100
+sim_exit_x_m: -78.13
+sim_exit_y_m: -546.24
+sim_exit_waypoint_index: 4053
+sim_exit_trigger_radius_m: 15.0
+sim_exit_cross_track_limit_m: 5.0
+max_blackout_distance_m: 160.0  # TODO: validate ICP drift over the 122 m tunnel in MORAI
+max_unmatched_distance_m: 3.0
+max_rejoin_error_m: 2.0
+max_rejoin_yaw_rad: 0.25

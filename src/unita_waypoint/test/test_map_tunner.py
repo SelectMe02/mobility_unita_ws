@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 from map_tunner_core import (ProjectEditor, create_project, insert_index,
-                             load_checkpoints, load_project, primary_route, save_project)
+                             load_checkpoints, load_project, primary_route, save_project,
+                             generate_racelines, raceline_layout_settings)
 from map_tunner_map import AerialMap
 
 
@@ -53,6 +54,85 @@ class MapTunnerTest(unittest.TestCase):
             empty = copy.deepcopy(project)
             empty['sectors'][2]['racelines']['1'].clear()
             primary_route(empty)
+
+    def test_generated_lane_centres_counts_spacing_and_cutoff(self):
+        before = copy.deepcopy(self.original)
+        project = generate_racelines(self.original, 3.2)
+        self.assertEqual(self.original, before)
+        layout = project['generated_racelines']
+        sector = project['sectors'][10]
+        start, stop = layout['start_index'], layout['stop_index']
+        reference = before['sectors'][10]['racelines']['1']
+        anchor = min(range(len(reference)), key=lambda i:
+                     np.hypot(reference[i]['x'] - 63.47,
+                              reference[i]['y'] - 146.13))
+        self.assertEqual(start, anchor + 1)
+        self.assertLessEqual(reference[start - 1]['x'], reference[anchor]['x'])
+        self.assertGreater(reference[start]['x'], reference[anchor]['x'])
+        self.assertEqual(sector['racelines']['1'], reference)
+        self.assertEqual(layout['layout_version'], 2)
+        self.assertEqual(layout['settings'], {'raceline_width': 3.2})
+        for number in (2, 3):
+            lane = sector['racelines'][str(number)]
+            self.assertEqual(len(lane), stop - start)
+            self.assertTrue(all(p['y'] >= -122.90 for p in lane))
+            self.assertTrue(np.allclose(
+                np.diff([(p['x'], p['y']) for p in lane], axis=0),
+                np.diff([(p['x'], p['y']) for p in reference[start:stop]], axis=0)))
+            for original, shifted in zip(reference[start:stop], lane):
+                self.assertEqual(shifted['source_id'], original['id'])
+                self.assertAlmostEqual(shifted['x'] - original['x'],
+                                       (number - 1) * 3.2)
+                self.assertEqual((shifted['y'], shifted['z']),
+                                 (original['y'], original['z']))
+        self.assertLess(reference[stop]['y'], -122.90)
+        self.assertEqual(project['sectors'][:10], before['sectors'][:10])
+        self.assertEqual(project['sectors'][11:], before['sectors'][11:])
+
+    def test_generated_layout_reload_and_width_change_do_not_accumulate(self):
+        first = generate_racelines(self.original, 3.5)
+        self.assertEqual(generate_racelines(first, 3.5), first)
+        changed = generate_racelines(first, 3.0)
+        fresh = generate_racelines(self.original, 3.0)
+        for lane_number in ('1', '2', '3'):
+            def geometry(project):
+                return [(p['x'], p['y'], p['z'], p['speed_kmh'])
+                        for p in project['sectors'][10]['racelines'][lane_number]]
+            self.assertEqual(geometry(changed), geometry(fresh))
+        self.assertEqual(generate_racelines(changed, 3.0), changed)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'project.json'
+            save_project(path, first)
+            self.assertEqual(generate_racelines(load_project(path), 3.5), first)
+        for width in (float('nan'), 0, -1, float('inf')):
+            with self.assertRaises(ValueError):
+                generate_racelines(self.original, width)
+
+    def test_legacy_layout_is_restored_from_csv_without_losing_speed(self):
+        legacy = generate_racelines(self.original, 3.2)
+        legacy['generated_racelines']['settings']['start_raceline_offset'] = 0.2
+        legacy['generated_racelines'].pop('layout_version')
+        start = legacy['generated_racelines']['start_index']
+        legacy['sectors'][10]['racelines']['1'][start]['x'] += 7.78
+        legacy['sectors'][10]['racelines']['1'][start]['speed_kmh'] = 42
+        restored = generate_racelines(legacy, 3.2)
+        expected = self.original['sectors'][10]['racelines']['1'][start]
+        actual = restored['sectors'][10]['racelines']['1'][start]
+        self.assertEqual((actual['x'], actual['y'], actual['z']),
+                         (expected['x'], expected['y'], expected['z']))
+        self.assertEqual(actual['speed_kmh'], 42)
+        self.assertNotIn('start_raceline_offset', restored['generated_racelines']['settings'])
+
+    def test_saved_layout_takes_precedence_over_yaml_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / 'raceline_layout.yaml'
+            config.write_text('raceline_width: 3.5\n')
+            project = generate_racelines(self.original, 3.2)
+            self.assertEqual(raceline_layout_settings(project, config), 3.2)
+            self.assertEqual(raceline_layout_settings(project, config, raceline_width=''), 3.2)
+            self.assertEqual(raceline_layout_settings(project, config,
+                                                     raceline_width=4.0), 4.0)
+            self.assertEqual(raceline_layout_settings(self.original, config), 3.5)
 
     def test_lane_add_remove_and_point_edits_stay_in_one_raceline(self):
         editor = ProjectEditor(copy.deepcopy(self.original))
@@ -188,23 +268,61 @@ class MapTunnerTest(unittest.TestCase):
             aerial.set_corners(corners + [1.0, 0.0])
             self.assertNotEqual(aerial.color_mesh_resource(folder), first)
 
-    def test_interpolated_lane_has_reference_count_and_is_independent(self):
-        editor = ProjectEditor(copy.deepcopy(self.original))
-        original_lane = copy.deepcopy(editor.lane(1, 1))
-        other_sector = copy.deepcopy(editor.lane(2, 1))
-        editor.add_lane(1)
-        count = editor.fill_interpolated_lane(1, 2, (1.0, 2.0), (11.0, 22.0))
-        filled = editor.lane(1, 2)
-        self.assertEqual(count, len(original_lane))
-        self.assertEqual(len(filled) - 2, len(original_lane) - 2)
-        self.assertEqual((filled[0]['x'], filled[0]['y']), (1.0, 2.0))
-        self.assertEqual((filled[-1]['x'], filled[-1]['y']), (11.0, 22.0))
-        self.assertEqual(editor.lane(1, 1), original_lane)
-        self.assertEqual(editor.lane(2, 1), other_sector)
-        with self.assertRaises(ValueError):
-            editor.fill_interpolated_lane(1, 2, (0, 0), (1, 1))
+    def test_continuous_points_append_to_existing_raceline3_and_survive_reload(self):
+        editor = ProjectEditor(generate_racelines(self.original, 3.5))
+        before = copy.deepcopy(editor.project)
+        points = editor.lane(11, 3)
+        old = copy.deepcopy(points)
+        start = (points[-1]['x'] + 1, points[-1]['y'] + 2)
+        end = (start[0] + 12, start[1] + 24)
+        count = editor.append_continuous_points(11, 3, start, end, 3)
+        self.assertEqual(count, 5)
+        self.assertEqual(points[:-5], old)
+        for index, point in enumerate(points[-5:]):
+            self.assertEqual((point['x'], point['y']),
+                             (start[0] + index * 3, start[1] + index * 6))
+            self.assertEqual(point['speed_kmh'], old[-1]['speed_kmh'])
+        self.assertEqual(len({p['id'] for p in points}), len(points))
+        expected = copy.deepcopy(before)
+        expected['sectors'][10]['racelines']['3'] = copy.deepcopy(points)
+        expected['next_point_id'] += 5
+        self.assertEqual(editor.project, expected)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'project.json'
+            save_project(path, editor.project)
+            self.assertEqual(load_project(path), expected)
+            self.assertEqual(generate_racelines(load_project(path), 3.5), expected)
+        # Another batch can be added beyond the newly created endpoint.
+        editor.append_continuous_points(11, 3, end, (end[0] + 10, end[1]), 0)
+        self.assertEqual(len(editor.lane(11, 3)), len(old) + 7)
         self.assertTrue(editor.undo())
-        self.assertEqual(editor.lane(1, 2), [])
+        self.assertEqual(editor.project, expected)
+        self.assertTrue(editor.undo())
+        self.assertEqual(editor.project, before)
+
+    def test_continuous_points_empty_lane_and_exact_interior_count(self):
+        for interior in (0, 1, 10):
+            editor = ProjectEditor(self.original)
+            editor.add_lane(1)
+            count = editor.append_continuous_points(1, 2, (1, 2), (11, 22), interior)
+            points = editor.lane(1, 2)
+            self.assertEqual(count, interior + 2)
+            self.assertEqual(len(points), interior + 2)
+            self.assertEqual((points[0]['x'], points[0]['y']), (1, 2))
+            self.assertEqual((points[-1]['x'], points[-1]['y']), (11, 22))
+            self.assertEqual(editor.lane(1, 1), self.original['sectors'][0]['racelines']['1'])
+
+    def test_continuous_points_invalid_input_does_not_change_project(self):
+        editor = ProjectEditor(self.original)
+        before = copy.deepcopy(editor.project)
+        for count in (-1, 10001, True, 1.5, '3'):
+            with self.assertRaises(ValueError):
+                editor.append_continuous_points(1, 1, (0, 0), (1, 1), count)
+        for start, end in (((0, 0), (0, 0)), ((0, 0), (float('nan'), 0))):
+            with self.assertRaises(ValueError):
+                editor.append_continuous_points(1, 1, start, end, 3)
+        self.assertEqual(editor.project, before)
+        self.assertEqual(editor.history, [])
 
     def test_smoothing_changes_only_local_xy_and_is_undoable(self):
         editor = ProjectEditor(copy.deepcopy(self.original))

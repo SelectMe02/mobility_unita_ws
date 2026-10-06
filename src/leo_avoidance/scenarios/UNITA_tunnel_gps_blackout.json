@@ -1,0 +1,550 @@
+{
+  "version": 1.0,
+  "egoVehicle": {
+    "DataID": 20200012,
+    "UNIQUEID": -1,
+    "m_eobstacleObjType": 0,
+    "initPosition": {
+      "initPositionMode": "Absolute",
+      "pos": {
+        "x": 35.82600021362305,
+        "y": -483.5369873046875,
+        "z": 28.69099998474121,
+        "_x": "35.826",
+        "_y": "-483.537",
+        "_z": "28.691"
+      },
+      "rot": {
+        "roll": "-357.784",
+        "pitch": "0.175",
+        "yaw": "-147.264"
+      },
+      "initLink": "",
+      "initLinkRatio": 0,
+      "gear": 1,
+      "vehicleSaveData": {
+        "velocity": 0.00010386416397523135,
+        "inputData": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "vehicle": {
+          "time": 133.67173767089844,
+          "lastVelocity": {
+            "x": 9.0605215063988e-07,
+            "y": 2.6090048777405173e-05,
+            "z": 6.4842838582990225e-06
+          },
+          "lastImpactTime": 76.79615783691406
+        },
+        "wheels": [
+          {
+            "L": -2.375766480788334e-16,
+            "Tr": 3.005683770083902e-33,
+            "contactDepth": 0.13624876737594604,
+            "lastTireForce": {
+              "x": -155.95297241210938,
+              "y": -9.278165817260742
+            }
+          },
+          {
+            "L": 5.205877199319139e-16,
+            "Tr": 3.005683770083902e-33,
+            "contactDepth": 0.14022284746170044,
+            "lastTireForce": {
+              "x": -132.6169891357422,
+              "y": -5.813885688781738
+            }
+          },
+          {
+            "L": -2.158705817724947e-17,
+            "Tr": 2.326804925757322e-33,
+            "contactDepth": 0.12660270929336548,
+            "lastTireForce": {
+              "x": -194.607666015625,
+              "y": 6.43699836730957
+            }
+          },
+          {
+            "L": 2.7059420412104285e-16,
+            "Tr": 2.326804925757322e-33,
+            "contactDepth": 0.1315615177154541,
+            "lastTireForce": {
+              "x": -163.7332305908203,
+              "y": 10.520005226135254
+            }
+          }
+        ],
+        "engine": {
+          "L": 0.0,
+          "Treaction": 0.0,
+          "rpmLimiterActive": false,
+          "rpmLimiterTime": 0.0,
+          "tcsActivationTime": 0.0
+        },
+        "gearbox": {
+          "L": 0.0,
+          "manualGear": 0,
+          "manualRatio": 0.0,
+          "engaged": false,
+          "lastEngagedTime": 0.0,
+          "lastAutoShiftTime": 0.0,
+          "vehicleMoving": false,
+          "gearMode": 0,
+          "automaticGear": 0,
+          "automaticRatio": 0.0,
+          "transition": false,
+          "transitionStartedTime": 0.0,
+          "fromGear": 0,
+          "toGear": 0,
+          "fromRatio": 0.0,
+          "toRatio": 0.0,
+          "transitionRatio": 0.0
+        },
+        "lastVelocity": {
+          "x": 9.0605215063988e-07,
+          "y": 2.6090048777405173e-05,
+          "z": 6.4842838582990225e-06
+        }
+      }
+    },
+    "currentVelocity": 0.00010386416397523135,
+    "desiredVelocityType": 1,
+    "linkValue": 85.0,
+    "customValue": 50.0,
+    "v2vUDPSessionInfo": {
+      "isInit": false,
+      "v2vConfig": {
+        "hostIP": "0.0.0.0",
+        "Port": 5641,
+        "receiveTimeout": 0,
+        "BuffSize": 8196,
+        "surroundVehiclePubTime": 100
+      }
+    },
+    "beforeControlMode": 0,
+    "currentControlMode": 1
+  },
+  "vehicleList": [
+    {
+      "DataID": 30100010,
+      "UNIQUEID": 1,
+      "m_eobstacleObjType": 1,
+      "initPosition": {
+        "initPositionMode": "Absolute",
+        "pos": {
+          "x": 8.550999641418457,
+          "y": -499.9150085449219,
+          "z": 28.679000854492188,
+          "_x": "8.551",
+          "_y": "-499.915",
+          "_z": "28.679"
+        },
+        "rot": {
+          "roll": "-358.911",
+          "pitch": "359.895",
+          "yaw": "-150.465"
+        },
+        "initLink": "A2256W000126",
+        "initLinkRatio": 0,
+        "gear": 4,
+        "vehicleSaveData": {
+          "velocity": 31.635570526123047,
+          "inputData": [
+            0,
+            7570,
+            0,
+            0,
+            0,
+            1,
+            4,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "vehicle": {
+            "time": 286.5810546875,
+            "lastVelocity": {
+              "x": 7.719491481781006,
+              "y": 0.021600529551506042,
+              "z": 4.127646446228027
+            },
+            "lastImpactTime": 0.0
+          },
+          "wheels": [
+            {
+              "L": 35.25497055053711,
+              "Tr": -376.0342102050781,
+              "contactDepth": 0.04433825612068176,
+              "lastTireForce": {
+                "x": 14.247183799743652,
+                "y": 906.678955078125
+              }
+            },
+            {
+              "L": 35.235164642333984,
+              "Tr": -375.9749755859375,
+              "contactDepth": 0.04679909348487854,
+              "lastTireForce": {
+                "x": -200.28622436523438,
+                "y": 901.728271484375
+              }
+            },
+            {
+              "L": 35.25487518310547,
+              "Tr": -376.1571960449219,
+              "contactDepth": 0.046037495136260986,
+              "lastTireForce": {
+                "x": -78.45365905761719,
+                "y": 902.888671875
+              }
+            },
+            {
+              "L": 35.23515319824219,
+              "Tr": -376.0983581542969,
+              "contactDepth": 0.04469689726829529,
+              "lastTireForce": {
+                "x": -75.04705047607422,
+                "y": 905.0009765625
+              }
+            }
+          ],
+          "engine": {
+            "L": 178.4940185546875,
+            "Treaction": -181.2987518310547,
+            "rpmLimiterActive": false,
+            "rpmLimiterTime": 0.0,
+            "tcsActivationTime": -1.0
+          },
+          "gearbox": {
+            "L": 0.3611181676387787,
+            "manualGear": 0,
+            "manualRatio": 0.0,
+            "engaged": false,
+            "lastEngagedTime": 0.0,
+            "lastAutoShiftTime": 0.0,
+            "vehicleMoving": false,
+            "gearMode": 4,
+            "automaticGear": 1,
+            "automaticRatio": 3.6649999618530273,
+            "transition": false,
+            "transitionStartedTime": 282.8231201171875,
+            "fromGear": 2,
+            "toGear": 1,
+            "fromRatio": 2.3959999084472656,
+            "toRatio": 3.6649999618530273,
+            "transitionRatio": 3.6649999618530273
+          },
+          "lastVelocity": {
+            "x": 7.719491481781006,
+            "y": 0.021600529551506042,
+            "z": 4.127646446228027
+          }
+        }
+      },
+      "velocityType": 1,
+      "linkVelocity": 93.7197265625,
+      "constantVelocity": 59.063804626464844,
+      "desiredVelocity": 46.939422607421875,
+      "currentVelocity": 31.635570526123047,
+      "viewCurrentVelocity": 31.635570526123047,
+      "isCloseLoop": false,
+      "isLaneChange": false,
+      "isEgo": false,
+      "spawnPointUniqueID": 2,
+      "destinationUniqueID": 4,
+      "startPointLinkInfo": {
+        "linkIdx": "A2256W000126",
+        "pointIdx": 16
+      },
+      "endPointLinkInfo": {
+        "linkIdx": "A2256W000126",
+        "pointIdx": 214
+      },
+      "currentLinkInfo": {
+        "linkIdx": "A2256W000126",
+        "pointIdx": 49
+      },
+      "loopStartLinkInfo": {
+        "linkIdx": "",
+        "pointIdx": 0
+      },
+      "v2vUDPSessionInfo": {
+        "isInit": false,
+        "v2vConfig": {
+          "hostIP": "0.0.0.0",
+          "Port": 5642,
+          "receiveTimeout": 0,
+          "BuffSize": 8196,
+          "surroundVehiclePubTime": 100
+        }
+      },
+      "latBiasMode": 2,
+      "bias": -2.024603843688965,
+      "isWaypointMode": false,
+      "destinationMode": 1,
+      "vehicleModelType": 257,
+      "activeDistance": 3.4028234663852886e+38,
+      "wayPointInfos": []
+    }
+  ],
+  "pedestrianList": [],
+  "objectList": [],
+  "spawnPointList": [
+    {
+      "DataID": 90100001,
+      "UNIQUEID": 2,
+      "m_eobstacleObjType": 5,
+      "pos": {
+        "x": 22.86400032043457,
+        "y": -491.9809875488281,
+        "z": 28.33099937438965,
+        "_x": "22.864",
+        "_y": "-491.981",
+        "_z": "28.331"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "359.945",
+        "yaw": "-147.630"
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0,
+        "_x": "1.000",
+        "_y": "1.000",
+        "_z": "1.000"
+      },
+      "spawnVehicleTypeID": 30100010,
+      "listVehicleLengthType": [
+        2,
+        3
+      ],
+      "isCloseLoop": false,
+      "isLaneChange": false,
+      "ParameterType": 2,
+      "maximumSpawnVehicle": 5,
+      "minSpawnPeriod": 5.0,
+      "maxSpawnPeriod": 5.0,
+      "SpawnVelocityType": 2,
+      "MinSpawnVelocity_Custom": 20.0,
+      "MaxSpawnVelocity_Custom": 20.0,
+      "MinSpawnVelocity_Link": 0.0,
+      "MaxSpawnVelocity_Link": 10.0,
+      "DesiredVelocityType": 1,
+      "MinDesiredVelocity_Custom": 50.0,
+      "MaxDesiredVelocity_Custom": 60.0,
+      "MinDesiredVelocity_Link": 85.0,
+      "MaxDesiredVelocity_Link": 100.0,
+      "spawnedVehiclesCount": 1,
+      "isSpawning": false,
+      "waitSpawnTime": 2.6404128074645996,
+      "destinationObjUniqueID": 3,
+      "startLinkInfo": {
+        "linkIdx": "A2256W000126",
+        "pointIdx": 16
+      },
+      "endLinkInfo": {
+        "linkIdx": "A2256W000126",
+        "pointIdx": 214
+      },
+      "latBiasMode": 2,
+      "MinLatBias": -10.0,
+      "MaxLatBias": 10.0,
+      "DestinationMode": 1,
+      "NPCSpawnType": 1,
+      "SafetyDist": 5.0,
+      "TTC": 1.0,
+      "sPAWNPOINT_SETTING_MODE": 1,
+      "rANDOMPOINT_LIFE_MODE": 0
+    }
+  ],
+  "tlList": [
+    {
+      "index": 0,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 1,
+      "state": 1,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 2,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 3,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 4,
+      "state": 3,
+      "deltaTime": 13.816276550292969
+    },
+    {
+      "index": 5,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 6,
+      "state": 1,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 7,
+      "state": 1,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 8,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 9,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 10,
+      "state": 1,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 11,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 12,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 13,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 14,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    },
+    {
+      "index": 15,
+      "state": 0,
+      "deltaTime": 13.775888442993164
+    }
+  ],
+  "mapInfo": {
+    "mapName": "R_KR_PR_K-city_2025",
+    "eastOffset": 302595.0,
+    "northOffset": 4124145.0,
+    "globalCoordinateSystem": "UTM52N",
+    "scenarioCoordinateSystem": "ENU"
+  },
+  "v2IInfo": {
+    "isAlive": false,
+    "acceptIp": "127.0.0.1",
+    "acceptPort": 5000,
+    "v2vIP": "127.0.0.1"
+  },
+  "pedspawnPointList": [],
+  "aiPedstrianList": [],
+  "shadedAreaList": [
+    {
+      "DataID": 110200001,
+      "UNIQUEID": 12,
+      "m_eobstacleObjType": 12,
+      "pos": {
+        "x": -25.24,
+        "y": -519.37,
+        "z": 31.0,
+        "_x": "-25.240",
+        "_y": "-519.370",
+        "_z": "31.000"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "0.000",
+        "yaw": "-58.844"
+      },
+      "size": {
+        "x": 129.43,
+        "y": 8.84,
+        "z": 14.84,
+        "_x": "129.430",
+        "_y": "8.840",
+        "_z": "14.840"
+      },
+      "noiseDatas": [
+        {
+          "sensorType": 4,
+          "noiseType": 1,
+          "isActivated": true,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0,
+          "isActivatedBI": false,
+          "biStdevs": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "biCorrelationTimes": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "isActivatedRW": false,
+          "rwStdevs": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "isActivatedWG": false,
+          "wgStdevs": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  ],
+  "frictionChangeMaterialList": [],
+  "waypointDataList": []
+}

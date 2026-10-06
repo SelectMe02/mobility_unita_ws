@@ -8,6 +8,12 @@ from .udp_protocol import CommandEncoder, decode_status_mode
 
 class CompetitionCommandEncoder(CommandEncoder):
     """Keep existing validation/scaling, explicitly request UDP AutoMode=2."""
+    def encode(self, cmd_type, velocity, acceleration, accel, brake, steering):
+        # Regulation v1.2 permits pedal control only on the competition link.
+        if cmd_type != 1:
+            raise ValueError('competition requires longlCmdType=1 (accel/brake)')
+        return super().encode(cmd_type, velocity, acceleration, accel, brake, steering)
+
     def pack(self, *arguments):
         packet = bytearray(super().pack(*arguments))
         packet[30] = 2

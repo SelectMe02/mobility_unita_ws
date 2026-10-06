@@ -42,6 +42,7 @@ class MapTunnerPanel : public rviz::Panel {
   QLabel* range_label_;
   QLabel* status_label_;
   QLineEdit* speed_edit_;
+  QLineEdit* continuous_count_edit_;
   QLineEdit* range_speed_edit_;
   QPushButton* add_lane_button_;
   QPushButton* remove_lane_button_;

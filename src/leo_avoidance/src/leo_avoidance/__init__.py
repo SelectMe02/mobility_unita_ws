@@ -1,0 +1,1 @@
+"""GPS independent LiDAR avoidance."""

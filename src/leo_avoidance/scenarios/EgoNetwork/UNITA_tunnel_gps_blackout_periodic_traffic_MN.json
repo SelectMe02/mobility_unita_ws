@@ -1,0 +1,1472 @@
+{
+  "egoNetworkData": [
+    {
+      "UNIQUEID": 0,
+      "connectedType": 1,
+      "listEgoNetworkInfo": [
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 771,
+          "Division_TYPE": 3,
+          "config": {
+            "commType": 0,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 1,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9093,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9092,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 55,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 261,
+          "Division_TYPE": 1,
+          "config": {
+            "commType": 1,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9091,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9092,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 0,
+          "PUBSUB_TYPE": 267,
+          "Division_TYPE": 1,
+          "config": {
+            "commType": 0,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 295,
+          "Division_TYPE": 1,
+          "config": {
+            "commType": 1,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9098,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 909,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 770,
+          "Division_TYPE": 1,
+          "config": {
+            "commType": 1,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9094,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9096,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 772,
+          "Division_TYPE": 1,
+          "config": {
+            "commType": 1,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7605,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 7505,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 259,
+          "Division_TYPE": 2,
+          "config": {
+            "commType": 1,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7607,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 7503,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 48,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 266,
+          "Division_TYPE": 2,
+          "config": {
+            "commType": 1,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9097,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9098,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 125,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 1,
+          "PUBSUB_TYPE": 783,
+          "Division_TYPE": 2,
+          "config": {
+            "commType": 1,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9095,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9096,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": true,
+              "receiveBufferSize": 69,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        },
+        {
+          "netType": 3,
+          "PUBSUB_TYPE": 780,
+          "Division_TYPE": 4,
+          "config": {
+            "commType": 3,
+            "pubSleepTime": 0.019999999552965164,
+            "pubFrequency": 50.0,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 2,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/Service_MoraiEventCmd",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "lcmConfig": {
+              "ConnectionTimeout": 1000,
+              "handlerType": 0,
+              "Channel": "DafaultChannel"
+            },
+            "GrpcConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 7789,
+              "Connect": false
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            }
+          },
+          "EgoCtrlConfig": {
+            "egoCtrlMode": 1,
+            "_PUBSUB_TYPE": 0,
+            "commType": 0,
+            "ctrlSleepTime": 0.016666999086737633,
+            "udpConfig": {
+              "hostIP": "127.0.0.1",
+              "hostPort": 9090,
+              "destinationIP": "127.0.0.1",
+              "destinationPort": 9090,
+              "receiveTimeout": 50,
+              "isBufferThreadActivated": false,
+              "receiveBufferSize": 0,
+              "sizeOfAuxHeader": 12
+            },
+            "rosConfig": {
+              "handlerType": 0,
+              "ConnectionTimeout": 1000,
+              "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+              "RosBridgeIP": "127.0.0.1",
+              "RosBridgePort": 9090,
+              "Topic": "/dafault_topic",
+              "RosMessageOnOff": true,
+              "frameID": "",
+              "childFrameID": ""
+            },
+            "serialConfig": {
+              "portName": "COM3",
+              "baudRate": 19200,
+              "parity": 0,
+              "portDataBits": 8,
+              "stopBits": 1,
+              "handshake": 0,
+              "readCount": 0
+            },
+            "ros2Config": {
+              "IsOn": false,
+              "HandlerType": 0,
+              "ros2Handler": {
+                "m_TargetUniqueID": 0,
+                "m_SensorUniqueID": 0,
+                "m_SensorType": "",
+                "m_FrameRate": 0.0,
+                "ros2Config": {
+                  "enable": false,
+                  "messageType": "",
+                  "Topic": "",
+                  "frameID": "",
+                  "childFrameID": ""
+                }
+              }
+            },
+            "canConfig": {
+              "handle": 0,
+              "channel_number": 0,
+              "id": 0,
+              "dlc": 0,
+              "flags": 0,
+              "bit_rate": 500000,
+              "path": "",
+              "can_type": 1
+            },
+            "ghostModeFlag": false,
+            "m_drivingStateInit": false
+          }
+        }
+      ],
+      "frameRate": [
+        {
+          "type": 1,
+          "frameRate": 50
+        },
+        {
+          "type": 2,
+          "frameRate": 50
+        },
+        {
+          "type": 3,
+          "frameRate": 50
+        },
+        {
+          "type": 4,
+          "frameRate": 50
+        },
+        {
+          "type": 5,
+          "frameRate": 50
+        },
+        {
+          "type": 6,
+          "frameRate": 50
+        },
+        {
+          "type": 7,
+          "frameRate": 50
+        },
+        {
+          "type": 8,
+          "frameRate": 50
+        },
+        {
+          "type": 9,
+          "frameRate": 50
+        },
+        {
+          "type": 10,
+          "frameRate": 50
+        }
+      ]
+    }
+  ]
+}

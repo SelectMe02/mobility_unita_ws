@@ -26,8 +26,12 @@ checkpoint_match_tolerance: 1.0
 # The reference code looks about 50 samples ahead/behind and uses
 # v=sqrt(radius*9.8*friction).  This 0.5 m path uses the equivalent 25 m
 # window; 2.94 m/s^2 corresponds to an effective friction coefficient 0.30.
-curvature_window_m: 25.0
+# MORAI driving showed the 25 m span smoothed the sharp CP8..9 bend
+# enough to plan 37 km/h where the 10 m span plans about 25 km/h.
+curvature_window_m: 10.0
 lateral_accel_limit: 2.94
+# Legacy preference, retained for configuration compatibility. Never used to
+# raise the speed above the curve's lateral-acceleration or road speed limit.
 min_curve_speed_kmh: 25.0
 max_profile_accel_mps2: 2.0
 max_profile_decel_mps2: 3.5

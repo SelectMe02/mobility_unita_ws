@@ -116,7 +116,10 @@ def parse_gps(packet):
             if fields[0] not in ('GPGGA', 'GNGGA') or len(fields) < 11:
                 continue
             quality = int(fields[6])
-            if quality <= 0 or fields[10] != 'M':
+            # Preserve zero-quality GGA when numeric coordinates exist. MORAI
+            # Denied Area can report a GPS blackout as 0/0 with no fix;
+            # downstream localization and control reject that pose themselves.
+            if quality < 0 or fields[10] != 'M':
                 continue
             lat = _coordinate(fields[2], fields[3], True)
             lon = _coordinate(fields[4], fields[5], False)
