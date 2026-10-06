@@ -129,6 +129,26 @@ def load_project(path):
     return project
 
 
+def primary_route(project):
+    """Return the saved Raceline 1 route and its sector for each point."""
+    validate_project(project)
+    route, sectors = [], []
+    for sector in project['sectors']:
+        lane = sector['racelines']['1']
+        if len(lane) < 2:
+            raise ValueError('sector {} needs at least two Raceline 1 points'.format(
+                sector['number']))
+        for point in lane:
+            if route and math.hypot(route[-1]['x'] - point['x'],
+                                    route[-1]['y'] - point['y']) < 1e-6:
+                continue
+            route.append(point)
+            sectors.append(sector['number'])
+    if len(route) < 2:
+        raise ValueError('project route has too few points')
+    return route, sectors
+
+
 def save_project(path, project):
     validate_project(project)
     target = Path(path).expanduser()

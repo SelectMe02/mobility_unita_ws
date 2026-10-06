@@ -4,8 +4,11 @@
 import math
 import os
 import re
+import sys
 import time
+from pathlib import Path as FilePath
 
+import rospkg
 import rospy
 
 from pyproj import Proj
@@ -437,6 +440,18 @@ class GPSWaypointFollower:
                 path
             )
             rospy.signal_shutdown("Waypoint file not found")
+            return
+
+        if FilePath(path).suffix.lower() == '.json':
+            if self.waypoint_format != 'local_xy':
+                raise ValueError('Map Tuner project requires local_xy waypoint_format')
+            sys.path.insert(0, str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
+            from map_tunner_core import load_project, primary_route
+            route, _ = primary_route(load_project(path))
+            self.raw_waypoints = [(float(point['x']), float(point['y']))
+                                  for point in route]
+            rospy.loginfo('Loaded %d saved Map Tuner Raceline 1 points',
+                          len(self.raw_waypoints))
             return
 
         points = []

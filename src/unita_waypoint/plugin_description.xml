@@ -1,4 +1,9 @@
 <library path="lib/libmap_tunner_panel">
+  <class name="unita_waypoint/MapDebugPanel"
+         type="unita_waypoint::MapDebugPanel"
+         base_class_type="rviz::Panel">
+    <description>Read-only K-City vehicle speed, position, heading and sector.</description>
+  </class>
   <class name="unita_waypoint/MapTunnerPanel"
          type="unita_waypoint::MapTunnerPanel"
          base_class_type="rviz::Panel">

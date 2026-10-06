@@ -1,0 +1,25 @@
+<launch>
+  <arg name="start_rviz" default="true"/>
+  <arg name="project_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+  <arg name="checkpoint_file" default="$(find unita_waypoint)/config/map_tunner_checkpoints.yaml"/>
+  <arg name="image_file" default="$(find unita_waypoint)/config/kcity_map_sim.png"/>
+  <arg name="calibration_file" default="$(find unita_waypoint)/config/map_tunner_calibration.yaml"/>
+  <arg name="pose_topic" default="/localization/pose"/>
+  <arg name="valid_topic" default="/localization/valid"/>
+  <arg name="speed_topic" default="/competition/ego_speed_kmh"/>
+  <node pkg="unita_waypoint" type="map_debug.py" name="map_debug" output="screen">
+    <param name="project_file" value="$(arg project_file)"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <param name="checkpoint_file" value="$(arg checkpoint_file)"/>
+    <param name="image_file" value="$(arg image_file)"/>
+    <param name="calibration_file" value="$(arg calibration_file)"/>
+    <param name="pose_topic" value="$(arg pose_topic)"/>
+    <param name="valid_topic" value="$(arg valid_topic)"/>
+    <param name="speed_topic" value="$(arg speed_topic)"/>
+  </node>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="map_debug_rviz"
+        args="-d $(find unita_waypoint)/config/map_debug.rviz" output="screen">
+    <env name="DISABLE_ROS1_EOL_WARNINGS" value="1"/>
+  </node>
+</launch>

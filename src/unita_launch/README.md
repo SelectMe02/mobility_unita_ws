@@ -119,12 +119,22 @@ roslaunch unita_launch competition_udp_tracking.launch \
 이 offsets는 현재 K-city waypoint용입니다. 다른 map이면 실제 값을 지정합니다.
 위 launch 하나가 sensor_bridge, waypoint follower, UDP 제어, localization,
 visualizer, RViz를 실행합니다. 별도로 sensor_bridge를 실행할 필요가 없습니다.
+기본 주행 경로는 `unita_waypoint/config/map_tunner_project.json`에 저장된
+각 Sector의 Raceline 1입니다. `map_tunner.launch`에서 **JSON 저장** 후 이
+launch를 다시 시작하면 새 경로를 읽습니다. 원본 `waypoints.csv`는 변경하지
+않습니다. 다른 파일을 쓰려면 `waypoint_file:=/absolute/path/project.json`
+또는 기존 CSV 경로를 지정할 수 있습니다.
+편집기에서 지정한 점별 속도는 적용하지 않고 아래의 주행 속도 계획을 사용합니다.
 경로는 무한 반복합니다. 기본 속도 상한은 일반 구간 **60 km/h**, 체크포인트
 10부터 13까지 **100 km/h**입니다. 이 값은 고정 명령 속도가 아니라 상한입니다.
 경로 곡률과 횡가속도 한계로 목표속도를 낮추고, 가속·제동 한계로 속도 프로파일을
 앞뒤 방향으로 평활화하므로 곡선에 도착하기 전에 감속합니다. 실제 속도는 Ego
 Vehicle Status UDP의 `signed_vel`을 `/competition/ego_speed_kmh`로 발행해 PID에
 피드백합니다. Pure Pursuit 전방주시거리는 실제 속도에 따라 5–30 m로 변합니다.
+
+사진 위에 저장된 경로와 체크포인트, 차량 위치·헤딩, 현재 속도·좌표·Sector를
+보려면 별도 터미널에서 `roslaunch unita_waypoint map_debug.launch`를 실행합니다.
+이 화면만 사용할 때는 주행 launch에 `start_rviz:=false`를 추가할 수 있습니다.
 
 체크포인트와 기본 튜닝값은
 `unita_waypoint/config/competition_speed_profile.yaml`에 있습니다. 실행 시 상한만

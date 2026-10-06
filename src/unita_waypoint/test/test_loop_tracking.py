@@ -15,6 +15,15 @@ spec.loader.exec_module(module)
 
 
 class LoopTrackingTests(unittest.TestCase):
+    def test_saved_map_tuner_project_loads_as_driving_route(self):
+        follower = module.GPSWaypointFollower.__new__(module.GPSWaypointFollower)
+        follower.waypoint_file = str(PACKAGE / 'config/map_tunner_project.json')
+        follower.waypoint_format = 'local_xy'
+        follower.load_waypoints()
+        self.assertGreater(len(follower.raw_waypoints), 4000)
+        self.assertEqual(follower.raw_waypoints[0], self.actual_points()[0])
+        self.assertEqual(follower.raw_waypoints[-1], self.actual_points()[-1])
+
     def follower(self, points, loop=True):
         obj = module.GPSWaypointFollower.__new__(module.GPSWaypointFollower)
         obj.waypoints = points

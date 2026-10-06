@@ -13,7 +13,7 @@
   <arg name="lidar_rpm" default="600"/>
   <arg name="east_offset" default="302595"/>
   <arg name="north_offset" default="4124145"/>
-  <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
   <arg name="waypoint_format" default="local_xy"/>
   <arg name="loop_path" default="true"/>
   <arg name="normal_max_speed_kmh" default="60.0"/>

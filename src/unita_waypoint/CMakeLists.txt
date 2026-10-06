@@ -133,8 +133,9 @@ include_directories(
 )
 
 add_library(map_tunner_panel
-  src/map_tunner_panel.cpp src/map_tunner_tool.cpp
-  include/unita_waypoint/map_tunner_panel.h include/unita_waypoint/map_tunner_tool.h)
+  src/map_tunner_panel.cpp src/map_tunner_tool.cpp src/map_debug_panel.cpp
+  include/unita_waypoint/map_tunner_panel.h include/unita_waypoint/map_tunner_tool.h
+  include/unita_waypoint/map_debug_panel.h)
 target_link_libraries(map_tunner_panel ${catkin_LIBRARIES} Qt5::Widgets)
 
 ## Declare a C++ library
@@ -225,6 +226,7 @@ target_link_libraries(map_tunner_panel ${catkin_LIBRARIES} Qt5::Widgets)
 catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
   scripts/30run.py
   scripts/map_tunner.py
+  scripts/map_debug.py
   scripts/map_waypoint_calibration.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(DIRECTORY config launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

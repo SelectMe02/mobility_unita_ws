@@ -1,0 +1,55 @@
+Panels:
+- Class: unita_waypoint/MapDebugPanel
+  Name: K-City 주행 상태
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Name: root
+  Global Options:
+    Fixed Frame: map
+    Background Color: 28; 28; 28
+    Frame Rate: 30
+  Displays:
+  - Class: rviz/Map
+    Name: K-City 사진 대체 표시
+    Enabled: false
+    Topic: /map_debug/map
+    Alpha: 1
+    Color Scheme: map
+    Draw Behind: true
+  - Class: rviz/Marker
+    Name: K-City 컬러 배경사진
+    Enabled: true
+    Marker Topic: /map_debug/photo
+    Queue Size: 1
+  - Class: rviz/MarkerArray
+    Name: 전체 경로와 Sector Checkpoint
+    Enabled: true
+    Marker Topic: /map_debug/markers
+    Queue Size: 10
+    Namespaces: {}
+  - Class: rviz/MarkerArray
+    Name: 현재 차량 위치와 Heading
+    Enabled: true
+    Marker Topic: /map_debug/vehicle
+    Queue Size: 10
+    Namespaces: {}
+  Tools:
+  - Class: rviz/MoveCamera
+  - Class: rviz/Select
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: Top view
+      Target Frame: <Fixed Frame>
+      Scale: 1.0
+      Angle: -1.570796327
+      X: -42
+      Y: -102
+      Near Clip Distance: 0.01
+    Saved: []
+Window Geometry:
+  Width: 1600
+  Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: true

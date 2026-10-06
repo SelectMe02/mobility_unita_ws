@@ -87,6 +87,24 @@ ROS master가 없다면 별도 터미널에서 `roscore`를 먼저 실행하세�
 있습니다. 그때는 해당 구간의 waypoint를 따로 편집해야 합니다.
 
 편집 노드는 `/map_tunner/map`, `/map_tunner/markers`,
-`/map_tunner/interactive/update`, `/map_tunner/status`를 발행합니다. 기존
-GPS waypoint follower는 여전히 `waypoints.csv`를 읽으며, 이 JSON의
-차선이나 속도 정보를 자동으로 사용하지는 않습니다.
+`/map_tunner/interactive/update`, `/map_tunner/status`를 발행합니다.
+`competition_udp_tracking.launch`는 저장된 JSON의 각 Sector Raceline 1을
+순서대로 이어 주행합니다. 편집 후 **JSON 저장**을 누르고 주행 launch를 다시
+시작해야 새 경로가 적용됩니다. 원본 `waypoints.csv`는 그대로 둡니다.
+Raceline 2/3과 편집기 속도 값은 주행에 사용하지 않으며, 기존 곡률 기반
+속도 계획과 `competition_speed_profile.yaml`의 상한을 사용합니다.
+
+## 읽기 전용 주행 지도
+
+주행 launch와 같은 ROS master에서 별도 터미널로 실행합니다.
+
+```bash
+roslaunch unita_waypoint map_debug.launch
+```
+
+편집기와 같은 사진, 저장된 경로, Sector Checkpoint를 표시합니다. 왼쪽에는
+실제 속도, 지도 좌표, 헤딩, 현재 Sector를 표시하고 지도에는 차량 위치와
+진행 방향을 노란 화살표로 그립니다. `/localization/pose`와
+`/localization/valid`, `/competition/ego_speed_kmh`를 사용합니다. 주행 launch를
+`start_rviz:=false`로 시작하면 RViz 창이 하나만 열립니다. 위치가 유효하지
+않거나 1초 넘게 갱신되지 않으면 차량 표시를 지웁니다.

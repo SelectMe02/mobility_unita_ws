@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 from map_tunner_core import (ProjectEditor, create_project, insert_index,
-                             load_checkpoints, load_project, save_project)
+                             load_checkpoints, load_project, primary_route, save_project)
 from map_tunner_map import AerialMap
 
 
@@ -38,6 +38,21 @@ class MapTunnerTest(unittest.TestCase):
         self.assertTrue(all(sector['lane_count'] == 1 for sector in sectors))
         self.assertEqual(sum(len(sector['racelines']['1']) - 1 for sector in sectors),
                          4429)
+
+    def test_saved_primary_route_is_ordered_without_changing_original_csv(self):
+        config = ROOT / 'config'
+        project = load_project(config / 'map_tunner_project.json')
+        route, sectors = primary_route(project)
+        self.assertGreater(len(route), 4000)
+        self.assertEqual(sorted(set(sectors)), list(range(1, 16)))
+        self.assertEqual(route[0], project['sectors'][0]['racelines']['1'][0])
+        self.assertEqual(route[-1], project['sectors'][-1]['racelines']['1'][-1])
+        self.assertTrue(all(a <= b for a, b in zip(sectors, sectors[1:])))
+        self.assertEqual(len(route), len(sectors))
+        with self.assertRaises(ValueError):
+            empty = copy.deepcopy(project)
+            empty['sectors'][2]['racelines']['1'].clear()
+            primary_route(empty)
 
     def test_lane_add_remove_and_point_edits_stay_in_one_raceline(self):
         editor = ProjectEditor(copy.deepcopy(self.original))
