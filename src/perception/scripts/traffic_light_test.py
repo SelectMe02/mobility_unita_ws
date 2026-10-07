@@ -2,12 +2,14 @@
 """Log traffic-light detections from best1.pt and a ROS camera Image topic."""
 
 from pathlib import Path
+import json
 import threading
 import time
 
 import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 
 
 SIGNALS = {
@@ -42,19 +44,39 @@ class TrafficLightTest:
         if self.model.task != "detect":
             raise ValueError("객체 감지(detect) 모델이 필요합니다")
         self.bridge = CvBridge()
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
+        self.camera = 'front'
+        self.generation = 0
         self.latest = None
         self.last_received = time.monotonic()
+        self.frame_number = 0
+        self.publisher = rospy.Publisher('/perception/traffic_lights', String, queue_size=1)
+        self.annotated = rospy.Publisher('/perception/traffic_lights/image', Image, queue_size=1)
         topic = rospy.get_param("~image_topic", "/camera/image/front")
         self.subscriber = rospy.Subscriber(
-            topic, Image, self.receive, queue_size=1, buff_size=2**24)
+            topic, Image, lambda m:self.receive(m,'front'), queue_size=1, buff_size=2**24)
+        auxiliary = rospy.get_param('~aux_image_topic','')
+        selection = rospy.get_param('~camera_selection_topic','')
+        self.auxiliary = rospy.Subscriber(auxiliary,Image,lambda m:self.receive(m,'up'),
+            queue_size=1,buff_size=2**24) if auxiliary else None
+        self.selector = rospy.Subscriber(selection,String,self.select_camera,queue_size=1) if selection else None
         rospy.loginfo("신호등 테스트 시작: model=%s topic=%s classes=%s",
                       model_path, topic, self.model.names)
 
-    def receive(self, message):
+    def select_camera(self, message):
+        if message.data not in ('front','up') or (message.data=='up' and self.auxiliary is None):
+            return
         with self.lock:
+            if message.data==self.camera:return
+            self.camera=message.data;self.generation+=1;self.latest=None
+            self.last_received=time.monotonic()
+            self.publish_result(None,[],False)
+
+    def receive(self, message, camera='front'):
+        with self.lock:
+            if camera!=self.camera:return
             self.last_received = time.monotonic()
-            self.latest = (message, self.last_received)
+            self.latest = (message, self.last_received, self.generation)
 
     def run(self):
         # Only consume the newest image; inference does not block the subscriber.
@@ -65,22 +87,30 @@ class TrafficLightTest:
                 self.latest = None
                 last_received = self.last_received
             if started - last_received > self.timeout:
+                self.publish_result(None, [], False)
                 rospy.logwarn_throttle(5.0, "카메라 영상 수신 없음: 신호 판단 불가")
             elif item is not None:
                 try:
-                    self.infer(item[0], item[1])
+                    self.infer(item[0], item[1], item[2])
                 except Exception as exc:
+                    self.publish_result(None, [], False)
                     rospy.logerr_throttle(5.0, "신호등 추론 실패: %s" % exc)
             time.sleep(max(0.0, 1.0 / self.rate - (time.monotonic() - started)))
 
-    def infer(self, message, received_at):
+    def infer(self, message, received_at, generation):
+        source_age = rospy.Time.now().to_sec() - message.header.stamp.to_sec()
+        if source_age < -0.1 or source_age > self.timeout:
+            self.publish_result(None, [], False)
+            return
         frame = self.bridge.imgmsg_to_cv2(message, desired_encoding="bgr8")
         result = self.model.predict(source=frame, conf=self.confidence,
                                     device=self.device, verbose=False)[0]
         if time.monotonic() - received_at > self.timeout:
+            self.publish_result(None, [], False)
             rospy.logwarn_throttle(5.0, "영상 처리 지연: 오래된 신호 판단 결과 생략")
             return
         detections = []
+        structured = []
         if result.boxes is not None:
             for box in result.boxes.cpu():
                 label = result.names[int(box.cls.item())]
@@ -88,10 +118,30 @@ class TrafficLightTest:
                 coordinates = tuple(round(value) for value in box.xyxy[0].tolist())
                 detections.append("%s (%s) confidence=%.3f bbox=%s" % (
                     signal, label, float(box.conf.item()), coordinates))
+                x0, y0, x1, y1 = box.xyxy[0].tolist()
+                height, width = frame.shape[:2]
+                structured.append({'label': label, 'confidence': float(box.conf.item()),
+                                   'bbox_normalized': [x0/width, y0/height, x1/width, y1/height]})
+        # Preserve source capture stamp: fresh publication never makes old images fresh.
+        if not self.publish_result(message, structured, True, generation):return
+        if self.annotated.get_num_connections():
+            view = self.bridge.cv2_to_imgmsg(result.plot(), encoding='bgr8')
+            view.header = message.header
+            self.annotated.publish(view)
         if detections:
             rospy.loginfo("신호등 %d개 | %s", len(detections), " | ".join(detections))
         else:
             rospy.loginfo("신호등 미검출 (confidence >= %.2f)", self.confidence)
+
+    def publish_result(self, message, detections, valid, generation=None):
+        with self.lock:
+            if generation is not None and generation!=self.generation:return False
+            self.frame_number += 1
+            self.publisher.publish(String(data=json.dumps({
+                'stamp': message.header.stamp.to_sec() if message else rospy.Time.now().to_sec(),
+                'camera': self.camera, 'frame': self.frame_number,
+                'valid': valid, 'detections': detections})))
+            return True
 
 
 def main():

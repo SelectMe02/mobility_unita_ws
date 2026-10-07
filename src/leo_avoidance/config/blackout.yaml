@@ -1,0 +1,7 @@
+# TODO: Measure safe blackout length and confirm the next stop-line clearance.
+fallback_timeout_s: 0.6
+publish_ego_pose: true  # MORAI ENU pose is used only after the specified tunnel exit point.
+gps_silence_timeout_s: 0.75
+max_blackout_distance_m: 160.0  # TODO: validate ICP drift over the 122 m tunnel in MORAI
+stopline_safety_margin_m: 10.0
+max_blackout_entry_speed_mps: 5.1  # 18 km/h launch target = 5.0 m/s

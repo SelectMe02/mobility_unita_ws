@@ -1,0 +1,88 @@
+Panels:
+- Class: rviz/Displays
+  Name: Displays
+- Class: rviz/Views
+  Name: Views
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Name: root
+  Global Options:
+    Fixed Frame: lidar
+    Background Color: 32; 32; 32
+    Frame Rate: 30
+  Displays:
+  - Class: rviz/Grid
+    Name: Grid
+    Enabled: true
+    Cell Size: 1
+    Plane Cell Count: 60
+    Reference Frame: <Fixed Frame>
+    Color: 80; 80; 80
+    Alpha: 0.35
+  - Class: rviz/PointCloud2
+    Name: FTG obstacle points
+    Enabled: true
+    Topic: /leo/ftg_obstacle_points
+    Queue Size: 1
+    Style: Points
+    Size (Pixels): 4
+    Size (m): 0.05
+    Decay Time: 0.3
+    Position Transformer: XYZ
+    Color Transformer: FlatColor
+    Color: 0; 220; 255
+  - Class: rviz/PointCloud2
+    Name: FTG rear pass detector
+    Enabled: true
+    Topic: /leo/ftg_rear_obstacle_points
+    Queue Size: 1
+    Style: Points
+    Size (Pixels): 7
+    Size (m): 0.08
+    Decay Time: 0.3
+    Position Transformer: XYZ
+    Color Transformer: FlatColor
+    Color: 255; 70; 210
+  - Class: rviz/MarkerArray
+    Name: FTG grouped boxes and distances
+    Enabled: true
+    Marker Topic: /leo/ftg_obstacle_boxes
+    Queue Size: 1
+    Namespaces: {}
+  - Class: rviz/MarkerArray
+    Name: LiDAR, MORAI and driving poses
+    Enabled: true
+    Marker Topic: /leo/ftg_pose_diagnostics
+    Queue Size: 1
+    Namespaces: {}
+  - Class: rviz/MarkerArray
+    Name: FTG candidate and selected directions
+    Enabled: true
+    Marker Topic: /leo/ftg_planning
+    Queue Size: 1
+    Namespaces: {}
+  - Class: rviz/Axes
+    Name: LiDAR axes
+    Enabled: true
+    Reference Frame: lidar
+    Length: 1
+    Radius: 0.08
+  Tools:
+  - Class: rviz/Interact
+  - Class: rviz/MoveCamera
+  - Class: rviz/Select
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Name: FTG view
+      Target Frame: <Fixed Frame>
+      Distance: 24
+      Pitch: 0.8
+      Yaw: 0
+    Saved: []
+Window Geometry:
+  Width: 1400
+  Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: false

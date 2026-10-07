@@ -223,12 +223,14 @@ target_link_libraries(map_tunner_panel ${catkin_LIBRARIES} Qt5::Widgets)
 # catkin_add_nosetests(test)
 
 catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
+  scripts/lidar_obstacles.py
   scripts/30run.py
   scripts/map_tunner.py
   scripts/map_waypoint_calibration.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(DIRECTORY config launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(FILES scripts/map_tunner_core.py scripts/map_tunner_map.py
+  scripts/local_avoidance_core.py scripts/lane_corridor.py
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts)
 install(TARGETS map_tunner_panel LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 install(FILES plugin_description.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

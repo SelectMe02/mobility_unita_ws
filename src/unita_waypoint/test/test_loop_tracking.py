@@ -1,10 +1,12 @@
 import importlib.util
 import math
+import time
 from pathlib import Path
 import unittest
 from unittest.mock import MagicMock, patch
 
 import yaml
+from std_msgs.msg import String
 
 
 PACKAGE = Path(__file__).resolve().parents[1]
@@ -20,6 +22,9 @@ class LoopTrackingTests(unittest.TestCase):
         obj.waypoints = points
         obj.loop_path = loop
         obj.path_ready = obj.gps_ready = obj.imu_ready = True
+        obj.pose_sensor_timeout = 1.0
+        obj.gps_received = obj.imu_received = time.monotonic()
+        obj.drive_mode = None
         obj.current_waypoint_index = 0
         obj.first_nearest_search = True
         obj.last_tracking_position = None
@@ -37,18 +42,25 @@ class LoopTrackingTests(unittest.TestCase):
         obj.lookahead_speed_gain = 0.0
         obj.current_speed_kmh = None
         obj.speed_profile = []
+        obj.blackout_speed_profile = []
+        obj.blackout_clear_speed_cap_kmh = 30.0
         obj.path_curvatures = []
         obj.checkpoint_indices = {}
         obj.target_speed_pub = MagicMock()
         obj.current_speed_pub = MagicMock()
         obj.curvature_pub = MagicMock()
         obj.speed_zone_pub = MagicMock()
+        obj.tracking_state_pub = MagicMock()
+        obj.guard_limit_topic = ''
+        obj.ctrl_pub = MagicMock()
+        obj.speed_pid = module.PIDController(0.08, 0.002, 0.01)
         obj.commands = []
         obj.publish_control = lambda steering, velocity: obj.commands.append(
             (steering, velocity))
         return obj
 
     def run_loop(self, obj):
+        obj.gps_received = obj.imu_received = time.monotonic()
         with patch.object(module.rospy, "loginfo"), \
                 patch.object(module.rospy, "loginfo_throttle"), \
                 patch.object(module.rospy, "logwarn_throttle"):
@@ -133,12 +145,58 @@ class LoopTrackingTests(unittest.TestCase):
         obj.first_nearest_search = False
         obj.current_x = 19.0
         self.run_loop(obj)
-        self.assertEqual(obj.commands[-1], (0.0, 0.0))
+        self.assertEqual(obj.ctrl_pub.publish.call_args.args[0].brake, 1.0)
 
     def test_no_forward_target_still_stops(self):
         obj = self.follower([(0.0, 0.0), (-10.0, 0.0), (0.0, 0.0)])
         self.run_loop(obj)
-        self.assertEqual(obj.commands[-1], (0.0, 0.0))
+        self.assertEqual(obj.ctrl_pub.publish.call_args.args[0].brake, 1.0)
+
+    def test_blackout_steers_to_gap_then_resumes_waypoint_target(self):
+        obj = self.follower([(float(i), 0.0) for i in range(40)], loop=False)
+        now = time.monotonic()
+        obj.drive_pose_topic = '/leo/driving_pose'
+        obj.drive_pose_received = obj.drive_valid_received = now
+        obj.drive_mode_received = now
+        obj.drive_pose_ready = obj.drive_valid = True
+        obj.drive_mode = 'BLACKOUT'
+        obj.blackout_rejoin_pending = True
+        obj.avoidance_target = (4.0, 2.0)
+        obj.avoidance_target_received = now
+        obj.avoidance_speed_kmh = 10.0
+        obj.avoidance_speed_received = now
+
+        self.run_loop(obj)
+        self.assertGreater(obj.commands[-1][0], 0.0)
+        self.assertEqual(obj.commands[-1][1], 10.0)
+
+        obj.drive_mode_callback(String(data='GPS'))
+        self.assertTrue(obj.first_nearest_search)
+        self.run_loop(obj)
+        self.assertAlmostEqual(obj.commands[-1][0], 0.0, places=6)
+        self.assertEqual(obj.commands[-1][1], 20.0)
+
+    def test_blackout_can_use_clear_thirty_kmh_cap_while_gps_stays_at_eighteen(self):
+        obj = self.follower([(float(i), 0.0) for i in range(40)], loop=False)
+        now = time.monotonic()
+        obj.drive_pose_topic = '/leo/driving_pose'
+        obj.drive_pose_received = obj.drive_valid_received = now
+        obj.drive_mode_received = now
+        obj.drive_pose_ready = obj.drive_valid = True
+        obj.drive_mode = 'BLACKOUT'
+        obj.blackout_rejoin_pending = True
+        obj.avoidance_target = (4.0, 0.0)
+        obj.avoidance_target_received = now
+        obj.avoidance_speed_kmh = 30.0
+        obj.avoidance_speed_received = now
+        obj.enable_velocity_planning = True
+        obj.speed_profile = [18.0] * 40
+        obj.blackout_speed_profile = [35.0] * 40
+        self.run_loop(obj)
+        self.assertEqual(obj.commands[-1][1], 30.0)
+        obj.drive_mode_callback(String(data='GPS'))
+        self.run_loop(obj)
+        self.assertEqual(obj.commands[-1][1], 18.0)
 
     def test_pid_accelerates_brakes_and_clamps_pedals(self):
         pid = module.PIDController(0.08, 0.002, 0.01)

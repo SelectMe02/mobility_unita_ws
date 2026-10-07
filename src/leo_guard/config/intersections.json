@@ -1,0 +1,302 @@
+{
+  "route_sha256": "f74ff6f53e27c0c4b2cc0e004e5873f7ee1f68f2107f0429f0aad55254d73ee6",
+  "source": "official waypoint path and node_set/link_set; static geometry only",
+  "intersections": [
+    {
+      "id": "A1256W000736",
+      "s": 72.62896869677363,
+      "waypoint_index": 146,
+      "stop_point": [
+        -96.34194502758328,
+        -364.8851077128202,
+        28.53881740888334
+      ],
+      "traffic_light_id": null,
+      "maneuver": "straight",
+      "link_id": "A2256W000182",
+      "link_match_error": 0.0,
+      "clearance_m": 22.325277207992325,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-05 visual authoring survey at parked approach: physical transverse stop marking and uncontrolled junction visible; controlling signal heads are at the downstream separate junction. No simulator signal-state input. NPC/pedestrian yielding has not been validated by this signal-only launch."
+    },
+    {
+      "id": "A1256W000749",
+      "s": 160.00916727063552,
+      "waypoint_index": 324,
+      "stop_point": [
+        -117.46220726403408,
+        -298.12224265327677,
+        28.435463653342698
+      ],
+      "traffic_light_id": null,
+      "maneuver": "straight",
+      "link_id": "A2256W000236",
+      "link_match_error": 0.0,
+      "clearance_m": 26.276564477305694,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-05 visual authoring survey at parked approach: physical transverse stop marking and uncontrolled junction visible; controlling signal heads are at the downstream separate junction. No simulator signal-state input. NPC/pedestrian yielding has not been validated by this signal-only launch."
+    },
+    {
+      "id": "A1256W000682",
+      "s": 208.4589412270318,
+      "waypoint_index": 424,
+      "stop_point": [
+        -93.96744188736193,
+        -255.75045508425683,
+        28.42109176528042
+      ],
+      "traffic_light_id": "C1256W000077",
+      "maneuver": "straight",
+      "link_id": "A2256W000215",
+      "link_match_error": 0.0,
+      "clearance_m": 28.963848980808546,
+      "controlled": true,
+      "reviewed": true,
+      "signal_roi": [
+        0.5,
+        0.0,
+        0.67,
+        0.3
+      ],
+      "review_note": "Camera-only 240 s recording showed automatic red/green/yellow transitions; actual red stop and green crossing recorded, max 53.452 km/h, max route cross-track 0.312 m. No simulator signal-state input.",
+      "signal_min_width": 0.035,
+      "signal_activation_distance_m": 12.0
+    },
+    {
+      "id": "A1256W000807",
+      "s": 315.9060981416605,
+      "waypoint_index": 641,
+      "stop_point": [
+        -59.83293701335788,
+        -155.39320968370885,
+        28.411429980014447
+      ],
+      "traffic_light_id": "C1256W000091",
+      "maneuver": "straight",
+      "link_id": "A2256W000222",
+      "link_match_error": 0.0,
+      "clearance_m": 30.835725398344483,
+      "controlled": true,
+      "reviewed": true,
+      "signal_roi": [
+        0.3,
+        0.1,
+        0.52,
+        0.7
+      ],
+      "review_note": "Free fourth camera at rear-axle origin, pitch -35 deg, horizontal FOV 110. Own head red confidence 0.816 at 5 m. Actual camera-only green crossing reached s350.527, max 53.800 km/h, route error max 0.368 m. Last entry camera green confidence 0.7615; no signal-state input. Red-to-green approach at this camera still needs repeated validation.",
+      "signal_min_width": 0.025,
+      "signal_activation_distance_m": 15.0,
+      "stop_margin_m": 5.0,
+      "signal_camera": "up"
+    },
+    {
+      "id": "A1256W000208",
+      "s": 436.79756644158005,
+      "waypoint_index": 889,
+      "stop_point": [
+        -60.15604465093929,
+        -34.51018160348758,
+        28.41479381805757
+      ],
+      "traffic_light_id": "C1256W000016",
+      "maneuver": "straight",
+      "link_id": "A2256W000599",
+      "link_match_error": 0.0,
+      "clearance_m": 26.144046075800627,
+      "controlled": true,
+      "reviewed": true,
+      "signal_roi": [
+        0.24,
+        0.0,
+        0.46,
+        0.26
+      ],
+      "review_note": "Actual camera-only red stop then green_left crossing reached s470.072, max53.672 km/h, max route error0.320m. Near own head excluded the smaller downstream signal. No simulator signal-state input.",
+      "signal_camera": "front",
+      "signal_min_width": 0.05,
+      "signal_activation_distance_m": 12.0
+    },
+    {
+      "id": "A1256W000757",
+      "s": 550.6187353754732,
+      "waypoint_index": 1123,
+      "stop_point": [
+        -60.8764564244193,
+        79.3064151215367,
+        28.367294848129728
+      ],
+      "traffic_light_id": "C1256W000123",
+      "maneuver": "right_unprotected",
+      "link_id": "A2256W000318",
+      "link_match_error": 0.0,
+      "clearance_m": 30.249690038954995,
+      "controlled": true,
+      "reviewed": true,
+      "signal_roi": [
+        0.43,
+        0.12,
+        0.66,
+        0.7
+      ],
+      "review_note": "Own overhead vehicle head visually identified in fourth camera at approximately5m; red confidence0.815 bbox[320.2,242.5,363.8,258.5] in640x480. Front image has no head. Right turn remains to be drive-validated; strict green-only release also requires full stop and fresh observed LiDAR corridor clearance.",
+      "signal_camera": "up",
+      "signal_min_width": 0.04,
+      "signal_activation_distance_m": 12.0,
+      "review_notes": "Own overhead signal reviewed on auxiliary up camera. Actual green release + full stop + fresh LiDAR corridor observation traversed s545.406 to585.009; maximum route cross-track .307619m. Body pitch caused LiDAR plane estimation holds during turn; further smoothing and dynamic cross-traffic validation remain."
+    },
+    {
+      "id": "A1256W000742",
+      "s": 609.8768384406573,
+      "waypoint_index": 1245,
+      "stop_point": [
+        -12.693221560504753,
+        98.93261842010543,
+        28.377354667989614
+      ],
+      "traffic_light_id": "C1256W000052",
+      "maneuver": "left",
+      "link_id": "A2256W000083",
+      "link_match_error": 0.0,
+      "clearance_m": 25.235768900917968,
+      "controlled": true,
+      "reviewed": true,
+      "signal_roi": [
+        0.42,
+        0.1,
+        0.67,
+        0.65
+      ],
+      "review_note": "Verify physical stop line, controlling head ROI and intersection exit from camera recording. Null signal ID does not imply uncontrolled.",
+      "signal_camera": "up",
+      "signal_min_width": 0.04,
+      "signal_activation_distance_m": 12.0,
+      "stop_margin_m": 5.0,
+      "review_notes": "At route s=604.83, own overhead head visually reviewed in auxiliary upward camera. Red YOLO confidence .827, box [311.165,200.096,366.678,220.184] at 640x480. Front camera does not retain own overhead head. Left-arrow release remains subject to live camera validation. Actual camera-only left-arrow release validated 2026-10-06: plain green/yellow held, left confidence .85120058 at entry; s604.6795 to650.2027, maximum cross-track .478603m. NPCs excluded from this controller test."
+    },
+    {
+      "id": "A1256W000709",
+      "s": 885.1006875594753,
+      "waypoint_index": 1800,
+      "stop_point": [
+        -99.31267240812303,
+        317.7989547071047,
+        28.33873031298195
+      ],
+      "traffic_light_id": null,
+      "maneuver": "straight",
+      "link_id": "A2256W000146",
+      "link_match_error": 0.0,
+      "clearance_m": 18.903470437602714,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-06 actual parked approach at s879.887: front, left, right and upward camera views visually reviewed. Merge/circulation lane with barrier end and painted islands; no controlling signal head visible in these views and all four detector outputs empty. Signal-only cleared controller scenario; dynamic merge yielding not validated.",
+      "crossing_speed_kmh": 20.0
+    },
+    {
+      "id": "A1256W000728",
+      "s": 904.0041579970776,
+      "waypoint_index": 1839,
+      "stop_point": [
+        -88.09874615911394,
+        332.42220899648964,
+        28.350338197335294
+      ],
+      "traffic_light_id": null,
+      "maneuver": "straight",
+      "link_id": "A2256W000151",
+      "link_match_error": 0.0,
+      "clearance_m": 10.833155832602966,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-06 actual parked approach near s899: all four camera images reviewed, no controlling signal heads; merge/circulation continuation with painted islands and guardrails. All detector outputs empty. Dynamic traffic excluded; signal-only route validation.",
+      "crossing_speed_kmh": 20.0
+    },
+    {
+      "id": "A1256W000073",
+      "s": 930.6019068794656,
+      "waypoint_index": 1895,
+      "stop_point": [
+        -65.32824593910482,
+        342.2530235303566,
+        28.484
+      ],
+      "traffic_light_id": null,
+      "maneuver": "straight",
+      "link_id": "A2256W000054",
+      "link_match_error": 0.0,
+      "clearance_m": 54.10987483746664,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-06 actual parked approach near s925: four camera images reviewed, no controlling signal head; multi-lane roadway merge with painted channelization. All detector outputs empty. Signal-only route test with dynamic traffic excluded.",
+      "crossing_speed_kmh": 20.0
+    },
+    {
+      "id": "A1256W000831",
+      "s": 1877.7447989655957,
+      "waypoint_index": 3806,
+      "stop_point": [
+        29.589355843083467,
+        -487.65027253562585,
+        28.30125123465416
+      ],
+      "traffic_light_id": "LCS01",
+      "maneuver": "straight",
+      "link_id": "A2256W000126",
+      "link_match_error": 0.0,
+      "clearance_m": 118.98599256563512,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-06 user explicitly confirmed no further traffic signals after tunnel entrance. Signal-only controller test, GPS remains available and shadow/lidar driving deferred. Rear section signal-state fields are not used. Existing static traffic_light_id retained for traceability, not used as live input.",
+      "crossing_speed_kmh": 30.0
+    },
+    {
+      "id": "A1256W000842",
+      "s": 2109.847527156329,
+      "waypoint_index": 4273,
+      "stop_point": [
+        -158.85955110844225,
+        -496.57321140216663,
+        28.468558355992123
+      ],
+      "traffic_light_id": null,
+      "maneuver": "straight",
+      "link_id": "A2256W000333",
+      "link_match_error": 0.0,
+      "clearance_m": 11.134664798533384,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-06 user explicitly confirmed no further traffic signals after tunnel entrance. Signal-only controller test, GPS remains available and shadow/lidar driving deferred. Rear section signal-state fields are not used. Existing static traffic_light_id retained for traceability, not used as live input.",
+      "crossing_speed_kmh": 30.0
+    },
+    {
+      "id": "A1256W000616",
+      "s": 2120.982191954861,
+      "waypoint_index": 4297,
+      "stop_point": [
+        -158.9611101890332,
+        -485.4650458707474,
+        28.421814928913555
+      ],
+      "traffic_light_id": null,
+      "maneuver": "straight",
+      "link_id": "A2256W000154",
+      "link_match_error": 0.0,
+      "clearance_m": 11.248795907166322,
+      "controlled": false,
+      "reviewed": true,
+      "signal_roi": null,
+      "review_note": "2026-10-06 user explicitly confirmed no further traffic signals after tunnel entrance. Signal-only controller test, GPS remains available and shadow/lidar driving deferred. Rear section signal-state fields are not used. Existing static traffic_light_id retained for traceability, not used as live input.",
+      "crossing_speed_kmh": 30.0
+    }
+  ]
+}

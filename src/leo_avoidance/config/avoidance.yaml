@@ -1,0 +1,45 @@
+# TODO: Verify these values against the actual MORAI vehicle and LiDAR mount.
+lidar_frame: lidar
+lidar_to_rear_x_m: 1.4
+vehicle_half_width_m: 0.946
+side_margin_m: 0.4  # obstacle and wall clearance beyond the vehicle half width
+front_bumper_from_rear_m: 3.845
+max_range_m: 30.0
+front_fov_deg: 270.0  # front-centered -135 to +135 degrees
+scan_bins: 541  # retain 0.5-degree angular resolution
+disparity_m: 0.5
+max_target_bearing_rad: 0.6108652382  # 35 degrees to either side
+post_pass_target_bearing_rad: 0.8726646260  # 50 degrees only while returning after a pass
+post_pass_clear_front_m: 15.0  # treat farther frontal returns as recovery context
+post_pass_planning_depth_m: 20.0  # wider near-field return search; track boundaries still constrain it
+max_speed_mps: 8.3333333333  # 30 km/h only with sufficient forward and wall clearance
+no_return_speed_mps: 2.0  # crawl with side-scan evidence until GPS returns
+min_no_return_evidence_points: 10
+target_distance_from_lidar_m: 4.0
+route_lookahead_m: 5.0
+reaction_s: 0.4
+brake_mps2: 2.0
+wall_slow_clearance_m: 0.5
+wall_fast_clearance_m: 1.4
+expected_ground_z_m: -1.23  # ground plane at LiDAR origin; check mount in simulator
+ground_height_tolerance_m: 0.25
+collision_min_z_m: -1.13  # 10 cm above the nominal road plane
+collision_max_z_m: 0.8  # about 2.0 m above road; omit tunnel roof
+right_wall_target_clearance_m: 2.9  # vehicle side to right tunnel wall
+right_wall_clearance_tolerance_m: 0.1  # 2.8-3.0 m band without offset correction
+wall_point_tolerance_m: 0.35  # coherent wall returns become track boundaries
+wall_corridor_horizon_m: 6.0  # check selected path inside boundaries this far ahead
+right_wall_min_clearance_m: 0.9
+avoidance_trigger_range_m: 20.0
+rear_detection_half_angle_deg: 15.0  # centered on 180 degrees, separate from FTG front FOV
+rear_detection_max_range_m: 12.0
+rear_detection_max_lateral_m: 2.8  # exclude tunnel walls
+rear_detection_min_points: 3
+rear_detection_confirm_scans: 2
+right_wall_offset_gain_rad_per_m: 0.25
+right_wall_heading_gain: 1.0
+right_wall_max_correction_rad: 0.22
+right_wall_route_disagreement_rad: 0.2617993878  # 15 deg: distrust route direction if it conflicts with the wall
+right_wall_drift_weight: 0.9  # preserve wall guidance until GPS rejoin
+unwalled_route_bearing_limit_rad: 0.1221730476  # 7 deg if the wall vanishes before GPS returns
+speed_timeout_s: 0.6

@@ -1,14 +1,31 @@
 <launch>
   <!-- Separate competition entrypoint: no rosbridge or MORAI ROS service. -->
   <arg name="morai_ip"/>
+  <arg name="follower_node_type" default="gps_waypoint_follower.py"/>
+  <arg name="control_node_pkg" default="control"/>
+  <arg name="control_node_type" default="competition_udp_control.py"/>
+  <arg name="follower_ctrl_topic" default="/ctrl_cmd"/>
+  <arg name="drive_pose_topic" default=""/>
+  <arg name="drive_valid_topic" default=""/>
+  <arg name="drive_mode_topic" default=""/>
+  <arg name="avoidance_target_topic" default=""/>
+  <arg name="avoidance_speed_topic" default=""/>
+  <arg name="guard_speed_limit_topic" default=""/>
   <arg name="morai_port" default="9093"/>
-  <arg name="status_port" default="9092"/>
+  <arg name="status_port" default="9096"/>
   <arg name="heading_source" default="ego_status"/>
   <arg name="heading_topic" default="$(eval '/competition/heading_imu' if arg('heading_source') == 'ego_status' else '/imu')"/>
   <arg name="start_sensor_bridge" default="true"/>
   <arg name="enable_imu" default="$(eval arg('heading_source') == 'imu')"/>
   <arg name="enable_rear_camera" default="true"/>
   <arg name="enable_lidar" default="true"/>
+  <arg name="enable_local_avoidance" default="false"/>
+  <arg name="preferred_raceline" default="1"/>
+  <arg name="preferred_raceline_sector" default="0"/>
+  <arg name="preferred_raceline_end_checkpoint" default=""/>
+  <arg name="preferred_raceline_after_checkpoint" default="1"/>
+  <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
+  <arg name="raceline_width" default=""/>
   <arg name="lidar_launch" default="VLP16_points.launch"/>
   <arg name="lidar_rpm" default="600"/>
   <arg name="east_offset" default="302595"/>
@@ -18,12 +35,16 @@
   <arg name="loop_path" default="true"/>
   <arg name="normal_max_speed_kmh" default="60.0"/>
   <arg name="high_speed_max_speed_kmh" default="100.0"/>
+  <arg name="tunnel_speed_start_index" default="-1"/>
+  <arg name="tunnel_speed_end_index" default="-1"/>
+  <arg name="tunnel_speed_cap_kmh" default="18.0"/>
+  <arg name="blackout_clear_speed_cap_kmh" default="30.0"/>
   <arg name="control_max_speed_kmh" default="100.0"/>
-  <arg name="wheelbase" default="2.7"/>
+  <arg name="wheelbase" default="3.0"/>
   <arg name="lookahead_distance" default="5.0"/>
   <arg name="steering_sign" default="1.0"/>
-  <arg name="max_steering_deg" default="36.25"/>
-  <arg name="max_steering_rad" default="0.632681853"/>
+  <arg name="max_steering_deg" default="40.0"/>
+  <arg name="max_steering_rad" default="0.6981317007977318"/>
   <arg name="ego_yaw_offset_deg" default="0.0"/>
   <arg name="start_rviz" default="true"/>
   <include if="$(arg start_sensor_bridge)" file="$(find sensor_bridge)/launch/sensor_bridge.launch">
@@ -37,25 +58,58 @@
     <arg name="lidar_rpm" value="$(arg lidar_rpm)"/>
   </include>
   <!-- Pure Pursuit + curvature speed planning + pedal PID. -->
-  <node pkg="unita_waypoint" type="gps_waypoint_follower.py" name="gps_waypoint_follower" output="screen">
+  <node pkg="unita_waypoint" type="$(arg follower_node_type)" name="gps_waypoint_follower" output="screen">
     <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile.yaml"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <param name="use_project_speed_limits" value="$(eval arg('waypoint_file').lower().endswith('.json'))"/>
     <param name="waypoint_format" value="$(arg waypoint_format)"/>
     <param name="loop_path" value="$(arg loop_path)"/>
     <param name="gps_topic" value="/gps"/>
     <param name="imu_topic" value="$(arg heading_topic)"/>
-    <param name="ctrl_topic" value="/ctrl_cmd"/>
+    <param name="drive_pose_topic" value="$(arg drive_pose_topic)"/>
+    <param name="drive_valid_topic" value="$(arg drive_valid_topic)"/>
+    <param name="drive_mode_topic" value="$(arg drive_mode_topic)"/>
+    <param name="avoidance_target_topic" value="$(arg avoidance_target_topic)"/>
+    <param name="avoidance_speed_topic" value="$(arg avoidance_speed_topic)"/>
+    <param name="ctrl_topic" value="$(arg follower_ctrl_topic)"/>
+    <param name="guard_speed_limit_topic" value="$(arg guard_speed_limit_topic)"/>
+    <param name="enable_local_avoidance" value="$(arg enable_local_avoidance)"/>
+    <param name="raceline_config" value="$(arg raceline_config)"/>
+    <param if="$(eval arg('raceline_width') != '')" name="raceline_width" value="$(arg raceline_width)" type="double"/>
+    <param unless="$(eval arg('raceline_width') != '')" name="raceline_width" value="" type="str"/>
+    <param name="preferred_raceline" value="$(arg preferred_raceline)"/>
+    <param name="preferred_raceline_sector" value="$(arg preferred_raceline_sector)"/>
+    <param name="preferred_raceline_end_checkpoint" value="$(arg preferred_raceline_end_checkpoint)" type="str"/>
+    <param name="preferred_raceline_after_checkpoint" value="$(arg preferred_raceline_after_checkpoint)"/>
+    <param name="rear_extent_m" value="0.790"/>
+    <param name="lane_change_min_rear_gap_m" value="8.0"/>
+    <param name="lane_change_rear_headway_s" value="2.0"/>
+    <param name="vehicle_half_width_m" value="0.946"/>
+    <param name="front_extent_m" value="3.845"/>
     <param name="enable_velocity_planning" value="true"/>
     <param name="longitudinal_control_mode" value="pid"/>
     <param name="speed_topic" value="/competition/ego_speed_kmh"/>
     <param name="normal_max_speed_kmh" value="$(arg normal_max_speed_kmh)"/>
     <param name="high_speed_max_speed_kmh" value="$(arg high_speed_max_speed_kmh)"/>
+    <param name="tunnel_speed_start_index" value="$(arg tunnel_speed_start_index)"/>
+    <param name="tunnel_speed_end_index" value="$(arg tunnel_speed_end_index)"/>
+    <param name="tunnel_speed_cap_kmh" value="$(arg tunnel_speed_cap_kmh)"/>
+    <param name="blackout_clear_speed_cap_kmh" value="$(arg blackout_clear_speed_cap_kmh)"/>
     <param name="wheelbase" value="$(arg wheelbase)"/>
     <param name="lookahead_distance" value="$(arg lookahead_distance)"/>
     <param name="max_steering_rad" value="$(arg max_steering_rad)"/>
     <param name="steering_sign" value="1.0"/>
   </node>
-  <node pkg="control" type="competition_udp_control.py" name="competition_udp_control" output="screen" required="true">
+  <node if="$(arg enable_local_avoidance)" pkg="unita_waypoint" type="lidar_obstacles.py"
+        name="lidar_obstacles" output="screen">
+    <param name="pose_topic" value="/localization/pose"/>
+    <param name="cloud_topic" value="/lidar3D"/>
+    <param name="lidar_to_rear_x_m" value="1.4"/>
+    <param name="lidar_to_rear_z_m" value="1.23"/>
+    <param name="rear_range_m" value="55.0"/>
+    <param name="rear_extent_m" value="0.790"/>
+  </node>
+  <node pkg="$(arg control_node_pkg)" type="$(arg control_node_type)" name="competition_udp_control" output="screen" required="true">
     <rosparam command="load" file="$(find control)/config/competition_udp.yaml"/>
     <param name="morai_ip" value="$(arg morai_ip)"/>
     <param name="morai_port" value="$(arg morai_port)"/>

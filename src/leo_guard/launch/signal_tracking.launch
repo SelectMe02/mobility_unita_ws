@@ -1,0 +1,73 @@
+<launch>
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="model_path" default="$(find perception)/../../best1.pt"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+  <arg name="intersection_file" default="$(find leo_guard)/config/intersections.json"/>
+  <arg name="stoplines_file" default="$(find unita_waypoint)/config/stoplines.json"/>
+  <arg name="maximum_speed_kmh" default="58.0"/>
+  <arg name="tunnel_speed_start_index" default="-1"/>
+  <arg name="tunnel_speed_end_index" default="-1"/>
+  <arg name="tunnel_speed_cap_kmh" default="18.0"/>
+  <arg name="blackout_clear_speed_cap_kmh" default="30.0"/>
+  <arg name="control_node_pkg" default="control"/>
+  <arg name="control_node_type" default="competition_udp_control.py"/>
+  <arg name="drive_pose_topic" default=""/>
+  <arg name="drive_valid_topic" default=""/>
+  <arg name="drive_mode_topic" default=""/>
+  <arg name="avoidance_target_topic" default=""/>
+  <arg name="avoidance_speed_topic" default=""/>
+  <arg name="guard_pose_topic" default="/localization/pose"/>
+  <arg name="guard_valid_topic" default="/localization/valid"/>
+  <arg name="guard_pose_fault_grace_s" default="0.0"/>
+  <arg name="enable_local_avoidance" default="$(eval arg('waypoint_file').lower().endswith('.json'))"/>
+  <arg name="guard_route_max_error_m" default="2.0"/>
+  <include file="$(find unita_launch)/launch/competition_udp_tracking.launch">
+    <arg name="control_node_pkg" value="$(arg control_node_pkg)"/>
+    <arg name="control_node_type" value="$(arg control_node_type)"/>
+    <arg name="drive_pose_topic" value="$(arg drive_pose_topic)"/>
+    <arg name="drive_valid_topic" value="$(arg drive_valid_topic)"/>
+    <arg name="drive_mode_topic" value="$(arg drive_mode_topic)"/>
+    <arg name="avoidance_target_topic" value="$(arg avoidance_target_topic)"/>
+    <arg name="avoidance_speed_topic" value="$(arg avoidance_speed_topic)"/>
+    <arg name="enable_local_avoidance" value="$(arg enable_local_avoidance)"/>
+    <arg name="morai_ip" value="$(arg morai_ip)"/>
+    <arg name="waypoint_file" value="$(arg waypoint_file)"/>
+    <arg name="follower_ctrl_topic" value="/leo/raw_ctrl_cmd"/>
+    <arg name="guard_speed_limit_topic" value="/leo/speed_limit_kmh"/>
+    <arg name="normal_max_speed_kmh" value="$(arg maximum_speed_kmh)"/>
+    <arg name="high_speed_max_speed_kmh" value="$(arg maximum_speed_kmh)"/>
+    <arg name="tunnel_speed_start_index" value="$(arg tunnel_speed_start_index)"/>
+    <arg name="tunnel_speed_end_index" value="$(arg tunnel_speed_end_index)"/>
+    <arg name="tunnel_speed_cap_kmh" value="$(arg tunnel_speed_cap_kmh)"/>
+    <arg name="blackout_clear_speed_cap_kmh" value="$(arg blackout_clear_speed_cap_kmh)"/>
+    <arg name="start_rviz" value="false"/>
+  </include>
+  <node pkg="perception" type="traffic_light_test.py" name="leo_traffic_lights" output="screen" required="true">
+    <param name="model_path" value="$(arg model_path)"/>
+    <param name="confidence" value="0.7"/>
+    <param name="inference_rate" value="5.0"/>
+    <param name="image_timeout" value="1.0"/>
+    <!-- Fourth freely placed camera; sensor bridge retains its old rear topic name. -->
+    <param name="aux_image_topic" value="/camera/image/rear"/>
+    <param name="camera_selection_topic" value="/leo/signal_camera"/>
+  </node>
+  <node pkg="leo_guard" type="yield_observer_node.py" name="leo_yield_observer" output="screen" required="true">
+    <remap from="/localization/pose" to="$(arg guard_pose_topic)"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <rosparam param="lidar_to_rear_xyz">[1.4, 0.0, 1.23]</rosparam>
+  </node>
+  <node pkg="leo_guard" type="signal_guard_node.py" name="leo_signal_guard" output="screen" required="true">
+    <remap from="/localization/pose" to="$(arg guard_pose_topic)"/>
+    <remap from="/localization/valid" to="$(arg guard_valid_topic)"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <param name="intersection_file" value="$(arg intersection_file)"/>
+    <param name="stoplines_file" value="$(arg stoplines_file)"/>
+    <param name="maximum_speed_kmh" value="$(arg maximum_speed_kmh)"/>
+    <!-- GPS transform inspected at (0,0,1.2), MORAI rear-axle origin. -->
+    <param name="gps_to_front_axle_m" value="3.0"/>
+    <param name="vehicle_half_width_m" value="0.946"/>
+    <param name="stop_margin_m" value="5.0"/>
+    <param name="pose_fault_grace_s" value="$(arg guard_pose_fault_grace_s)"/>
+    <param name="route_max_error_m" value="$(arg guard_route_max_error_m)"/>
+  </node>
+</launch>

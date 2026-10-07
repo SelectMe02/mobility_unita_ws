@@ -1,0 +1,4 @@
+# Calibration must match active MORAI sensor settings and image resolution.
+calibration_verified: false
+intrinsics: []
+optical_to_rear: []

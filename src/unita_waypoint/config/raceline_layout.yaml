@@ -1,0 +1,3 @@
+# Full lane width in meters: centers are separated by this width, and
+# perception retains only +/- half this distance from each raceline.
+raceline_width: 3.2

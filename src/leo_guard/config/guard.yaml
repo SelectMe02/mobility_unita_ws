@@ -1,0 +1,22 @@
+# Experimental: these flags describe reviewed evidence, never bypass switches.
+calibration_verified: false
+lane_perception_verified: false
+traffic_association_verified: false
+camera_fallback_verified: false
+# XYZ/RPY from sensor frame to rear axle must be measured/confirmed first.
+lidar_to_rear_xyz: [0.0, 0.0, 0.0]
+lidar_to_rear_rpy_deg: [0.0, 0.0, 0.0]
+ground_z_rear: 0.0
+wheelbase: 3.0
+front_extent: 3.845
+rear_overhang: 0.790
+half_width: 0.946
+clearance_margin: 0.25
+assumed_deceleration: 3.0
+reaction_latency: 0.4
+input_timeout: 0.35
+signal_timeout: 1.0
+context_timeout: 0.35
+signal_stable_seconds: 0.6
+signal_roi: [0.2, 0.05, 0.8, 0.6]
+intensity_floor: 65.0

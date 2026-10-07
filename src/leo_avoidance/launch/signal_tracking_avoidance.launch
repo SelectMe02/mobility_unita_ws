@@ -1,0 +1,49 @@
+<launch>
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="model_path" default="$(find perception)/../../best1.pt"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+  <arg name="intersection_file" default="$(find leo_guard)/config/intersections.json"/>
+  <arg name="stoplines_file" default="$(find unita_waypoint)/config/stoplines.json"/>
+  <!-- GPS route is capped at 40 km/h; the tunnel approach slows to 18 km/h. -->
+  <arg name="maximum_speed_kmh" default="40.0"/>
+  <arg name="tunnel_speed_start_index" default="3730"/>
+  <arg name="tunnel_speed_end_index" default="4100"/>
+  <arg name="tunnel_speed_cap_kmh" default="18.0"/>
+  <arg name="blackout_clear_speed_cap_kmh" default="30.0"/>
+  <!-- The alternative is the only UDP owner. Normal follower and signal guard stay unchanged. -->
+  <rosparam command="load" ns="/competition_udp_control"
+            file="$(find leo_avoidance)/config/blackout.yaml"/>
+  <include file="$(find leo_guard)/launch/signal_tracking.launch">
+    <arg name="morai_ip" value="$(arg morai_ip)"/>
+    <arg name="model_path" value="$(arg model_path)"/>
+    <arg name="waypoint_file" value="$(arg waypoint_file)"/>
+    <arg name="intersection_file" value="$(arg intersection_file)"/>
+    <arg name="stoplines_file" value="$(arg stoplines_file)"/>
+    <arg name="maximum_speed_kmh" value="$(arg maximum_speed_kmh)"/>
+    <arg name="tunnel_speed_start_index" value="$(arg tunnel_speed_start_index)"/>
+    <arg name="tunnel_speed_end_index" value="$(arg tunnel_speed_end_index)"/>
+    <arg name="tunnel_speed_cap_kmh" value="$(arg tunnel_speed_cap_kmh)"/>
+    <arg name="blackout_clear_speed_cap_kmh" value="$(arg blackout_clear_speed_cap_kmh)"/>
+    <arg name="control_node_pkg" value="leo_avoidance"/>
+    <arg name="control_node_type" value="blackout_udp_control.py"/>
+    <arg name="drive_pose_topic" value="/leo/driving_pose"/>
+    <arg name="drive_valid_topic" value="/leo/driving_valid"/>
+    <arg name="drive_mode_topic" value="/leo/driving_mode"/>
+    <arg name="avoidance_target_topic" value="/leo/avoidance_target"/>
+    <arg name="avoidance_speed_topic" value="/leo/avoidance_speed_limit_kmh"/>
+    <arg name="enable_local_avoidance" value="false"/>
+    <arg name="guard_pose_topic" value="/leo/driving_pose"/>
+    <arg name="guard_valid_topic" value="/leo/driving_valid"/>
+    <arg name="guard_pose_fault_grace_s" value="2.0"/>
+    <arg name="guard_route_max_error_m" value="4.0"/>
+  </include>
+  <node pkg="leo_avoidance" type="ego_odometry_node.py" name="leo_ego_odometry" output="screen" required="true">
+    <param name="speed_timeout_s" value="0.6"/>
+    <param name="max_heading_interval_s" value="0.6"/>
+  </node>
+  <node pkg="leo_avoidance" type="driving_state_node.py" name="leo_driving_state" output="screen" required="true">
+    <rosparam command="load" file="$(find leo_avoidance)/config/odometry.yaml"/>
+    <rosparam command="load" file="$(find leo_avoidance)/config/avoidance.yaml"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+  </node>
+</launch>

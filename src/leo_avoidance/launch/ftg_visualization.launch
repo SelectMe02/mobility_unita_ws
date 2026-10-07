@@ -1,0 +1,12 @@
+<launch>
+  <!-- Run alongside signal_tracking_avoidance.launch; no control topic is published. -->
+  <arg name="start_rviz" default="true"/>
+  <arg name="visualization_hz" default="5.0"/>
+  <node pkg="leo_avoidance" type="ftg_visualization_node.py"
+        name="leo_ftg_visualization" output="screen">
+    <rosparam command="load" file="$(find leo_avoidance)/config/avoidance.yaml"/>
+    <param name="visualization_hz" value="$(arg visualization_hz)"/>
+  </node>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="leo_ftg_rviz"
+        args="-d $(find leo_avoidance)/config/ftg_visualization.rviz"/>
+</launch>

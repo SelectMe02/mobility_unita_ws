@@ -7,6 +7,7 @@ import threading
 import time
 
 import rospy
+from geometry_msgs.msg import PoseStamped
 from morai_msgs.msg import CtrlCmd, GPSMessage
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64, String, UInt8
@@ -22,7 +23,7 @@ class CompetitionUDPControl:
         if address.is_unspecified or address.is_multicast or str(address) == '255.255.255.255':
             raise ValueError('morai_ip must be the SIM PC unicast IPv4')
         self.destination = (str(address), int(rospy.get_param('~morai_port', 9093)))
-        status_port = int(rospy.get_param('~status_port', 9092))
+        status_port = int(rospy.get_param('~status_port', 9096))
         local_port = int(rospy.get_param('~local_port', 0))
         if (not 1 <= self.destination[1] <= 65535 or not 1 <= status_port <= 65535
                 or not 0 <= local_port <= 65535 or local_port == status_port):
@@ -36,7 +37,7 @@ class CompetitionUDPControl:
             raise ValueError('invalid yaw offset / send rate (1..200 Hz)')
         self.encoder = CompetitionCommandEncoder(
             gear=int(rospy.get_param('~gear', 4)),
-            max_steering_deg=float(rospy.get_param('~max_steering_deg', 36.25)),
+            max_steering_deg=float(rospy.get_param('~max_steering_deg', 40.0)),
             steering_sign=float(rospy.get_param('~steering_sign', 1)),
             max_speed_kmh=float(rospy.get_param('~max_speed_kmh', 30)))
         self.watchdog = CommandWatchdog(
@@ -56,6 +57,8 @@ class CompetitionUDPControl:
         self.status_pub = rospy.Publisher('/control/udp_status', String, queue_size=1, latch=True)
         self.mode_pub = rospy.Publisher('/control/sim_mode', UInt8, queue_size=1, latch=True)
         self.ego_pub = rospy.Publisher('/competition/ego_status', String, queue_size=1, latch=True)
+        self.ego_pose_pub = (rospy.Publisher('/competition/ego_pose', PoseStamped, queue_size=1)
+                             if rospy.get_param('~publish_ego_pose', False) else None)
         self.speed_pub = rospy.Publisher('/competition/ego_speed_kmh', Float64, queue_size=1)
         self.heading_pub = (rospy.Publisher('/competition/heading_imu', Imu, queue_size=1)
                             if self.heading_source == 'ego_status' else None)
@@ -129,6 +132,15 @@ class CompetitionUDPControl:
             self.speed_pub.publish(Float64(data=abs(status.speed_kmh)))
             self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m pos={}'.format(
                 status.mode, status.gear, status.speed_kmh, status.yaw_deg, status.steering_deg, status.wheelbase, status.position)))
+            if changed and self.ego_pose_pub is not None:
+                pose = PoseStamped()
+                pose.header.stamp = rospy.Time.now()
+                pose.header.frame_id = 'map'
+                pose.pose.position.x, pose.pose.position.y = status.position[:2]
+                yaw = math.radians(status.yaw_deg + self.yaw_offset)
+                pose.pose.orientation.z = math.sin(yaw / 2.)
+                pose.pose.orientation.w = math.cos(yaw / 2.)
+                self.ego_pose_pub.publish(pose)
             if changed and self.heading_pub is not None:
                 yaw = math.radians(status.yaw_deg + self.yaw_offset)
                 message = Imu()
