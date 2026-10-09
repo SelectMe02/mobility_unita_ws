@@ -52,8 +52,10 @@ class DrivingStateNode:
         # A safe pass can leave the mapped centerline by several metres.
         # Keep route projection available so the preferred bearing pulls
         # back toward the same waypoint path after the obstacle clears.
-        self.route = RouteProgress(route_points, max_error=4.0, backward_window=30)
-        self.blackout_route = RouteProgress(route_points, max_error=4.0,
+        route_max_error_m = float(rospy.get_param('~route_max_error_m', 7.))
+        self.route = RouteProgress(route_points, max_error=route_max_error_m,
+                                   backward_window=30)
+        self.blackout_route = RouteProgress(route_points, max_error=route_max_error_m,
                                             backward_window=30)
         self.rejoin_route = RouteProgress(route_points, max_error=2.0)
         self.exit_anchor_route = RouteProgress(route_points, max_error=1.9,
@@ -114,6 +116,9 @@ class DrivingStateNode:
                 self.route_lookahead_m, self.target_distance_m, self.speed_timeout_s)):
             raise ValueError('invalid avoidance route/timeout settings')
         self.pending = None
+        self.last_cloud_received_wall = None
+        self.last_cloud_stamp_age_s = None
+        self.last_plan_completed_wall = None
         self.latest_speed = None
         self.latest_plan = None
         self.odom_stamp = None
@@ -209,8 +214,12 @@ class DrivingStateNode:
             self.machine.update_odom(pose, received)
 
     def on_cloud(self, message):
+        received = time.monotonic()
+        stamp_age = rospy.Time.now().to_sec() - message.header.stamp.to_sec()
         with self.lock:
-            self.pending = (message, time.monotonic())
+            self.pending = (message, received)
+            self.last_cloud_received_wall = received
+            self.last_cloud_stamp_age_s = stamp_age
 
     def route_bearing(self, pose):
         x, y, yaw = pose
@@ -390,7 +399,11 @@ class DrivingStateNode:
                 preferred_bearing = self.route_bearing(pose)
                 wall_weight, rejoin_remaining = self.exit_wall_weight(ego_phase_pose)
                 with self.lock:
-                    wall_follow = (self.machine.gps_zero(received)
+                    # Until a GPS return is accepted, keep tunnel wall
+                    # guidance: a brief fix or a late zero sample must not
+                    # hand steering to the drifted route bearing mid-pass.
+                    wall_follow = (self.machine.had_blackout
+                                   or self.machine.gps_zero(received)
                                    or self.machine.gps_missing(received))
                     wall_follow = (wall_follow and not self.exit_latched
                                    and self.blackout_start_index <= self.route.index
@@ -413,18 +426,27 @@ class DrivingStateNode:
                     self.machine.reason = str(error)
             with self.lock:
                 self.latest_plan = (plan, received)
+                self.last_plan_completed_wall = time.monotonic()
                 self.machine.update_avoidance(plan.speed_mps > 0., received)
-            if plan.front_points or plan.avoidance_phase == 'PASSING':
+            if plan.front_points or plan.avoidance_phase in ('PASSING', 'RETURNING'):
                 rospy.loginfo_throttle(
                     .5,
                     'FTG plan: reason=%s phase=%s front_points=%d nearest_x=%.2fm '
                     'front_clearance=%.2fm gap_width=%.2fm bearing=%.3frad '
-                    'target_speed=%.2fm/s ego_speed=%.2fm/s right_wall=%s',
+                    'target_speed=%.2fm/s ego_speed=%.2fm/s right_wall=%s '
+                    'wall_heading=%s passing_side=%d rear_points=%d '
+                    'rear_scan_points=%d rear_confirm=%d',
                     plan.reason, plan.avoidance_phase, plan.front_points,
                     plan.nearest_front_x_m, plan.front_clearance_m,
                     plan.gap_width_m, plan.target_bearing_rad, plan.speed_mps,
                     speed[0] if speed is not None else -1.,
-                    plan.right_wall_clearance_m)
+                    plan.right_wall_clearance_m, plan.right_wall_heading_rad,
+                    self.planner.passing_side, plan.rear_obstacle_points,
+                    plan.rear_scan_points, plan.rear_confirm_scans)
+            if plan.reason == 'rear/body swept path blocked' and plan.swept_rejection:
+                rospy.logwarn_throttle(
+                    2., 'FTG swept rejection: %s',
+                    json.dumps(plan.swept_rejection, sort_keys=True))
             if (plan.reason == 'front obstacle inside stopping distance'
                     and points is not None):
                 candidates = self.planner.obstacle_candidates(points)
@@ -500,7 +522,14 @@ class DrivingStateNode:
             odom_sample = self.machine.odom_pose
             item = self.latest_plan
             speed = self.latest_speed
+            last_cloud_received_wall = self.last_cloud_received_wall
+            last_cloud_stamp_age_s = self.last_cloud_stamp_age_s
+            last_plan_completed_wall = self.last_plan_completed_wall
             exit_anchor_active = self.exit_anchor_active
+        cloud_received_age_s = (now - last_cloud_received_wall
+                                if last_cloud_received_wall is not None else None)
+        plan_completed_age_s = (now - last_plan_completed_wall
+                                if last_plan_completed_wall is not None else None)
         plan = item[0] if item and 0 <= now-item[1] <= self.machine.input_timeout_s else None
         speed_mps = (speed[0] if speed and 0 <= now-speed[1] <= self.speed_timeout_s
                      and math.isfinite(speed[0]) and speed[0] >= 0 else None)
@@ -531,6 +560,7 @@ class DrivingStateNode:
             'ego_speed_mps': speed_mps,
             'target_bearing_rad': plan.target_bearing_rad if plan else 0.,
             'candidate_bearings_rad': list(plan.candidate_bearings_rad) if plan else [],
+            'swept_rejection': plan.swept_rejection if plan else None,
             'front_clearance_m': plan.front_clearance_m if plan else 0.,
             'gap_width_m': plan.gap_width_m if plan else 0.,
             'obstacle_points': plan.obstacle_points if plan else 0,
@@ -551,20 +581,30 @@ class DrivingStateNode:
         self.valid_pub.publish(Bool(data=pose is not None))
         plan_reason = plan.reason if plan else 'LiDAR avoidance plan missing/stale'
         if mode == DrivingState.HOLD:
-            rospy.logwarn_throttle(2., 'Driving HOLD: %s; scan: %s; avoidance: %s; front_points: %d; nearest_front_x_m: %.2f; clearance_m: %.2f; right_wall_clearance_m: %s; avoidance_phase: %s; route_index: %s; map_pose: %s; ego_pose: %s; rejoin: %s; error: %s',
+            rospy.logwarn_throttle(
+                2., 'Driving input ages: cloud_received=%s cloud_stamp=%s '
+                'plan_completed=%s scan=%s odom=%s plan_reason=%s',
+                cloud_received_age_s, last_cloud_stamp_age_s,
+                plan_completed_age_s,
+                now - scan_wall if scan_wall is not None else None,
+                now - odom_sample[1] if odom_sample is not None else None,
+                plan_reason)
+            rospy.logwarn_throttle(2., 'Driving HOLD: %s; scan: %s; avoidance: %s; front_points: %d; nearest_front_x_m: %.2f; clearance_m: %.2f; right_wall_clearance_m: %s; avoidance_phase: %s; route_index: %s; route_projection_error: %s; map_pose: %s; ego_pose: %s; rejoin: %s; error: %s',
                                    reason, scan_fault, plan_reason,
                                    plan.front_points if plan else 0,
                                    plan.nearest_front_x_m if plan else 0.,
                                    plan.front_clearance_m if plan else 0.,
                                    plan.right_wall_clearance_m if plan else None,
                                    plan.avoidance_phase if plan else None,
-                                   blackout_index, map_pose, ego_pose,
+                                   blackout_index, blackout_projection_error,
+                                   map_pose, ego_pose,
                                    self.rejoin_diagnostic,
                                    self.machine.last_rejoin_error)
         self.status_pub.publish(String(data=json.dumps({
             'mode': mode, 'valid': pose is not None, 'reason': reason,
             'blackout_allowed': blackout_allowed,
             'blackout_route_index': blackout_index,
+            'blackout_projection_error': blackout_projection_error,
             'raw_gps_kind': raw_gps[0] if raw_gps else None,
             'gps_pose_age_s': now - gps_pose[1] if gps_pose else None,
             'gps_valid_age_s': now - gps_valid[1] if gps_valid else None,
@@ -591,6 +631,9 @@ class DrivingStateNode:
             'sim_pose_error_left_m': pose_error[1] if pose_error else None,
             'sim_pose_error_yaw_rad': pose_error[2] if pose_error else None,
             'scan_age_s': now - scan_wall if scan_wall is not None else None,
+            'cloud_received_age_s': cloud_received_age_s,
+            'cloud_stamp_age_s': last_cloud_stamp_age_s,
+            'plan_completed_age_s': plan_completed_age_s,
             'odom_age_s': now - odom_sample[1] if odom_sample is not None else None,
             'travelled_m': travelled,
             'unmatched_distance_m': self.machine.unmatched_distance_m,

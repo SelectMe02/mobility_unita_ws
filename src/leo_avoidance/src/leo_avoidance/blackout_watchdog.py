@@ -116,6 +116,12 @@ class BlackoutWatchdog(CommandWatchdog):
         blackout_trigger = self._gps_blackout_trigger(wall_now, ros_now)
         blackout_mode = (self._recent(self.drive_mode, wall_now)
                          and self.drive_mode[0] in ('BLACKOUT', 'SIM_EXIT'))
+        if (normal_reason.startswith('SENDING:') and not blackout_trigger
+                and blackout_mode and self.armed and self.blackout_started):
+            # A brief valid fix inside the tunnel that the driving state has
+            # not accepted. Keep the fallback armed and run every blackout
+            # gate below, so the next zero-GPS sample does not brake.
+            blackout_trigger = True
         if normal_reason.startswith('SENDING:') and not (blackout_trigger and blackout_mode):
             # Recalculate the distance available from the current GPS pose.
             # Travel on the approach must not consume the blackout allowance.

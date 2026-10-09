@@ -20,6 +20,10 @@ gps_pose_max_age_s: 1.0
 # margin for simulator sensor boundaries and rejoin near waypoint 4081.
 blackout_start_index: 3780
 blackout_end_index: 4100
+# Lateral limit for projecting the LiDAR pose onto the route during blackout.
+# Covers an avoidance pass (~3.5 m) plus LiDAR odometry drift; beyond it
+# the driving state latches HOLD.
+route_max_error_m: 7.0
 sim_exit_x_m: -78.35
 sim_exit_y_m: -545.63
 sim_exit_waypoint_index: 4053

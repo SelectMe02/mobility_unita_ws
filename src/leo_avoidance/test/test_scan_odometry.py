@@ -223,11 +223,49 @@ def test_gps_rejoin_mismatch_holds_until_route_corroborates():
     state.update_gps((110., 200., 0.), 10.2)
     state.update_raw_gps(37., 127., 10.2)
     state.update_gps_valid(True, 10.2)
-    assert state.select(10.2)[0] == state.HOLD
+    # A fresh disagreeing fix may be a simulator blip: keep the blackout.
+    assert state.select(10.2)[0] == state.BLACKOUT
+    state.update_gps((110., 200., 0.), 11.75)
+    state.update_raw_gps(37., 127., 11.75)
+    state.update_gps_valid(True, 11.75)
+    assert state.select(11.75)[0] == state.HOLD
     state.reason = 'too few independent LiDAR features'
-    assert state.select(10.21) == (
+    assert state.select(11.76) == (
         state.HOLD, None, 'GPS return disagrees with LiDAR odometry')
-    assert state.select(10.22, route_rejoin_ok=True)[0] == state.GPS
+    assert state.select(11.77, route_rejoin_ok=True)[0] == state.GPS
+
+
+def test_brief_disagreeing_gps_fix_inside_tunnel_keeps_blackout():
+    matcher = ScanOdometry()
+    state = DrivingState(matcher, gps_return_grace_s=1.5)
+    previous = landmarks()
+    state.update_gps((100., 200., 0.), 10.)
+    state.update_raw_gps(37., 127., 10.)
+    state.update_gps_valid(True, 10.)
+    state.update_odom((0., 0., 0.), 10.)
+    state.scan(previous, 10.)
+    state.select(10.)
+    state.update_gps_valid(False, 10.1)
+    state.update_raw_gps(0., 0., 10.1)
+    state.update_avoidance(True, 10.1)
+    state.update_odom((.15, 0., 0.), 10.1)
+    state.scan(transform(previous, (-.15, 0., 0.)), 10.1)
+    assert state.select(10.1)[0] == state.BLACKOUT
+    # Sub-second valid fix 4 m away from the LiDAR estimate.
+    state.update_gps((104.15, 200., 0.), 10.2)
+    state.update_raw_gps(37., 127., 10.2)
+    state.update_gps_valid(True, 10.2)
+    mode, pose, _ = state.select(10.2)
+    assert mode == state.BLACKOUT and pose == state.map_pose
+    assert state.had_blackout
+    # GPS drops back to zero: the blackout simply continues.
+    state.update_gps_valid(False, 10.3)
+    state.update_raw_gps(0., 0., 10.3)
+    state.update_avoidance(True, 10.3)
+    state.update_odom((.3, 0., 0.), 10.3)
+    state.scan(transform(previous, (-.3, 0., 0.)), 10.3)
+    assert state.select(10.3)[0] == state.BLACKOUT
+    assert state.gps_return_since is None
 
 
 def test_route_corroborated_gps_rejoin_replaces_drifted_lidar_pose():
@@ -444,3 +482,11 @@ def test_nonzero_no_fix_holds_even_if_stream_later_stops():
     state.scan(cloud, 11.)
     state.update_avoidance(True, 11.)
     assert state.select(11.)[0] == state.HOLD
+
+
+def test_late_zero_sample_has_no_gap_before_missing_stream_trigger():
+    state = DrivingState(ScanOdometry(), input_timeout_s=.6,
+                         gps_silence_timeout_s=.75)
+    state.update_raw_gps(0., 0., 10.)
+    for now in (10.3, 10.65, 10.7, 10.74, 10.75, 11.5):
+        assert state.gps_zero(now) or state.gps_missing(now), now

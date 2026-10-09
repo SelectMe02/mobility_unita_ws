@@ -51,6 +51,59 @@ def test_tunnel_walls_are_track_boundaries_but_box_remains_obstacle():
                for angle in box_plan.candidate_bearings_rad)
 
 
+def test_first_pass_chooses_wider_left_gap_over_tight_right_gap():
+    walls = tunnel_walls(3.95, 3.95)
+    right_lane_box = np.array([[7.7, y, 0.] for y in np.linspace(-1., 0., 21)])
+    planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.33))
+    plan = planner.plan(np.vstack((walls, right_lane_box)), 2.,
+                        preferred_bearing_rad=-.2, wall_follow=True)
+    assert plan.avoidance_phase == 'PASSING'
+    assert plan.target_bearing_rad > 0.
+    assert plan.gap_width_m > .8
+    assert planner.passing_side == 0
+
+
+def test_right_rear_corner_rejects_turn_toward_flank_obstacle():
+    planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=5.))
+    flank = np.array([[-.5, -1.4, 0.]])
+    assert not planner._swept_body_clear(flank, math.radians(-35.))
+    assert planner._swept_body_clear(flank, 0.)
+    cloud = np.vstack((tunnel_walls(4., 4.), flank))
+    plan = planner.plan(cloud, 1., -.5, wall_follow=True)
+    assert plan.speed_mps > 0.
+    assert plan.target_bearing_rad > math.radians(-5.)
+
+
+def test_swept_rejection_identifies_point_and_candidate_angle():
+    planner = FollowTheGap(Config(max_range_m=30.))
+    walls = tunnel_walls(3.846, 3.846)
+    # A close return outside the physical body but inside the safety margin
+    # must still block every path.
+    contact = np.array([[-0.5, 1.1, 0.]])
+    far_box = np.array([[11.63, 0., 0.]])
+    plan = planner.plan(np.vstack((walls, contact, far_box)), 0.,
+                        wall_follow=True)
+    assert plan.reason == 'rear/body swept path blocked'
+    detail = plan.swept_rejection
+    assert detail['point_lidar_xyz_m'] == [-0.5, 1.1, 0.]
+    assert detail['travel_m'] == 0.
+    assert detail['retained_in_front_obstacles'] is True
+    assert detail['rejected_angles'] > 0
+
+
+def test_ego_body_reflection_does_not_block_distant_gap():
+    planner = FollowTheGap(Config(max_range_m=30.))
+    walls = tunnel_walls(3.846, 3.846)
+    self_return = np.array([[-0.438, -0.401, -0.052]])
+    far_box = np.array([[12.236, 0., 0.]])
+    plan = planner.plan(np.vstack((walls, self_return, far_box)), 0.,
+                        wall_follow=True)
+    assert plan.reason == 'gap fits'
+    assert plan.speed_mps > 0.
+    assert math.isclose(plan.nearest_front_x_m, 12.236)
+    assert len(planner._remove_ego_returns(self_return)) == 0
+
+
 def test_curved_tunnel_wall_is_boundary_but_inner_box_remains_obstacle():
     x = np.linspace(1., 19.8, 190)
     bend = .008 * x * x
@@ -123,6 +176,8 @@ def test_track_boundary_limits_route_bearing_without_wall_bubbles():
 
 def test_blackout_right_wall_spacing_steers_away_and_then_back():
     planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=5.))
+    for _ in range(planner.config.wall_target_clear_scans):
+        planner.plan(tunnel_walls(3.846, 3.846), 0., wall_follow=True)
     initial = planner.plan(tunnel_walls(3.846, 3.846), 1., wall_follow=True)
     assert math.isclose(initial.right_wall_clearance_m, 2.9, abs_tol=.05)
     assert math.isclose(initial.right_wall_target_clearance_m, 2.9, abs_tol=.01)
@@ -142,6 +197,8 @@ def test_blackout_right_wall_spacing_steers_away_and_then_back():
 def test_blackout_wall_spacing_overrides_drifted_route_until_exit():
     walls = tunnel_walls(2.4, 3.6)
     planner = FollowTheGap(Config(max_range_m=30.))
+    for _ in range(planner.config.wall_target_clear_scans):
+        planner.plan(tunnel_walls(3.846, 3.846), 0., wall_follow=True)
     tunnel = planner.plan(walls, 1., -.4, wall_follow=True,
                           wall_follow_weight=1.)
     exit_plan = planner.plan(walls, 1., -.4, wall_follow=True,
@@ -161,16 +218,16 @@ def test_missing_exit_wall_limits_uncorroborated_route_turn():
     assert abs(plan.target_bearing_rad) <= math.radians(7.) + .01
 
 
-def test_distant_tunnel_end_returns_allow_wall_guided_crawl_only_with_braking_room():
+def test_distant_tunnel_end_returns_do_not_block_local_gap_with_braking_room():
     walls = tunnel_walls(3.546, 3.546)
     far = np.array([[18., y, 0.] for y in np.linspace(-5., 5., 201)])
     cloud = np.vstack((walls, far))
     planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.33))
     plan = planner.plan(cloud, 6.7, wall_follow=True)
-    assert plan.reason == 'distant returns; wall-guided crawl'
-    assert 0. < plan.speed_mps <= 2.
+    assert plan.reason == 'gap fits'
+    assert 0. < plan.speed_mps < planner.config.max_speed_mps
     assert plan.front_points > 0 and plan.front_clearance_m > 15.
-    assert plan.avoidance_phase == 'WALL_FOLLOW'
+    assert plan.avoidance_phase == 'PASSING'
     # A real close blockage must not use the distant-return exception.
     close = far.copy()
     close[:, 0] = 8.
@@ -180,6 +237,25 @@ def test_distant_tunnel_end_returns_allow_wall_guided_crawl_only_with_braking_ro
     fast = FollowTheGap(Config(max_range_m=30., max_speed_mps=12.)).plan(
         cloud, 10., wall_follow=True)
     assert fast.speed_mps == 0.
+    assert fast.reason == 'distant obstacle inside stopping distance'
+
+
+def test_far_box_waits_for_local_window_without_losing_speed_limit():
+    walls = tunnel_walls(3.846, 3.846)
+    far_box = np.array([[11.47, y, 0.] for y in np.linspace(-2.5, 2.5, 51)])
+    planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.33,
+                                  local_planning_range_m=9.))
+    far = planner.plan(np.vstack((walls, far_box)), 2., wall_follow=True)
+    assert far.reason == 'gap fits'
+    assert far.avoidance_phase == 'PASSING'
+    assert 0. < far.speed_mps < planner.config.max_speed_mps
+    assert math.isclose(far.nearest_front_x_m, 11.47)
+
+    near_box = far_box.copy()
+    near_box[:, 0] = 8.
+    near = planner.plan(np.vstack((walls, near_box)), 2., wall_follow=True)
+    assert near.avoidance_phase == 'PASSING'
+    assert near.speed_mps == 0.  # This box closes the entire corridor.
 
 
 def test_right_wall_target_resets_after_blackout():
@@ -202,6 +278,8 @@ def test_short_right_object_cannot_replace_long_wall_measurement():
 
 def test_exit_fades_wall_spacing_and_limits_speed_for_route_alignment():
     planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=30./3.6))
+    for _ in range(planner.config.wall_target_clear_scans):
+        planner.plan(tunnel_walls(3.846, 3.846), 0., wall_follow=True)
     walls = tunnel_walls(2.4, 3.6)
     tunnel = planner.plan(walls, 1., .08, wall_follow=True,
                           wall_follow_weight=1., route_rejoin_remaining_m=35.)
@@ -223,7 +301,7 @@ def test_right_wall_spacing_band_has_no_offset_correction():
         assert abs(plan.target_bearing_rad) < .02
 
 
-def test_post_pass_search_ignores_distant_wall_but_keeps_near_blocker():
+def test_local_search_ignores_distant_wall_but_keeps_near_blocker():
     walls = tunnel_walls(3.846, 3.846)
     distant = np.array([[28., y, 0.] for y in np.linspace(-10., 10., 101)])
     planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.33))
@@ -232,7 +310,7 @@ def test_post_pass_search_ignores_distant_wall_but_keeps_near_blocker():
     plan = planner.plan(np.vstack((walls, distant)), 2., wall_follow=True)
     assert plan.reason == 'gap fits'
     assert plan.front_points > 0
-    assert plan.speed_mps <= planner.config.no_return_speed_mps
+    assert 0. < plan.speed_mps <= planner.config.max_speed_mps
     assert plan.target_bearing_rad >= 0.
     near = distant.copy()
     near[:, 0] = 3.
@@ -240,7 +318,7 @@ def test_post_pass_search_ignores_distant_wall_but_keeps_near_blocker():
     assert blocked.speed_mps == 0.
 
 
-def test_post_pass_twenty_metre_search_sees_distant_box():
+def test_local_search_keeps_distant_box_for_speed():
     walls = tunnel_walls(3.846, 3.846)
     box = np.array([[18., y, 0.] for y in np.linspace(-1., 1., 41)])
     planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.33))
@@ -248,71 +326,9 @@ def test_post_pass_twenty_metre_search_sees_distant_box():
     planner.passing_side = 1
     plan = planner.plan(np.vstack((walls, box)), 2., wall_follow=True)
     assert plan.avoidance_phase == 'PASSING'
-    assert plan.target_bearing_rad > .1
-    assert plan.speed_mps <= planner.config.no_return_speed_mps
-
-
-def test_wall_spacing_waits_for_rear_lidar_detection_after_pass():
-    planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=5.))
-    walls = tunnel_walls(2.4, 3.6)
-    box = np.array([[7., y, 0.] for y in np.linspace(-.6, .6, 11)])
-    rear = np.array([[-8., y, 0.] for y in (1.8, 1.9, 2., 2.1)])
-    passing = planner.plan(np.vstack((walls, box)), 1., -.3,
-                           wall_follow=True)
-    assert passing.avoidance_phase == 'PASSING'
-    assert passing.wall_follow_weight == 0.
-    assert passing.rear_obstacle_points == 0
-    opposite = -.3 if passing.target_bearing_rad > 0. else .3
-    still_passing = planner.plan(walls, 1., opposite, wall_follow=True)
-    assert still_passing.avoidance_phase == 'PASSING'
-    assert still_passing.wall_follow_weight == 0.
-    assert still_passing.target_bearing_rad * passing.target_bearing_rad >= 0.
-    first_rear = planner.plan(np.vstack((walls, rear)), 1., -.3,
-                              wall_follow=True)
-    assert first_rear.avoidance_phase == 'PASSING'
-    assert first_rear.rear_obstacle_points == 4
-    assert first_rear.rear_confirm_scans == 1
-    resumed = planner.plan(np.vstack((walls, rear)), 1., -.3,
-                           wall_follow=True)
-    assert resumed.avoidance_phase == 'WALL_FOLLOW'
-    assert resumed.wall_follow_weight == 1.
-    assert resumed.target_bearing_rad > 0.
-
-
-def test_committed_pass_does_not_reverse_with_obstacle_still_ahead():
-    planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=5.))
-    walls = tunnel_walls(3.546, 3.546)
-    box = np.array([[7., y, 0.] for y in np.linspace(-.6, .6, 11)])
-    planner.avoidance_active = True
-    planner.passing_side = 1
-    left_pass = planner.plan(np.vstack((walls, box)), 1., -.35,
-                             wall_follow=True)
-    assert left_pass.avoidance_phase == 'PASSING'
-    assert left_pass.speed_mps == 0. or left_pass.target_bearing_rad >= 0.
-    planner.passing_side = -1
-    right_pass = planner.plan(np.vstack((walls, box)), 1., .35,
-                              wall_follow=True)
-    assert right_pass.avoidance_phase == 'PASSING'
-    assert right_pass.speed_mps == 0. or right_pass.target_bearing_rad <= 0.
-
-
-def test_tunnel_walls_and_rear_side_returns_do_not_end_pass():
-    planner = FollowTheGap(Config(max_range_m=30.))
-    walls = tunnel_walls(3.546, 3.546)
-    first = np.array([[7., y, 0.] for y in np.linspace(-.6, .6, 11)])
-    planner.plan(np.vstack((walls, first)), 1., wall_follow=True)
-    # A wall can lie behind the sensor, but is outside the close rear cone.
-    rear_walls = np.array([[-x, side * 3.546, 0.]
-                           for x in np.linspace(8., 16., 30)
-                           for side in (-1., 1.)])
-    # A nearer flank return is outside the +/-15 degree rear cone.
-    flank = np.array([[-3., y, 0.] for y in (1.8, 1.9, 2., 2.1)])
-    for _ in range(3):
-        plan = planner.plan(np.vstack((walls, rear_walls, flank)), 1.,
-                            wall_follow=True)
-        assert plan.avoidance_phase == 'PASSING'
-        assert plan.rear_scan_points > 0
-        assert plan.rear_obstacle_points == 0
+    assert plan.front_points > 0
+    assert abs(plan.target_bearing_rad) < .1
+    assert 0. < plan.speed_mps <= planner.config.max_speed_mps
 
 
 def test_rear_points_before_a_front_pass_do_not_change_wall_following():
@@ -324,21 +340,6 @@ def test_rear_points_before_a_front_pass_do_not_change_wall_following():
     assert plan.avoidance_phase == 'WALL_FOLLOW'
     assert len(planner.rear_obstacle_candidates(np.vstack((walls, rear)))) == 4
     assert len(planner.obstacle_candidates(rear)) == 0
-
-
-def test_two_rear_points_or_overhead_returns_cannot_end_pass():
-    planner = FollowTheGap(Config(max_range_m=30.))
-    walls = tunnel_walls(3.546, 3.546)
-    front = np.array([[7., y, 0.] for y in np.linspace(-.6, .6, 11)])
-    planner.plan(np.vstack((walls, front)), 1., wall_follow=True)
-    two_rear = np.array([[-8., y, 0.] for y in (1.9, 2.)])
-    roof = np.array([[-8., y, 2.] for y in (1.8, 1.9, 2., 2.1)])
-    for _ in range(3):
-        plan = planner.plan(np.vstack((walls, two_rear, roof)), 1.,
-                            wall_follow=True)
-        assert plan.avoidance_phase == 'PASSING'
-        assert plan.rear_obstacle_points == 2
-        assert plan.rear_confirm_scans == 0
 
 
 def test_empty_cloud_stops():
@@ -377,8 +378,8 @@ def test_right_wall_nearby_slows_and_steers_left():
 
 def test_obstacle_clearance_increase_expands_the_blocked_angle():
     points = scan_points([(7., 0., 0.)])
-    old = FollowTheGap(Config(side_margin_m=.25)).plan(points, 0.)
-    widened = FollowTheGap(Config(side_margin_m=.4)).plan(points, 0.)
+    old = FollowTheGap(Config(side_margin_m=.4, bubble_margin_m=.25)).plan(points, 0.)
+    widened = FollowTheGap(Config(side_margin_m=.4, bubble_margin_m=.4)).plan(points, 0.)
     assert abs(widened.target_bearing_rad) > abs(old.target_bearing_rad)
     assert math.isclose(Config().max_target_bearing_rad,
                         math.radians(35.), abs_tol=1e-12)
@@ -462,8 +463,8 @@ def test_tunnel_wall_and_vehicle_selects_inflated_side_corridor():
     plan = FollowTheGap(Config(max_range_m=15., max_speed_mps=5.)).plan(
         np.vstack((walls, vehicle)), 5., preferred_bearing_rad=.1)
     assert plan.speed_mps > 0
-    assert plan.target_bearing_rad > 0.1
-    assert plan.gap_width_m < 2 * (0.946 + .25)
+    assert plan.nearest_front_x_m == 14.
+    assert abs(plan.target_bearing_rad - .1) < .02
 
 
 def test_passable_tunnel_box_uses_local_gap_instead_of_far_wall_ray():
@@ -648,3 +649,217 @@ def test_steering_speed_cap_changes_continuously():
               for bearing in (.02, .03, .04, .05)]
     assert all(a >= b for a, b in zip(speeds, speeds[1:]))
     assert max(a - b for a, b in zip(speeds, speeds[1:])) < .5
+
+
+def test_relaxed_bubble_keeps_physical_swept_clearance():
+    points = np.array([[3., 1.25, 0.]])  # Outside relaxed bubble, inside body margin.
+    planner = FollowTheGap(Config(bubble_margin_m=.25, side_margin_m=.4))
+    assert planner._swept_body_collision(points, 0.) is not None
+    for angle in (-.2, 0., .2):
+        original = FollowTheGap(Config(bubble_margin_m=.4, side_margin_m=.4))
+        assert (planner._swept_body_collision(points, angle) is None) == (
+            original._swept_body_collision(points, angle) is None)
+
+
+def test_runtime_yaml_restores_spacing_and_expands_lidar_angle():
+    from pathlib import Path
+    import yaml
+    settings = yaml.safe_load((Path(__file__).resolve().parents[1] /
+                               'config/avoidance.yaml').read_text())
+    cfg = Config(**{k: settings.get(k, v) for k, v in vars(Config()).items()})
+    cfg.validate()
+    assert cfg.right_wall_target_clearance_m == 2.9
+    assert cfg.max_range_m == 30. and cfg.local_planning_range_m == 16.5
+    assert cfg.front_fov_deg == 300. and cfg.scan_bins == 601
+    assert cfg.bubble_margin_m == .35 and cfg.side_margin_m == .4
+    walls = tunnel_walls(5., 5.)
+    box = np.array([[16., y, 0.] for y in np.linspace(-.5, .5, 11)])
+    planner = FollowTheGap(cfg)
+    plan = planner.plan(np.vstack((walls, box)), 0., wall_follow=True)
+    assert plan.avoidance_phase == 'PASSING'
+    assert plan.front_points == len(box)
+    far = np.array([[28., y, 0.] for y in np.linspace(-.5, .5, 11)])
+    assert len(planner.obstacle_candidates(np.vstack((walls, far)))) == len(far)
+
+    rear = np.array([[-5., y, 0.] for y in (-1., 0., 1.)])
+    assert len(planner.obstacle_candidates(np.vstack((walls, rear)))) == 0
+    assert math.isclose(math.degrees(planner.angle_step_rad), .5)
+    rear_plan = planner.plan(np.vstack((walls, rear)), 0., wall_follow=True)
+    assert rear_plan.front_points == 0
+    assert rear_plan.speed_mps > 0.
+
+
+
+
+def test_sector_mode_returns_to_spacing_without_rear_confirmation():
+    planner = FollowTheGap(Config(max_range_m=30., front_fov_deg=300., scan_bins=601))
+    walls = tunnel_walls(5., 5.)
+    box = np.array([[7., y, 0.] for y in np.linspace(-1., 0., 21)])
+    avoidance = planner.plan(np.vstack((walls, box)), 0., wall_follow=True)
+    assert avoidance.avoidance_phase == 'PASSING'
+    assert not planner.wall_target_allowed
+    clear = planner.plan(walls, 0., wall_follow=True)
+    assert clear.avoidance_phase == 'WALL_FOLLOW'
+    assert planner.wall_target_allowed
+    assert clear.target_bearing_rad < 0.  # Return toward right-wall spacing.
+    assert planner.passing_side == 0 and clear.rear_confirm_scans == 0
+
+
+def test_270_degree_mode_gate_and_300_degree_obstacle_detection():
+    for angle, occupied in ((0., True), (90., True), (134., True),
+                            (-134., True), (140., False), (-140., False),
+                            (160., False), (-160., False)):
+        planner = FollowTheGap(Config(max_range_m=30., front_fov_deg=300., scan_bins=601))
+        walls = tunnel_walls(5., 5.)
+        r = 5.
+        hit = np.array([[r * math.cos(math.radians(angle)),
+                         r * math.sin(math.radians(angle)), 0.]])
+        plan = planner.plan(np.vstack((walls, hit)), 0., wall_follow=True)
+        assert planner.wall_target_allowed == (not occupied), angle
+        assert plan.obstacle_points == (1 if abs(angle) <= 150. else 0), angle
+        assert plan.avoidance_phase == ('PASSING' if occupied else 'WALL_FOLLOW')
+
+
+def test_sector_avoidance_can_change_steering_side_on_next_scan():
+    planner = FollowTheGap(Config(max_range_m=30., front_fov_deg=300., scan_bins=601))
+    walls = tunnel_walls(5., 5.)
+    for side in (1, -1, 1):
+        box = np.array([[7., side*y, 0.] for y in np.linspace(-2., .2, 30)])
+        plan = planner.plan(np.vstack((walls, box)), 0., wall_follow=True)
+        assert plan.avoidance_phase == 'PASSING'
+        assert plan.speed_mps > 0.
+        assert side * plan.target_bearing_rad > 0.
+        assert planner.passing_side == 0
+
+
+def test_rear_obstacle_does_not_gate_spacing_but_still_blocks_body_collision():
+    planner = FollowTheGap(Config(max_range_m=30., front_fov_deg=300., scan_bins=601))
+    walls = tunnel_walls(5., 5.)
+    rear = np.array([[-8., -2., 0.], [-8., -2.1, 0.], [-8., -1.9, 0.]])
+    plan = planner.plan(np.vstack((walls, rear)), 0., wall_follow=True)
+    assert planner.wall_target_allowed
+    assert plan.avoidance_phase == 'WALL_FOLLOW'
+    assert plan.speed_mps > 0.
+    # A point on the rear body edge is outside 300 deg, but cannot be ignored.
+    contact = np.array([[-1.3, 0., 0.]])
+    stopped = planner.plan(np.vstack((walls, contact)), 0., wall_follow=True)
+    assert planner.wall_target_allowed
+    assert stopped.speed_mps == 0.
+    assert stopped.reason == 'rear/body swept path blocked'
+
+
+def test_speed_cap_survives_front_dropout_then_ramps_with_elapsed_time():
+    now = [0.]
+    planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.), clock=lambda: now[0])
+    near = scan_points([(6., 0., 0.)], radius_m=25.)
+    clear = scan_points([], radius_m=25.)
+    slow = planner.plan(near, 2.)
+    assert 0. < slow.speed_mps < 4.
+    now[0] = .5
+    held = planner.plan(clear, 2.)
+    assert held.speed_mps <= slow.speed_mps
+    now[0] = .99
+    assert planner.plan(clear, 2.).speed_mps <= slow.speed_mps
+    now[0] = 1.1
+    released = planner.plan(clear, 2.)
+    assert slow.speed_mps < released.speed_mps <= slow.speed_mps + .8 * .11 + 1e-8
+    now[0] = 1.2
+    stopped = planner.plan(scan_points([(2.7, 0., 0.)], radius_m=25.), 2.)
+    assert stopped.speed_mps == 0.  # Deceleration is immediate.
+    now[0] = 1.3
+    assert planner.plan(clear, 0.).speed_mps == 0.
+
+
+def test_curved_path_speed_check_sees_obstacle_outside_front_strip():
+    cfg = Config(max_range_m=30., max_speed_mps=12.)
+    planner = FollowTheGap(cfg)
+    bearing = .2
+    target_x = cfg.lidar_to_rear_x_m + cfg.target_distance_from_lidar_m * math.cos(bearing)
+    target_y = cfg.target_distance_from_lidar_m * math.sin(bearing)
+    curvature = 2. * target_y / (target_x ** 2 + target_y ** 2)
+    travel = 10.
+    point = [math.sin(curvature*travel)/curvature-cfg.lidar_to_rear_x_m,
+             (1.-math.cos(curvature*travel))/curvature, 0.]
+    assert point[1] > cfg.vehicle_half_width_m + cfg.side_margin_m
+    cloud = scan_points([point], radius_m=25.)
+    assert planner._swept_body_collision(np.array([point]), bearing) is None
+    assert planner._swept_body_collision(np.array([point]), bearing, 20.) is not None
+    baseline = FollowTheGap(cfg).plan(scan_points([], radius_m=25.), 0., bearing)
+    plan = planner.plan(cloud, 0., bearing)
+    assert plan.front_points == 0
+    assert plan.speed_mps > 0.
+    assert math.isfinite(planner._current_obstacle_cap)
+    assert plan.speed_mps <= planner._current_obstacle_cap
+    assert plan.speed_mps < baseline.speed_mps
+
+
+def test_invalid_scan_brakes_and_returning_scan_cannot_jump_target_speed():
+    now = [0.]
+    planner = FollowTheGap(Config(max_speed_mps=8.), clock=lambda: now[0])
+    assert planner.plan(scan_points([]), 2.).speed_mps > 0.
+    now[0] = .1
+    assert planner.plan(np.empty((0, 3)), 2.).speed_mps == 0.
+    now[0] = .2
+    assert 0. < planner.plan(scan_points([]), 0.).speed_mps <= .08000001
+
+
+def test_gap_interior_preference_gives_obstacle_more_room_on_either_side():
+    for sign in (-1., 1.):
+        cloud = np.vstack((tunnel_walls(5., 5.),
+                           np.array([[7., sign*y, 0.] for y in np.linspace(-1., .2, 21)])))
+        old = FollowTheGap(Config(max_range_m=30., bubble_margin_m=.4))
+        wider = FollowTheGap(Config(max_range_m=30., bubble_margin_m=.4,
+                                    gap_target_inset_m=.3))
+        before = old.plan(cloud, 0., wall_follow=True)
+        after = wider.plan(cloud, 0., wall_follow=True)
+        assert before.speed_mps > 0. and after.speed_mps > 0.
+        assert sign * after.target_bearing_rad > sign * before.target_bearing_rad
+        assert wider._swept_body_collision(cloud, after.target_bearing_rad) is None
+
+
+def test_smoothed_preference_reduces_reversal_and_rechecks_collisions():
+    now = [0.]
+    planner = FollowTheGap(Config(max_range_m=30., bearing_smoothing_tau_s=.5),
+                           clock=lambda: now[0])
+    cloud = scan_points([], radius_m=25.)
+    first = planner.plan(cloud, 0., .25)
+    now[0] = .1
+    second = planner.plan(cloud, 0., -.25)
+    assert -.25 < second.target_bearing_rad < first.target_bearing_rad
+    # Place a new obstacle on the old leftward path: smoothing must not
+    # emit that unsafe heading merely to preserve continuity.
+    obstacle_cloud = np.vstack((tunnel_walls(5., 5.),
+                               np.array([[5., y, 0.] for y in np.linspace(.3, 2., 20)])))
+    now[0] = .2
+    third = planner.plan(obstacle_cloud, 0., -.25, wall_follow=True)
+    assert third.speed_mps == 0. or planner._swept_body_collision(
+        obstacle_cloud, third.target_bearing_rad) is None
+
+
+def test_blocks_left_behind_or_far_ahead_allow_return_to_wall_spacing():
+    planner = FollowTheGap(Config(max_range_m=30., front_fov_deg=300., scan_bins=601))
+    walls = tunnel_walls(5., 5.)
+    behind = np.array([[-6., 2. + .1 * i, 0.] for i in range(10)])  # passed block, 108 deg
+    far = np.array([[25., 1. + .1 * i, 0.] for i in range(10)])     # next block, 25 m ahead
+    plan = planner.plan(np.vstack((walls, behind, far)), 1., wall_follow=True)
+    assert plan.avoidance_phase == 'WALL_FOLLOW'
+    assert planner.wall_target_allowed
+    beside = np.array([[-2., 2. + .1 * i, 0.] for i in range(10)])   # still beside the car
+    plan = planner.plan(np.vstack((walls, beside)), 1., wall_follow=True)
+    assert plan.avoidance_phase == 'PASSING'
+    near = np.array([[15., 1. + .1 * i, 0.] for i in range(10)])     # next block within 20 m
+    plan = planner.plan(np.vstack((walls, near)), 1., wall_follow=True)
+    assert plan.avoidance_phase == 'PASSING'
+
+
+def test_objects_beyond_wall_end_do_not_block_return_to_wall_spacing():
+    planner = FollowTheGap(Config(max_range_m=30., front_fov_deg=300., scan_bins=601))
+    walls = tunnel_walls(5., 5.)  # walls measured to x = 13 m (tunnel exit)
+    outside = np.array([[17., -7. - .1 * i, 0.] for i in range(10)])  # beyond right wall line
+    plan = planner.plan(np.vstack((walls, outside)), 1., wall_follow=True)
+    assert plan.avoidance_phase == 'WALL_FOLLOW'
+    assert planner.wall_target_allowed
+    in_lane = np.array([[17., -1. - .1 * i, 0.] for i in range(10)])  # same range, inside the road
+    plan = planner.plan(np.vstack((walls, in_lane)), 1., wall_follow=True)
+    assert plan.avoidance_phase == 'PASSING'
+

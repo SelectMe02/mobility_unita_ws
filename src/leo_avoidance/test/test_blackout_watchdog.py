@@ -210,3 +210,52 @@ def test_tunnel_budget_survives_uncontrolled_crossing_and_guard_handoff():
     g.set_avoidance_valid(True,10.2)
     g.set_command(SHARED,10.2)
     assert g.select(10.21,10.21,STOP)[0]==SHARED
+
+
+def test_gps_blip_during_blackout_keeps_fallback_armed():
+    g = gate()
+    blackout(g)
+    assert g.select(10.15, 10.15, STOP)[0] == SHARED
+    # One valid fix inside the tunnel; the driving state stays BLACKOUT.
+    g.set_command(SHARED, 10.2)
+    g.set_sensor('gps', True, 10.2, 10.2)
+    g.set_raw_gps(37., 127., 1, 10.2, 10.2)
+    g.set_drive_mode('BLACKOUT', 10.2)
+    g.set_drive_valid(True, 10.2)
+    g.set_lidar(True, 10.2, 10.2)
+    g.set_odom(True, 10.2, 10.2)
+    g.set_speed(1., 10.2)
+    g.set_avoidance_valid(True, 10.2)
+    g.set_guard(True, 48., 10.2)
+    packet, reason = g.select(10.25, 10.25, STOP)
+    assert packet == SHARED and 'LiDAR odometry' in reason and g.armed
+    # The blackout gates still apply during the blip.
+    g.set_avoidance_valid(False, 10.26)
+    assert g.select(10.27, 10.27, STOP)[0] == STOP
+    g.set_avoidance_valid(True, 10.28)
+    # GPS returns to zero: the fallback is still armed and keeps sending.
+    g.set_command(SHARED, 10.3)
+    g.set_sensor('gps', False, 10.3, 10.3)
+    g.set_raw_gps(0., 0., 0, 10.3, 10.3)
+    g.set_drive_mode('BLACKOUT', 10.3)
+    g.set_drive_valid(True, 10.3)
+    g.set_lidar(True, 10.3, 10.3)
+    g.set_odom(True, 10.3, 10.3)
+    g.set_speed(1., 10.3)
+    g.set_guard(True, 47., 10.3)
+    assert g.select(10.35, 10.35, STOP)[0] == SHARED
+
+
+def test_gps_return_accepted_by_driving_state_rearms_from_gps():
+    g = gate()
+    blackout(g)
+    assert g.select(10.15, 10.15, STOP)[0] == SHARED
+    g.set_command(SHARED, 10.2)
+    g.set_sensor('gps', True, 10.2, 10.2)
+    g.set_raw_gps(37., 127., 1, 10.2, 10.2)
+    g.set_drive_mode('GPS', 10.2)
+    g.set_speed(1., 10.2)
+    g.set_guard(True, 48., 10.2)
+    packet, reason = g.select(10.25, 10.25, STOP)
+    assert packet == SHARED and reason.startswith('SENDING: fresh command')
+    assert not g.blackout_started

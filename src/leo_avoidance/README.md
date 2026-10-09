@@ -113,6 +113,9 @@ tunnel wall. The full scan still limits speed. The target bearing may reach
 35 degrees at low speed. Each obstacle return excludes the vehicle half width
 plus 0.4 m of side clearance. A front obstacle within the current stopping
 distance commands braking while keeping a passable steering target.
+Each gap direction is also checked against the full vehicle footprint over
+the first 4 m of its Pure Pursuit turn. Rear-quarter LiDAR returns can reject
+a direction that would clip the vehicle's rear corner.
 Only returns within the configurable vehicle collision height
 (`collision_min_z_m` through `collision_max_z_m`) are used by FTG. This omits
 tunnel ceilings while retaining low boxes near the road. Coherent side-wall
@@ -121,23 +124,51 @@ If a wall fit is unreliable its returns remain obstacle candidates. RViz
 shows fitted boundaries as green lines and boxes only for remaining obstacle
 points. Candidate targets must remain inside the fitted boundaries with the
 vehicle width and side margin included.
-During GPS blackout, FTG targets 2.9 m of right wall clearance from the
-vehicle side, with no offset correction inside the 2.8-3.0 m band.
-A forward obstacle within 20 m starts `PASSING`; the wall
-spacing correction stays off until the raw LiDAR cloud detects at least three
-returns in the near rear sector (180 degrees +/-15 degrees) on two consecutive
-scans, after the front corridor is clear. Rear detection uses a 12 m range
-and a 2.8 m lateral limit to avoid distant tunnel-wall returns. This rear
-sector is separate from the forward FTG scan (-135 to +135 degrees). FTG
-still checks LiDAR gaps and wall collision clearance during the pass. A
-return search after the front corridor clears considers +/-50 degrees and
-plans against the nearest 20 m of LiDAR returns, while the full scan remains
-available for clearance checks; return speed is capped at 2 m/s. A
-reliable wall resumes leading steering after the pass. FTG handles distant
-tunnel returns conservatively: when a far return
-fills every FTG gap but a right wall is measured and current-speed stopping
-distance remains available, the car slows to at most 2 m/s while following
-that wall. A close blockage or insufficient stopping distance still stops.
+With `avoidance.yaml`, the obstacle detection range is 30 m and the local
+planning window is 16.5 m. The LiDAR processing FOV is -150 to +150 degrees
+(300 degrees, 601 bins at 0.5-degree resolution). This uses available sensor
+returns; it does not change the sensor hardware or simulator emission FOV.
+Angular obstacle/disparity bubbles use the vehicle half width plus
+`bubble_margin_m: 0.35`. Physical swept-body and wall-boundary checks retain
+`side_margin_m: 0.4`.
+
+The runtime configuration prefers gap targets an additional 0.30 m inside
+free-gap edges (`gap_target_inset_m`), capped at the gap midpoint for narrow
+gaps. This target preference is not a guaranteed physical clearance.
+`bearing_smoothing_tau_s: 0.5` filters the preferred bearing before candidate
+selection. Every selected angle still passes swept-body checks; safety can
+require a faster change or a stop. Together these favor wider, gentler
+avoidance and return turns, without prescribing a fixed S-shaped trajectory.
+
+During GPS blackout, FTG re-evaluates wall-filtered obstacles on every scan.
+Any obstacle within the inner 270 degrees (+/-135 degrees), up to the 30 m
+range limit, disables the wall-distance objective and selects `PASSING`.
+The planner searches both steering directions using the local 300-degree
+cloud. There is no committed passing side, minimum passing angle, rear
+confirmation, or `RETURNING` phase. No speed cap persists from a prior pass.
+
+When the inner 270 degrees contains no obstacle, `WALL_FOLLOW` targets 2.9 m
+from the vehicle's right side to the right wall (2.8-3.0 m deadband) as soon
+as a right wall is measured. Obstacle returns in the outer 15 degrees on
+each side still constrain local candidates, but do not disable this objective.
+Tunnel wall returns are boundaries, not objects for this mode switch.
+Missing/invalid scans cannot authorize motion. Rear-point counts remain
+available for diagnostics only; they never determine obstacle passage.
+The full height-filtered cloud still checks physical swept-body collisions,
+including rear corners. Speed remains bounded by braking distance, steering,
+wall clearance, and sensor evidence. The distant-return wall-guided crawl
+also requires the wall-distance gate and a collision-free swept path.
+Selected steering curvature is also swept out to the configured maximum
+speed's stopping horizon (capped by LiDAR range). Its first body collision
+limits speed, including obstacles outside the central forward strip. This
+is a constant-curvature prediction, not a complete future trajectory.
+`obstacle_speed_hold_s: 1.0` retains a reduced obstacle speed limit through
+brief detection losses. More restrictive observations refresh the hold;
+less restrictive observations cannot release it early. Target-speed rises
+are limited by `target_accel_mps2: 0.8` using monotonic elapsed time after the
+first plan. Braking and invalid-scan stops remain immediate. All plan return
+paths share this limiter, including wall-guided crawl and no-return travel.
+
 The wall-to-route handoff starts 15 m before the photographed exit, using the simulator's
 ENU pose to time that handoff. Within 35 m of the exit, a fresh simulator pose
 may correct accumulated LiDAR map drift by at most 1 m per valid scan only if

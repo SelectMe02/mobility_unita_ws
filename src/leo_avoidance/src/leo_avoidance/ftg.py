@@ -5,8 +5,9 @@ The reference's disparity bubble and metric gap width are retained. This
 version stops when no gap fits the MORAI vehicle, instead of choosing a beam
 through an undersized opening.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
+import time
 
 import numpy as np
 
@@ -18,8 +19,16 @@ class Config:
     lidar_to_rear_x_m: float = 1.4
     vehicle_half_width_m: float = 0.946
     side_margin_m: float = 0.4
+    bubble_margin_m: float = 0.25
+    gap_target_inset_m: float = 0.0
+    bearing_smoothing_tau_s: float = 0.0
+    wall_target_clear_front_m: float = 20.0
+    wall_target_clear_rear_m: float = 4.0
+    wall_target_clear_scans: int = 3
     front_bumper_from_rear_m: float = 3.845
+    ego_self_filter_inset_m: float = 0.15
     max_range_m: float = 15.0
+    local_planning_range_m: float = 9.0
     front_fov_deg: float = 270.0
     scan_bins: int = 541
     disparity_m: float = 0.5
@@ -27,9 +36,19 @@ class Config:
     post_pass_target_bearing_rad: float = math.radians(50.)
     post_pass_clear_front_m: float = 15.0
     post_pass_planning_depth_m: float = 20.0
+    passing_gap_width_weight: float = 0.35
+    min_active_pass_bearing_rad: float = math.radians(10.)
+    pass_lateral_shift_m: float = 0.7
+    passing_wall_follow_grace_scans: int = 2
+    pass_handoff_crawl_min_clearance_m: float = 7.0
+    target_distance_from_lidar_m: float = 4.0
+    swept_path_horizon_m: float = 4.0
+    swept_side_margin_m: float = 0.4
     max_speed_mps: float = 1.5
     no_return_speed_mps: float = 2.0
     min_no_return_evidence_points: int = 10
+    obstacle_speed_hold_s: float = 1.0
+    target_accel_mps2: float = 0.8
     reaction_s: float = 0.4
     brake_mps2: float = 2.0
     wall_slow_clearance_m: float = 0.5
@@ -51,6 +70,8 @@ class Config:
     rear_detection_confirm_scans: int = 2
     right_wall_offset_gain_rad_per_m: float = 0.25
     right_wall_heading_gain: float = 1.0
+    return_heading_tolerance_rad: float = math.radians(5.)
+    return_wall_clearance_tolerance_m: float = 0.35
     right_wall_max_correction_rad: float = 0.22
     right_wall_route_disagreement_rad: float = math.radians(15.)
     right_wall_drift_weight: float = 0.9
@@ -61,16 +82,34 @@ class Config:
         if not all(math.isfinite(value) for value in values):
             raise ValueError('non-finite avoidance parameter')
         if (self.vehicle_half_width_m <= 0 or self.side_margin_m < 0
+                or self.gap_target_inset_m < 0 or self.bearing_smoothing_tau_s < 0
+                or not 0 <= self.bubble_margin_m <= self.side_margin_m
+                or self.wall_target_clear_front_m <= 0
+                or self.wall_target_clear_rear_m <= 0
+                or self.wall_target_clear_scans < 1
                 or self.front_bumper_from_rear_m <= self.lidar_to_rear_x_m
+                or self.ego_self_filter_inset_m < 0
+                or self.ego_self_filter_inset_m >= self.vehicle_half_width_m
+                or 2 * self.ego_self_filter_inset_m >= self.front_bumper_from_rear_m
                 or not 0 < self.front_fov_deg <= 360 or self.scan_bins < 5
-                or self.max_range_m <= 0 or self.disparity_m <= 0
+                or self.max_range_m <= 0 or self.local_planning_range_m <= 0
+                or self.disparity_m <= 0
                 or self.max_target_bearing_rad <= 0 or self.max_speed_mps <= 0
                 or self.post_pass_target_bearing_rad < self.max_target_bearing_rad
                 or self.post_pass_target_bearing_rad > math.radians(self.front_fov_deg / 2.)
                 or self.post_pass_clear_front_m <= 0
                 or self.post_pass_planning_depth_m <= 0
+                or self.passing_gap_width_weight < 0
+                or not 0 <= self.min_active_pass_bearing_rad <= self.max_target_bearing_rad
+                or self.pass_lateral_shift_m <= 0
+                or self.passing_wall_follow_grace_scans < 0
+                or self.pass_handoff_crawl_min_clearance_m <= 0
+                or self.target_distance_from_lidar_m <= 0
+                or self.swept_path_horizon_m <= 0
+                or not 0 <= self.swept_side_margin_m <= self.side_margin_m
                 or self.no_return_speed_mps <= 0
                 or self.min_no_return_evidence_points < 1
+                or self.obstacle_speed_hold_s < 0 or self.target_accel_mps2 <= 0
                 or self.reaction_s < 0 or self.brake_mps2 <= 0
                 or self.wall_slow_clearance_m < 0
                 or self.wall_fast_clearance_m <= self.wall_slow_clearance_m
@@ -92,6 +131,8 @@ class Config:
                 or self.rear_detection_confirm_scans < 1
                 or self.right_wall_offset_gain_rad_per_m < 0
                 or self.right_wall_heading_gain < 0
+                or self.return_heading_tolerance_rad <= 0
+                or self.return_wall_clearance_tolerance_m < 0
                 or self.right_wall_max_correction_rad < 0
                 or self.right_wall_route_disagreement_rad <= 0
                 or not 0 <= self.right_wall_drift_weight <= 1
@@ -119,10 +160,17 @@ class Plan:
     rear_confirm_scans: int = 0
     rear_scan_points: int = 0
     candidate_bearings_rad: tuple = ()
+    swept_rejection: dict = None
 
 
 class FollowTheGap:
-    def __init__(self, config=None):
+    def __init__(self, config=None, clock=None):
+        self._clock = clock or time.monotonic
+        self._last_speed_time = None
+        self._last_speed_target = None
+        self._held_obstacle_cap = math.inf
+        self._obstacle_cap_until = -math.inf
+        self._current_obstacle_cap = math.inf
         self.config = config or Config()
         self.config.validate()
         self.half_fov_rad = math.radians(self.config.front_fov_deg / 2.0)
@@ -135,6 +183,17 @@ class FollowTheGap:
         self.avoidance_active = False
         self.rear_confirm_scans = 0
         self.passing_side = 0
+        self.rear_confirmation_armed = True
+        self.rear_seen_during_pass = False
+        self.rear_disappeared_scans = 0
+        self.clear_corridor_scans = 0
+        self.provisional_clear_scans = 0
+        self.returning_to_heading = False
+        self.pass_start_side_wall_clearance_m = None
+        self.pass_start_opposite_wall_clearance_m = None
+        self.wall_follow_drop_scans = 0
+        self.wall_target_clear_count = 0
+        self.wall_target_allowed = False
 
     def reset_wall_target(self):
         self.right_wall_target_clearance_m = None
@@ -142,6 +201,17 @@ class FollowTheGap:
         self.avoidance_active = False
         self.rear_confirm_scans = 0
         self.passing_side = 0
+        self.rear_confirmation_armed = True
+        self.rear_seen_during_pass = False
+        self.rear_disappeared_scans = 0
+        self.clear_corridor_scans = 0
+        self.provisional_clear_scans = 0
+        self.returning_to_heading = False
+        self.pass_start_side_wall_clearance_m = None
+        self.pass_start_opposite_wall_clearance_m = None
+        self.wall_follow_drop_scans = 0
+        self.wall_target_clear_count = 0
+        self.wall_target_allowed = False
 
     def _rear_obstacle_points(self, points):
         """Close returns within 15 degrees of straight behind the LiDAR."""
@@ -154,25 +224,44 @@ class FollowTheGap:
                       & (np.abs(points[:, 1]) <=
                          self.config.rear_detection_max_lateral_m)]
 
-    def _update_avoidance_phase(self, wall_follow, closest_front_x_m,
-                                rear_obstacle_points):
-        if wall_follow:
-            if closest_front_x_m is not None \
-                    and closest_front_x_m <= self.config.avoidance_trigger_range_m:
-                self.avoidance_active = True
-                self.rear_confirm_scans = 0
-            elif self.avoidance_active:
-                if (self.passing_side != 0 and rear_obstacle_points >=
-                        self.config.rear_detection_min_points):
-                    self.rear_confirm_scans += 1
-                else:
-                    self.rear_confirm_scans = 0
-                if self.rear_confirm_scans >= self.config.rear_detection_confirm_scans:
-                    self.avoidance_active = False
-                    self.rear_confirm_scans = 0
-                    self.passing_side = 0
-        return 'PASSING' if self.avoidance_active else (
-            'WALL_FOLLOW' if wall_follow else 'ROUTE')
+    def _swept_body_clear(self, points, bearing_rad):
+        """Check the entire car, including rear corners, while beginning a turn."""
+        return self._swept_body_collision(points, bearing_rad) is None
+
+    def _swept_body_collision(self, points, bearing_rad, horizon_m=None):
+        """Return the first colliding scan point and car pose for diagnostics."""
+        cfg = self.config
+        horizon_m = cfg.swept_path_horizon_m if horizon_m is None else horizon_m
+        target_x = (cfg.lidar_to_rear_x_m
+                    + cfg.target_distance_from_lidar_m * math.cos(bearing_rad))
+        target_y = cfg.target_distance_from_lidar_m * math.sin(bearing_rad)
+        curvature = 2. * target_y / (target_x * target_x + target_y * target_y)
+        half_width = cfg.vehicle_half_width_m + cfg.swept_side_margin_m
+        nearby = points[(points[:, 0] >= -cfg.lidar_to_rear_x_m - 1.)
+                        & (points[:, 0] <= horizon_m
+                           + cfg.front_bumper_from_rear_m)
+                        & (np.abs(points[:, 1]) <= half_width
+                           + horizon_m)]
+        for travel in np.arange(0., horizon_m + .125, .25):
+            yaw = curvature * travel
+            if abs(curvature) < 1e-6:
+                rear_x = travel - cfg.lidar_to_rear_x_m
+                rear_y = 0.
+            else:
+                rear_x = math.sin(yaw) / curvature - cfg.lidar_to_rear_x_m
+                rear_y = (1. - math.cos(yaw)) / curvature
+            dx = nearby[:, 0] - rear_x
+            dy = nearby[:, 1] - rear_y
+            along = math.cos(yaw) * dx + math.sin(yaw) * dy
+            across = -math.sin(yaw) * dx + math.cos(yaw) * dy
+            colliding = np.flatnonzero(
+                (along >= 0.) & (along <= cfg.front_bumper_from_rear_m)
+                & (np.abs(across) <= half_width))
+            if len(colliding):
+                index = int(colliding[0])
+                return (nearby[index], float(travel), float(along[index]),
+                        float(across[index]))
+        return None
 
     def _wall_fit(self, points, sign):
         """Fit one persistent outside boundary, not a short obstacle patch."""
@@ -334,6 +423,28 @@ class FollowTheGap:
                              <= self.config.wall_point_tolerance_m))
         return self._linear_side_boundaries(points[keep], walls)
 
+    def _inside_walls(self, points, walls):
+        """Mask of returns on the road side of both fitted walls.
+
+        The wall filter only removes returns along the measured wall span.
+        Past its end, e.g. objects beyond the tunnel exit, extend the wall
+        along its end tangent so outside returns do not count as in-lane.
+        """
+        inside = np.ones(len(points), dtype=bool)
+        for sign, wall in zip((-1., 1.), walls):
+            if wall is None:
+                continue
+            _, _, slope, offset, curvature, first_x, last_x = wall
+            x = points[:, 0]
+            anchor = np.clip(x, first_x, last_x)
+            wall_y = (curvature * anchor ** 2 + slope * anchor + offset
+                      + (slope + 2. * curvature * anchor) * (x - anchor))
+            # Only extend forward; nearer than the measured span stays in-lane.
+            inside &= ((x < first_x)
+                       | (sign * (points[:, 1] - wall_y)
+                          < -self.config.wall_point_tolerance_m))
+        return inside
+
     @staticmethod
     def _runs(mask):
         edges = np.flatnonzero(np.diff(np.r_[False, mask, False].astype(np.int8)))
@@ -395,6 +506,16 @@ class FollowTheGap:
         return points[(points[:, 2] >= self.config.collision_min_z_m)
                       & (points[:, 2] <= self.config.collision_max_z_m)]
 
+    def _remove_ego_returns(self, points):
+        """Discard LiDAR reflections strictly inside the physical Ego body."""
+        cfg = self.config
+        inset = cfg.ego_self_filter_inset_m
+        inside = ((points[:, 0] > -cfg.lidar_to_rear_x_m + inset)
+                  & (points[:, 0] < cfg.front_bumper_from_rear_m
+                     - cfg.lidar_to_rear_x_m - inset)
+                  & (np.abs(points[:, 1]) < cfg.vehicle_half_width_m - inset))
+        return points[~inside]
+
     def obstacle_candidates(self, points_lidar_m):
         """Exactly the cloud returns FTG considers as obstacle hits."""
         points = np.asarray(points_lidar_m, dtype=float)
@@ -404,7 +525,8 @@ class FollowTheGap:
         if len(points) == 0:
             return points
         candidates = self._in_avoidance_sector(
-            self._in_collision_height(self._remove_ground(points)))
+            self._remove_ego_returns(
+                self._in_collision_height(self._remove_ground(points))))
         return self._track_obstacles(candidates)[0]
 
     def rear_obstacle_candidates(self, points_lidar_m):
@@ -416,9 +538,39 @@ class FollowTheGap:
         if len(points) == 0:
             return points
         return self._rear_obstacle_points(
-            self._in_collision_height(self._remove_ground(points)))
+            self._remove_ego_returns(
+                self._in_collision_height(self._remove_ground(points))))
 
     def plan(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
+             wall_follow=False, wall_follow_weight=1., route_rejoin_remaining_m=None):
+        now = self._clock()
+        self._bearing_dt = (None if self._last_speed_time is None else
+                            max(0., min(.25, now - self._last_speed_time)))
+        self._current_obstacle_cap = math.inf
+        plan = self._plan_geometry(points_lidar_m, ego_speed_mps,
+                                   preferred_bearing_rad, wall_follow,
+                                   wall_follow_weight, route_rejoin_remaining_m)
+        cap = self._current_obstacle_cap
+        if math.isfinite(cap):
+            cap = min(cap, plan.speed_mps)
+            if now >= self._obstacle_cap_until:
+                self._held_obstacle_cap = cap
+                self._obstacle_cap_until = now + self.config.obstacle_speed_hold_s
+            elif cap <= self._held_obstacle_cap:
+                self._held_obstacle_cap = cap
+                self._obstacle_cap_until = now + self.config.obstacle_speed_hold_s
+        target = plan.speed_mps
+        if now < self._obstacle_cap_until:
+            target = min(target, self._held_obstacle_cap)
+        if self._last_speed_target is not None:
+            # Bound acceleration even after a scan gap; never delay braking.
+            dt = max(0., min(.25, now - self._last_speed_time))
+            target = min(target, self._last_speed_target + self.config.target_accel_mps2 * dt)
+        self._last_speed_time = now
+        self._last_speed_target = target
+        return replace(plan, speed_mps=target)
+
+    def _plan_geometry(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
              wall_follow=False, wall_follow_weight=1.,
              route_rejoin_remaining_m=None):
         """Return a bounded low-speed plan or a full-stop plan.
@@ -435,12 +587,16 @@ class FollowTheGap:
         rear_obstacle_points = 0
         rear_scan_points = 0
         gap_options = []
+        swept_rejection = None
+        swept_rejected_angles = 0
         avoidance_phase = 'WALL_FOLLOW' if wall_follow else 'ROUTE'
         if not wall_follow:
             self.reset_wall_target()
         wall_follow_weight = float(wall_follow_weight) if wall_follow else 0.
         if not math.isfinite(wall_follow_weight) or not 0. <= wall_follow_weight <= 1.:
             return Plan(0., 0., 'invalid wall follow weight', 0., 0.)
+        self.wall_target_clear_count = 0
+        self.wall_target_allowed = False
         stop = lambda reason, clearance=0.0: Plan(
             0.0, 0.0, reason, clearance, 0.0,
             obstacle_points, front_points, nearest_front_x_m,
@@ -448,7 +604,8 @@ class FollowTheGap:
             wall_follow_weight, route_rejoin_remaining_m,
             avoidance_phase, rear_obstacle_points, self.rear_confirm_scans,
             rear_scan_points,
-            tuple(float(item[1]) for item in gap_options))
+            tuple(float(item[1]) for item in gap_options),
+            swept_rejection)
         points = np.asarray(points_lidar_m, dtype=float)
         if points.ndim != 2 or points.shape[1] != 3:
             return stop('invalid cloud shape')
@@ -465,20 +622,20 @@ class FollowTheGap:
             return stop('no finite points')
         points = self._remove_ground(points)
         points = self._in_collision_height(points)
+        points = self._remove_ego_returns(points)
         if len(points) == 0:
             return stop('no points at collision height')
         rear_scan_points = int(np.count_nonzero(
             (points[:, 0] < 0.)
             & (np.hypot(points[:, 0], points[:, 1]) <=
                cfg.rear_detection_max_range_m)))
-        rear_obstacle_points = len(self._rear_obstacle_points(points))
+        rear_points = self._rear_obstacle_points(points)
+        rear_obstacle_points = len(rear_points)
+        # Rear returns remain collision evidence, never a phase transition trigger.
+        body_scan_points = points
 
         candidates = self._in_avoidance_sector(points)
         if not len(candidates):
-            avoidance_phase = self._update_avoidance_phase(
-                wall_follow, None, rear_obstacle_points)
-            if avoidance_phase == 'PASSING':
-                wall_follow_weight = 0.
             # A healthy scan can contain side-wall returns but no hits in
             # the forward sector as the car leaves the tunnel. The caller
             # separately requires valid LiDAR odometry. Crawl toward the
@@ -535,30 +692,49 @@ class FollowTheGap:
         closest_x_m = float(np.min(forward[:, 0])) if len(forward) else cfg.max_range_m
         nearest_front_x_m = closest_x_m if len(forward) else 0.0
         front_clearance_m = max(0.0, closest_x_m - front_bumper_from_lidar_m)
-        avoidance_phase = self._update_avoidance_phase(
-            wall_follow, closest_x_m if len(forward) else None,
-            rear_obstacle_points)
-        post_pass_search = (avoidance_phase == 'PASSING'
-                            and (not len(forward)
-                                 or (self.passing_side != 0
-                                     and closest_x_m > cfg.post_pass_clear_front_m)))
-        steering_limit_rad = (cfg.post_pass_target_bearing_rad
-                              if post_pass_search else cfg.max_target_bearing_rad)
-        if avoidance_phase == 'PASSING':
+        # Re-evaluate every scan. The 300-degree obstacle cloud constrains
+        # candidates; only returns beside or ahead of the car inside the
+        # clear zone keep the pass active. Blocks already left behind or
+        # beyond wall_target_clear_front_m must not prevent the return to the
+        # saved right-wall spacing. No obstacle identity or side latch.
+        in_clear_zone = ((np.abs(bearings) <= math.radians(135.))
+                         & (obstacles[:, 0] >= -cfg.wall_target_clear_rear_m)
+                         & (obstacles[:, 0] <= cfg.wall_target_clear_front_m)
+                         & self._inside_walls(obstacles, wall_fits))
+        occupied = bool(np.any(in_clear_zone))
+        self.passing_side = 0
+        self.rear_confirm_scans = 0
+        self.returning_to_heading = False
+        self.avoidance_active = bool(wall_follow and occupied)
+        self.wall_target_allowed = bool(wall_follow and not occupied
+                                       and wall is not None)
+        avoidance_phase = ('PASSING' if self.avoidance_active else
+                           'WALL_FOLLOW' if wall_follow else 'ROUTE')
+        steering_limit_rad = cfg.max_target_bearing_rad
+        if self.avoidance_active:
             wall_follow_weight = 0.
+            # Match tunnel heading while selecting any collision-free gap.
+            if wall_heading is not None:
+                preferred_bearing_rad = wall_heading
         stopping_distance_m = (ego_speed_mps * cfg.reaction_s
                                + ego_speed_mps ** 2 / (2 * cfg.brake_mps2))
         if len(forward) and front_clearance_m <= cfg.side_margin_m + .5:
+            self._current_obstacle_cap = 0.
             return stop('front obstacle inside stopping distance', front_clearance_m)
+        if (len(forward) and closest_x_m > cfg.local_planning_range_m
+                and front_clearance_m <= stopping_distance_m + cfg.side_margin_m):
+            self._current_obstacle_cap = 0.
+            return stop('distant obstacle inside stopping distance',
+                        front_clearance_m)
 
         # A ray to the far end of a tunnel eventually intersects its wall,
         # even when a curved path around a nearer obstacle is wide enough.
         # Pick the immediate gap near the first obstacle; retain the full
         # scan for wall following, front clearance, and speed limiting.
-        planning_depth_m = min(cfg.max_range_m, closest_x_m + .5)
-        if post_pass_search:
-            planning_depth_m = min(planning_depth_m,
-                                   cfg.post_pass_planning_depth_m)
+        planning_depth_m = min(cfg.max_range_m, cfg.local_planning_range_m,
+                               closest_x_m + .5)
+        # Include side/rear-quarter returns within the 300-degree local
+        # window; the full cloud separately protects the swept body.
         local = radii <= planning_depth_m
         indices = np.rint((bearings[local] + self.half_fov_rad)
                           / self.angle_step_rad).astype(int)
@@ -566,17 +742,18 @@ class FollowTheGap:
         ranges = np.full(cfg.scan_bins, cfg.max_range_m)
         np.minimum.at(ranges, indices, radii[local])
 
-        # Extend each close return by the vehicle half width and margin.
+        candidate_bubble_m = cfg.vehicle_half_width_m + cfg.bubble_margin_m
+        # Candidate inflation is separate from physical swept-body clearance.
         # Also extend across a range discontinuity, as in the reference FTG.
         blocked = np.zeros(cfg.scan_bins, dtype=bool)
         hits = np.flatnonzero(ranges < cfg.max_range_m)
         for index in hits:
-            beams = int(math.ceil(math.atan2(bubble_m, max(0.1, ranges[index]))
+            beams = int(math.ceil(math.atan2(candidate_bubble_m, max(0.1, ranges[index]))
                                   / self.angle_step_rad))
             blocked[max(0, index - beams):min(cfg.scan_bins, index + beams + 1)] = True
         for index in np.flatnonzero(np.abs(np.diff(ranges)) > cfg.disparity_m):
             near_index = index if ranges[index] < ranges[index + 1] else index + 1
-            beams = int(math.ceil(math.atan2(bubble_m, max(0.1, ranges[near_index]))
+            beams = int(math.ceil(math.atan2(candidate_bubble_m, max(0.1, ranges[near_index]))
                                   / self.angle_step_rad))
             blocked[max(0, index + 1 - beams):min(cfg.scan_bins, index + 1 + beams)] = True
 
@@ -615,7 +792,8 @@ class FollowTheGap:
                 max(0., abs(wall_error_m) - cfg.right_wall_clearance_tolerance_m),
                 wall_error_m)
             wall_bearing = float(np.clip(
-                cfg.right_wall_offset_gain_rad_per_m * wall_error_m
+                cfg.right_wall_offset_gain_rad_per_m *
+                (wall_error_m if self.wall_target_allowed else 0.)
                 + cfg.right_wall_heading_gain * wall_heading,
                 -cfg.right_wall_max_correction_rad,
                 cfg.right_wall_max_correction_rad))
@@ -632,32 +810,19 @@ class FollowTheGap:
             # the saved route as the exit waypoint approaches.
             preferred_bearing_rad = ((1. - wall_follow_weight) * preferred_bearing_rad
                                      + wall_follow_weight * wall_bearing)
-        if avoidance_phase == 'PASSING':
-            # Hold the selected passing side until the object's far face is
-            # behind our rear; otherwise the route can pull us across it.
-            if self.passing_side > 0:
-                preferred_bearing_rad = max(0., preferred_bearing_rad)
-            elif self.passing_side < 0:
-                preferred_bearing_rad = min(0., preferred_bearing_rad)
+            if avoidance_phase == 'WALL_FOLLOW' and wall_clearance < cfg.wall_fast_clearance_m:
+                # Do not let the mapped route keep steering into a measured
+                # right wall while the exit blend reduces wall-follow weight.
+                away = min(cfg.right_wall_max_correction_rad,
+                           .05 + cfg.right_wall_offset_gain_rad_per_m *
+                           (cfg.wall_fast_clearance_m - wall_clearance))
+                preferred_bearing_rad = max(preferred_bearing_rad, away)
         preferred_bearing_rad = max(-steering_limit_rad,
                                     min(steering_limit_rad,
                                         preferred_bearing_rad + wall_bias))
-        if avoidance_phase == 'PASSING' and self.passing_side:
-            preferred_bearing_rad = (max(0., preferred_bearing_rad)
-                                     if self.passing_side > 0 else
-                                     min(0., preferred_bearing_rad))
-
         steer_left = int(np.searchsorted(self.angles, -steering_limit_rad, side='left'))
         steer_right = int(np.searchsorted(self.angles, steering_limit_rad, side='right')) - 1
-        # Once a side is selected, never swap across the obstacle while it
-        # is still in front of (or alongside) the vehicle. If that side has
-        # no gap, the existing no-gap stop is safer than an abrupt reversal.
-        if avoidance_phase == 'PASSING' and self.passing_side:
-            center = int(np.searchsorted(self.angles, 0.))
-            if self.passing_side > 0:
-                steer_left = max(steer_left, center)
-            else:
-                steer_right = min(steer_right, center)
+        swept_rejections = 0
         for left, right in self._runs(~blocked):
             left = max(left, steer_left)
             right = min(right, steer_right)
@@ -667,18 +832,56 @@ class FollowTheGap:
             depth_m = min(6.0, float(np.min(ranges[left:right + 1])))
             width_m = 2.0 * depth_m * math.sin(min(math.pi,
                 (right - left + 1) * self.angle_step_rad) / 2.0)
-            # Blocked bins already include the vehicle half width and side
-            # margin around every return. Requiring that width once more
-            # rejects physically passable gaps beside tunnel traffic.
-            # Aim at the closest safe bearing to the mapped route. The
-            # obstacle bubble already excludes unsafe edge bearings; aiming
-            # at a gap's midpoint can steer away from a curved route.
-            preferred_index = int(round((preferred_bearing_rad + self.half_fov_rad)
-                                        / self.angle_step_rad))
-            middle = max(left, min(right, preferred_index))
-            angle_rad = float(self.angles[middle])
+            # Prefer the interior of a gap over grazing its inflated edge.
+            # This is a preference: narrow safe gaps remain available.
+            inset_bins = min((right - left) // 2, int(math.ceil(
+                math.atan2(cfg.gap_target_inset_m, max(.1, depth_m)) /
+                self.angle_step_rad))) if np.any(local) else 0
+            desired = float(np.clip(preferred_bearing_rad,
+                                   self.angles[left + inset_bins],
+                                   self.angles[right - inset_bins]))
+            # Smooth the preference BEFORE collision checks, never a checked
+            # command afterwards. If unsafe, another checked angle wins.
+            dt = getattr(self, '_bearing_dt', None)
+            if cfg.bearing_smoothing_tau_s > 0. and dt is not None:
+                alpha = 1. - math.exp(-dt / cfg.bearing_smoothing_tau_s)
+                desired = self.previous_bearing_rad + alpha * (desired - self.previous_bearing_rad)
+            preferred_index = int(round((desired + self.half_fov_rad) /
+                                        self.angle_step_rad))
+            step_bins = max(1, int(round(math.radians(2.) / self.angle_step_rad)))
+            choices = set(range(left, right + 1, step_bins))
+            choices.update((left, right, max(left, min(right, preferred_index))))
+            angle_rad = None
+            for index in sorted(choices, key=lambda i: abs(i - preferred_index)):
+                candidate_angle = float(self.angles[index])
+                collision = self._swept_body_collision(
+                    body_scan_points, candidate_angle)
+                if collision is None:
+                    angle_rad = candidate_angle
+                    break
+                swept_rejected_angles += 1
+                if swept_rejection is None:
+                    point, travel, along, across = collision
+                    # The collision checker uses all height-filtered returns.
+                    # Show whether this exact return survived wall filtering.
+                    retained_in_front_obstacles = bool(len(obstacles) and np.any(
+                        np.all(np.isclose(obstacles, point, atol=1e-4), axis=1)))
+                    swept_rejection = {
+                        'candidate_bearing_deg': round(math.degrees(candidate_angle), 2),
+                        'point_lidar_xyz_m': [round(float(v), 3) for v in point],
+                        'travel_m': round(travel, 2),
+                        'body_along_m': round(along, 3),
+                        'body_across_m': round(across, 3),
+                        'retained_in_front_obstacles': retained_in_front_obstacles,
+                    }
+            if angle_rad is None:
+                swept_rejections += 1
+                continue
+            width_weight = (cfg.passing_gap_width_weight
+                            if avoidance_phase == 'PASSING' and self.passing_side == 0
+                            else .02)
             score = (-abs(angle_rad - preferred_bearing_rad)
-                     + .02 * width_m
+                     + width_weight * min(width_m, 3.)
                      - .1 * abs(angle_rad - self.previous_bearing_rad))
             gap_options.append((score, angle_rad, width_m))
         if not gap_options:
@@ -686,9 +889,12 @@ class FollowTheGap:
             # entire angular grid even though the near corridor is clear.
             # Creep only with a measured side wall and enough distance to
             # stop from the *current* speed. A near blocked road still stops.
-            if (wall_follow and self.passing_side == 0
+            if (wall_follow and self.wall_target_allowed and self.passing_side == 0
                     and wall is not None
                     and wall_clearance >= cfg.right_wall_min_clearance_m
+                    and self._swept_body_collision(body_scan_points, float(np.clip(
+                        wall_bearing, -cfg.unwalled_route_bearing_limit_rad,
+                        cfg.unwalled_route_bearing_limit_rad))) is None
                     and front_clearance_m > max(
                         10., stopping_distance_m + cfg.side_margin_m + 1.)):
                 # A distant return alone is not a committed pass. Release
@@ -714,13 +920,29 @@ class FollowTheGap:
                             route_rejoin_remaining_m, avoidance_phase,
                             rear_obstacle_points, self.rear_confirm_scans,
                             rear_scan_points)
-            return stop('no gap fits vehicle width', front_clearance_m)
+            if swept_rejection is not None:
+                swept_rejection['rejected_angles'] = swept_rejected_angles
+                swept_rejection['rejected_gaps'] = swept_rejections
+            return stop(('rear/body swept path blocked' if swept_rejections
+                         else 'no gap fits vehicle width'), front_clearance_m)
         _, angle_rad, gap_width_m = max(gap_options, key=lambda item: item[0])
         bearing_rad = angle_rad
         self.previous_bearing_rad = bearing_rad
-        if avoidance_phase == 'PASSING' and len(forward) and self.passing_side == 0:
-            if abs(bearing_rad) >= math.radians(3.):
-                self.passing_side = 1 if bearing_rad > 0. else -1
+        # Extend the selected curvature to braking distance, beyond the
+        # short candidate feasibility check. Use the full cloud, including walls.
+        speed_horizon = min(cfg.max_range_m, max(cfg.swept_path_horizon_m,
+            cfg.max_speed_mps * cfg.reaction_s + cfg.max_speed_mps ** 2 /
+            (2. * cfg.brake_mps2) + cfg.side_margin_m + .25))
+        path_hit = self._swept_body_collision(body_scan_points, bearing_rad, speed_horizon)
+        if path_hit is not None:
+            self._current_obstacle_cap = self._safe_speed_for_clearance(
+                max(0., path_hit[1] - .25 - cfg.side_margin_m),
+                cfg.reaction_s, cfg.brake_mps2)
+        if len(forward):
+            front_cap = self._safe_speed_for_clearance(
+                front_clearance_m - cfg.side_margin_m, cfg.reaction_s, cfg.brake_mps2)
+            if front_cap < cfg.max_speed_mps:
+                self._current_obstacle_cap = min(self._current_obstacle_cap, front_cap)
         steering_fraction = abs(bearing_rad) / steering_limit_rad
         # Continuous steering cap avoids abrupt 18 -> 14.4 -> 8.1 km/h
         # target jumps as a LiDAR bearing crosses a bucket boundary.
@@ -728,8 +950,6 @@ class FollowTheGap:
                                         [0., .1, .35, .7, 1.],
                                         [1., .8, .45, .3, .3]))
         target_speed_mps = cfg.max_speed_mps * speed_fraction
-        if post_pass_search:
-            target_speed_mps = min(target_speed_mps, cfg.no_return_speed_mps)
         near_wall_clearance = min(left_clearance, right_clearance)
         if math.isfinite(near_wall_clearance):
             wall_fraction = float(np.clip(
@@ -759,6 +979,7 @@ class FollowTheGap:
             target_speed_mps = min(target_speed_mps,
                                    5. + wall_follow_weight *
                                    max(0., cfg.max_speed_mps - 5.))
+        target_speed_mps = min(target_speed_mps, self._current_obstacle_cap)
         return Plan(target_speed_mps, bearing_rad, 'gap fits', front_clearance_m,
                     gap_width_m, obstacle_points, front_points, nearest_front_x_m,
                     wall_clearance, self.right_wall_target_clearance_m, wall_heading,

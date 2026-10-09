@@ -35,7 +35,7 @@
     <arg name="guard_pose_topic" value="/leo/driving_pose"/>
     <arg name="guard_valid_topic" value="/leo/driving_valid"/>
     <arg name="guard_pose_fault_grace_s" value="2.0"/>
-    <arg name="guard_route_max_error_m" value="4.0"/>
+    <arg name="guard_route_max_error_m" value="7.0"/>
   </include>
   <node pkg="leo_avoidance" type="ego_odometry_node.py" name="leo_ego_odometry" output="screen" required="true">
     <param name="speed_timeout_s" value="0.6"/>

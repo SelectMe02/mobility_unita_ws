@@ -110,7 +110,11 @@ class DrivingState:
                 and self._fresh(self.gps_pose, now))
 
     def gps_zero(self, now):
-        return self._fresh(self.raw_gps, now) and self.raw_gps[0] == 'zero'
+        # Stay true until gps_missing takes over, so a delayed zero sample
+        # never leaves a gap where neither blackout trigger holds.
+        timeout = max(self.input_timeout_s, self.gps_silence_timeout_s)
+        return (self.raw_gps is not None and self.raw_gps[0] == 'zero'
+                and 0 <= now - self.raw_gps[1] < timeout)
 
     def gps_missing(self, now):
         return (self.raw_gps is not None
@@ -213,6 +217,13 @@ class DrivingState:
                         or abs(wrap(error[2])) > self.max_rejoin_yaw_rad):
                     if not route_rejoin_ok:
                         if not (sim_exit_active and sim_exit_pose is not None):
+                            # The simulator can emit sub-second valid fixes
+                            # inside the tunnel. Judge a disagreeing return
+                            # only once it has persisted; until then keep the
+                            # LiDAR blackout below (gps_return_pending).
+                            if not self._gps_return_sustained(now):
+                                return self._select_blackout(
+                                    now, blackout_allowed)
                             self.mode = self.HOLD
                             self.reason = 'GPS return disagrees with LiDAR odometry'
                             return self.mode, None, self.reason
@@ -235,6 +246,13 @@ class DrivingState:
             self.mode = self.HOLD
             self.reason = 'MORAI exit pose missing or stale'
             return self.mode, None, self.reason
+        return self._select_blackout(now, blackout_allowed)
+
+    def _gps_return_sustained(self, now):
+        return (self.gps_return_since is not None
+                and now - self.gps_return_since >= self.gps_return_grace_s)
+
+    def _select_blackout(self, now, blackout_allowed):
         gps_return_pending = (self.had_blackout and self.raw_gps is not None
                               and self.raw_gps[0] == 'valid'
                               and self.gps_return_since is not None
