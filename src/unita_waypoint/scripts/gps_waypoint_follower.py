@@ -258,7 +258,7 @@ class GPSWaypointFollower:
         self.lateral_accel_limit = float(rospy.get_param(
             "~lateral_accel_limit", 2.94))
         self.min_curve_speed_kmh = float(rospy.get_param(
-            "~min_curve_speed_kmh", 25.0))
+            "~min_curve_speed_kmh", min(25.0, self.normal_max_speed_kmh)))
         self.max_profile_accel = float(rospy.get_param(
             "~max_profile_accel_mps2", 2.0))
         self.max_profile_decel = float(rospy.get_param(
