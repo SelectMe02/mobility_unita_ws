@@ -5,6 +5,8 @@
   <arg name="intersection_file" default="$(find leo_guard)/config/intersections.json"/>
   <arg name="stoplines_file" default="$(find unita_waypoint)/config/stoplines.json"/>
   <arg name="maximum_speed_kmh" default="58.0"/>
+  <!-- The guard may allow more than the GPS route cap, e.g. LiDAR blackout. -->
+  <arg name="guard_maximum_speed_kmh" default="$(arg maximum_speed_kmh)"/>
   <arg name="tunnel_speed_start_index" default="-1"/>
   <arg name="tunnel_speed_end_index" default="-1"/>
   <arg name="tunnel_speed_cap_kmh" default="18.0"/>
@@ -62,7 +64,7 @@
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
     <param name="intersection_file" value="$(arg intersection_file)"/>
     <param name="stoplines_file" value="$(arg stoplines_file)"/>
-    <param name="maximum_speed_kmh" value="$(arg maximum_speed_kmh)"/>
+    <param name="maximum_speed_kmh" value="$(arg guard_maximum_speed_kmh)"/>
     <!-- GPS transform inspected at (0,0,1.2), MORAI rear-axle origin. -->
     <param name="gps_to_front_axle_m" value="3.0"/>
     <param name="vehicle_half_width_m" value="0.946"/>

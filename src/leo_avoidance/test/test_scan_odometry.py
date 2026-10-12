@@ -448,6 +448,31 @@ def test_zero_gps_requires_safe_gap_and_fresh_zero_sample():
     assert state.select(10.5)[0] == state.HOLD
 
 
+def test_obstacle_stop_keeps_blackout_pose_valid():
+    state = DrivingState(ScanOdometry())
+    state.update_gps((100., 200., 0.), 10.)
+    state.update_raw_gps(37., 127., 10.)
+    state.update_gps_valid(True, 10.)
+    state.update_odom((0., 0., 0.), 10.)
+    state.scan(landmarks(), 10.)
+    state.select(10.)
+    state.update_raw_gps(0., 0., 10.1)
+    state.update_gps_valid(False, 10.1)
+    state.update_odom((0., 0., 0.), 10.1)
+    state.scan(landmarks(), 10.1)
+    state.update_avoidance(True, 10.1)
+    assert state.select(10.1)[0] == state.BLACKOUT
+    # A cut-in vehicle forces a zero-speed plan for longer than the signal
+    # guard's pose grace; the pose must stay valid while braking.
+    state.update_avoidance(False, 10.1, obstacle_stop=True)
+    mode, pose, reason = state.select(10.1)
+    assert mode == state.BLACKOUT and pose is not None
+    assert reason == 'LiDAR ICP and odometry; stopped for obstacle'
+    state.update_avoidance(False, 10.1)
+    assert state.select(10.1) == (
+        state.HOLD, None, 'LiDAR avoidance has no fresh safe gap')
+
+
 def test_missing_gps_stream_enters_blackout_after_debounce():
     state = DrivingState(ScanOdometry(), gps_silence_timeout_s=.75)
     cloud = landmarks()

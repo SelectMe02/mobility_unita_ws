@@ -93,8 +93,8 @@ class DrivingState:
         elif kind == 'valid' and self.had_blackout and self.gps_return_since is None:
             self.gps_return_since = received
 
-    def update_avoidance(self, valid, received):
-        self.avoidance = (bool(valid), received)
+    def update_avoidance(self, valid, received, obstacle_stop=False):
+        self.avoidance = (bool(valid), received, bool(obstacle_stop))
 
     def update_odom(self, pose, received):
         if pose is None or len(pose) != 3 or not all(math.isfinite(v) for v in pose):
@@ -281,11 +281,16 @@ class DrivingState:
             self.mode = self.HOLD
             self.reason = 'blackout travel limit exceeded'
             return self.mode, None, self.reason
-        if not self._fresh(self.avoidance, now) or not self.avoidance[0]:
+        # An obstacle stop is a fresh plan with zero speed: keep the pose
+        # valid so downstream guards do not read it as a localization fault.
+        # The zero speed still brakes through the avoidance status.
+        if (not self._fresh(self.avoidance, now)
+                or not (self.avoidance[0] or self.avoidance[2])):
             self.mode = self.HOLD
             self.reason = 'LiDAR avoidance has no fresh safe gap'
             return self.mode, None, self.reason
         self.mode = self.BLACKOUT
         self.had_blackout = True
-        self.reason = 'LiDAR ICP and odometry'
+        self.reason = ('LiDAR ICP and odometry' if self.avoidance[0]
+                       else 'LiDAR ICP and odometry; stopped for obstacle')
         return self.mode, self.map_pose, self.reason

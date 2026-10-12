@@ -27,11 +27,14 @@ route_max_error_m: 7.0
 sim_exit_x_m: -78.35
 sim_exit_y_m: -545.63
 sim_exit_waypoint_index: 4053
-exit_rejoin_start_m: 15.0  # physical distance to the photographed exit gate
-exit_rejoin_full_m: 0.0  # keep measured wall guidance until the actual exit
+# The road bends right at the exit while the tunnel wall runs straight; hand
+# steering back to the anchored route from the anchor start, not the portal.
+exit_rejoin_start_m: 35.0  # physical distance to the photographed exit gate
+exit_rejoin_full_m: 25.0  # route bearing only from here; MORAI anchor makes it reliable
 exit_anchor_speed_cap_mps: 5.0  # 18 km/h during simulator-confirmed exit re-anchoring
 exit_anchor_start_m: 35.0  # begin correcting forward drift before the final exit turn
 exit_anchor_step_m: 1.0  # maximum map-pose correction per valid LiDAR scan
+exit_route_trust_m: 0.5  # anchored pose within this of MORAI: skip map-drift guards
 sim_exit_trigger_radius_m: 15.0
 sim_exit_cross_track_limit_m: 2.0
 max_blackout_distance_m: 160.0  # TODO: validate ICP drift over the 122 m tunnel in MORAI

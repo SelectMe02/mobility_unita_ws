@@ -9,7 +9,8 @@
   <arg name="tunnel_speed_start_index" default="3730"/>
   <arg name="tunnel_speed_end_index" default="4100"/>
   <arg name="tunnel_speed_cap_kmh" default="18.0"/>
-  <arg name="blackout_clear_speed_cap_kmh" default="30.0"/>
+  <!-- LiDAR blackout on a clear tunnel; FTG still slows for obstacles and the exit. -->
+  <arg name="blackout_clear_speed_cap_kmh" default="40.0"/>
   <!-- The alternative is the only UDP owner. Normal follower and signal guard stay unchanged. -->
   <rosparam command="load" ns="/competition_udp_control"
             file="$(find leo_avoidance)/config/blackout.yaml"/>
@@ -20,6 +21,9 @@
     <arg name="intersection_file" value="$(arg intersection_file)"/>
     <arg name="stoplines_file" value="$(arg stoplines_file)"/>
     <arg name="maximum_speed_kmh" value="$(arg maximum_speed_kmh)"/>
+    <!-- The follower keeps the GPS route at maximum_speed_kmh. -->
+    <arg name="guard_maximum_speed_kmh"
+         value="$(eval max(arg('maximum_speed_kmh'), arg('blackout_clear_speed_cap_kmh')))"/>
     <arg name="tunnel_speed_start_index" value="$(arg tunnel_speed_start_index)"/>
     <arg name="tunnel_speed_end_index" value="$(arg tunnel_speed_end_index)"/>
     <arg name="tunnel_speed_cap_kmh" value="$(arg tunnel_speed_cap_kmh)"/>

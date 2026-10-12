@@ -951,9 +951,23 @@ class GPSWaypointFollower:
                           min(project_limits[:count]), max(project_limits[:count]))
 
         # The 18 km/h tunnel cap is for GPS approach and exit. While GPS is
-        # zero, LiDAR supplies the clearance-dependent speed limit instead.
+        # zero, LiDAR supplies the clearance-dependent speed limit instead,
+        # so the tunnel section may exceed the GPS route maximum up to the
+        # blackout clear-road cap. Map Tuner point limits still apply.
+        blackout_limits = list(speed_limits)
+        tunnel_start = getattr(self, 'tunnel_speed_start_index', -1)
+        tunnel_end = getattr(self, 'tunnel_speed_end_index', -1)
+        if 0 <= tunnel_start <= tunnel_end < count:
+            project_limits = (getattr(self, 'project_speed_limits_kmh', None)
+                              if getattr(self, 'use_project_speed_limits', False)
+                              else None)
+            for index in range(tunnel_start, tunnel_end + 1):
+                raised = max(blackout_limits[index],
+                             self.blackout_clear_speed_cap_kmh)
+                blackout_limits[index] = (min(raised, project_limits[index])
+                                          if project_limits else raised)
         self.blackout_speed_profile, _ = build_curvature_speed_profile(
-            tracking_points, speed_limits, self.loop_path,
+            tracking_points, blackout_limits, self.loop_path,
             self.curvature_window_m, self.lateral_accel_limit,
             self.min_curve_speed_kmh, self.max_profile_accel,
             self.max_profile_decel)

@@ -72,6 +72,7 @@ class DrivingStateNode:
             '~exit_anchor_speed_cap_mps', 5.))
         self.exit_anchor_start_m = float(rospy.get_param('~exit_anchor_start_m', 35.))
         self.exit_anchor_step_m = float(rospy.get_param('~exit_anchor_step_m', 1.))
+        self.exit_route_trust_m = float(rospy.get_param('~exit_route_trust_m', .5))
         self.exit_xy = np.array((float(rospy.get_param('~sim_exit_x_m', -78.35)),
                                  float(rospy.get_param('~sim_exit_y_m', -545.63))))
         self.exit_radius_m = float(rospy.get_param('~sim_exit_trigger_radius_m', 15.))
@@ -87,7 +88,9 @@ class DrivingStateNode:
                 or not math.isfinite(self.exit_anchor_start_m)
                 or self.exit_anchor_start_m < self.exit_rejoin_start_m
                 or not math.isfinite(self.exit_anchor_step_m)
-                or not 0 < self.exit_anchor_step_m <= 2.):
+                or not 0 < self.exit_anchor_step_m <= 2.
+                or not math.isfinite(self.exit_route_trust_m)
+                or self.exit_route_trust_m <= 0):
             raise ValueError('invalid MORAI exit anchor speed cap')
         tangent = route_points[exit_index+1, :2] - route_points[exit_index, :2]
         segment_length = float(np.linalg.norm(tangent))
@@ -346,6 +349,7 @@ class DrivingStateNode:
             speed = None
             with self.lock:
                 self.exit_anchor_active = False
+            route_trusted = False
             try:
                 with self.lock:
                     scan_stamp = message.header.stamp.to_sec()
@@ -389,6 +393,12 @@ class DrivingStateNode:
                                 self.machine.map_pose, ego_phase_pose,
                                 self.exit_anchor_step_m, .05)
                             self.exit_anchor_active = True
+                            # Trust the route bearing only once the bounded
+                            # correction has caught up with the simulator.
+                            route_trusted = bool(np.linalg.norm(
+                                np.asarray(self.machine.map_pose[:2])
+                                - np.asarray(ego_phase_pose[:2]))
+                                <= self.exit_route_trust_m)
                         pose = self.machine.map_pose if self.machine.scan_valid else None
                         scan_fault = self.machine.scan_fault_reason
                     if pose is None:
@@ -411,7 +421,10 @@ class DrivingStateNode:
                 plan = self.planner.plan(points, speed[0], preferred_bearing,
                                          wall_follow=wall_follow,
                                          wall_follow_weight=wall_weight,
-                                         route_rejoin_remaining_m=rejoin_remaining)
+                                         route_rejoin_remaining_m=rejoin_remaining,
+                                         ego_pose=odom_sample[0],
+                                         stamp=scan_stamp,
+                                         route_trusted=route_trusted)
                 if self.exit_anchor_active:
                     plan = replace(plan, speed_mps=min(
                         plan.speed_mps, self.exit_anchor_speed_cap_mps))
@@ -427,7 +440,8 @@ class DrivingStateNode:
             with self.lock:
                 self.latest_plan = (plan, received)
                 self.last_plan_completed_wall = time.monotonic()
-                self.machine.update_avoidance(plan.speed_mps > 0., received)
+                self.machine.update_avoidance(plan.speed_mps > 0., received,
+                                             plan.obstacle_stop)
             if plan.front_points or plan.avoidance_phase in ('PASSING', 'RETURNING'):
                 rospy.loginfo_throttle(
                     .5,
@@ -443,6 +457,14 @@ class DrivingStateNode:
                     plan.right_wall_clearance_m, plan.right_wall_heading_rad,
                     self.planner.passing_side, plan.rear_obstacle_points,
                     plan.rear_scan_points, plan.rear_confirm_scans)
+            moving = [track for track in plan.tracked_obstacles if track[5]]
+            if moving:
+                rospy.logwarn_throttle(
+                    .5, 'FTG dynamic obstacles (id, x, y, vx, vy, lateral_scans): '
+                    '%s; crossing_threats=%d reason=%s',
+                    [track[:5] + track[6:] for track in moving],
+                    plan.crossing_threats,
+                    plan.reason)
             if plan.reason == 'rear/body swept path blocked' and plan.swept_rejection:
                 rospy.logwarn_throttle(
                     2., 'FTG swept rejection: %s',
@@ -576,7 +598,9 @@ class DrivingStateNode:
             'rear_obstacle_points': plan.rear_obstacle_points if plan else 0,
             'rear_confirm_scans': plan.rear_confirm_scans if plan else 0,
             'route_rejoin_remaining_m': (
-                plan.route_rejoin_remaining_m if plan else None)})))
+                plan.route_rejoin_remaining_m if plan else None),
+            'crossing_threats': plan.crossing_threats if plan else 0,
+            'tracked_obstacles': list(plan.tracked_obstacles) if plan else []})))
         self.mode_pub.publish(String(data=mode))
         self.valid_pub.publish(Bool(data=pose is not None))
         plan_reason = plan.reason if plan else 'LiDAR avoidance plan missing/stale'

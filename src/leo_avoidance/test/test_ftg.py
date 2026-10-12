@@ -84,6 +84,7 @@ def test_swept_rejection_identifies_point_and_candidate_angle():
     plan = planner.plan(np.vstack((walls, contact, far_box)), 0.,
                         wall_follow=True)
     assert plan.reason == 'rear/body swept path blocked'
+    assert plan.obstacle_stop
     detail = plan.swept_rejection
     assert detail['point_lidar_xyz_m'] == [-0.5, 1.1, 0.]
     assert detail['travel_m'] == 0.
@@ -234,10 +235,17 @@ def test_distant_tunnel_end_returns_do_not_block_local_gap_with_braking_room():
     blocked = planner.plan(np.vstack((walls, close)), 6.7,
                            wall_follow=True)
     assert blocked.speed_mps == 0.
-    fast = FollowTheGap(Config(max_range_m=30., max_speed_mps=12.)).plan(
+    # Inside the planning stopping distance: brake by speed cap, no stop.
+    braking = FollowTheGap(Config(max_range_m=30., max_speed_mps=12.)).plan(
         cloud, 10., wall_follow=True)
+    assert braking.reason == 'gap fits'
+    assert 0. < braking.speed_mps < 10.
+    # Beyond even emergency braking: stop.
+    fast = FollowTheGap(Config(max_range_m=30., max_speed_mps=14.)).plan(
+        cloud, 13., wall_follow=True)
     assert fast.speed_mps == 0.
     assert fast.reason == 'distant obstacle inside stopping distance'
+    assert fast.obstacle_stop
 
 
 def test_far_box_waits_for_local_window_without_losing_speed_limit():
@@ -638,6 +646,7 @@ def test_rear_quadrant_returns_cannot_authorize_no_forward_crawl():
     plan = FollowTheGap(Config(max_range_m=5.)).plan(points, 0.)
     assert plan.speed_mps == 0.
     assert plan.reason == 'no forward returns'
+    assert not plan.obstacle_stop
 
 
 def test_steering_speed_cap_changes_continuously():
@@ -863,3 +872,45 @@ def test_objects_beyond_wall_end_do_not_block_return_to_wall_spacing():
     plan = planner.plan(np.vstack((walls, in_lane)), 1., wall_follow=True)
     assert plan.avoidance_phase == 'PASSING'
 
+
+
+def test_anchored_route_overrides_wall_heading_at_tunnel_exit_bend():
+    """Logged exit: the road bends right while the wall runs straight."""
+    walls = tunnel_walls(3.846, 3.846)
+    # A roadside return inside the left wall keeps the pass state active.
+    side_object = np.array([[6., 2.8, 0.], [6.3, 2.8, 0.], [6., 2.6, 0.]])
+    cloud = np.vstack((walls, side_object))
+    route_right = -math.radians(12.)
+    drifting = FollowTheGap(Config(max_range_m=30.)).plan(
+        cloud, 3., route_right, wall_follow=True, wall_follow_weight=0.)
+    anchored = FollowTheGap(Config(max_range_m=30.)).plan(
+        cloud, 3., route_right, wall_follow=True, wall_follow_weight=0.,
+        route_trusted=True)
+    assert drifting.avoidance_phase == anchored.avoidance_phase == 'PASSING'
+    assert abs(drifting.target_bearing_rad) < math.radians(3.)
+    assert anchored.target_bearing_rad < -math.radians(8.)
+
+
+def test_anchored_route_skips_wall_disagreement_guard():
+    walls = tunnel_walls(3.846, 3.846)
+    route_right = -math.radians(20.)  # > 15 deg from the straight wall
+    drifting = FollowTheGap(Config(max_range_m=30.)).plan(
+        walls, 3., route_right, wall_follow=True, wall_follow_weight=.2)
+    anchored = FollowTheGap(Config(max_range_m=30.)).plan(
+        walls, 3., route_right, wall_follow=True, wall_follow_weight=.2,
+        route_trusted=True)
+    assert drifting.target_bearing_rad > -math.radians(5.)
+    assert anchored.target_bearing_rad < -math.radians(12.)
+
+
+def test_anchored_route_is_not_clamped_when_the_portal_wall_ends():
+    left_only = tunnel_walls(3.846, 3.846)[121:]
+    route_right = -math.radians(15.)
+    drifting = FollowTheGap(Config(max_range_m=30.)).plan(
+        left_only, 3., route_right, wall_follow=True, wall_follow_weight=0.)
+    anchored = FollowTheGap(Config(max_range_m=30.)).plan(
+        left_only, 3., route_right, wall_follow=True, wall_follow_weight=0.,
+        route_trusted=True)
+    assert drifting.right_wall_clearance_m is None
+    assert drifting.target_bearing_rad >= -math.radians(7.) - 1e-6
+    assert anchored.target_bearing_rad < -math.radians(10.)

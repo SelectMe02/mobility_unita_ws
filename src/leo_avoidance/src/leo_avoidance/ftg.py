@@ -12,6 +12,7 @@ import time
 import numpy as np
 
 from leo_avoidance.ftg_visualization import cluster_boxes
+from leo_avoidance.obstacle_tracker import ObstacleTracker
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class Config:
     target_accel_mps2: float = 0.8
     reaction_s: float = 0.4
     brake_mps2: float = 2.0
+    emergency_brake_mps2: float = 6.0
     wall_slow_clearance_m: float = 0.5
     wall_fast_clearance_m: float = 1.4
     expected_ground_z_m: float = -1.23
@@ -76,6 +78,19 @@ class Config:
     right_wall_route_disagreement_rad: float = math.radians(15.)
     right_wall_drift_weight: float = 0.9
     unwalled_route_bearing_limit_rad: float = math.radians(7.)
+    track_gate_m: float = 1.5
+    track_history_s: float = 0.6
+    track_min_span_s: float = 0.2
+    track_lost_s: float = 0.5
+    dynamic_min_speed_mps: float = 0.8
+    dynamic_release_speed_mps: float = 0.4
+    dynamic_confirm_scans: int = 2
+    crossing_min_lateral_speed_mps: float = 0.5
+    crossing_horizon_s: float = 3.0
+    crossing_lookahead_m: float = 20.0
+    crossing_margin_m: float = 0.5
+    crossing_confirm_scans: int = 3
+    track_max_size_jump_m: float = 0.5
 
     def validate(self):
         values = tuple(value for value in vars(self).values() if isinstance(value, (float, int)))
@@ -111,6 +126,7 @@ class Config:
                 or self.min_no_return_evidence_points < 1
                 or self.obstacle_speed_hold_s < 0 or self.target_accel_mps2 <= 0
                 or self.reaction_s < 0 or self.brake_mps2 <= 0
+                or self.emergency_brake_mps2 < self.brake_mps2
                 or self.wall_slow_clearance_m < 0
                 or self.wall_fast_clearance_m <= self.wall_slow_clearance_m
                 or self.expected_ground_z_m >= 0
@@ -136,7 +152,18 @@ class Config:
                 or self.right_wall_max_correction_rad < 0
                 or self.right_wall_route_disagreement_rad <= 0
                 or not 0 <= self.right_wall_drift_weight <= 1
-                or self.unwalled_route_bearing_limit_rad <= 0):
+                or self.unwalled_route_bearing_limit_rad <= 0
+                or self.track_gate_m <= 0 or self.track_lost_s <= 0
+                or not 0 < self.track_min_span_s <= self.track_history_s
+                or not 0 < self.dynamic_release_speed_mps
+                < self.dynamic_min_speed_mps
+                or self.dynamic_confirm_scans < 1
+                or self.crossing_min_lateral_speed_mps <= 0
+                or self.crossing_horizon_s <= 0
+                or self.crossing_lookahead_m <= 0
+                or self.crossing_margin_m < 0
+                or self.crossing_confirm_scans < 1
+                or self.track_max_size_jump_m <= 0):
             raise ValueError('invalid avoidance geometry or limits')
 
 
@@ -161,6 +188,11 @@ class Plan:
     rear_scan_points: int = 0
     candidate_bearings_rad: tuple = ()
     swept_rejection: dict = None
+    # Zero speed because the scan shows an obstacle, not a sensor/plan fault.
+    obstacle_stop: bool = False
+    # (id, x, y, vx, vy, dynamic, lateral_scans) per cluster, LiDAR frame.
+    tracked_obstacles: tuple = ()
+    crossing_threats: int = 0
 
 
 class FollowTheGap:
@@ -194,6 +226,19 @@ class FollowTheGap:
         self.wall_follow_drop_scans = 0
         self.wall_target_clear_count = 0
         self.wall_target_allowed = False
+        cfg = self.config
+        self.tracker = ObstacleTracker(
+            cfg.lidar_to_rear_x_m, gate_m=cfg.track_gate_m,
+            history_s=cfg.track_history_s, min_span_s=cfg.track_min_span_s,
+            dynamic_speed_mps=cfg.dynamic_min_speed_mps,
+            static_speed_mps=cfg.dynamic_release_speed_mps,
+            confirm_scans=cfg.dynamic_confirm_scans, lost_s=cfg.track_lost_s,
+            region_x_m=(-cfg.lidar_to_rear_x_m - 2.,
+                        max(cfg.crossing_lookahead_m, 5.)),
+            lateral_speed_mps=cfg.crossing_min_lateral_speed_mps,
+            max_size_jump_m=cfg.track_max_size_jump_m)
+        self._ego_pose = None
+        self._scan_stamp = None
 
     def reset_wall_target(self):
         self.right_wall_target_clearance_m = None
@@ -541,15 +586,63 @@ class FollowTheGap:
             self._remove_ego_returns(
                 self._in_collision_height(self._remove_ground(points))))
 
+    def _crossing_threats(self, tracked):
+        """Moving obstacles predicted inside the Ego lane within the horizon.
+
+        Returns (front clearance at lane entry, current bearing, lateral
+        direction) per threat. The lane is held still: the response is to
+        yield, so Ego motion toward the crossing point is not credited.
+        """
+        cfg = self.config
+        front_bumper_from_lidar_m = cfg.front_bumper_from_rear_m - cfg.lidar_to_rear_x_m
+        threats = []
+        for track in tracked:
+            # One noisy lateral estimate must not stop the car: require the
+            # same crossing direction over several consecutive scans.
+            if (not track.dynamic or not track.velocity_known
+                    or abs(track.lateral_scans) < cfg.crossing_confirm_scans):
+                continue
+            half_lane_m = (cfg.vehicle_half_width_m + cfg.crossing_margin_m
+                           + track.size_y_m / 2.)
+            entry_s = (-math.copysign(half_lane_m, track.vy_mps)
+                       - track.y_m) / track.vy_mps
+            exit_s = (math.copysign(half_lane_m, track.vy_mps)
+                      - track.y_m) / track.vy_mps
+            if exit_s < 0. or entry_s > cfg.crossing_horizon_s:
+                continue
+            entry_s = max(0., entry_s)
+            entry_x_m = track.x_m + track.vx_mps * entry_s
+            near_x_m = entry_x_m - track.size_x_m / 2.
+            # Yield only to crossings ahead of the front bumper. Stopping
+            # cannot avoid an object entering beside the car; it would only
+            # brake hard next to an obstacle that is being passed.
+            if (near_x_m < front_bumper_from_lidar_m
+                    or near_x_m > cfg.crossing_lookahead_m):
+                continue
+            threats.append((near_x_m - front_bumper_from_lidar_m,
+                            math.atan2(track.y_m, track.x_m),
+                            math.copysign(1., track.vy_mps)))
+        return threats
+
     def plan(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
-             wall_follow=False, wall_follow_weight=1., route_rejoin_remaining_m=None):
+             wall_follow=False, wall_follow_weight=1., route_rejoin_remaining_m=None,
+             ego_pose=None, stamp=None, route_trusted=False):
+        """Plan one scan. ego_pose is the odometry rear-axle pose (x, y, yaw)
+        at the scan stamp; without it obstacles are not tracked over time.
+
+        route_trusted means preferred_bearing_rad comes from a map pose that
+        an independent observation has corrected (the MORAI exit anchor), so
+        the guards against a drifted LiDAR map pose are not applied."""
         now = self._clock()
+        self._ego_pose = ego_pose
+        self._scan_stamp = now if stamp is None else stamp
         self._bearing_dt = (None if self._last_speed_time is None else
                             max(0., min(.25, now - self._last_speed_time)))
         self._current_obstacle_cap = math.inf
         plan = self._plan_geometry(points_lidar_m, ego_speed_mps,
                                    preferred_bearing_rad, wall_follow,
-                                   wall_follow_weight, route_rejoin_remaining_m)
+                                   wall_follow_weight, route_rejoin_remaining_m,
+                                   route_trusted)
         cap = self._current_obstacle_cap
         if math.isfinite(cap):
             cap = min(cap, plan.speed_mps)
@@ -568,11 +661,16 @@ class FollowTheGap:
             target = min(target, self._last_speed_target + self.config.target_accel_mps2 * dt)
         self._last_speed_time = now
         self._last_speed_target = target
-        return replace(plan, speed_mps=target)
+        # A geometric go held at zero by a recent obstacle cap is still an
+        # obstacle stop, not a planning fault.
+        obstacle_stop = plan.obstacle_stop or (
+            target <= 0. < plan.speed_mps and now < self._obstacle_cap_until
+            and self._held_obstacle_cap <= 0.)
+        return replace(plan, speed_mps=target, obstacle_stop=obstacle_stop)
 
     def _plan_geometry(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
              wall_follow=False, wall_follow_weight=1.,
-             route_rejoin_remaining_m=None):
+             route_rejoin_remaining_m=None, route_trusted=False):
         """Return a bounded low-speed plan or a full-stop plan.
 
         The cloud must be fresh before calling this function. Empty or
@@ -597,7 +695,9 @@ class FollowTheGap:
             return Plan(0., 0., 'invalid wall follow weight', 0., 0.)
         self.wall_target_clear_count = 0
         self.wall_target_allowed = False
-        stop = lambda reason, clearance=0.0: Plan(
+        tracks_summary = ()
+        threats = []
+        stop = lambda reason, clearance=0.0, obstacle=False: Plan(
             0.0, 0.0, reason, clearance, 0.0,
             obstacle_points, front_points, nearest_front_x_m,
             wall_clearance, self.right_wall_target_clearance_m, wall_heading,
@@ -605,7 +705,7 @@ class FollowTheGap:
             avoidance_phase, rear_obstacle_points, self.rear_confirm_scans,
             rear_scan_points,
             tuple(float(item[1]) for item in gap_options),
-            swept_rejection)
+            swept_rejection, obstacle, tracks_summary, len(threats))
         points = np.asarray(points_lidar_m, dtype=float)
         if points.ndim != 2 or points.shape[1] != 3:
             return stop('invalid cloud shape')
@@ -646,7 +746,7 @@ class FollowTheGap:
             bearing_rad = (float(np.clip(preferred_bearing_rad,
                            -cfg.unwalled_route_bearing_limit_rad,
                            cfg.unwalled_route_bearing_limit_rad))
-                           if wall_follow else
+                           if wall_follow and not route_trusted else
                            float(np.clip(preferred_bearing_rad,
                            -cfg.max_target_bearing_rad,
                            cfg.max_target_bearing_rad)))
@@ -661,6 +761,12 @@ class FollowTheGap:
         points = candidates
         obstacles, wall_fits = self._track_obstacles(points)
         obstacle_points = len(obstacles)
+        tracked = self.tracker.update(obstacles, self._ego_pose,
+                                      self._scan_stamp)
+        tracks_summary = tuple(
+            (t.track_id, round(t.x_m, 2), round(t.y_m, 2), round(t.vx_mps, 2),
+             round(t.vy_mps, 2), t.dynamic, t.lateral_scans) for t in tracked)
+        threats = self._crossing_threats(tracked)
         radii = np.hypot(obstacles[:, 0], obstacles[:, 1])
         bearings = np.arctan2(obstacles[:, 1], obstacles[:, 0])
         forward_radii = np.hypot(points[points[:, 0] > 0., 0],
@@ -678,7 +784,7 @@ class FollowTheGap:
                 self.right_wall_filtered_clearance_m = (
                     wall_clearance if previous is None
                     else .65 * previous + .35 * wall_clearance)
-        elif wall_follow:
+        elif wall_follow and not route_trusted:
             # When the wall disappears at the portal, do not let an
             # uncorrected LiDAR map pose demand a full 35-degree turn.
             preferred_bearing_rad = float(np.clip(
@@ -714,18 +820,40 @@ class FollowTheGap:
         if self.avoidance_active:
             wall_follow_weight = 0.
             # Match tunnel heading while selecting any collision-free gap.
-            if wall_heading is not None:
+            # An anchored route bearing already follows the road, including
+            # the bend at the tunnel exit where the wall does not.
+            if wall_heading is not None and not route_trusted:
                 preferred_bearing_rad = wall_heading
         stopping_distance_m = (ego_speed_mps * cfg.reaction_s
                                + ego_speed_mps ** 2 / (2 * cfg.brake_mps2))
+        # The obstacle speed caps below use brake_mps2, so a car following
+        # them sits exactly on the planning stopping distance. Stop outright
+        # only when even emergency braking would not stop in time; otherwise
+        # the caps brake smoothly and keep the steering target.
+        emergency_stopping_m = (ego_speed_mps * cfg.reaction_s + ego_speed_mps ** 2
+                                / (2 * cfg.emergency_brake_mps2))
         if len(forward) and front_clearance_m <= cfg.side_margin_m + .5:
             self._current_obstacle_cap = 0.
-            return stop('front obstacle inside stopping distance', front_clearance_m)
+            return stop('front obstacle inside stopping distance', front_clearance_m,
+                        obstacle=True)
         if (len(forward) and closest_x_m > cfg.local_planning_range_m
-                and front_clearance_m <= stopping_distance_m + cfg.side_margin_m):
+                and front_clearance_m <= emergency_stopping_m + cfg.side_margin_m):
             self._current_obstacle_cap = 0.
             return stop('distant obstacle inside stopping distance',
-                        front_clearance_m)
+                        front_clearance_m, obstacle=True)
+        if threats:
+            # Yield to a moving obstacle predicted to cross the Ego lane:
+            # be able to stop short of where it enters, instead of steering
+            # into the side it is moving toward.
+            crossing_clearance_m = min(item[0] for item in threats)
+            if crossing_clearance_m <= cfg.side_margin_m + .5:
+                self._current_obstacle_cap = 0.
+                return stop('yielding to crossing obstacle',
+                            max(0., crossing_clearance_m), obstacle=True)
+            self._current_obstacle_cap = min(
+                self._current_obstacle_cap, self._safe_speed_for_clearance(
+                    crossing_clearance_m - cfg.side_margin_m,
+                    cfg.reaction_s, cfg.brake_mps2))
 
         # A ray to the far end of a tunnel eventually intersects its wall,
         # even when a curved path around a nearer obstacle is wide enough.
@@ -772,6 +900,9 @@ class FollowTheGap:
                 blocked |= target_y < wall_y + bubble_m
             else:
                 blocked |= target_y > wall_y - bubble_m
+        for _, bearing_obstacle_rad, direction in threats:
+            # Never pass on the side the crossing obstacle is heading to.
+            blocked |= direction * (self.angles - bearing_obstacle_rad) > 0.
 
         # Near tunnel walls should slow the car and gently bias its next
         # target away from the closer side, even when the map pose drifts.
@@ -799,7 +930,9 @@ class FollowTheGap:
                 cfg.right_wall_max_correction_rad))
             # A large difference between the mapped route and the measured
             # boundary is evidence of map-pose drift, not an exit cue.
-            if (avoidance_phase != 'PASSING'
+            # The road bends at the tunnel exit; once the map pose is
+            # anchored, that disagreement is the curve, not drift.
+            if (avoidance_phase != 'PASSING' and not route_trusted
                     and abs(math.atan2(math.sin(preferred_bearing_rad - wall_bearing),
                                        math.cos(preferred_bearing_rad - wall_bearing)))
                     > cfg.right_wall_route_disagreement_rad):
@@ -919,12 +1052,15 @@ class FollowTheGap:
                             wall_heading, wall_follow_weight,
                             route_rejoin_remaining_m, avoidance_phase,
                             rear_obstacle_points, self.rear_confirm_scans,
-                            rear_scan_points)
+                            rear_scan_points, tracked_obstacles=tracks_summary,
+                            crossing_threats=len(threats))
             if swept_rejection is not None:
                 swept_rejection['rejected_angles'] = swept_rejected_angles
                 swept_rejection['rejected_gaps'] = swept_rejections
-            return stop(('rear/body swept path blocked' if swept_rejections
-                         else 'no gap fits vehicle width'), front_clearance_m)
+            return stop(('yielding to crossing obstacle' if threats
+                         else 'rear/body swept path blocked' if swept_rejections
+                         else 'no gap fits vehicle width'), front_clearance_m,
+                        obstacle=True)
         _, angle_rad, gap_width_m = max(gap_options, key=lambda item: item[0])
         bearing_rad = angle_rad
         self.previous_bearing_rad = bearing_rad
@@ -935,9 +1071,10 @@ class FollowTheGap:
             (2. * cfg.brake_mps2) + cfg.side_margin_m + .25))
         path_hit = self._swept_body_collision(body_scan_points, bearing_rad, speed_horizon)
         if path_hit is not None:
-            self._current_obstacle_cap = self._safe_speed_for_clearance(
-                max(0., path_hit[1] - .25 - cfg.side_margin_m),
-                cfg.reaction_s, cfg.brake_mps2)
+            self._current_obstacle_cap = min(
+                self._current_obstacle_cap, self._safe_speed_for_clearance(
+                    max(0., path_hit[1] - .25 - cfg.side_margin_m),
+                    cfg.reaction_s, cfg.brake_mps2))
         if len(forward):
             front_cap = self._safe_speed_for_clearance(
                 front_clearance_m - cfg.side_margin_m, cfg.reaction_s, cfg.brake_mps2)
@@ -970,7 +1107,12 @@ class FollowTheGap:
                                self._safe_speed_for_clearance(
                                    safe_clearance_m, cfg.reaction_s,
                                    cfg.brake_mps2))
-        if len(forward) and front_clearance_m <= stopping_distance_m + cfg.side_margin_m:
+        clamp_stopping_m = (stopping_distance_m
+                            if closest_x_m <= cfg.local_planning_range_m
+                            else emergency_stopping_m)
+        if len(forward) and front_clearance_m <= clamp_stopping_m + cfg.side_margin_m:
+            # Near obstacles keep the conservative clamp; distant ones brake
+            # through the clearance cap instead of dropping to 2 m/s.
             # Brake while preserving a safe steering target. A zero-speed
             # plan suppresses the target publisher and loses that option.
             target_speed_mps = min(target_speed_mps, 2.)
@@ -980,10 +1122,14 @@ class FollowTheGap:
                                    5. + wall_follow_weight *
                                    max(0., cfg.max_speed_mps - 5.))
         target_speed_mps = min(target_speed_mps, self._current_obstacle_cap)
-        return Plan(target_speed_mps, bearing_rad, 'gap fits', front_clearance_m,
+        return Plan(target_speed_mps, bearing_rad,
+                    'gap fits; yielding to crossing obstacle' if threats
+                    else 'gap fits', front_clearance_m,
                     gap_width_m, obstacle_points, front_points, nearest_front_x_m,
                     wall_clearance, self.right_wall_target_clearance_m, wall_heading,
                     wall_follow_weight, route_rejoin_remaining_m,
                     avoidance_phase, rear_obstacle_points,
                     self.rear_confirm_scans, rear_scan_points,
-                    tuple(float(item[1]) for item in gap_options))
+                    tuple(float(item[1]) for item in gap_options),
+                    tracked_obstacles=tracks_summary,
+                    crossing_threats=len(threats))
