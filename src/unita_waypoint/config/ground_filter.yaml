@@ -1,0 +1,21 @@
+# Only allowed raw IMU orientation and 3D LiDAR are used. Initial, uncalibrated
+# tolerances: record a braking run and inspect ground_filter_analysis.py first.
+ground_plane_tolerance_m: 0.04
+imu_max_skew_s: 0.05
+ground_max_slope_deg: 20.0
+# Initial calibration from driving_run_nuc_3368532: near road ~-0.38 m.
+# Keep mounting transform unchanged until MORAI extrinsics are verified.
+ground_reference_z_m: -0.38
+track_confirm_time_s: 0.2
+# Fallback absolute height gate; confirmed road uses plane tolerance for its
+# lower bound and obstacle_max_height_m for its upper plane-relative height.
+obstacle_min_height_m: 0.22
+obstacle_max_height_m: 2.6
+imu_frame_id: imu
+# Sensor->body Rz(yaw)*Ry(pitch)*Rx(roll); degrees, fixed extrinsics.
+imu_mount_roll_deg: 0.0
+imu_mount_pitch_deg: 0.0
+imu_mount_yaw_deg: 0.0
+lidar_mount_roll_deg: 0.0
+lidar_mount_pitch_deg: 0.0
+lidar_mount_yaw_deg: 0.0

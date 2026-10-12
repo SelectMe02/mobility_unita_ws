@@ -1,0 +1,817 @@
+{
+  "cameraList": [
+    {
+      "m_TargetUniqueID": 0,
+      "m_SensorUniqueID": 1,
+      "m_SensorType": 1,
+      "pos": {
+        "x": "1.900",
+        "y": "0.000",
+        "z": "1.200"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "2.000",
+        "yaw": "0.000"
+      },
+      "cc": {
+        "sensorName": "DefaultSensor",
+        "sensorType": 1,
+        "sensorPeriod": 0.033333335071802139,
+        "commType": 1,
+        "udpConfig": {
+          "hostIP": "127.0.0.1",
+          "hostPort": 9101,
+          "destinationIP": "127.0.0.1",
+          "destinationPort": 9201,
+          "receiveTimeout": 50,
+          "isBufferThreadActivated": false,
+          "receiveBufferSize": 0,
+          "sizeOfAuxHeader": 12
+        },
+        "rosConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "",
+          "RosMessageOnOff": true,
+          "frameID": "Camera-1",
+          "childFrameID": ""
+        },
+        "serialConfig": {
+          "portName": "COM3",
+          "baudRate": 19200,
+          "parity": 0,
+          "portDataBits": 8,
+          "stopBits": 1,
+          "handshake": 0,
+          "readCount": 0
+        },
+        "canConfig": {
+          "handle": 0,
+          "channel_number": 0,
+          "id": 0,
+          "dlc": 0,
+          "flags": 0,
+          "bit_rate": 500000,
+          "path": "",
+          "can_type": 1
+        },
+        "gnGenerator": {
+          "isActivated": false,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0
+        },
+        "paramType": 0,
+        "sensorSize": {
+          "x": 36.0,
+          "y": 24.0,
+          "_x": "36.000",
+          "_y": "24.000"
+        },
+        "focalLengthmm": 16.0,
+        "focalLengthpixel": 320.0,
+        "sensorShift": {
+          "x": 0.0,
+          "y": 0.0,
+          "_x": "",
+          "_y": ""
+        },
+        "principalPoint": {
+          "x": 640.0,
+          "y": 360.0,
+          "_x": "320.000",
+          "_y": "240.000"
+        },
+        "cameraResWidth": 1280,
+        "cameraResHeight": 720,
+        "compressedRatio": 90,
+        "cameraFOV": 90.0,
+        "cameraType": 0,
+        "modelType": 0,
+        "bVizBoundingBox": false,
+        "vizBoundingBox2D": false,
+        "vizBoundingBox3D": false,
+        "bboxROSConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "/dafault_topic",
+          "RosMessageOnOff": true,
+          "frameID": "",
+          "childFrameID": ""
+        },
+        "minDepthRange": 0.0099999997764825821,
+        "maxDepthRange": 100.0,
+        "depthbit": 0,
+        "lensDistortion": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "m_TargetUniqueID": 0,
+      "m_SensorUniqueID": 2,
+      "m_SensorType": 1,
+      "pos": {
+        "x": "1.150",
+        "y": "0.650",
+        "z": "1.200"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "10.000",
+        "yaw": "70.000"
+      },
+      "cc": {
+        "sensorName": "DefaultSensor",
+        "sensorType": 1,
+        "sensorPeriod": 0.033333335071802139,
+        "commType": 1,
+        "udpConfig": {
+          "hostIP": "127.0.0.1",
+          "hostPort": 9102,
+          "destinationIP": "127.0.0.1",
+          "destinationPort": 9202,
+          "receiveTimeout": 50,
+          "isBufferThreadActivated": false,
+          "receiveBufferSize": 0,
+          "sizeOfAuxHeader": 12
+        },
+        "rosConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "",
+          "RosMessageOnOff": true,
+          "frameID": "Camera-2",
+          "childFrameID": ""
+        },
+        "serialConfig": {
+          "portName": "COM3",
+          "baudRate": 19200,
+          "parity": 0,
+          "portDataBits": 8,
+          "stopBits": 1,
+          "handshake": 0,
+          "readCount": 0
+        },
+        "canConfig": {
+          "handle": 0,
+          "channel_number": 0,
+          "id": 0,
+          "dlc": 0,
+          "flags": 0,
+          "bit_rate": 500000,
+          "path": "",
+          "can_type": 1
+        },
+        "gnGenerator": {
+          "isActivated": false,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0
+        },
+        "paramType": 0,
+        "sensorSize": {
+          "x": 36.0,
+          "y": 24.0,
+          "_x": "36.000",
+          "_y": "24.000"
+        },
+        "focalLengthmm": 16.0,
+        "focalLengthpixel": 320.0,
+        "sensorShift": {
+          "x": 0.0,
+          "y": 0.0,
+          "_x": "",
+          "_y": ""
+        },
+        "principalPoint": {
+          "x": 320.0,
+          "y": 240.0,
+          "_x": "320.000",
+          "_y": "240.000"
+        },
+        "cameraResWidth": 640,
+        "cameraResHeight": 480,
+        "compressedRatio": 90,
+        "cameraFOV": 130.0,
+        "cameraType": 0,
+        "modelType": 0,
+        "bVizBoundingBox": false,
+        "vizBoundingBox2D": false,
+        "vizBoundingBox3D": false,
+        "bboxROSConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "/dafault_topic",
+          "RosMessageOnOff": true,
+          "frameID": "",
+          "childFrameID": ""
+        },
+        "minDepthRange": 0.0099999997764825821,
+        "maxDepthRange": 100.0,
+        "depthbit": 0,
+        "lensDistortion": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "m_TargetUniqueID": 0,
+      "m_SensorUniqueID": 3,
+      "m_SensorType": 1,
+      "pos": {
+        "x": "1.150",
+        "y": "-0.650",
+        "z": "1.200"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "10.000",
+        "yaw": "290.000"
+      },
+      "cc": {
+        "sensorName": "DefaultSensor",
+        "sensorType": 1,
+        "sensorPeriod": 0.033333335071802139,
+        "commType": 1,
+        "udpConfig": {
+          "hostIP": "127.0.0.1",
+          "hostPort": 9103,
+          "destinationIP": "127.0.0.1",
+          "destinationPort": 9203,
+          "receiveTimeout": 50,
+          "isBufferThreadActivated": false,
+          "receiveBufferSize": 0,
+          "sizeOfAuxHeader": 12
+        },
+        "rosConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "",
+          "RosMessageOnOff": true,
+          "frameID": "Camera-3",
+          "childFrameID": ""
+        },
+        "serialConfig": {
+          "portName": "COM3",
+          "baudRate": 19200,
+          "parity": 0,
+          "portDataBits": 8,
+          "stopBits": 1,
+          "handshake": 0,
+          "readCount": 0
+        },
+        "canConfig": {
+          "handle": 0,
+          "channel_number": 0,
+          "id": 0,
+          "dlc": 0,
+          "flags": 0,
+          "bit_rate": 500000,
+          "path": "",
+          "can_type": 1
+        },
+        "gnGenerator": {
+          "isActivated": false,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0
+        },
+        "paramType": 0,
+        "sensorSize": {
+          "x": 36.0,
+          "y": 24.0,
+          "_x": "36.000",
+          "_y": "24.000"
+        },
+        "focalLengthmm": 16.0,
+        "focalLengthpixel": 320.0,
+        "sensorShift": {
+          "x": 0.0,
+          "y": 0.0,
+          "_x": "",
+          "_y": ""
+        },
+        "principalPoint": {
+          "x": 320.0,
+          "y": 240.0,
+          "_x": "320.000",
+          "_y": "240.000"
+        },
+        "cameraResWidth": 640,
+        "cameraResHeight": 480,
+        "compressedRatio": 90,
+        "cameraFOV": 130.0,
+        "cameraType": 0,
+        "modelType": 0,
+        "bVizBoundingBox": false,
+        "vizBoundingBox2D": false,
+        "vizBoundingBox3D": false,
+        "bboxROSConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "/dafault_topic",
+          "RosMessageOnOff": true,
+          "frameID": "",
+          "childFrameID": ""
+        },
+        "minDepthRange": 0.0099999997764825821,
+        "maxDepthRange": 100.0,
+        "depthbit": 0,
+        "lensDistortion": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "m_TargetUniqueID": 0,
+      "m_SensorUniqueID": 7,
+      "m_SensorType": 1,
+      "pos": {
+        "x": "1.900",
+        "y": "0.000",
+        "z": "1.250"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "340.000",
+        "yaw": "0.000"
+      },
+      "cc": {
+        "sensorName": "DefaultSensor",
+        "sensorType": 1,
+        "sensorPeriod": 0.033333335071802139,
+        "commType": 1,
+        "udpConfig": {
+          "hostIP": "127.0.0.1",
+          "hostPort": 9104,
+          "destinationIP": "127.0.0.1",
+          "destinationPort": 9204,
+          "receiveTimeout": 50,
+          "isBufferThreadActivated": false,
+          "receiveBufferSize": 0,
+          "sizeOfAuxHeader": 12
+        },
+        "rosConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "",
+          "RosMessageOnOff": true,
+          "frameID": "Camera-7",
+          "childFrameID": ""
+        },
+        "serialConfig": {
+          "portName": "COM3",
+          "baudRate": 19200,
+          "parity": 0,
+          "portDataBits": 8,
+          "stopBits": 1,
+          "handshake": 0,
+          "readCount": 0
+        },
+        "canConfig": {
+          "handle": 0,
+          "channel_number": 0,
+          "id": 0,
+          "dlc": 0,
+          "flags": 0,
+          "bit_rate": 500000,
+          "path": "",
+          "can_type": 1
+        },
+        "gnGenerator": {
+          "isActivated": false,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0
+        },
+        "paramType": 0,
+        "sensorSize": {
+          "x": 36.0,
+          "y": 24.0,
+          "_x": "36.000",
+          "_y": "24.000"
+        },
+        "focalLengthmm": 16.0,
+        "focalLengthpixel": 320.0,
+        "sensorShift": {
+          "x": 0.0,
+          "y": 0.0,
+          "_x": "",
+          "_y": ""
+        },
+        "principalPoint": {
+          "x": 320.0,
+          "y": 240.0,
+          "_x": "320.000",
+          "_y": "240.000"
+        },
+        "cameraResWidth": 640,
+        "cameraResHeight": 480,
+        "compressedRatio": 90,
+        "cameraFOV": 90.0,
+        "cameraType": 0,
+        "modelType": 0,
+        "bVizBoundingBox": false,
+        "vizBoundingBox2D": false,
+        "vizBoundingBox3D": false,
+        "bboxROSConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "/dafault_topic",
+          "RosMessageOnOff": true,
+          "frameID": "",
+          "childFrameID": ""
+        },
+        "minDepthRange": 0.0099999997764825821,
+        "maxDepthRange": 100.0,
+        "depthbit": 0,
+        "lensDistortion": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  ],
+  "Lidar3DList": [
+    {
+      "m_TargetUniqueID": 0,
+      "m_SensorUniqueID": 4,
+      "m_SensorType": 2,
+      "pos": {
+        "x": "1.400",
+        "y": "0.000",
+        "z": "1.230"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "0.000",
+        "yaw": "0.000"
+      },
+      "lc": {
+        "sensorName": "DefaultSensor",
+        "sensorType": 2,
+        "sensorPeriod": 0.10000000149011612,
+        "commType": 1,
+        "udpConfig": {
+          "hostIP": "127.0.0.1",
+          "hostPort": 9110,
+          "destinationIP": "127.0.0.1",
+          "destinationPort": 9210,
+          "receiveTimeout": 50,
+          "isBufferThreadActivated": false,
+          "receiveBufferSize": 0,
+          "sizeOfAuxHeader": 12
+        },
+        "rosConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "/lidar3D",
+          "RosMessageOnOff": true,
+          "frameID": "Lidar3D-4",
+          "childFrameID": ""
+        },
+        "serialConfig": {
+          "portName": "COM3",
+          "baudRate": 19200,
+          "parity": 0,
+          "portDataBits": 8,
+          "stopBits": 1,
+          "handshake": 0,
+          "readCount": 0
+        },
+        "canConfig": {
+          "handle": 0,
+          "channel_number": 0,
+          "id": 0,
+          "dlc": 0,
+          "flags": 0,
+          "bit_rate": 500000,
+          "path": "",
+          "can_type": 1
+        },
+        "gnGenerator": {
+          "isActivated": false,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0
+        },
+        "lidar3DType": 0,
+        "fireDistance": 100.0,
+        "noiseRatio": 0.0,
+        "intensityType": 0,
+        "isVizPointCloud": false,
+        "velodyneUnit": 0.5,
+        "frequencyIndex": 1,
+        "optEq": 0,
+        "gamma": 1.5,
+        "reflecity": 0.0
+      }
+    }
+  ],
+  "Lidar2DList": [],
+  "GPSList": [
+    {
+      "m_TargetUniqueID": 0,
+      "m_SensorUniqueID": 6,
+      "m_SensorType": 4,
+      "pos": {
+        "x": "0.000",
+        "y": "0.000",
+        "z": "1.200"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "0.000",
+        "yaw": "0.000"
+      },
+      "gc": {
+        "sensorName": "DefaultSensor",
+        "sensorType": 4,
+        "sensorPeriod": 0.033333335071802139,
+        "commType": 1,
+        "udpConfig": {
+          "hostIP": "127.0.0.1",
+          "hostPort": 9130,
+          "destinationIP": "127.0.0.1",
+          "destinationPort": 9230,
+          "receiveTimeout": 50,
+          "isBufferThreadActivated": false,
+          "receiveBufferSize": 0,
+          "sizeOfAuxHeader": 12
+        },
+        "rosConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "/gps",
+          "RosMessageOnOff": true,
+          "frameID": "GPS-6",
+          "childFrameID": ""
+        },
+        "serialConfig": {
+          "portName": "COM3",
+          "baudRate": 115200,
+          "parity": 0,
+          "portDataBits": 8,
+          "stopBits": 1,
+          "handshake": 0,
+          "readCount": 0
+        },
+        "canConfig": {
+          "handle": 0,
+          "channel_number": 0,
+          "id": 0,
+          "dlc": 0,
+          "flags": 0,
+          "bit_rate": 500000,
+          "path": "",
+          "can_type": 1
+        },
+        "gnGenerator": {
+          "isActivated": false,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0
+        },
+        "gpsStatus": 1
+      }
+    }
+  ],
+  "IMUList": [
+    {
+      "m_TargetUniqueID": 0,
+      "m_SensorUniqueID": 5,
+      "m_SensorType": 5,
+      "pos": {
+        "x": "0.000",
+        "y": "0.000",
+        "z": "0.000"
+      },
+      "rot": {
+        "roll": "0.000",
+        "pitch": "0.000",
+        "yaw": "0.000"
+      },
+      "ic": {
+        "sensorName": "DefaultSensor",
+        "sensorType": 5,
+        "sensorPeriod": 0.033333335071802139,
+        "commType": 1,
+        "udpConfig": {
+          "hostIP": "127.0.0.1",
+          "hostPort": 9120,
+          "destinationIP": "127.0.0.1",
+          "destinationPort": 9220,
+          "receiveTimeout": 50,
+          "isBufferThreadActivated": false,
+          "receiveBufferSize": 0,
+          "sizeOfAuxHeader": 12
+        },
+        "rosConfig": {
+          "handlerType": 0,
+          "ConnectionTimeout": 1000,
+          "RosBridgeServerUrl": "ws://127.0.0.1:9090",
+          "RosBridgeIP": "127.0.0.1",
+          "RosBridgePort": 9090,
+          "Topic": "/imu",
+          "RosMessageOnOff": true,
+          "frameID": "IMU-5",
+          "childFrameID": ""
+        },
+        "serialConfig": {
+          "portName": "COM3",
+          "baudRate": 19200,
+          "parity": 0,
+          "portDataBits": 8,
+          "stopBits": 1,
+          "handshake": 0,
+          "readCount": 0
+        },
+        "canConfig": {
+          "handle": 0,
+          "channel_number": 0,
+          "id": 0,
+          "dlc": 0,
+          "flags": 0,
+          "bit_rate": 500000,
+          "path": "",
+          "can_type": 1
+        },
+        "gnGenerator": {
+          "isActivated": false,
+          "gaussianMean": 0.0,
+          "gaussianStdev": 0.0
+        },
+        "rdAcc_x": {
+          "isActivated": false,
+          "RWgaussianMean": 0.0,
+          "RWgaussianStdev": 0.001,
+          "RWNoise": 0.0,
+          "last_RWnoise": 0.0
+        },
+        "rdAcc_y": {
+          "isActivated": false,
+          "RWgaussianMean": 0.0,
+          "RWgaussianStdev": 0.001,
+          "RWNoise": 0.0,
+          "last_RWnoise": 0.0
+        },
+        "rdAcc_z": {
+          "isActivated": false,
+          "RWgaussianMean": 0.0,
+          "RWgaussianStdev": 0.001,
+          "RWNoise": 0.0,
+          "last_RWnoise": 0.0
+        },
+        "rdAngV_roll": {
+          "isActivated": false,
+          "RWgaussianMean": 0.0,
+          "RWgaussianStdev": 0.001,
+          "RWNoise": 0.0,
+          "last_RWnoise": 0.0
+        },
+        "rdAngV_pitch": {
+          "isActivated": false,
+          "RWgaussianMean": 0.0,
+          "RWgaussianStdev": 0.001,
+          "RWNoise": 0.0,
+          "last_RWnoise": 0.0
+        },
+        "rdAngV_yaw": {
+          "isActivated": false,
+          "RWgaussianMean": 0.0,
+          "RWgaussianStdev": 0.001,
+          "RWNoise": 0.0,
+          "last_RWnoise": 0.0
+        },
+        "biAcc_x": {
+          "isActivated": false,
+          "GMgaussianMean": 0.0,
+          "GMgaussianStdev": 0.001,
+          "GMCorrelationTime": 0.02,
+          "GMNoise": 0.0,
+          "last_GMnoise": 0.0
+        },
+        "biAcc_y": {
+          "isActivated": false,
+          "GMgaussianMean": 0.0,
+          "GMgaussianStdev": 0.001,
+          "GMCorrelationTime": 0.02,
+          "GMNoise": 0.0,
+          "last_GMnoise": 0.0
+        },
+        "biAcc_z": {
+          "isActivated": false,
+          "GMgaussianMean": 0.0,
+          "GMgaussianStdev": 0.001,
+          "GMCorrelationTime": 0.02,
+          "GMNoise": 0.0,
+          "last_GMnoise": 0.0
+        },
+        "biAngV_roll": {
+          "isActivated": false,
+          "GMgaussianMean": 0.0,
+          "GMgaussianStdev": 0.001,
+          "GMCorrelationTime": 0.02,
+          "GMNoise": 0.0,
+          "last_GMnoise": 0.0
+        },
+        "biAngV_pitch": {
+          "isActivated": false,
+          "GMgaussianMean": 0.0,
+          "GMgaussianStdev": 0.001,
+          "GMCorrelationTime": 0.02,
+          "GMNoise": 0.0,
+          "last_GMnoise": 0.0
+        },
+        "biAngV_yaw": {
+          "isActivated": false,
+          "GMgaussianMean": 0.0,
+          "GMgaussianStdev": 0.001,
+          "GMCorrelationTime": 0.02,
+          "GMNoise": 0.0,
+          "last_GMnoise": 0.0
+        },
+        "wnAcc_x": {
+          "isActivated": false,
+          "WNgaussianMean": 0.0,
+          "WNgaussianStdev": 0.001,
+          "WNCorrelationTime": 0.0,
+          "WNNoise": 0.0
+        },
+        "wnAcc_y": {
+          "isActivated": false,
+          "WNgaussianMean": 0.0,
+          "WNgaussianStdev": 0.001,
+          "WNCorrelationTime": 0.0,
+          "WNNoise": 0.0
+        },
+        "wnAcc_z": {
+          "isActivated": false,
+          "WNgaussianMean": 0.0,
+          "WNgaussianStdev": 0.001,
+          "WNCorrelationTime": 0.0,
+          "WNNoise": 0.0
+        },
+        "wnAngV_roll": {
+          "isActivated": false,
+          "WNgaussianMean": 0.0,
+          "WNgaussianStdev": 0.001,
+          "WNCorrelationTime": 0.0,
+          "WNNoise": 0.0
+        },
+        "wnAngV_pitch": {
+          "isActivated": false,
+          "WNgaussianMean": 0.0,
+          "WNgaussianStdev": 0.001,
+          "WNCorrelationTime": 0.0,
+          "WNNoise": 0.0
+        },
+        "wnAngV_yaw": {
+          "isActivated": false,
+          "WNgaussianMean": 0.0,
+          "WNgaussianStdev": 0.001,
+          "WNCorrelationTime": 0.0,
+          "WNNoise": 0.0
+        }
+      }
+    }
+  ],
+  "RadarList": [],
+  "UltrasonicList": [],
+  "GroundTruthList": [],
+  "LightList": [],
+  "DelphiRadarList": []
+}

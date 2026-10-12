@@ -3,6 +3,7 @@
 import json
 import math
 import threading
+import time
 import sys
 from collections import deque
 from pathlib import Path
@@ -13,23 +14,36 @@ import rospkg
 from geometry_msgs.msg import PoseStamped
 from scipy.spatial import cKDTree
 from sensor_msgs import point_cloud2
-from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import String
+from sensor_msgs.msg import PointCloud2, Imu
+from std_msgs.msg import String, Header
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from lane_corridor import LaneCorridor
+from avoidance_runtime import RuntimeSettings
+from ground_segmentation import (rotation_rpy, normalized_quaternion, quaternion_at,
+                                 level_rotation, segment_ground)
 
 
 def road_obstacle_mask(points, front_range=55., rear_range=55., side_range=12.,
-                       half_width=.946, front_extent=3.845, rear_extent=.790):
+                       half_width=.946, front_extent=3.845, rear_extent=.790,
+                       min_height=.22, max_height=2.6):
     """Points use rear-axle coordinates; retain rear traffic, remove ego body."""
     road = ((points[:, 0] > -rear_range) & (points[:, 0] < front_range) &
             (np.abs(points[:, 1]) < side_range) &
-            (points[:, 2] > .22) & (points[:, 2] < 2.6))
+            (points[:, 2] > min_height) & (points[:, 2] < max_height))
     ego = ((points[:, 0] >= -rear_extent-.15) &
            (points[:, 0] <= front_extent+.15) &
            (np.abs(points[:, 1]) <= half_width+.15))
     return road & ~ego
+
+
+def road_roi_mask(points, front_range, rear_range, side_range, half_width, front_extent, rear_extent):
+    """Include road seeds below the old height gate, excluding the ego body."""
+    x, y, z = points.T
+    ego = ((x >= -rear_extent-.15) & (x <= front_extent+.15) &
+           (np.abs(y) <= half_width+.15))
+    return ((x > -rear_range) & (x < front_range) & (np.abs(y) < side_range) &
+            (z > -20.) & (z < 20.) & ~ego & np.isfinite(points).all(axis=1))
 
 
 def clusters(xy, radius=0.65, minimum=3):
@@ -60,10 +74,10 @@ def clusters(xy, radius=0.65, minimum=3):
     return groups
 
 
-def object_circles(group):
+def object_circles(group, minimum_size=.2, maximum_size=24.):
     """Cover observed vehicle returns; split a long truck into bounded pieces."""
     size = np.ptp(group, axis=0)
-    if np.max(size) > 24. or np.max(size) < .2:
+    if np.max(size) > maximum_size or np.max(size) < minimum_size:
         return []
     axis = int(np.argmax(size))
     count = max(1, int(math.ceil(size[axis]/5.)))
@@ -91,6 +105,19 @@ class LidarObstacles:
         self.front_range = float(rospy.get_param('~front_range_m', 55.))
         self.rear_range = float(rospy.get_param('~rear_range_m', 55.))
         self.side_range = float(rospy.get_param('~side_range_m', 12.))
+        self.dynamic_speed_threshold_mps = float(rospy.get_param('~dynamic_speed_threshold_mps', .8))
+        def mount(prefix):
+            angles = [float(rospy.get_param('~'+prefix+'_'+axis+'_deg', 0.))
+                      for axis in ('roll', 'pitch', 'yaw')]
+            if not all(math.isfinite(angle) for angle in angles):
+                raise ValueError('non-finite sensor mounting rotation: '+prefix)
+            return rotation_rpy(*(math.radians(angle) for angle in angles))
+        self.body_from_lidar = mount('lidar_mount')
+        self.body_from_imu = mount('imu_mount')
+        self.imu_frame_id = rospy.get_param('~imu_frame_id', 'imu')
+        self.imus = deque(maxlen=300)
+        self.imu_rejection = None
+        self.last_imu_frame = None
         self.half_width = float(rospy.get_param('~vehicle_half_width_m', .946))
         self.front_extent = float(rospy.get_param('~front_extent_m', 3.845))
         self.rear_extent = float(rospy.get_param('~rear_extent_m', .790))
@@ -103,13 +130,20 @@ class LidarObstacles:
         self.tracks = {}
         self.next_id = 1
         self.lane_corridor = None
+        self.runtime_settings = RuntimeSettings('lidar_obstacles', self)
         self.pub = rospy.Publisher('/waypoint_debug/obstacles', String, queue_size=1)
+        self.ground_status_pub = rospy.Publisher('/waypoint_debug/ground_status', String, queue_size=1)
+        self.ground_points_pub = rospy.Publisher('/waypoint_debug/ground_points', PointCloud2, queue_size=1)
+        self.obstacle_points_pub = rospy.Publisher('/waypoint_debug/obstacle_points', PointCloud2, queue_size=1)
         rospy.Subscriber('/waypoint_debug/lane_geometry', String,
                          self.on_lane_geometry, queue_size=1, buff_size=2**22)
         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
                          PoseStamped, self.on_pose, queue_size=1)
         rospy.Subscriber(rospy.get_param('~cloud_topic', '/lidar3D'),
                          PointCloud2, self.on_cloud, queue_size=1, buff_size=2**24)
+        # Always the permitted raw IMU; yaw-only synthesized status is insufficient.
+        rospy.Subscriber(rospy.get_param('~ground_imu_topic', '/imu'),
+                         Imu, self.on_imu, queue_size=100)
         rospy.Timer(rospy.Duration(.025), self.process_pending)
 
     def on_lane_geometry(self, message):
@@ -124,8 +158,6 @@ class LidarObstacles:
         with self.lock:
             self.lane_corridor = corridor
             self.tracks.clear()
-            # Keep all three lane strips in view when a wider layout is used.
-            self.side_range = max(self.side_range, 3.*corridor.width)
         rospy.set_param('~raceline_width', corridor.width)
         rospy.loginfo('Obstacle lane filter: width %.2f m (+/- %.2f m)',
                       corridor.width, corridor.width*.5)
@@ -170,7 +202,8 @@ class LidarObstacles:
         for x, y, radius in detections:
             matches = [(math.hypot(x-t['x']-t['vx']*(stamp-t['stamp']),
                                   y-t['y']-t['vy']*(stamp-t['stamp'])), key, t)
-                       for key, t in self.tracks.items() if key not in used]
+                       for key, t in self.tracks.items() if key not in used
+                       and max(radius, t['radius']) <= 3.*max(.15, min(radius, t['radius']))]
             matches.sort()
             # Allow a fast rear car's initial displacement before velocity
             # converges; subsequent association uses its predicted position.
@@ -182,65 +215,186 @@ class LidarObstacles:
                 vx = .65*previous['vx'] + .35*(x-previous['x'])/dt
                 vy = .65*previous['vy'] + .35*(y-previous['y'])/dt
                 hits = min(20, previous['hits']+1)
+                first_stamp = previous.get('first_stamp', previous['stamp']-(previous['hits']-1)*dt)
+                velocities = (previous.get('velocities', [])+[((x-previous['x'])/dt, (y-previous['y'])/dt)])[-3:]
             else:
                 key = self.next_id
                 self.next_id += 1
                 vx = vy = 0.
                 hits = 1
+                first_stamp, velocities = stamp, []
+            observed_s = stamp-first_stamp
+            confirmed = hits >= 3 and observed_s+1e-9 >= getattr(self, 'track_confirm_time_s', .2)
+            velocity_reliable = (confirmed and len(velocities) >= 2
+                                 and np.max(np.linalg.norm(np.asarray(velocities)-np.median(velocities, axis=0), axis=1)) <= 3.)
             track = dict(x=x, y=y, radius=radius, vx=vx, vy=vy,
-                         hits=hits, stamp=stamp)
+                         hits=hits, stamp=stamp, first_stamp=first_stamp, velocities=velocities,
+                         confirmed=confirmed, velocity_reliable=bool(velocity_reliable))
             self.tracks[key] = track
             used.add(key)
             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
+                               confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
+                               hits=hits, observed_s=observed_s, measurement_stamp=stamp,
                                kind=('dynamic' if hits >= 3 and
-                                     math.hypot(vx, vy) > .8 else
+                                     math.hypot(vx, vy) > self.dynamic_speed_threshold_mps else
                                      'static' if hits >= 3 else 'unknown')))
         # Preserve a briefly occluded rear/side car instead of treating its
         # lane as clear immediately. Do not extend a stale measurement forever.
         for key, track in self.tracks.items():
             dt = stamp-track['stamp']
             if key not in used and 0. < dt <= .4:
-                result.append(dict(id=key, x=track['x']+track['vx']*dt,
-                                   y=track['y']+track['vy']*dt,
+                reliable = track.get('velocity_reliable', False)
+                result.append(dict(id=key, x=track['x']+(track['vx']*dt if reliable else 0.),
+                                   y=track['y']+(track['vy']*dt if reliable else 0.),
                                    radius=track['radius']+.5*dt,
-                                   vx=track['vx'], vy=track['vy'], kind='unknown'))
+                                   vx=track['vx'], vy=track['vy'], kind='unknown',
+                                   confirmed=track.get('confirmed', False), velocity_reliable=reliable,
+                                   hits=track['hits'], observed_s=track['stamp']-track.get('first_stamp', track['stamp']),
+                                   measurement_stamp=track['stamp']))
         return result
 
     def on_cloud(self, msg):
         with self.lock:
             self.pending = msg
 
+    def on_imu(self, msg):
+        self.last_imu_frame = msg.header.frame_id
+        if msg.header.frame_id != self.imu_frame_id or msg.orientation_covariance[0] == -1:
+            self.imu_rejection = 'wrong_frame' if msg.header.frame_id != self.imu_frame_id else 'orientation_unavailable'
+            return
+        q = msg.orientation
+        try:
+            orientation = normalized_quaternion((q.x, q.y, q.z, q.w))
+        except ValueError:
+            self.imu_rejection = 'invalid_quaternion'
+            return
+        stamp = msg.header.stamp.to_sec()
+        if stamp <= 0.:
+            self.imu_rejection = 'invalid_stamp'
+            return
+        self.imu_rejection = None
+        with self.lock:
+            if self.imus and stamp < self.imus[-1][0]:
+                self.imus.clear()
+            if not self.imus or stamp > self.imus[-1][0]:
+                self.imus.append((stamp, orientation))
+
+    def filter_ground(self, raw, stamp):
+        points = raw @ self.body_from_lidar.T + [self.lidar_x, self.lidar_y, self.lidar_z]
+        with self.lock:
+            samples = list(self.imus)
+        q, skew = quaternion_at(samples, stamp, self.imu_max_skew_s)
+        status = dict(stamp=stamp, frame_id='map', imu_corrected=q is not None,
+                      cloud_stamp=stamp, imu_skew_s=skew, roll_deg=None, pitch_deg=None,
+                      imu_samples=len(samples), imu_rejection=getattr(self, 'imu_rejection', None),
+                      imu_frame=getattr(self, 'last_imu_frame', None), input_points=len(raw))
+        if q is not None:
+            rotation, status['roll_deg'], status['pitch_deg'] = level_rotation(q, self.body_from_imu)
+            points = points @ rotation.T
+        eligible = road_roi_mask(points, self.front_range, self.rear_range, self.side_range,
+                                 self.half_width, self.front_extent, self.rear_extent)
+        near = eligible & (np.abs(points[:, 0]) < 12.) & (np.abs(points[:, 1]) < 3.)
+        status['near_z_percentiles_m'] = (np.percentile(points[near, 2], [5, 50, 95]).tolist()
+                                         if near.any() else None)
+        status['roi_points'] = int(eligible.sum())
+        # Fit only after fresh IMU correction. Fitting a tilted cloud with the
+        # near-ego height anchor could accidentally accept a vehicle surface.
+        if q is not None:
+            ground, obstacle, detail = segment_ground(points, eligible,
+                self.ground_plane_tolerance_m, self.ground_max_slope_deg,
+                min_height=self.obstacle_min_height_m, max_height=self.obstacle_max_height_m,
+                reference_z=getattr(self, 'ground_reference_z_m', 0.))
+            status.update(detail)
+        else:
+            ground = np.zeros(len(points), dtype=bool)
+            height = points[:, 2]-getattr(self, 'ground_reference_z_m', 0.)
+            obstacle = eligible & (height > self.obstacle_min_height_m) & (height < self.obstacle_max_height_m)
+            status.update(planes=0, supported_points=0, residual_p95_m=None)
+        status.update(removed_points=int(ground.sum()), obstacle_points=int(obstacle.sum()),
+                      mode=('imu_missing_or_stale' if q is None else
+                            'ground_filtered' if status['planes'] else 'ground_unconfirmed'),
+                      ground_plane_tolerance_m=self.ground_plane_tolerance_m,
+                      imu_max_skew_s=self.imu_max_skew_s,
+                      obstacle_min_height_m=self.obstacle_min_height_m,
+                      obstacle_max_height_m=self.obstacle_max_height_m,
+                      ground_reference_z_m=getattr(self, 'ground_reference_z_m', 0.))
+        return points, ground, obstacle, status
+
+    def publish_wait_status(self, mode, msg=None):
+        now = time.monotonic()
+        if now < getattr(self, 'next_wait_status', 0.):
+            return
+        self.next_wait_status = now+.2
+        ros_now = rospy.Time.now().to_sec()
+        with self.lock:
+            poses = list(getattr(self, 'poses', []))
+            imus = list(getattr(self, 'imus', []))
+        cloud_stamp = msg.header.stamp.to_sec() if msg is not None else None
+        data = dict(stamp=ros_now, frame_id='map', mode=mode, imu_corrected=False,
+                    cloud_stamp=cloud_stamp, cloud_frame=msg.header.frame_id if msg is not None else None,
+                    cloud_age_s=ros_now-cloud_stamp if cloud_stamp is not None else None,
+                    pose_samples=len(poses), imu_samples=len(imus),
+                    pose_nearest_skew_s=min((abs(p[0]-cloud_stamp) for p in poses), default=None)
+                        if cloud_stamp is not None else None,
+                    imu_nearest_skew_s=min((abs(p[0]-cloud_stamp) for p in imus), default=None)
+                        if cloud_stamp is not None else None,
+                    imu_rejection=getattr(self, 'imu_rejection', None),
+                    imu_frame=getattr(self, 'last_imu_frame', None))
+        self.ground_status_pub.publish(String(data=json.dumps(data)))
+
+    def publish_filter_debug(self, points, ground, obstacle, pose, status, header):
+        self.ground_status_pub.publish(String(data=json.dumps(status)))
+        c, s = math.cos(pose[2]), math.sin(pose[2])
+        for mask, publisher in ((ground, self.ground_points_pub), (obstacle, self.obstacle_points_pub)):
+            if not publisher.get_num_connections():
+                continue
+            selected = points[mask][::max(1, int(math.ceil(mask.sum()/15000.)))]
+            xyz = np.column_stack((pose[0]+c*selected[:, 0]-s*selected[:, 1],
+                                   pose[1]+s*selected[:, 0]+c*selected[:, 1], selected[:, 2]))
+            publisher.publish(point_cloud2.create_cloud_xyz32(
+                Header(stamp=header.stamp, frame_id='map'), xyz))
+
     def process_pending(self, _event):
+        runtime = getattr(self, 'runtime_settings', None)
+        if runtime is not None:
+            runtime.poll(dict(raceline_width=self.lane_corridor.width
+                              if self.lane_corridor is not None else None))
         with self.lock:
             msg = self.pending
             corridor = self.lane_corridor
         if msg is None:
+            if time.monotonic()-getattr(self, 'last_filter_wall', 0.) > .5:
+                self.publish_wait_status('waiting_cloud')
             return
         if corridor is None:
+            self.publish_wait_status('waiting_lane_geometry', msg)
             rospy.logwarn_throttle(5., 'Waiting for raceline lane geometry')
             return
         stamp = msg.header.stamp.to_sec()
         age = rospy.Time.now().to_sec() - stamp
         if msg.header.frame_id != 'lidar' or not -.05 <= age <= .35:
+            self.publish_wait_status('wrong_cloud_frame' if msg.header.frame_id != 'lidar'
+                                     else 'cloud_time_mismatch', msg)
             with self.lock:
                 if self.pending is msg:
                     self.pending = None
             return
         pose = self.pose_at(stamp)
         if pose is None:
+            self.publish_wait_status('waiting_pose', msg)
             return
         with self.lock:
             if self.pending is msg:
                 self.pending = None
+        filter_start = time.monotonic()
         points = np.asarray(list(point_cloud2.read_points(
             msg, field_names=('x', 'y', 'z'), skip_nans=True)), dtype=float)
         points = points.reshape((-1, 3))
-        points[:, 0] += self.lidar_x
-        points[:, 1] += self.lidar_y
-        points[:, 2] += self.lidar_z
-        mask = road_obstacle_mask(points, self.front_range, self.rear_range,
-                                  self.side_range, self.half_width,
-                                  self.front_extent, self.rear_extent)
+        points, ground, mask, status = self.filter_ground(points, stamp)
+        self.last_filter_wall = time.monotonic()
+        status['cloud_age_s'] = age
+        status['filter_processing_s'] = time.monotonic()-filter_start
+        self.publish_filter_debug(points, ground, mask, pose, status, msg.header)
         xy = points[mask, :2]
         c, s = math.cos(pose[2]), math.sin(pose[2])
         map_xy = np.column_stack((pose[0]+c*xy[:, 0]-s*xy[:, 1],
@@ -252,7 +406,8 @@ class LidarObstacles:
             xy = xy[::int(math.ceil(len(xy)/10000.))]
         found = []
         for group in clusters(xy):
-            for x, y, radius in object_circles(group):
+            for x, y, radius in object_circles(
+                    group, self.cluster_min_size_m, self.cluster_max_size_m):
                 found.append((pose[0]+c*x-s*y, pose[1]+s*x+c*y, radius))
         mask = corridor.contains([(x, y) for x, y, _ in found])
         found = [o for o, inside in zip(found, mask) if inside]

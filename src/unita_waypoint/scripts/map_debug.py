@@ -5,6 +5,7 @@ import json
 import math
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -13,7 +14,9 @@ import rospkg
 import rospy
 from geometry_msgs.msg import Point, PoseStamped
 from nav_msgs.msg import OccupancyGrid
-from std_msgs.msg import Bool, Float64, String
+from std_msgs.msg import Bool, Float64, String, Header
+from sensor_msgs.msg import PointCloud2
+from sensor_msgs import point_cloud2
 from visualization_msgs.msg import Marker, MarkerArray
 
 ROOT = Path(rospkg.RosPack().get_path('unita_waypoint'))
@@ -23,6 +26,7 @@ from map_tunner_core import (CHECKPOINT_ORDER, load_checkpoints, load_csv,
                              load_project, primary_route, raceline_layout_settings)
 from map_tunner_map import AerialMap
 from lane_corridor import LaneCorridor, project_lane_geometry
+from avoidance_runtime import SETTINGS, validated_value
 
 
 def marker(namespace, identifier, kind):
@@ -48,7 +52,7 @@ class MapDebug:
         self.project = load_project(self.project_file)
         self.raceline_config = rospy.get_param('~raceline_config', str(config / 'raceline_layout.yaml'))
         self.raceline_width_override = rospy.get_param('~raceline_width', None)
-        width = raceline_layout_settings(self.project, self.raceline_config, self.raceline_width_override)
+        width = raceline_layout_settings(self.project, self.raceline_config)
         self.saved_lane_corridor = LaneCorridor(project_lane_geometry(self.project, width))
         self.lane_corridor = self.saved_lane_corridor
         self.live_lane_geometry = None
@@ -70,12 +74,20 @@ class MapDebug:
         self.last_vehicle_visible = False
         self.obstacle_snapshot = None
         self.obstacle_marker_ids = set()
+        self.config_lock = threading.Lock()
+        self.config_snapshots = {}
+        self.pending_parameters = {}
+        self.parameter_error = ''
+        self.horizon_snapshot = None
+        self.ground_snapshot = None
         self.photo_pub = rospy.Publisher('/map_debug/photo', Marker, queue_size=1, latch=True)
         self.map_pub = rospy.Publisher('/map_debug/map', OccupancyGrid, queue_size=1, latch=True)
         self.marker_pub = rospy.Publisher('/map_debug/markers', MarkerArray, queue_size=1, latch=True)
         self.vehicle_pub = rospy.Publisher('/map_debug/vehicle', MarkerArray, queue_size=1)
         self.obstacle_pub = rospy.Publisher('/map_debug/obstacles', MarkerArray, queue_size=1)
         self.status_pub = rospy.Publisher('/map_debug/status', String, queue_size=1, latch=True)
+        self.horizon_pub = rospy.Publisher('/map_debug/obstacle_horizon', MarkerArray, queue_size=1)
+        self.ground_display_pub = rospy.Publisher('/map_debug/ground_points', PointCloud2, queue_size=1)
         self.publish_static()
         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
                          PoseStamped, self.on_pose, queue_size=1)
@@ -89,6 +101,17 @@ class MapDebug:
                          String, self.on_obstacles, queue_size=1)
         rospy.Subscriber('/waypoint_debug/lane_geometry', String,
                          self.on_lane_geometry, queue_size=1, buff_size=2**22)
+        for owner in ('lidar_obstacles', 'gps_waypoint_follower'):
+            rospy.Subscriber('/waypoint_debug/avoidance_config/' + owner, String,
+                             self.on_config, callback_args=owner, queue_size=1)
+        rospy.Subscriber('/map_debug/avoidance_parameter_edit', String,
+                         self.on_parameter_edit, queue_size=10)
+        rospy.Subscriber('/waypoint_debug/obstacle_horizon', String,
+                         self.on_horizon, queue_size=1)
+        rospy.Subscriber('/waypoint_debug/ground_status', String,
+                         self.on_ground_status, queue_size=1)
+        rospy.Subscriber('/waypoint_debug/ground_points', PointCloud2,
+                         self.on_ground_points, queue_size=1, buff_size=2**22)
         rospy.Timer(rospy.Duration(0.1), self.refresh)
         self.log_project_counts()
 
@@ -110,7 +133,7 @@ class MapDebug:
             project = load_project(self.project_file)
             route, sectors = primary_route(project)
             xy = np.asarray([(point['x'], point['y']) for point in route])
-            width = raceline_layout_settings(project, self.raceline_config, self.raceline_width_override)
+            width = raceline_layout_settings(project, self.raceline_config)
             corridor = LaneCorridor(project_lane_geometry(project, width))
         except (OSError, ValueError, KeyError, TypeError) as error:
             rospy.logwarn_throttle(5, 'Could not reload saved map project: %s', error)
@@ -187,14 +210,6 @@ class MapDebug:
             label.color.r = label.color.g = label.color.b = 1.0
             label.color.a = 0.78
             markers.append(label)
-        # The same saved Sector 11 endpoint drives the follower's finish rule.
-        endpoint = self.project['sectors'][10]['racelines']['1'][-1]
-        finish = marker('cp11_finish_line', 0, Marker.LINE_LIST)
-        finish.scale.x = .6
-        finish.color.r = finish.color.g = finish.color.b = finish.color.a = 1.
-        finish.points = [Point(endpoint['x']-20., endpoint['y'], 1.2),
-                         Point(endpoint['x']+20., endpoint['y'], 1.2)]
-        markers.append(finish)
         self.marker_pub.publish(MarkerArray(markers=markers))
 
     def on_pose(self, message):
@@ -275,6 +290,115 @@ class MapDebug:
         # Live geometry is only for matching the detector's obstacle filter.
         # Visible map paths always come from DEBUG_PROJECT_FILE.
 
+    def on_config(self, message, owner):
+        try:
+            data = json.loads(message.data)
+            if not isinstance(data['values'], dict) or not data['node'].startswith('/'):
+                return
+            for name, value in data['values'].items():
+                if name in SETTINGS:
+                    validated_value(name, value)
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return
+        with self.config_lock:
+            self.config_snapshots[owner] = (data, time.monotonic())
+
+    def on_parameter_edit(self, message):
+        try:
+            data = json.loads(message.data)
+            name = data['name']
+            value = validated_value(name, data['value'])
+            owner = SETTINGS[name][0]
+            with self.config_lock:
+                snapshot = self.config_snapshots.get(owner)
+            node = snapshot[0]['node'] if snapshot else '/' + owner
+            rospy.set_param(node + '/' + name, value)
+            with self.config_lock:
+                self.pending_parameters[name] = (value, time.monotonic())
+                self.parameter_error = ''
+        except (ValueError, KeyError, TypeError, OSError, rospy.ROSException) as error:
+            with self.config_lock:
+                self.parameter_error = str(error)
+
+    def parameter_status(self, now):
+        rows = []
+        with self.config_lock:
+            for name, spec in SETTINGS.items():
+                owner, default, _, unit, description = spec
+                snapshot = self.config_snapshots.get(owner)
+                fresh = snapshot is not None and now-snapshot[1] < 1.
+                value = snapshot[0]['values'].get(name, default) if snapshot else default
+                pending = self.pending_parameters.get(name)
+                if pending and fresh and snapshot[1] >= pending[1] and value == pending[0]:
+                    del self.pending_parameters[name]
+                    pending = None
+                error = snapshot[0].get('errors', {}).get(name, '') if fresh else ''
+                rows.append(dict(name=name, value=value, unit=unit, description=description,
+                                 applied=fresh, editable=True,
+                                 pending_value=pending[0] if pending else None, error=error))
+            error = self.parameter_error
+            width_applied = all(
+                owner in self.config_snapshots and now-self.config_snapshots[owner][1] < 1.
+                and self.config_snapshots[owner][0]['values'].get('raceline_width')
+                == self.saved_lane_corridor.width
+                for owner in ('lidar_obstacles', 'gps_waypoint_follower'))
+        rows.append(dict(name='raceline_width', value=self.saved_lane_corridor.width, unit='m',
+                         description='튜너 저장값 자동 연동 · 튜너에서 변경 후 저장',
+                         applied=width_applied, editable=False, pending_value=None, error=''))
+        return rows, error
+
+    def on_horizon(self, message):
+        try:
+            data = json.loads(message.data)
+            points = np.asarray(data['points'], dtype=float).reshape((-1, 2))
+            if (data['frame_id'] != 'map' or not np.isfinite(points).all()
+                    or not math.isfinite(float(data['stamp']))
+                    or not math.isfinite(float(data['horizon_m'])) or data['horizon_m'] <= 0.
+                    or not math.isfinite(float(data['half_width_m'])) or data['half_width_m'] <= 0.):
+                return
+        except (ValueError, KeyError, TypeError, OverflowError):
+            return
+        self.horizon_snapshot = (data, points, time.monotonic())
+
+    def publish_horizon(self, now):
+        snapshot = self.horizon_snapshot
+        if snapshot is None or now-snapshot[2] > .5:
+            return
+        data, points, _ = snapshot
+        age = rospy.Time.now().to_sec()-data['stamp']
+        if not -.1 <= age <= .5 or len(points) < 2:
+            return
+        directions = np.diff(points, axis=0)
+        lengths = np.linalg.norm(directions, axis=1)
+        if np.any(lengths < 1e-9):
+            return
+        normals = np.column_stack((-directions[:, 1], directions[:, 0])) / lengths[:, None]
+        normals = np.vstack((normals, normals[-1])) * data['half_width_m']
+        left, right = points+normals, points-normals
+        area = marker('obstacle_horizon_area', 0, Marker.TRIANGLE_LIST)
+        area.scale.x = area.scale.y = area.scale.z = 1.
+        area.color.r, area.color.g, area.color.b, area.color.a = .95, .35, 1., .25
+        for i in range(len(points)-1):
+            area.points.extend(Point(float(p[0]), float(p[1]), 1.1) for p in
+                               (left[i], right[i], left[i+1], right[i], right[i+1], left[i+1]))
+        border = marker('obstacle_horizon_border', 0, Marker.LINE_STRIP)
+        border.scale.x = .25
+        border.color.r, border.color.g, border.color.b, border.color.a = .95, .35, 1., 1.
+        outline = np.vstack((left, right[::-1], left[:1]))
+        border.points = [Point(float(p[0]), float(p[1]), 1.2) for p in outline]
+        label = marker('obstacle_horizon_label', 0, Marker.TEXT_VIEW_FACING)
+        label.pose.position.x, label.pose.position.y = points[-1]
+        label.pose.position.z = 3.
+        label.scale.z = 2.
+        label.color = border.color
+        actual = float(lengths.sum())
+        label.text = 'obstacle_horizon {:.1f} m'.format(data['horizon_m'])
+        if actual < data['horizon_m']-.1:
+            label.text += '\nSaved path {:.1f} m'.format(actual)
+        for item in (area, border, label):
+            item.lifetime = rospy.Duration(.5)
+        self.horizon_pub.publish(MarkerArray(markers=[area, border, label]))
+
     def publish_obstacles(self, now):
         snapshot = self.obstacle_snapshot
         visible = (snapshot is not None and now-snapshot[1] <= .5 and
@@ -333,10 +457,45 @@ class MapDebug:
             self.obstacle_pub.publish(MarkerArray(markers=markers))
         self.obstacle_marker_ids = identifiers
 
+    def on_ground_points(self, message):
+        if message.header.frame_id != 'map':
+            return
+        # Map background is at z=-0.1. Project only this 2D display above it;
+        # original physical heights remain on /waypoint_debug/ground_points.
+        points = [(x, y, .15) for x, y, _ in point_cloud2.read_points(
+            message, field_names=('x', 'y', 'z'), skip_nans=True)]
+        self.ground_display_pub.publish(point_cloud2.create_cloud_xyz32(
+            Header(stamp=message.header.stamp, frame_id='map'), points))
+
+    def on_ground_status(self, message):
+        try:
+            data = json.loads(message.data)
+            if (data.get('frame_id') != 'map' or not math.isfinite(float(data['stamp'])) or
+                    data.get('mode') not in ('ground_filtered', 'ground_unconfirmed', 'imu_missing_or_stale',
+                        'waiting_cloud', 'waiting_lane_geometry', 'wrong_cloud_frame', 'cloud_time_mismatch', 'waiting_pose')):
+                return
+            for key in ('pitch_deg', 'roll_deg', 'imu_skew_s', 'residual_p95_m'):
+                if data.get(key) is not None and not math.isfinite(float(data[key])):
+                    return
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return
+        with self.config_lock:
+            self.ground_snapshot = (data, time.monotonic())
+
+    def ground_status(self, now):
+        with self.config_lock:
+            snapshot = self.ground_snapshot
+        if snapshot is None or now-snapshot[1] > .5:
+            return None
+        age = rospy.Time.now().to_sec()-snapshot[0]['stamp']
+        return snapshot[0] if -.1 <= age <= .5 else None
+
     def refresh(self, _event):
         self.reload_project_if_changed()
         now = time.monotonic()
         self.publish_obstacles(now)
+        self.publish_horizon(now)
+        parameters, parameter_error = self.parameter_status(now)
         tracking = self.current_tracking(now)
         recent_state = tracking
         raceline = None
@@ -389,9 +548,9 @@ class MapDebug:
             'preferred_raceline_reason': recent_state.get('preferred_raceline_reason', '') if recent_state else '',
             'waypoint_index': recent_state.get('waypoint_index') if recent_state else None,
             'project_file': str(self.project_file),
-            'finish_line_y': recent_state.get('finish_line_y') if recent_state else None,
-            'finish_line_rear_y': recent_state.get('finish_line_rear_y') if recent_state else None,
-            'finish_line_passed': recent_state.get('finish_line_passed') if recent_state else None,
+            'raceline_width': self.saved_lane_corridor.width,
+            'avoidance_parameters': parameters, 'parameter_error': parameter_error,
+            'ground_filter': self.ground_status(now),
             'lane_change_reason': recent_state.get('lane_change_reason', '') if recent_state else ''})))
 
 

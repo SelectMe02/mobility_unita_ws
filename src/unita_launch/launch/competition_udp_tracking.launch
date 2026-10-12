@@ -2,6 +2,8 @@
   <!-- Separate competition entrypoint: no rosbridge or MORAI ROS service. -->
   <arg name="morai_ip"/>
   <arg name="follower_node_type" default="gps_waypoint_follower.py"/>
+  <arg name="diagnostic_log" default="false"/>
+  <arg name="diagnostic_directory" default="$(find unita_waypoint)/log/$(anon driving_run)"/>
   <arg name="control_node_pkg" default="control"/>
   <arg name="control_node_type" default="competition_udp_control.py"/>
   <arg name="follower_ctrl_topic" default="/ctrl_cmd"/>
@@ -47,6 +49,7 @@
   <arg name="ego_yaw_offset_deg" default="0.0"/>
   <arg name="start_rviz" default="true"/>
   <include if="$(arg start_sensor_bridge)" file="$(find sensor_bridge)/launch/sensor_bridge.launch">
+    <arg name="diagnostic_log" value="$(arg diagnostic_log)"/>
     <arg name="source_ip" value="$(arg morai_ip)"/>
     <arg name="east_offset" value="$(arg east_offset)"/>
     <arg name="north_offset" value="$(arg north_offset)"/>
@@ -58,6 +61,8 @@
   </include>
   <!-- Pure Pursuit + curvature speed planning + pedal PID. -->
   <node pkg="unita_waypoint" type="$(arg follower_node_type)" name="gps_waypoint_follower" output="screen">
+    <param name="diagnostic_log" value="$(arg diagnostic_log)"/>
+    <param name="diagnostic_directory" value="$(arg diagnostic_directory)"/>
     <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile.yaml"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
     <param name="use_project_speed_limits" value="$(eval arg('waypoint_file').lower().endswith('.json'))"/>
@@ -83,6 +88,7 @@
     <param name="rear_extent_m" value="0.790"/>
     <param name="lane_change_min_rear_gap_m" value="8.0"/>
     <param name="lane_change_rear_headway_s" value="2.0"/>
+    <param name="lane_change_smoothness_s" value="2.5"/>
     <param name="vehicle_half_width_m" value="0.946"/>
     <param name="front_extent_m" value="3.845"/>
     <param name="enable_velocity_planning" value="true"/>
@@ -102,6 +108,8 @@
         name="lidar_obstacles" output="screen">
     <param name="pose_topic" value="/localization/pose"/>
     <param name="cloud_topic" value="/lidar3D"/>
+    <param name="ground_imu_topic" value="/imu"/>
+    <rosparam command="load" file="$(find unita_waypoint)/config/ground_filter.yaml"/>
     <param name="lidar_to_rear_x_m" value="1.4"/>
     <param name="lidar_to_rear_z_m" value="1.23"/>
     <param name="rear_range_m" value="55.0"/>
@@ -117,6 +125,12 @@
     <param name="max_steering_deg" value="$(arg max_steering_deg)"/>
     <param name="max_speed_kmh" value="$(arg control_max_speed_kmh)"/>
     <param name="ego_yaw_offset_deg" value="$(arg ego_yaw_offset_deg)"/>
+    <param name="diagnostic_log" value="$(arg diagnostic_log)"/>
+  </node>
+  <node if="$(arg diagnostic_log)" pkg="unita_waypoint" type="driving_log_recorder.py"
+        name="driving_log_recorder" output="screen">
+    <param name="directory" value="$(arg diagnostic_directory)"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
   </node>
   <node pkg="localization" type="gps_imu_localization.py" name="gps_imu_localization" output="screen">
     <rosparam command="load" file="$(find localization)/config/gps_imu.yaml"/>

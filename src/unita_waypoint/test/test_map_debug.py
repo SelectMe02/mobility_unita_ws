@@ -51,9 +51,7 @@ class MapDebugProjectTest(unittest.TestCase):
         self.assertEqual([(p.x, p.y) for p in dots.points], expected)
         r1 = next(m for m in markers if m.ns == 'sector_paths' and m.id == 111)
         self.assertGreater(line.points[0].z, r1.points[0].z)
-        finish = next(m for m in markers if m.ns == 'cp11_finish_line')
-        self.assertEqual([p.y for p in finish.points], [-217.855053961277]*2)
-        self.assertGreater(abs(finish.points[1].x-finish.points[0].x), 20.)
+        self.assertFalse(any(m.ns == 'cp11_finish_line' for m in markers))
 
     def test_save_reloads_appended_points_and_republishes(self):
         editor = ProjectEditor(self.saved)
@@ -113,6 +111,21 @@ class MapDebugProjectTest(unittest.TestCase):
             self.debug.refresh(None)
         return json.loads(self.debug.status_pub.publish.call_args.args[0].data)
 
+    def test_ground_status_reaches_panel_and_expires_in_both_clocks(self):
+        state = dict(stamp=100., frame_id='map', mode='ground_filtered',
+                     pitch_deg=-4.2, roll_deg=.5, imu_skew_s=.02,
+                     residual_p95_m=.015, planes=8, removed_points=900, obstacle_points=35)
+        with patch.object(map_debug.time, 'monotonic', return_value=100.):
+            self.debug.on_ground_status(map_debug.String(data=json.dumps(state)))
+        self.assertEqual(self.status(dict(valid=True, sector=1, raceline=1))['ground_filter'], state)
+        with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(100.1)):
+            self.assertIsNone(self.debug.ground_status(100.6))
+        with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(101.)):
+            self.assertIsNone(self.debug.ground_status(100.1))
+        state['pitch_deg'] = float('nan')
+        self.debug.on_ground_status(map_debug.String(data=json.dumps(state)))
+        self.assertEqual(self.debug.ground_snapshot[0]['pitch_deg'], -4.2)
+
     def test_follower_priority_and_actual_lane_reach_panel_without_inference(self):
         state = dict(valid=True, sector=11, raceline=3, local_lane=3,
                      current_raceline=3, preferred_raceline=3,
@@ -121,8 +134,9 @@ class MapDebugProjectTest(unittest.TestCase):
                      finish_line_passed=False)
         status = self.status(state)
         for field, value in state.items():
-            if field != 'valid':
+            if field not in ('valid', 'finish_line_y', 'finish_line_rear_y', 'finish_line_passed'):
                 self.assertEqual(status[field], value)
+        self.assertEqual(status['raceline_width'], self.debug.saved_lane_corridor.width)
         state.update(local_lane=None, raceline=1, preferred_raceline=1)
         status = self.status(state)
         self.assertEqual(status['current_raceline'], 3)

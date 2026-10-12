@@ -2,6 +2,7 @@ import sys
 import json
 import math
 import unittest
+import rospy
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -44,6 +45,9 @@ class RacelineSelectionTest(unittest.TestCase):
                                   preferred_lane_indices=preferences,
                                   finish_line=obj.lane_preference_finish_line)
         published = json.loads(obj.lane_geometry_pub.publish.call_args.args[0].data)
+        saved = load_project(ROOT / 'config/map_tunner_project.json')
+        self.assertEqual(published['raceline_width'],
+                         saved['generated_racelines']['settings']['raceline_width'])
         r3 = next(l for l in published['lanes'] if l['sector'] == 11 and l['raceline'] == 3)
         self.assertLess(min(pt[1] for pt in r3['points']), -217.85)
         for y in (-118.38, -119., -122.9, -150., -200.):
@@ -89,7 +93,8 @@ class RacelineSelectionTest(unittest.TestCase):
         obj.imu_callback(imu)
         self.assertFalse(obj.imu_ready)
 
-    def test_tracking_state_reaches_map_debug_and_expires(self):
+    @patch('gps_waypoint_follower.rospy.Time.now', return_value=rospy.Time(100))
+    def test_tracking_state_reaches_map_debug_and_expires(self, _clock):
         from gps_waypoint_follower import GPSWaypointFollower
         from map_debug import MapDebug
         obj = GPSWaypointFollower.__new__(GPSWaypointFollower)
@@ -172,7 +177,8 @@ class RacelineSelectionTest(unittest.TestCase):
         self.assertEqual(blocked.state, 'TAILING')
         self.assertFalse(blocked.path)
 
-    def test_lane_selection_is_reported_to_map_debug(self):
+    @patch('gps_waypoint_follower.rospy.Time.now', return_value=rospy.Time(100))
+    def test_lane_selection_is_reported_to_map_debug(self, _clock):
         obj = self.follower()
         obj.current_waypoint_index = min(obj.project_lane_indices[2]) + 60
         obj.tracking_state_pub = MagicMock()
@@ -395,7 +401,7 @@ class RacelineSelectionTest(unittest.TestCase):
                          Obstacle(*obj.project_lane_indices[2][first+65], radius=.8)]
         for attr in ('local_path_pub', 'tracking_state_pub', 'publish_control',
                      'publish_full_stop', 'target_speed_pub', 'current_speed_pub',
-                     'speed_zone_pub'):
+                     'speed_zone_pub', 'obstacle_horizon_pub'):
             setattr(obj, attr, MagicMock())
         with patch('gps_waypoint_follower.time.monotonic', return_value=200.), \
                 patch('gps_waypoint_follower.rospy.Time.now', return_value=rospy.Time(100)), \

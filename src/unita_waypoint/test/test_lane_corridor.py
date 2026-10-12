@@ -74,6 +74,15 @@ class LaneCorridorTests(unittest.TestCase):
         n.lidar_x = n.lidar_y = n.lidar_z = 0.
         n.front_range = n.rear_range = 55.
         n.side_range = 12.
+        n.dynamic_speed_threshold_mps = .8
+        n.cluster_min_size_m, n.cluster_max_size_m = .2, 24.
+        n.obstacle_min_height_m, n.obstacle_max_height_m = .22, 2.6
+        n.body_from_lidar = n.body_from_imu = np.eye(3)
+        n.imus = []
+        n.imu_max_skew_s, n.ground_plane_tolerance_m, n.ground_max_slope_deg = .05, .04, 20.
+        n.ground_status_pub = MagicMock()
+        n.ground_points_pub = n.obstacle_points_pub = MagicMock()
+        n.ground_points_pub.get_num_connections.return_value = 0
         n.half_width, n.front_extent, n.rear_extent = .946, 3.845, .790
         n.tracks, n.next_id = {}, 1
         n.pub = MagicMock()
@@ -95,7 +104,8 @@ class LaneCorridorTests(unittest.TestCase):
 
     def test_prediction_leaving_lane_is_deleted_and_empty_cloud_clears(self):
         n = self.lidar_node(LaneCorridor(geometry()))
-        n.tracks = {1: dict(x=20., y=0., radius=.8, vx=0., vy=10., hits=4, stamp=99.8)}
+        n.tracks = {1: dict(x=20., y=0., radius=.8, vx=0., vy=10., hits=4, stamp=99.8,
+                            confirmed=True, velocity_reliable=True)}
         n.pending = point_cloud2.create_cloud_xyz32(Header(stamp=rospy.Time(100), frame_id='lidar'), [])
         with patch('lidar_obstacles.rospy.Time.now', return_value=rospy.Time(100)):
             n.process_pending(None)

@@ -1,5 +1,6 @@
 <launch>
   <arg name="sensor"/>
+  <arg name="diagnostic_log" default="false"/>
   <arg name="config"/>
   <arg name="bind_ip" default="0.0.0.0"/>
   <arg name="source_ip" default=""/>
@@ -8,6 +9,7 @@
   <arg name="north_offset" default="0.0"/>
   <node pkg="sensor_bridge" type="udp_sensor_bridge.py"
         name="$(arg sensor)_udp_bridge" output="screen" required="true">
+    <param name="diagnostic_log" value="$(arg diagnostic_log)"/>
     <rosparam command="load" file="$(arg config)"/>
     <param name="sensor" value="$(arg sensor)"/>
     <param name="bind_ip" value="$(arg bind_ip)"/>

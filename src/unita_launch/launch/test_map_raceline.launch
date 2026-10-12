@@ -1,5 +1,6 @@
 <launch>
   <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="log" default="false"/>
   <arg name="morai_port" default="9093"/>
   <arg name="status_port" default="9096"/>
   <arg name="start_rviz" default="false"/>
@@ -23,6 +24,7 @@
   <param unless="$(eval arg('raceline_width') != '')" name="gps_waypoint_follower/raceline_width" value="" type="str"/>
   <include file="$(find unita_launch)/launch/competition_udp_tracking.launch">
     <arg name="follower_node_type" value="raceline_test_follower.py"/>
+    <arg name="diagnostic_log" value="$(arg log)"/>
     <arg name="morai_ip" value="$(arg morai_ip)"/>
     <arg name="morai_port" value="$(arg morai_port)"/>
     <arg name="status_port" value="$(arg status_port)"/>

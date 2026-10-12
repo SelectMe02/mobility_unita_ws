@@ -24,6 +24,8 @@ from morai_msgs.msg import GPSMessage, CtrlCmd
 sys.path.insert(0, str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from local_avoidance_core import LocalAvoidancePlanner, Obstacle
 from lane_corridor import LaneCorridor, project_lane_geometry
+from avoidance_runtime import RuntimeSettings
+from pedal_guard import PedalGuard
 
 
 def clamp(value, lower, upper):
@@ -434,10 +436,14 @@ class GPSWaypointFollower:
             "/waypoint_debug/speed_zone", String, queue_size=1)
         self.tracking_state_pub = rospy.Publisher(
             "/waypoint_debug/tracking_state", String, queue_size=1)
+        self.control_decision_pub = (rospy.Publisher('/waypoint_debug/control_decision', String, queue_size=10)
+                                     if rospy.get_param('~diagnostic_log', False) else None)
         self.local_path_pub = rospy.Publisher(
             '/waypoint_debug/local_path', Path, queue_size=1)
         self.lane_geometry_pub = rospy.Publisher(
             '/waypoint_debug/lane_geometry', String, queue_size=1, latch=True)
+        self.obstacle_horizon_pub = rospy.Publisher(
+            '/waypoint_debug/obstacle_horizon', String, queue_size=1)
         if self.enable_local_avoidance:
             rospy.Subscriber(rospy.get_param('~obstacles_topic',
                              '/waypoint_debug/obstacles'), String,
@@ -506,9 +512,11 @@ class GPSWaypointFollower:
                 finish_line=self.lane_preference_finish_line,
                 min_rear_gap=float(rospy.get_param('~lane_change_min_rear_gap_m', 8.)),
                 rear_headway_s=float(rospy.get_param('~lane_change_rear_headway_s', 2.)),
+                lane_change_smoothness_s=float(rospy.get_param('~lane_change_smoothness_s', 2.5)),
                 reaction_s=float(rospy.get_param('~avoidance_reaction_s', .4)),
                 decel=float(rospy.get_param('~avoidance_decel_mps2', 3.)),
-                pass_speed_kmh=float(rospy.get_param('~pass_speed_kmh', 20.)))
+                obstacle_horizon_m=float(rospy.get_param('~obstacle_horizon_m', 45.)))
+            self.runtime_settings = RuntimeSettings('gps_waypoint_follower', self.local_planner)
 
         rospy.loginfo("======================================")
         rospy.loginfo(" GPS Waypoint Follower started")
@@ -602,9 +610,12 @@ class GPSWaypointFollower:
             config = getattr(self, 'raceline_config',
                              str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) /
                                  'config/raceline_layout.yaml'))
-            self.raceline_width = raceline_layout_settings(
-                project, config, getattr(self, 'raceline_width_override', None))
+            # The Map Tuner save owns lane width, including leftover launch overrides.
+            self.raceline_width = raceline_layout_settings(project, config)
             geometry = project_lane_geometry(project, self.raceline_width, getattr(self, 'loop_path', True))
+            self.driving_lane_geometry = geometry
+            self.tuner_project_stamp = FilePath(path).stat().st_mtime_ns
+            self.next_tuner_width_check = 0.
             self.lane_corridor = LaneCorridor(geometry)
             publisher = getattr(self, 'lane_geometry_pub', None)
             if publisher is not None:
@@ -688,6 +699,34 @@ class GPSWaypointFollower:
     # ================================================================
     # GPS
     # ================================================================
+
+    def sync_tuner_width(self):
+        """Follow saved tuner width without replacing an active route/transition."""
+        now = time.monotonic()
+        if now < getattr(self, 'next_tuner_width_check', 0.):
+            return
+        self.next_tuner_width_check = now + .5
+        try:
+            path = FilePath(self.waypoint_file).expanduser()
+            stamp = path.stat().st_mtime_ns
+            if stamp == self.tuner_project_stamp:
+                return
+            from map_tunner_core import raceline_layout_settings
+            project = self.load_map_tunner_project(str(path))
+            width = raceline_layout_settings(project, self.raceline_config)
+            if not math.isfinite(width) or width <= 0.:
+                raise ValueError('invalid saved raceline width')
+            if width != self.raceline_width:
+                geometry = dict(self.driving_lane_geometry, raceline_width=width)
+                corridor = LaneCorridor(geometry)
+                self.driving_lane_geometry = geometry
+                self.lane_corridor, self.raceline_width = corridor, width
+                rospy.set_param('~effective_raceline_width', width)
+                self.lane_geometry_pub.publish(String(data=json.dumps(geometry)))
+                rospy.loginfo('Applied saved Map Tuner raceline width: %.3f m', width)
+            self.tuner_project_stamp = stamp
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            rospy.logwarn_throttle(5., 'Could not sync Map Tuner width: %s', error)
 
     def gps_callback(self, msg):
         # Retain the last valid sample while converting a new measurement.
@@ -1182,17 +1221,75 @@ class GPSWaypointFollower:
             self.last_pid_update = now
             output = self.speed_pid.update(
                 velocity, self.current_speed_kmh, dt)
+            if not hasattr(self, 'pedal_guard'):
+                self.pedal_guard = PedalGuard()
+            planner = getattr(self, 'local_planner', None)
+            soft = getattr(self, 'lane_change_reason', '') == 'transition_slowing'
+            limit = getattr(planner, 'avoidance_brake_limit', .35) if soft else 1.
+            sample = getattr(self, 'obstacle_stamp', None) if getattr(self, 'enable_local_avoidance', False) else None
+            accel, brake, pedal_state = self.pedal_guard.command(output, now, sample,
+                getattr(planner, 'clear_hold_s', .4), getattr(planner, 'restart_accel_rate', .5), limit)
+            self.pedal_reason = ('clearance_confirmation' if pedal_state == 'clearance_confirmation'
+                                 else 'avoidance_deceleration' if soft and brake > 0.
+                                 else 'pid_brake' if brake > 0. else 'drive')
+            if pedal_state == 'clearance_confirmation':
+                self.speed_pid.reset()
+                self.stop_reason = 'clearance_confirmation'
             cmd.longlCmdType = 1
             cmd.velocity = 0.0
-            cmd.accel = max(0.0, output)
-            cmd.brake = max(0.0, -output)
+            cmd.accel, cmd.brake = accel, brake
         else:
             cmd.longlCmdType = 2
             cmd.accel = 0.0
             cmd.brake = 0.0
             cmd.velocity = velocity
+            self.pedal_reason = 'drive'
 
         self.ctrl_pub.publish(cmd)
+        self.requested_target_speed_kmh = velocity
+        held = getattr(self, 'pedal_reason', '') == 'clearance_confirmation'
+        if held:
+            self.publish_tracking_state(valid=False)
+        self.publish_control_decision(cmd, 0. if held else velocity, getattr(self, 'pedal_reason', None)
+                                      or ('pid_brake' if cmd.brake > 0. else 'drive'))
+
+    def publish_control_decision(self, cmd, target_speed, reason):
+        publisher = getattr(self, 'control_decision_pub', None)
+        if publisher is None:
+            return
+        def finite(value):
+            return value if type(value) in (int, float) and math.isfinite(value) else None
+        now = time.monotonic()
+        planner = getattr(self, 'local_planner', None)
+        obstacles = [dict(x=o.x, y=o.y, vx=o.vx, vy=o.vy, radius=o.radius, kind=o.kind,
+                          confirmed=o.confirmed, velocity_reliable=o.velocity_reliable)
+                     for o in getattr(self, 'obstacles', [])]
+        data = dict(stamp=rospy.Time.now().to_sec(), frame_id='map', reason=reason,
+            stop_reason=getattr(self, 'stop_reason', None), target_speed_kmh=target_speed,
+            requested_target_speed_kmh=getattr(self, 'requested_target_speed_kmh', target_speed),
+            current_speed_kmh=finite(getattr(self, 'current_speed_kmh', None)),
+            speed_limits=getattr(self, 'diagnostic_speed_limits', {}),
+            command=dict(type=cmd.longlCmdType, accel=cmd.accel, brake=cmd.brake,
+                         steering_rad=cmd.steering, velocity=cmd.velocity),
+            waypoint_index=getattr(self, 'current_waypoint_index', None),
+            x=finite(getattr(self, 'current_x', None)), y=finite(getattr(self, 'current_y', None)),
+            state=getattr(self, 'avoidance_state', None),
+            current_lane=getattr(planner, 'current_lane', None), active_lane=getattr(planner, 'active_lane', None),
+            preferred_lane=getattr(planner, 'effective_preferred_lane', None),
+            preference_reason=getattr(planner, 'preference_reason', None),
+            lane_change_reason=getattr(self, 'lane_change_reason', None),
+            transition=getattr(planner, 'transition', None), obstacles=obstacles,
+            collision_risk=(dict(time_s=planner.collision_risk.time_s,
+                                 distance_m=planner.collision_risk.distance_m)
+                            if getattr(planner, 'collision_risk', None) is not None else None),
+            obstacle_age_s=(now-self.obstacle_received if getattr(self, 'obstacle_received', None) is not None else None),
+            gps_age_s=(now-self.gps_received if getattr(self, 'gps_received', None) is not None else None),
+            imu_age_s=(now-self.imu_received if getattr(self, 'imu_received', None) is not None else None),
+            pid_integral=finite(getattr(getattr(self, 'speed_pid', None), 'integral', None)))
+        try:
+            publisher.publish(String(data=json.dumps(data, allow_nan=False)))
+        except (TypeError, ValueError) as error:
+            rospy.logwarn_throttle(5., 'Could not serialize control diagnostic: %s', error)
 
     def publish_tracking_state(self, valid=True):
         publisher = getattr(self, 'tracking_state_pub', None)
@@ -1205,6 +1302,8 @@ class GPSWaypointFollower:
         selected_lane = planner.active_lane if planner is not None else None
         publisher.publish(String(data=json.dumps({
             'valid': valid, 'sector': sector,
+            'stamp': rospy.Time.now().to_sec(),
+            'stop_reason': getattr(self, 'stop_reason', None),
             'frame_id': 'map',
             'x': getattr(self, 'current_x', None),
             'y': getattr(self, 'current_y', None),
@@ -1237,7 +1336,9 @@ class GPSWaypointFollower:
                     return
                 if item['kind'] not in ('static', 'dynamic', 'unknown'):
                     return
-                obstacles.append(Obstacle(*values, kind=item['kind']))
+                obstacles.append(Obstacle(*values, kind=item['kind'],
+                    confirmed=bool(item.get('confirmed', item['kind'] != 'unknown')),
+                    velocity_reliable=bool(item.get('velocity_reliable', item['kind'] != 'unknown'))))
             corridor = getattr(self, 'lane_corridor', None)
             if corridor is None:
                 return
@@ -1272,6 +1373,10 @@ class GPSWaypointFollower:
         self.local_path_pub.publish(msg)
 
     def publish_full_stop(self):
+        self.requested_target_speed_kmh = 0.
+        if not hasattr(self, 'pedal_guard'):
+            self.pedal_guard = PedalGuard()
+        self.pedal_guard.stop(time.monotonic())
         self.publish_tracking_state(valid=False)
         cmd = CtrlCmd()
         cmd.longlCmdType = 1
@@ -1281,6 +1386,7 @@ class GPSWaypointFollower:
         cmd.velocity = 0.0
         cmd.acceleration = 0.0
         self.ctrl_pub.publish(cmd)
+        self.publish_control_decision(cmd, 0., getattr(self, 'stop_reason', 'unknown'))
         self.speed_pid.reset()
         self.last_pid_update = None
 
@@ -1290,6 +1396,12 @@ class GPSWaypointFollower:
 
     def control_loop(self, event):
         now = time.monotonic()
+        self.stop_reason = 'unknown'
+        self.diagnostic_speed_limits = {}
+        runtime = getattr(self, 'runtime_settings', None)
+        if runtime is not None:
+            self.sync_tuner_width()
+            runtime.poll(dict(raceline_width=self.raceline_width))
         using_drive_pose = bool(getattr(self, 'drive_pose_topic', ''))
         if using_drive_pose:
             stamps = (self.drive_pose_received, self.drive_valid_received,
@@ -1297,21 +1409,27 @@ class GPSWaypointFollower:
             if (any(t is None or now-t > self.pose_sensor_timeout for t in stamps)
                     or not self.drive_pose_ready or not self.drive_valid
                     or self.drive_mode not in ('GPS', 'BLACKOUT', 'SIM_EXIT')):
+                self.stop_reason = 'driving_pose_unavailable'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Driving pose state unavailable: holding brake')
                 return
         else:
             if any(t is None or now-t > self.pose_sensor_timeout
                    for t in (self.gps_received, self.imu_received)):
+                self.stop_reason = 'gps_or_heading_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'GPS/heading missing or stale: holding brake; blackout localization is not implemented')
                 return
             if not self.gps_ready or not self.imu_ready:
+                self.stop_reason = 'gps_or_imu_invalid'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Waiting for valid GPS/IMU')
                 return
 
         if not self.path_ready:
+            diagnostic = getattr(self, '_diagnostic', None)
+            if diagnostic is not None:
+                diagnostic('waiting', reason='waypoint_path_unavailable')
             rospy.logwarn_throttle(
                 2.0,
                 "Waiting for waypoint path..."
@@ -1320,6 +1438,7 @@ class GPSWaypointFollower:
 
         if (self.longitudinal_control_mode == "pid"
                 and not self.speed_feedback_is_fresh()):
+            self.stop_reason = 'speed_feedback_stale'
             self.publish_full_stop()
             rospy.logwarn_throttle(
                 1.0,
@@ -1364,6 +1483,7 @@ class GPSWaypointFollower:
             and goal_distance
             <= self.goal_tolerance
         ):
+            self.stop_reason = 'goal_reached'
             self.publish_full_stop()
 
             rospy.loginfo_throttle(
@@ -1386,12 +1506,18 @@ class GPSWaypointFollower:
                     rospy.Time.now().to_sec()-self.obstacle_stamp > .5):
                 self.avoidance_state = 'SENSOR_HOLD'
                 self.lane_change_reason = ''
+                self.stop_reason = 'obstacle_perception_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Obstacle perception missing/stale')
                 return
             decision = self.local_planner.plan(
                 self.current_waypoint_index, position,
                 (self.current_speed_kmh or 0.)/3.6, self.obstacles, ego_yaw=self.current_yaw)
+            self.obstacle_horizon_pub.publish(String(data=json.dumps(dict(
+                frame_id='map', stamp=rospy.Time.now().to_sec(),
+                points=self.local_planner.obstacle_horizon_path,
+                horizon_m=self.local_planner.obstacle_horizon_m,
+                half_width_m=self.local_planner.half_width+self.local_planner.margin))))
             preference = (self.local_planner.effective_preferred_lane,
                           self.local_planner.preference_reason)
             if preference != getattr(self, 'last_logged_lane_preference', None):
@@ -1407,11 +1533,13 @@ class GPSWaypointFollower:
             local_speed_cap = decision.speed_cap_kmh
             self.publish_local_path(decision.path)
             if decision.state == 'BLOCKED':
+                self.stop_reason = 'planner_blocked:' + decision.reason
                 self.publish_full_stop()
                 return
             if decision.path:
                 target = self.local_target(decision.path)
                 if target is None:
+                    self.stop_reason = 'local_path_no_forward_target:' + decision.reason
                     self.publish_full_stop()
                     return
         else:
@@ -1427,6 +1555,7 @@ class GPSWaypointFollower:
                     or self.avoidance_speed_received is None
                     or now - self.avoidance_target_received > .35
                     or now - self.avoidance_speed_received > .35):
+                self.stop_reason = 'blackout_target_or_speed_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'LiDAR avoidance target missing/stale')
                 return
@@ -1435,6 +1564,7 @@ class GPSWaypointFollower:
                       math.hypot(local_x, local_y))
 
         if target is None:
+            self.stop_reason = 'no_forward_waypoint'
             self.publish_full_stop()
 
             rospy.logwarn_throttle(
@@ -1462,6 +1592,10 @@ class GPSWaypointFollower:
 
         target_speed_kmh = self.target_speed_for_index(
             self.current_waypoint_index)
+        self.diagnostic_speed_limits = dict(profile_kmh=target_speed_kmh,
+            local_planner_kmh=local_speed_cap if math.isfinite(local_speed_cap) else None,
+            guard_kmh=getattr(self, 'guard_speed_limit', None),
+            external_avoidance_kmh=getattr(self, 'avoidance_speed_kmh', None))
         target_speed_kmh = min(target_speed_kmh, local_speed_cap)
         if blackout:
             target_speed_kmh = min(target_speed_kmh, self.avoidance_speed_kmh)
@@ -1469,6 +1603,7 @@ class GPSWaypointFollower:
             if (self.avoidance_speed_kmh is None
                     or self.avoidance_speed_received is None
                     or now - self.avoidance_speed_received > .35):
+                self.stop_reason = 'sim_exit_speed_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'LiDAR exit speed limit missing/stale')
                 return
@@ -1480,11 +1615,17 @@ class GPSWaypointFollower:
             else:
                 target_speed_kmh = min(target_speed_kmh, self.guard_speed_limit)
         if target_speed_kmh <= .01:
+            self.stop_reason = ('guard_speed_zero_or_stale' if self.guard_limit_topic
+                                and (self.guard_limit_received is None
+                                     or now - self.guard_limit_received > .35
+                                     or self.guard_speed_limit <= .01)
+                                else 'planned_speed_zero')
             self.publish_full_stop()
             return
         self.publish_control(steering, target_speed_kmh)
 
-        self.target_speed_pub.publish(Float64(data=target_speed_kmh))
+        self.target_speed_pub.publish(Float64(data=0. if getattr(self, 'pedal_reason', '') == 'clearance_confirmation'
+                                             else target_speed_kmh))
         if self.current_speed_kmh is not None:
             self.current_speed_pub.publish(Float64(data=self.current_speed_kmh))
         if self.path_curvatures:

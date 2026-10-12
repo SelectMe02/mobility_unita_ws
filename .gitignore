@@ -1,5 +1,7 @@
 devel/
 logs/
+src/unita_waypoint/log/
+src/unita_waypoint/config/avoidance_settings_*.json
 build/
 bin/
 lib/

@@ -42,11 +42,39 @@ Visualization Manager:
     Line Style: Lines
     Line Width: 0.15
   - Class: rviz/MarkerArray
+    Name: 회피 판단 범위 (보라색 / 경로 거리)
+    Enabled: true
+    Marker Topic: /map_debug/obstacle_horizon
+    Queue Size: 10
+    Namespaces: {}
+  - Class: rviz/MarkerArray
     Name: 인지 장애물 Box (동적 빨강 / 정적 파랑 / 분류 중 노랑)
     Enabled: true
     Marker Topic: /map_debug/obstacles
     Queue Size: 10
     Namespaces: {}
+  - Class: rviz/PointCloud2
+    Name: 제거한 노면 점 (초록 / 지도에 투영)
+    Enabled: true
+    Topic: /map_debug/ground_points
+    Queue Size: 1
+    Style: Points
+    Size (Pixels): 2
+    Color Transformer: FlatColor
+    Color: 60; 220; 90
+    Position Transformer: XYZ
+    Decay Time: 0.35
+  - Class: rviz/PointCloud2
+    Name: 남긴 장애물 후보 점 (주황)
+    Enabled: true
+    Topic: /waypoint_debug/obstacle_points
+    Queue Size: 1
+    Style: Points
+    Size (Pixels): 3
+    Color Transformer: FlatColor
+    Color: 255; 140; 40
+    Position Transformer: XYZ
+    Decay Time: 0.35
   Tools:
   - Class: rviz/MoveCamera
   - Class: rviz/Select

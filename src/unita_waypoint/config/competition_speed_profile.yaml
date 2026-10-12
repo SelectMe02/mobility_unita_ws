@@ -47,3 +47,9 @@ pid_ki: 0.002
 pid_kd: 0.01
 pid_integral_limit: 20.0
 speed_feedback_timeout: 0.5
+
+# Future transition risks decelerate; urgent contact still commands full stop.
+avoidance_emergency_ttc_s: 1.0
+avoidance_brake_limit: 0.35
+avoidance_clear_hold_s: 0.4
+restart_accel_rate_per_s: 0.5

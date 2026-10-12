@@ -62,11 +62,69 @@ class LocalAvoidanceTests(unittest.TestCase):
         self.assertEqual(decision.state, 'TAILING')
         self.assertLess(decision.speed_cap_kmh, 20.)
 
-    def test_fast_approach_slows_before_starting_pass(self):
+    def test_clear_fast_pass_has_no_lane_change_speed_cap(self):
         p = planner()
         decision = p.plan(0, (0., 0.), 14., [core.Obstacle(30., 0., 1.)])
+        self.assertEqual(decision.state, 'OVERTAKING')
+        self.assertTrue(math.isinf(decision.speed_cap_kmh))
+        continued = p.plan(5, decision.path[5], 14., [core.Obstacle(30., 0., 1.)])
+        self.assertEqual(continued.state, 'OVERTAKING')
+        self.assertTrue(math.isinf(continued.speed_cap_kmh))
+
+    def test_fast_lane_change_has_longer_smoother_path(self):
+        p = self.preferred_planner()
+        slow = p.plan(0, (0., 0.), 5., [])
+        slow_length = p.transition['length']
+        p.transition = None
+        fast = p.plan(0, (0., 0.), 25., [])
+        self.assertEqual(fast.state, 'LANE_CHANGING')
+        self.assertAlmostEqual(p.transition['length'], 25.*p.lane_change_smoothness_s)
+        self.assertGreater(p.transition['length'], slow_length)
+        self.assertLess(fast.path[20][1], slow.path[20][1])
+        self.assertLess(fast.path[20][1], fast.path[-1][1])
+
+    def test_clear_preferred_lane_change_and_return_keep_speed_profile(self):
+        p = self.preferred_planner()
+        decision = p.plan(0, (0., 0.), 25., [])
+        self.assertEqual(decision.state, 'LANE_CHANGING')
+        self.assertTrue(math.isinf(decision.speed_cap_kmh))
+        p.transition = None
+        p.preferred_lane = 1
+        p.departed_preferred = True
+        returned = p.plan(30, (30., 7.), 25., [])
+        self.assertEqual(returned.state, 'RETURNING')
+        self.assertTrue(math.isinf(returned.speed_cap_kmh))
+
+    def test_blocked_fast_pass_still_uses_obstacle_stopping_cap(self):
+        p = planner()
+        decision = p.plan(0, (0., 0.), 25., [
+            core.Obstacle(15., 0., 1.), core.Obstacle(15., 3.5, 1.)])
         self.assertEqual(decision.state, 'TAILING')
-        self.assertLessEqual(decision.speed_cap_kmh, 20.)
+        self.assertLess(decision.speed_cap_kmh, 25.*3.6)
+
+    def test_prediction_uses_actual_lane_change_speed(self):
+        p = self.preferred_planner()
+        # Parallel traffic stays alongside at this speed. Clamping the ego's
+        # predicted speed to 20 km/h would incorrectly let this car move away.
+        decision = p.plan(0, (0., 0.), 20., [
+            core.Obstacle(0., 3.5, 1., vx=20., kind='dynamic')])
+        self.assertEqual(decision.state, 'LANE_WAIT')
+        self.assertEqual(decision.reason, 'predicted_path_occupied')
+
+    def test_horizon_edit_changes_threat_decision_and_visualized_distance(self):
+        p = planner()
+        p.obstacle_horizon_m = 20.
+        obstacle = core.Obstacle(30., 0., 1.)
+        self.assertEqual(p.plan(0, (0., 0.), 14., [obstacle]).state, 'RACELINE')
+        self.assertEqual(p.obstacle_horizon_path[-1], (20., 0.))
+        p.obstacle_horizon_m = 40.
+        self.assertEqual(p.plan(0, (0., 0.), 14., [obstacle]).state, 'OVERTAKING')
+        path = p.obstacle_horizon_path
+        self.assertAlmostEqual(sum(core.distance(a, b) for a, b in zip(path, path[1:])), 40.)
+
+    def test_curved_horizon_is_arc_distance_and_clips_inside_segment(self):
+        self.assertEqual(core.path_prefix([(0., 0.), (3., 0.), (3., 4.)], 5.),
+                         [(0., 0.), (3., 0.), (3., 2.)])
 
     def test_replanning_starts_at_current_offset_and_returns(self):
         p = planner()
@@ -93,6 +151,7 @@ class LocalAvoidanceTests(unittest.TestCase):
 
     def test_map_frame_tracking_distinguishes_moving_and_parked(self):
         node = detector.LidarObstacles.__new__(detector.LidarObstacles)
+        node.dynamic_speed_threshold_mps = .8
         node.tracks = {}
         node.next_id = 1
         for frame in range(4):
@@ -228,6 +287,7 @@ class LocalAvoidanceTests(unittest.TestCase):
 
     def test_rear_track_survives_brief_occlusion_but_expires(self):
         node = detector.LidarObstacles.__new__(detector.LidarObstacles)
+        node.dynamic_speed_threshold_mps = .8
         node.tracks, node.next_id = {}, 1
         for i in range(4):
             tracked = node._update_tracks([(-40.+i*3., 7., 1.)], i*.1)

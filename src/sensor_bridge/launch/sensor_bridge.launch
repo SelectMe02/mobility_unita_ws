@@ -1,5 +1,6 @@
 <launch>
   <arg name="config" default="$(find sensor_bridge)/config/sensors.yaml"/>
+  <arg name="diagnostic_log" default="false"/>
   <arg name="bind_ip" default="0.0.0.0"/>
   <arg name="source_ip" default=""/>
   <arg name="use_sensor_stamp" default="false"/>
@@ -51,6 +52,7 @@
     </include>
   </group>
   <include if="$(arg enable_imu)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
+    <arg name="diagnostic_log" value="$(arg diagnostic_log)"/>
     <arg name="sensor" value="imu"/>
     <arg name="config" value="$(arg config)"/>
     <arg name="bind_ip" value="$(arg bind_ip)"/>
@@ -58,6 +60,7 @@
     <arg name="use_sensor_stamp" value="$(arg use_sensor_stamp)"/>
   </include>
   <include if="$(arg enable_gps)" file="$(find sensor_bridge)/launch/udp_receiver.launch">
+    <arg name="diagnostic_log" value="$(arg diagnostic_log)"/>
     <arg name="sensor" value="gps"/>
     <arg name="config" value="$(arg config)"/>
     <arg name="bind_ip" value="$(arg bind_ip)"/>

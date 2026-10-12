@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """UDP-only SIM interface; explicitly requests AutoMode even from Manual."""
 import ipaddress
+import json
 import math
 import socket
 import threading
@@ -57,8 +58,13 @@ class CompetitionUDPControl:
         self.status_pub = rospy.Publisher('/control/udp_status', String, queue_size=1, latch=True)
         self.mode_pub = rospy.Publisher('/control/sim_mode', UInt8, queue_size=1, latch=True)
         self.ego_pub = rospy.Publisher('/competition/ego_status', String, queue_size=1, latch=True)
+        self.diagnostic_log = bool(rospy.get_param('~diagnostic_log', False))
+        if self.diagnostic_log:
+            self.diagnostic_status_pub = rospy.Publisher('/diagnostics/simulator/ego_status', String, queue_size=10)
+            self.diagnostic_raw_pub = rospy.Publisher('/diagnostics/simulator/ego_status_udp', String, queue_size=100)
+            self.diagnostic_tx_pub = rospy.Publisher('/diagnostics/control_tx', String, queue_size=100)
         self.ego_pose_pub = (rospy.Publisher('/competition/ego_pose', PoseStamped, queue_size=1)
-                             if rospy.get_param('~publish_ego_pose', False) else None)
+                             if self.diagnostic_log and rospy.get_param('~publish_ego_pose', False) else None)
         self.speed_pub = rospy.Publisher('/competition/ego_speed_kmh', Float64, queue_size=1)
         self.heading_pub = (rospy.Publisher('/competition/heading_imu', Imu, queue_size=1)
                             if self.heading_source == 'ego_status' else None)
@@ -120,8 +126,13 @@ class CompetitionUDPControl:
             if source[0] != self.destination[0]:
                 rospy.logwarn_throttle(5, 'Ignoring Ego status from unexpected IP %s', source[0])
                 continue
+            diagnostic = getattr(self, 'diagnostic_log', False)
+            if diagnostic:
+                self.diagnostic_raw_pub.publish(String(data=json.dumps(dict(
+                    ros_time=rospy.Time.now().to_sec(), received_monotonic=time.monotonic(),
+                    source=list(source), packet_hex=packet.hex()))))
             try:
-                status = decode_ego_status(packet)
+                status = decode_ego_status(packet, diagnostics=diagnostic)
             except ValueError as error:
                 rospy.logwarn_throttle(5, 'Rejected Ego status: %s', error)
                 continue
@@ -130,9 +141,14 @@ class CompetitionUDPControl:
                 changed = self.freshness.update(status.stamp, received)
             self.mode_pub.publish(UInt8(data=status.mode))
             self.speed_pub.publish(Float64(data=abs(status.speed_kmh)))
-            self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m pos={}'.format(
-                status.mode, status.gear, status.speed_kmh, status.yaw_deg, status.steering_deg, status.wheelbase, status.position)))
-            if changed and self.ego_pose_pub is not None:
+            self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m'.format(
+                status.mode, status.gear, status.speed_kmh, status.yaw_deg, status.steering_deg, status.wheelbase)))
+            if diagnostic:
+                self.diagnostic_status_pub.publish(String(data=json.dumps(dict(
+                    ros_time=rospy.Time.now().to_sec(), simulator_stamp=list(status.stamp),
+                    position=list(status.position), yaw_deg=status.yaw_deg, speed_kmh=status.speed_kmh,
+                    mode=status.mode, gear=status.gear, steering_deg=status.steering_deg))))
+            if changed and diagnostic and self.ego_pose_pub is not None:
                 pose = PoseStamped()
                 pose.header.stamp = rospy.Time.now()
                 pose.header.frame_id = 'map'
@@ -155,6 +171,13 @@ class CompetitionUDPControl:
                 with self.lock:
                     self.watchdog.set_sensor('imu', True, message.header.stamp.to_sec(), received)
 
+    def send_packet(self, packet, state):
+        self.sock.sendto(packet, self.destination)
+        if getattr(self, 'diagnostic_log', False):
+            self.diagnostic_tx_pub.publish(String(data=json.dumps(dict(
+                ros_time=rospy.Time.now().to_sec(), state=state,
+                enabled=self.enabled, packet_hex=packet.hex()))))
+
     def run(self):
         try:
             while not self.stopped.is_set() and not rospy.is_shutdown():
@@ -166,10 +189,10 @@ class CompetitionUDPControl:
                             packet, state = self.watchdog.select(time.monotonic(), rospy.Time.now().to_sec(), self.encoder.stop())
                             # No mode gate: AutoMode=2 is explicitly requested even
                             # when the last reported mode was Manual.
-                            self.sock.sendto(packet, self.destination)
+                            self.send_packet(packet, state)
                         elif self.was_active:
                             packet, state = self.encoder.stop(), 'BRAKE: missing/stale/frozen Ego UDP status'
-                            self.sock.sendto(packet, self.destination)
+                            self.send_packet(packet, state)
                         else:
                             # Until the correct Publisher is verified, do not force
                             # AutoMode and do not interfere with SIM I/Q keyboard input.
@@ -177,8 +200,8 @@ class CompetitionUDPControl:
                     else:
                         if self.was_active:
                             for _ in range(3):
-                                self.sock.sendto(self.encoder.stop(), self.destination)
-                                self.sock.sendto(self.encoder.release(), self.destination)
+                                self.send_packet(self.encoder.stop(), 'disabled_stop')
+                                self.send_packet(self.encoder.release(), 'disabled_release')
                             self.was_active = False
                         state = 'PAUSED: competition takeover disabled; keyboard mode requested'
                 self.status_pub.publish(String(data=state))
@@ -190,9 +213,9 @@ class CompetitionUDPControl:
             try:
                 if self.was_active:
                     for _ in range(3):
-                        self.sock.sendto(self.encoder.stop(), self.destination)
+                        self.send_packet(self.encoder.stop(), 'shutdown_stop')
                     for _ in range(3):
-                        self.sock.sendto(self.encoder.release(), self.destination)
+                        self.send_packet(self.encoder.release(), 'shutdown_release')
             finally:
                 self.status_sock.close()
                 self.sock.close()

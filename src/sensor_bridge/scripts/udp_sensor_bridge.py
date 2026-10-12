@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """One receiver process per camera/GPS/IMU, configured by sensor name."""
 import math
+import json
+import time
 import socket
 
 import cv2
@@ -8,6 +10,7 @@ import numpy as np
 import rospy
 from morai_msgs.msg import GPSMessage
 from sensor_msgs.msg import Image, Imu
+from std_msgs.msg import String
 
 from sensor_bridge.protocol import CameraAssembler, parse_gps, parse_imu
 
@@ -19,6 +22,8 @@ class SensorReceiver:
         self.kind = config['kind']
         self.frame_id = config['frame_id']
         self.use_sensor_stamp = rospy.get_param('~use_sensor_stamp', False)
+        self.diagnostic_pub = (rospy.Publisher('/diagnostics/sensors/'+name+'_udp', String, queue_size=100)
+            if rospy.get_param('~diagnostic_log', False) and self.kind in ('imu', 'gps') else None)
         self.assembler = CameraAssembler()
         self.east_offset = float(rospy.get_param('~east_offset', 0.0))
         self.north_offset = float(rospy.get_param('~north_offset', 0.0))
@@ -47,6 +52,10 @@ class SensorReceiver:
                                 else rospy.Time.now())
 
     def publish_packet(self, packet):
+        diagnostic = getattr(self, 'diagnostic_pub', None)
+        if diagnostic is not None:
+            diagnostic.publish(String(data=json.dumps(dict(ros_time=rospy.Time.now().to_sec(),
+                wall_time=time.time(), frame_id=self.frame_id, packet_hex=packet.hex()))))
         if self.kind == 'camera':
             result = self.assembler.feed(packet)
             if result is None:

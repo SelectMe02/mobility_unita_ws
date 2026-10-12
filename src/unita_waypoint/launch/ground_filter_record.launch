@@ -1,0 +1,7 @@
+<launch>
+  <!-- Requires the normal driving launch. No control commands are sent here.
+       Exact whitelist: allowed sensors and their derived debug/status outputs. -->
+  <arg name="output_prefix" default="$(env HOME)/unita_ws/ground_braking"/>
+  <node pkg="rosbag" type="record" name="ground_filter_record" output="screen"
+        args="--lz4 --split --size=512 -b 256 -o $(arg output_prefix) /imu /lidar3D /localization/pose /waypoint_debug/ground_status"/>
+</launch>
