@@ -5,7 +5,7 @@ catkin_python_setup()
 catkin_package()
 catkin_install_python(PROGRAMS scripts/blackout_udp_control.py
   scripts/ego_odometry_node.py scripts/driving_state_node.py
-  scripts/ftg_visualization_node.py
+  scripts/ftg_visualization_node.py scripts/route_avoidance_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(DIRECTORY launch config scenarios DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 if(CATKIN_ENABLE_TESTING)

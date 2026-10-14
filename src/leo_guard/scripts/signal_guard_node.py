@@ -13,14 +13,11 @@ from morai_msgs.msg import CtrlCmd
 from std_msgs.msg import Bool, Float64, String
 from std_srvs.srv import SetBool, SetBoolResponse
 from leo_guard.traffic import RouteProgress, TrafficDecision
-from leo_guard.core import SignalLatch
 
 
 class SignalGuard:
     def __init__(self):
         self.lock=threading.RLock();self.inputs={};self.armed=False
-        self.yield_latch=SignalLatch(1.,.35)
-        self.stop_since=None;self.stop_id=None;self.stop_completed=False
         self.pose_fault_since=None
         self.pose_fault_grace_s=float(rospy.get_param('~pose_fault_grace_s',0.0))
         if not math.isfinite(self.pose_fault_grace_s) or self.pose_fault_grace_s<0:
@@ -44,7 +41,10 @@ class SignalGuard:
         self.decision=TrafficDecision(survey['intersections'],self.route.total,
             front_margin=float(rospy.get_param('~stop_margin_m',5.)),
             maximum_kmh=float(rospy.get_param('~maximum_speed_kmh',58.)),
-            stoplines=stoplines)
+            stoplines=stoplines,
+            crossing_kmh=(float(rospy.get_param('~crossing_speed_kmh',0.)) or None),
+            crossing_before_m=float(rospy.get_param('~crossing_before_m',30.)),
+            crossing_after_m=float(rospy.get_param('~crossing_after_m',40.)))
         self.pub=rospy.Publisher('/ctrl_cmd',CtrlCmd,queue_size=1)
         self.cap=rospy.Publisher('/leo/speed_limit_kmh',Float64,queue_size=1)
         self.status=rospy.Publisher('/leo/signal_status',String,queue_size=1)
@@ -53,8 +53,7 @@ class SignalGuard:
             rospy.Subscriber('/localization/pose',PoseStamped,self.pose,queue_size=1),
             rospy.Subscriber('/localization/valid',Bool,lambda m:self.put('valid',m.data),queue_size=1),
             rospy.Subscriber('/competition/ego_speed_kmh',Float64,lambda m:self.put('speed',m.data/3.6),queue_size=1),
-            rospy.Subscriber('/perception/traffic_lights',String,self.signals,queue_size=1),
-            rospy.Subscriber('/leo/yield_observation',String,self.yield_observation,queue_size=1)]
+            rospy.Subscriber('/perception/traffic_lights',String,self.signals,queue_size=1)]
         self.service=rospy.Service('~set_armed',SetBool,self.set_armed)
         self.timer=rospy.Timer(rospy.Duration(.05),self.tick)
         rospy.logwarn('Signal practice starts with brake held. Survey/head review is required before intersection release.')
@@ -83,15 +82,6 @@ class SignalGuard:
         item=self.inputs.get(key)
         return item[0] if item and 0<=now-item[1]<=timeout else None
 
-    def yield_observation(self,m):
-        value=None
-        try:
-            v=json.loads(m.data);age=rospy.Time.now().to_sec()-float(v['stamp'])
-            if math.isfinite(age) and 0<=age<=.35:
-                v['deadline']=time.monotonic()+.35-age;value=v
-        except (ValueError,KeyError,TypeError):pass
-        self.put('yield',value)
-
     def set_armed(self,req):
         with self.lock:
             now=time.monotonic()
@@ -106,9 +96,7 @@ class SignalGuard:
                 try:self.route.locate(*pose)
                 except ValueError as exc:return SetBoolResponse(False,str(exc))
             self.armed=bool(req.data);self.decision.reset()
-            self.stop_since=None;self.stop_id=None;self.stop_completed=False
             self.pose_fault_since=None
-            self.yield_latch.update(False,None,None,now)
         return SetBoolResponse(True,'armed' if self.armed else 'brake held')
 
     def tick(self,event):
@@ -130,25 +118,13 @@ class SignalGuard:
                     alignment=float(tangent@heading)
                     lateral=abs(float(tangent[0]*heading[1]-tangent[1]*heading[0]))
                     front_offset=max(0.,self.front_axle*alignment+self.half_width*lateral)
-                    observation=self.fresh('yield',now)
-                    observed=bool(observation and observation.get('valid') is True and observation.get('clear') is True and now<=observation['deadline'])
-                    stable=self.yield_latch.update(observed,'corridor',observation.get('frame') if observation else None,now)
-                    active=self.decision.active
-                    if active and active[1]['id']!=self.stop_id:
-                        self.stop_id=active[1]['id'];self.stop_since=None;self.stop_completed=False
-                    if active and active[1]['maneuver']=='right_unprotected' and active[0]<8 and speed<.2:
-                        if self.stop_since is None:self.stop_since=now
-                        if now-self.stop_since>=.5:self.stop_completed=True
-                    elif not self.stop_completed:self.stop_since=None
                     ros_now=(rospy.Time.now().to_sec()
                              if self.decision.stoplines is not None else None)
                     cap,detail=self.decision.decide(progress,signals,now,front_offset,
-                        yield_clear=stable and self.stop_completed,pose=pose,
+                        # The GPS route turns right on green; obstacles on it
+                        # belong to the route avoidance planner.
+                        yield_clear=True,pose=pose,
                         speed_mps=speed,ros_now=ros_now)
-                    if detail.get('maneuver')=='right_unprotected' or (self.decision.committed and self.decision.committed[0]['maneuver']=='right_unprotected'):
-                        detail.update(yield_observation=observation,stop_completed=self.stop_completed)
-                        if not observed and (detail.get('stop_distance',0)<=8 or detail['state']=='clearing'):
-                            cap=0.;detail['reason']='right-turn observed corridor missing or occupied'
                     detail.update(armed=True,route_s=progress,cross_track_error=error,speed_kmh=speed*3.6)
                     detail['next_controlled_stop_distance_m'] = (
                         self.decision.distance_to_next_controlled_stop(progress,front_offset))

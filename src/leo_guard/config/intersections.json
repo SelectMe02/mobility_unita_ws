@@ -60,11 +60,11 @@
         0.5,
         0.0,
         0.67,
-        0.3
+        0.42
       ],
-      "review_note": "Camera-only 240 s recording showed automatic red/green/yellow transitions; actual red stop and green crossing recorded, max 53.452 km/h, max route cross-track 0.312 m. No simulator signal-state input.",
-      "signal_min_width": 0.035,
-      "signal_activation_distance_m": 12.0
+      "review_note": "Camera-only 240 s recording showed automatic red/green/yellow transitions; actual red stop and green crossing recorded, max 53.452 km/h, max route cross-track 0.312 m. No simulator signal-state input. 2026-10-13: front 1280x720 recordings show this head from about 25 m (centre y up to 0.36, width from 0.016); ROI, minimum width and activation distance widened so green is confirmed before braking.",
+      "signal_min_width": 0.015,
+      "signal_activation_distance_m": 30.0
     },
     {
       "id": "A1256W000807",
@@ -113,13 +113,13 @@
       "signal_roi": [
         0.24,
         0.0,
-        0.46,
-        0.26
+        0.5,
+        0.42
       ],
-      "review_note": "Actual camera-only red stop then green_left crossing reached s470.072, max53.672 km/h, max route error0.320m. Near own head excluded the smaller downstream signal. No simulator signal-state input.",
+      "review_note": "Actual camera-only red stop then green_left crossing reached s470.072, max53.672 km/h, max route error0.320m. Near own head excluded the smaller downstream signal. No simulator signal-state input. 2026-10-13: front 1280x720 recordings show this head from about 25 m (centre y up to 0.36, width from 0.016); ROI, minimum width and activation distance widened so green is confirmed before braking.",
       "signal_camera": "front",
-      "signal_min_width": 0.05,
-      "signal_activation_distance_m": 12.0
+      "signal_min_width": 0.018,
+      "signal_activation_distance_m": 30.0
     },
     {
       "id": "A1256W000757",

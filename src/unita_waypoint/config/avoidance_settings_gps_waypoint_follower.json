@@ -1,0 +1,13 @@
+{
+  "avoidance_brake_limit": 0.35,
+  "avoidance_clear_hold_s": 0.4,
+  "avoidance_decel_mps2": 3.0,
+  "avoidance_emergency_ttc_s": 1.0,
+  "avoidance_margin_m": 0.35,
+  "avoidance_reaction_s": 0.4,
+  "lane_change_min_rear_gap_m": 2.0,
+  "lane_change_rear_headway_s": 2.0,
+  "lane_change_smoothness_s": 2.5,
+  "obstacle_horizon_m": 45.0,
+  "restart_accel_rate_per_s": 0.5
+}

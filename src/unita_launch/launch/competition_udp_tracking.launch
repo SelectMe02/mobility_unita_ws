@@ -20,6 +20,8 @@
   <arg name="enable_rear_camera" default="true"/>
   <arg name="enable_lidar" default="true"/>
   <arg name="enable_local_avoidance" default="false"/>
+  <!-- leo_avoidance route_avoidance_node output; empty disables it. -->
+  <arg name="route_avoidance_topic" default=""/>
   <arg name="preferred_raceline" default="1"/>
   <arg name="preferred_raceline_sector" default="0"/>
   <arg name="preferred_raceline_end_checkpoint" default=""/>
@@ -74,6 +76,7 @@
     <param name="ctrl_topic" value="$(arg follower_ctrl_topic)"/>
     <param name="guard_speed_limit_topic" value="$(arg guard_speed_limit_topic)"/>
     <param name="enable_local_avoidance" value="$(arg enable_local_avoidance)"/>
+    <param name="route_avoidance_topic" value="$(arg route_avoidance_topic)"/>
     <param name="raceline_config" value="$(arg raceline_config)"/>
     <param if="$(eval arg('raceline_width') != '')" name="raceline_width" value="$(arg raceline_width)" type="double"/>
     <param unless="$(eval arg('raceline_width') != '')" name="raceline_width" value="" type="str"/>

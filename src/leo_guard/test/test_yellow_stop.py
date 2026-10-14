@@ -8,6 +8,33 @@ from leo_guard.traffic import TrafficDecision
 
 
 class YellowStopTests(unittest.TestCase):
+    def test_stopline_distance_follows_the_route_on_a_curve(self):
+        # Ego heads 60 degrees off the line's straight bearing on a bend; the
+        # surveyed line is 20 m ahead along the route.
+        stop = dict(id='node1', s=60., traffic_light_id='light1',
+                    maneuver='straight', controlled=True, reviewed=True,
+                    signal_roi=[.2, .1, .8, .6], clearance_m=15.)
+        controller = TrafficDecision([stop], 1000., stoplines=[
+            dict(idx='node1', x=10., y=17., traffic_light_id='light1')])
+        cap, detail = controller.decide(40., None, 1., pose=(0., 0., 0.),
+                                        speed_mps=5., ros_now=1.)
+        self.assertAlmostEqual(detail['d_m'], 20. - 3.)
+        self.assertEqual(detail['state'], 'approach')
+        self.assertGreater(cap, 0.)
+
+    def test_curved_approach_uses_route_distance_before_stopline_projection(self):
+        stop = dict(id='node1', s=60., traffic_light_id='light1',
+                    maneuver='straight', controlled=True, reviewed=True,
+                    signal_roi=[.2, .1, .8, .6], clearance_m=15.,
+                    signal_activation_distance_m=15.)
+        controller = TrafficDecision([stop], 1000., stoplines=[
+            dict(idx='node1', x=60., y=10., traffic_light_id='light1')])
+        cap, detail = controller.decide(0., None, 1.,
+                                        pose=(0., 0., 0.), speed_mps=0., ros_now=1.)
+        self.assertGreater(cap, 0.)
+        self.assertEqual(detail['state'], 'approach')
+        self.assertNotEqual(detail['reason'], 'outside stop-line lane tolerance')
+
     def test_projection_uses_front_bumper_and_rejects_other_lane_or_past(self):
         stops = [
             dict(idx='current', x=12., y=0., traffic_light_id='t1'),
@@ -55,104 +82,43 @@ class YellowStopTests(unittest.TestCase):
                                               detection('traffic_light_green')], roi),
                          'unknown')
 
-    def test_mapped_yellow_requires_recent_green_and_lane_match(self):
+    def controller(self):
         stop = dict(id='node1', s=50., traffic_light_id='light1',
                     maneuver='straight', controlled=True, reviewed=True,
                     signal_roi=[.2, .1, .8, .6], clearance_m=15.)
-        nodes = [dict(idx='node1', x=50., y=0., traffic_light_id='light1')]
-        controller = TrafficDecision([stop], 1000., stoplines=nodes)
-        def signal(label, frame, stamp):
-            return dict(valid=True, frame=frame, stamp=stamp, detections=[dict(
-                label=label, confidence=.95,
-                bbox_normalized=[.4, .2, .6, .3])])
-        yellow = signal('traffic_light_yellow', 1, 1.)
-        cap, detail = controller.decide(42., yellow, 1.,
+        return TrafficDecision([stop], 1000., stoplines=[
+            dict(idx='node1', x=50., y=0., traffic_light_id='light1')])
+
+    @staticmethod
+    def signal(label, frame, stamp):
+        return dict(valid=True, frame=frame, stamp=stamp, detections=[dict(
+            label=label, confidence=.95, bbox_normalized=[.4, .2, .6, .3])])
+
+    def test_green_goes_yellow_and_red_always_stop(self):
+        controller = self.controller()
+        cap, detail = controller.decide(42., self.signal('traffic_light_green', 1, 1.), 1.,
                                          pose=(42., 0., 0.), speed_mps=10., ros_now=1.)
-        self.assertEqual(detail['decision'], 'stop')
-        for index in range(4):
-            now = 2. + index * .25
-            controller.decide(42., signal('traffic_light_green', index+2, now), now,
-                              pose=(42., 0., 0.), speed_mps=10., ros_now=now)
-        cap, detail = controller.decide(42., signal('traffic_light_yellow', 7, 3.), 3.,
-                                         pose=(42., 0., 0.), speed_mps=10., ros_now=3.)
         self.assertEqual(detail['decision'], 'go')
-        self.assertTrue(detail['can_go'])
-        self.assertGreater(cap, 0.)
-        cap, detail = controller.decide(42., signal('traffic_light_red', 8, 3.1), 3.1,
-                                         pose=(42., 0., 0.), speed_mps=10., ros_now=3.1)
+        self.assertAlmostEqual(cap, 58. / 3.6)
+        # Yellow right after green still stops, however close the line is.
+        cap, detail = controller.decide(42., self.signal('traffic_light_yellow', 2, 1.1), 1.1,
+                                         pose=(42., 0., 0.), speed_mps=10., ros_now=1.1)
         self.assertEqual(detail['decision'], 'stop')
-        self.assertIsNone(controller.approach_go_selected)
-        cap, detail = controller.decide(42., yellow, 3.2,
-                                         pose=(42., 4., 0.), speed_mps=10., ros_now=3.2)
-        self.assertEqual(cap, 0.)
-        self.assertIn('lane tolerance', detail['reason'])
+        self.assertLess(cap, 10.)
+        cap, detail = controller.decide(42., self.signal('traffic_light_red', 3, 1.2), 1.2,
+                                         pose=(42., 0., 0.), speed_mps=10., ros_now=1.2)
+        self.assertEqual(detail['decision'], 'stop')
 
-    def test_yellow_go_clears_only_after_front_crosses(self):
-        stop = dict(id='node1', s=50., traffic_light_id='light1',
-                    maneuver='straight', controlled=True, reviewed=True,
-                    signal_roi=[.2, .1, .8, .6], clearance_m=15.)
-        controller = TrafficDecision([stop], 1000., stoplines=[
-            dict(idx='node1', x=50., y=0., traffic_light_id='light1')])
-        def signal(label, frame, stamp):
-            return dict(valid=True, frame=frame, stamp=stamp, detections=[dict(
-                label=label, confidence=.95,
-                bbox_normalized=[.4, .2, .6, .3])])
-        for index in range(4):
-            now = 1. + index * .2
-            controller.decide(42., signal('traffic_light_green', index+1, now), now,
-                              pose=(42., 0., 0.), speed_mps=10., ros_now=now)
-        _, detail = controller.decide(42., signal('traffic_light_yellow', 5, 1.8), 1.8,
-                                       pose=(42., 0., 0.), speed_mps=10., ros_now=1.8)
+    def test_green_crossing_continues_once_the_front_is_over_the_line(self):
+        controller = self.controller()
+        _, detail = controller.decide(48., self.signal('traffic_light_green', 1, 1.), 1.,
+                                       pose=(48., 0., 0.), speed_mps=10., ros_now=1.)
         self.assertEqual(detail['decision'], 'go')
-        self.assertIsNone(controller.committed)
-        _, detail = controller.decide(50., signal('traffic_light_red', 6, 2.), 2.,
-                                       pose=(50., 0., 0.), speed_mps=10., ros_now=2.)
+        _, detail = controller.decide(52., self.signal('traffic_light_yellow', 2, 1.4), 1.4,
+                                       pose=(52., 0., 0.), speed_mps=10., ros_now=1.4)
         self.assertEqual(detail['state'], 'clearing')
-        self.assertIsNotNone(controller.committed)
+        cap, detail = controller.decide(56., self.signal('traffic_light_red', 3, 1.8), 1.8,
+                                         pose=(56., 0., 0.), speed_mps=10., ros_now=1.8)
+        self.assertEqual(detail['state'], 'clearing')
+        self.assertGreater(cap, 0.)
 
-    def test_yellow_respects_leo_camera_and_head_size_review(self):
-        stop = dict(id='node1', s=50., traffic_light_id='light1',
-                    maneuver='straight', controlled=True, reviewed=True,
-                    signal_camera='up', signal_min_width=.1,
-                    signal_activation_distance_m=12.,
-                    signal_roi=[.2, .1, .8, .6], clearance_m=15.)
-        controller = TrafficDecision([stop], 1000., stoplines=[
-            dict(idx='node1', x=50., y=0., traffic_light_id='light1')])
-
-        def signal(label, frame, stamp, camera='up', width=.2):
-            return dict(valid=True, frame=frame, stamp=stamp, camera=camera,
-                        detections=[dict(label=label, confidence=.95,
-                            bbox_normalized=[.5-width/2, .2, .5+width/2, .3])])
-
-        for i in range(4):
-            now = 1. + i*.2
-            controller.decide(42., signal('traffic_light_green', i, now,
-                                           camera='front'), now,
-                              pose=(42., 0., 0.), speed_mps=10., ros_now=now)
-        _, detail = controller.decide(42., signal('traffic_light_yellow', 4, 1.8),
-                                       1.8, pose=(42., 0., 0.), speed_mps=10.,
-                                       ros_now=1.8)
-        self.assertEqual(detail['decision'], 'stop')
-
-        for i in range(4):
-            now = 2. + i*.2
-            controller.decide(42., signal('traffic_light_green', 5+i, now,
-                                           width=.02), now,
-                              pose=(42., 0., 0.), speed_mps=10., ros_now=now)
-        _, detail = controller.decide(42., signal('traffic_light_yellow', 9, 2.8),
-                                       2.8, pose=(42., 0., 0.), speed_mps=10.,
-                                       ros_now=2.8)
-        self.assertEqual(detail['decision'], 'stop')
-
-        for i in range(4):
-            now = 3. + i*.2
-            controller.decide(42., signal('traffic_light_green', 10+i, now), now,
-                              pose=(42., 0., 0.), speed_mps=10., ros_now=now)
-        _, detail = controller.decide(42., signal('traffic_light_yellow', 14, 3.8),
-                                       3.8, pose=(42., 0., 0.), speed_mps=10.,
-                                       ros_now=3.8)
-        self.assertEqual(detail['decision'], 'go')
-
-
-if __name__ == '__main__':
-    unittest.main()

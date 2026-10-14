@@ -22,7 +22,15 @@
   <arg name="guard_valid_topic" default="/localization/valid"/>
   <arg name="guard_pose_fault_grace_s" default="0.0"/>
   <arg name="enable_local_avoidance" default="$(eval arg('waypoint_file').lower().endswith('.json'))"/>
-  <arg name="guard_route_max_error_m" default="2.0"/>
+  <!-- GPS-route obstacle handling: pass static blocks on the opposite lane,
+       yield to movers. A pass leaves the route by one lane, so the guard's
+       route corridor widens with it. -->
+  <arg name="enable_route_avoidance" default="false"/>
+  <!-- Speed from 30 m before a signal stop line to 40 m past the
+       intersection exit; a pedestrian stepping out there must be stoppable
+       for. 0 disables it. -->
+  <arg name="crossing_speed_kmh" default="30.0"/>
+  <arg name="guard_route_max_error_m" default="$(eval 5.5 if arg('enable_route_avoidance') else 2.0)"/>
   <include file="$(find unita_launch)/launch/competition_udp_tracking.launch">
     <arg name="control_node_pkg" value="$(arg control_node_pkg)"/>
     <arg name="control_node_type" value="$(arg control_node_type)"/>
@@ -32,6 +40,7 @@
     <arg name="avoidance_target_topic" value="$(arg avoidance_target_topic)"/>
     <arg name="avoidance_speed_topic" value="$(arg avoidance_speed_topic)"/>
     <arg name="enable_local_avoidance" value="$(arg enable_local_avoidance)"/>
+    <arg name="route_avoidance_topic" value="$(eval '/leo/route_avoidance' if arg('enable_route_avoidance') else '')"/>
     <arg name="morai_ip" value="$(arg morai_ip)"/>
     <arg name="waypoint_file" value="$(arg waypoint_file)"/>
     <arg name="follower_ctrl_topic" value="/leo/raw_ctrl_cmd"/>
@@ -44,7 +53,10 @@
     <arg name="blackout_clear_speed_cap_kmh" value="$(arg blackout_clear_speed_cap_kmh)"/>
     <arg name="start_rviz" value="false"/>
   </include>
+  <!-- Guard-only detection topic: a separately launched traffic_light_test
+       (front camera only) must not interleave with the guard's camera choice. -->
   <node pkg="perception" type="traffic_light_test.py" name="leo_traffic_lights" output="screen" required="true">
+    <remap from="/perception/traffic_lights" to="/leo/traffic_lights"/>
     <param name="model_path" value="$(arg model_path)"/>
     <param name="confidence" value="0.7"/>
     <param name="inference_rate" value="5.0"/>
@@ -53,12 +65,16 @@
     <param name="aux_image_topic" value="/camera/image/rear"/>
     <param name="camera_selection_topic" value="/leo/signal_camera"/>
   </node>
-  <node pkg="leo_guard" type="yield_observer_node.py" name="leo_yield_observer" output="screen" required="true">
-    <remap from="/localization/pose" to="$(arg guard_pose_topic)"/>
+  <node if="$(arg enable_route_avoidance)" pkg="leo_avoidance" type="route_avoidance_node.py"
+        name="leo_route_avoidance" output="screen" required="true">
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
-    <rosparam param="lidar_to_rear_xyz">[1.4, 0.0, 1.23]</rosparam>
+    <param name="pose_topic" value="$(arg guard_pose_topic)"/>
+    <!-- Lane changes only across dashed lines of the official route. -->
+    <param name="lane_change_file" value="$(find leo_avoidance)/config/route_lane_changes.json"/>
+    <param name="intersection_file" value="$(arg intersection_file)"/>
   </node>
   <node pkg="leo_guard" type="signal_guard_node.py" name="leo_signal_guard" output="screen" required="true">
+    <remap from="/perception/traffic_lights" to="/leo/traffic_lights"/>
     <remap from="/localization/pose" to="$(arg guard_pose_topic)"/>
     <remap from="/localization/valid" to="$(arg guard_valid_topic)"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
@@ -71,5 +87,6 @@
     <param name="stop_margin_m" value="5.0"/>
     <param name="pose_fault_grace_s" value="$(arg guard_pose_fault_grace_s)"/>
     <param name="route_max_error_m" value="$(arg guard_route_max_error_m)"/>
+    <param name="crossing_speed_kmh" value="$(arg crossing_speed_kmh)"/>
   </node>
 </launch>

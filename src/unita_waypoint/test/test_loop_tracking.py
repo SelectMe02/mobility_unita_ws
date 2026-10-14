@@ -176,6 +176,28 @@ class LoopTrackingTests(unittest.TestCase):
         self.assertAlmostEqual(obj.commands[-1][0], 0.0, places=6)
         self.assertEqual(obj.commands[-1][1], 20.0)
 
+    def test_route_avoidance_path_and_speed_cap_steer_the_gps_route(self):
+        obj = self.follower([(float(i), 0.0) for i in range(40)], loop=False)
+        obj.route_avoidance_topic = '/leo/route_avoidance'
+        obj.publish_local_path = MagicMock()
+        path = [[float(i), 3.5 if i >= 4 else 0.] for i in range(40)]
+        obj.route_avoidance_callback(String(data=module.json.dumps(dict(
+            path=path, speed_cap_kmh=12.0, state='PASSING', reason='test'))))
+        self.run_loop(obj)
+        self.assertGreater(obj.commands[-1][0], 0.0)  # steers left onto the offset
+        self.assertEqual(obj.commands[-1][1], 12.0)
+
+    def test_stale_route_avoidance_output_stops_the_vehicle(self):
+        obj = self.follower([(float(i), 0.0) for i in range(40)], loop=False)
+        obj.route_avoidance_topic = '/leo/route_avoidance'
+        obj.route_avoidance = None
+        obj.route_avoidance_received = None
+        stops = []
+        obj.publish_full_stop = lambda: stops.append(True)
+        self.run_loop(obj)
+        self.assertTrue(stops)
+        self.assertFalse(obj.commands)
+
     def test_blackout_can_use_clear_thirty_kmh_cap_while_gps_stays_at_eighteen(self):
         obj = self.follower([(float(i), 0.0) for i in range(40)], loop=False)
         now = time.monotonic()

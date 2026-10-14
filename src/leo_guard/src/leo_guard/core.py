@@ -115,8 +115,8 @@ def signal_permission(detections, maneuver, roi, confidence=.7, min_width=0.):
 
 class SignalLatch:
     """Fresh, consecutive observations required to release; stop is immediate."""
-    def __init__(self, stable_seconds=.6, max_gap=.35):
-        self.stable_seconds=stable_seconds;self.max_gap=max_gap
+    def __init__(self, stable_seconds=.6, max_gap=.35, min_frames=3):
+        self.stable_seconds=stable_seconds;self.max_gap=max_gap;self.min_frames=min_frames
         self.since=None;self.last=None;self.key=None;self.frame=None;self.count=0
 
     def update(self, permitted, key, frame, now):
@@ -128,7 +128,7 @@ class SignalLatch:
             self.since=now;self.count=0
         if frame != self.frame:
             self.last=now;self.frame=frame;self.key=key;self.count+=1
-        return self.count>=3 and self.last-self.since>=self.stable_seconds and now-self.last<=self.max_gap
+        return self.count>=self.min_frames and self.last-self.since>=self.stable_seconds and now-self.last<=self.max_gap
 
 
 def fit_boundary(points, min_span=6., residual=.10):

@@ -1,0 +1,49 @@
+{
+  "source": "MORAI MGeo link_set can_move_*_lane; route waypoints.csv",
+  "route_length_m": 2184.612,
+  "max_link_match_error_m": 0.0,
+  "lane_changes": [
+    {
+      "start_s": 383.28,
+      "end_s": 427.85,
+      "side": "right",
+      "offset_m": -3.742
+    },
+    {
+      "start_s": 471.09,
+      "end_s": 550.62,
+      "side": "right",
+      "offset_m": -3.743
+    },
+    {
+      "start_s": 581.37,
+      "end_s": 609.87,
+      "side": "right",
+      "offset_m": -3.252
+    },
+    {
+      "start_s": 635.61,
+      "end_s": 858.5,
+      "side": "right",
+      "offset_m": -3.492
+    },
+    {
+      "start_s": 1118.74,
+      "end_s": 1243.74,
+      "side": "left",
+      "offset_m": 3.746
+    },
+    {
+      "start_s": 1286.15,
+      "end_s": 1539.25,
+      "side": "left",
+      "offset_m": 3.607
+    },
+    {
+      "start_s": 1406.23,
+      "end_s": 1518.25,
+      "side": "right",
+      "offset_m": -3.743
+    }
+  ]
+}

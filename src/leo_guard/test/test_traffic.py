@@ -60,8 +60,9 @@ class TrafficTests(unittest.TestCase):
         c=self.controller();c.stops[0]['signal_activation_distance_m']=12.
         _,d=self.release(c,'traffic_light_green',30.)
         self.assertFalse(d['release_stable'])
+        # Inside the surveyed distance one green frame releases at once.
         _,d=c.decide(39.,self.signals('traffic_light_green',5),1.)
-        self.assertFalse(d['release_stable'])
+        self.assertTrue(d['release_stable'])
         for i in range(4):
             _,d=c.decide(39.,self.signals('traffic_light_green',6+i),1.25+i*.25)
         self.assertTrue(d['release_stable'])
@@ -154,7 +155,7 @@ class TrafficTests(unittest.TestCase):
         self.assertEqual(cap,0.);self.assertFalse(d['release_stable'])
         s=self.signals('traffic_light_green',21);s['camera']='up'
         _,d=c.decide(45.,s,3.25)
-        self.assertFalse(d['release_stable'])
+        self.assertTrue(d['release_stable'])  # green on the right camera goes again
 
     def test_reviewed_uncontrolled_merge_has_local_speed_cap(self):
         c=self.controller();c.stops[0].update(controlled=False,crossing_speed_kmh=20.)
@@ -172,3 +173,38 @@ class TrafficTests(unittest.TestCase):
         cap,d=c.decide(45.,None,0.);self.assertEqual(cap,0.);self.assertFalse(d['release_stable'])
 
 if __name__=='__main__':unittest.main()
+
+
+class CrossingSpeedTests(unittest.TestCase):
+    STOP = dict(id='first', s=100., maneuver='straight', controlled=True,
+                reviewed=True, signal_roi=[.3, .05, .7, .6], clearance_m=20.)
+
+    def drive_to(self, controller, start, end, green=True):
+        """Advance 2 m per 0.25 s with a fresh camera frame each step."""
+        caps = {}
+        progress, now, frame = start, 0., 0
+        while progress <= end:
+            frame += 1
+            signals = dict(valid=True, frame=frame, detections=[dict(
+                label='traffic_light_green', confidence=.95,
+                bbox_normalized=[.45, .2, .55, .3])]) if green else None
+            caps[progress] = controller.decide(progress, signals, now)
+            progress += 2.
+            now += .25
+        return caps
+
+    def test_green_crossing_is_held_to_crossing_speed_until_past_the_exit(self):
+        c = TrafficDecision([dict(self.STOP)], 1000., crossing_kmh=30.)
+        caps = self.drive_to(c, 40., 170.)
+        self.assertAlmostEqual(caps[60.][0], 58. / 3.6)       # 40 m before the line
+        self.assertAlmostEqual(caps[76.][0], 30. / 3.6)       # 24 m before, green
+        self.assertEqual(caps[76.][1]['crossing_limit_kmh'], 30.)
+        self.assertAlmostEqual(caps[110.][0], 30. / 3.6)      # inside the intersection
+        self.assertAlmostEqual(caps[154.][0], 30. / 3.6)      # exit + about 34 m
+        self.assertAlmostEqual(caps[168.][0], 58. / 3.6)      # exit + about 48 m
+
+    def test_crossing_limit_is_off_by_default(self):
+        c = TrafficDecision([dict(self.STOP)], 1000.)
+        caps = self.drive_to(c, 40., 80.)
+        self.assertAlmostEqual(caps[76.][0], 58. / 3.6)
+        self.assertNotIn('crossing_limit_kmh', caps[76.][1])

@@ -353,6 +353,11 @@ class GPSWaypointFollower:
         self.avoidance_distance = None
         self.local_planner = None
         self.lane_corridor = None
+        # GPS-route obstacle handling (leo_avoidance route_avoidance_node):
+        # an offset path for Pure Pursuit plus a speed cap. Empty disables it.
+        self.route_avoidance_topic = rospy.get_param('~route_avoidance_topic', '')
+        self.route_avoidance = None
+        self.route_avoidance_received = None
 
         # ============================================================
         # State
@@ -447,6 +452,11 @@ class GPSWaypointFollower:
             rospy.Subscriber(rospy.get_param('~obstacles_topic',
                              '/waypoint_debug/obstacles'), String,
                              self.obstacles_callback, queue_size=1)
+
+        if self.route_avoidance_topic:
+            rospy.Subscriber(self.route_avoidance_topic, String,
+                             self.route_avoidance_callback, queue_size=1,
+                             buff_size=2**20)
 
         if self.drive_pose_topic:
             rospy.Subscriber(self.drive_pose_topic, PoseStamped,
@@ -817,6 +827,22 @@ class GPSWaypointFollower:
         if all(math.isfinite(v) for v in (x, y)) and x > 0:
             self.avoidance_target = (x, y)
             self.avoidance_target_received = time.monotonic()
+
+    def route_avoidance_callback(self, msg):
+        try:
+            data = json.loads(msg.data)
+            path = [(float(x), float(y)) for x, y in data['path']]
+            cap = data.get('speed_cap_kmh')
+            cap = float('inf') if cap is None else float(cap)
+            if not all(math.isfinite(v) for point in path for v in point) or math.isnan(cap):
+                raise ValueError('non-finite route avoidance output')
+        except (ValueError, KeyError, TypeError):
+            self.route_avoidance = None
+            return
+        self.route_avoidance = dict(path=path, speed_cap_kmh=cap,
+                                    state=data.get('state', ''),
+                                    reason=data.get('reason', ''))
+        self.route_avoidance_received = time.monotonic()
 
     def avoidance_speed_callback(self, msg):
         self.avoidance_speed_kmh = (msg.data if math.isfinite(msg.data)
@@ -1409,6 +1435,25 @@ class GPSWaypointFollower:
 
         target = self.find_lookahead_point()
         local_speed_cap = float('inf')
+        route_avoidance = (getattr(self, 'route_avoidance_topic', '')
+                           and self.drive_mode != 'BLACKOUT')
+        if route_avoidance:
+            plan = self.route_avoidance
+            if (plan is None or self.route_avoidance_received is None
+                    or now - self.route_avoidance_received > .5):
+                self.publish_full_stop()
+                rospy.logwarn_throttle(2., 'Route avoidance output missing/stale')
+                return
+            local_speed_cap = plan['speed_cap_kmh']
+            self.avoidance_state = plan['state']
+            self.lane_change_reason = plan['reason']
+            if plan['path']:
+                self.publish_local_path(plan['path'])
+                target = self.local_target(plan['path'])
+                if target is None:
+                    self.publish_full_stop()
+                    rospy.logwarn_throttle(2., 'Route avoidance path has no lookahead point')
+                    return
         if getattr(self, 'enable_local_avoidance', False) and self.drive_mode != 'BLACKOUT':
             if (self.obstacle_received is None or
                     now-self.obstacle_received > .5 or
@@ -1443,7 +1488,7 @@ class GPSWaypointFollower:
                 if target is None:
                     self.publish_full_stop()
                     return
-        else:
+        elif not route_avoidance:
             self.avoidance_state = 'RACELINE'
             self.lane_change_reason = ''
             self.avoidance_kind = ''
