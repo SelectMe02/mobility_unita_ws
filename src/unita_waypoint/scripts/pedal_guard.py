@@ -1,4 +1,29 @@
 """Stop release on fresh observations, with immediate brake and ramped throttle."""
+import math
+
+
+class CruiseBrake:
+    """Shape ordinary speed tracking only; callers must bypass for hazards."""
+    def __init__(self, gain=.025, max_brake=.25, rise_rate=.5, deadband_kmh=1.):
+        values = (gain, max_brake, rise_rate, deadband_kmh)
+        if (not all(math.isfinite(v) for v in values)
+                or min(gain, max_brake, rise_rate) <= 0.
+                or max_brake > 1. or deadband_kmh < 0.):
+            raise ValueError('invalid cruise brake parameters')
+        self.gain, self.max_brake = gain, max_brake
+        self.rise_rate, self.deadband_kmh = rise_rate, deadband_kmh
+        self.brake = 0.
+
+    def reset(self):
+        self.brake = 0.
+
+    def shape(self, output, current_kmh, target_kmh, dt):
+        overspeed = max(0., current_kmh-target_kmh-self.deadband_kmh)
+        requested = min(max(0., -output), self.max_brake, self.gain*overspeed)
+        # Release immediately near the target; never ramp a lingering brake
+        # through the requested speed. Only brake application is rate limited.
+        self.brake = min(requested, self.brake+self.rise_rate*max(0., min(.2, dt)))
+        return -self.brake if output < 0. else output
 
 
 class PedalGuard:

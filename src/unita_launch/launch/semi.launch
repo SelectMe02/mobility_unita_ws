@@ -19,6 +19,9 @@
   <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
   <!-- Checkpoint segment driven by the raceline follower. -->
   <arg name="raceline_checkpoints" default="8-11"/>
+  <!-- S11 cruising target floor; obstacle/lane-end stops and stale-input
+       braking still take priority. Saved Map Debug settings may override it. -->
+  <arg name="sector11_min_speed_kmh" default="40.0"/>
   <arg name="start_rviz" default="false"/>
   <!-- log:=true records raceline decisions/obstacles (driving_log_recorder) and
        the Leo guard/avoidance/tunnel state to unita_waypoint/log. -->
@@ -79,6 +82,13 @@
     <param name="preferred_raceline_sector" value="11"/>
     <param name="preferred_raceline_end_checkpoint" value="11" type="str"/>
     <param name="preferred_raceline_after_checkpoint" value="1"/>
+    <param name="sector11_min_speed_kmh" value="$(arg sector11_min_speed_kmh)"/>
+    <!-- S11 ordinary cruise braking only. Hazard/stop commands bypass this. -->
+    <param name="sector11_smooth_braking" value="true"/>
+    <param name="sector11_brake_gain" value="0.025"/>
+    <param name="sector11_max_cruise_brake" value="0.25"/>
+    <param name="sector11_brake_rise_rate" value="0.5"/>
+    <param name="sector11_brake_deadband_kmh" value="1.0"/>
     <param name="rear_extent_m" value="0.790"/>
     <param name="lane_change_gap_m" value="3.0"/>
     <param name="lane_change_lateral_accel_mps2" value="1.5"/>

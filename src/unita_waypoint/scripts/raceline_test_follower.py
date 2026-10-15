@@ -103,7 +103,10 @@ class RacelineTestFollower(GPSWaypointFollower):
             self.last_diagnostic_time = now
 
     def publish_full_stop(self):
-        self._diagnostic('stop', stop_reason=getattr(self, 'stop_reason', 'unknown'))
+        self._diagnostic('stop', stop_reason=getattr(self, 'stop_reason', 'unknown'),
+                         speed_limits=getattr(self, 'diagnostic_speed_limits', {}),
+                         lane_end_imminent=getattr(getattr(self, 'local_planner', None),
+                                                   'lane_end_imminent', None))
         super().publish_full_stop()
 
     def publish_control(self, steering, velocity):

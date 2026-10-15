@@ -25,7 +25,7 @@ sys.path.insert(0, str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) / '
 from local_avoidance_core import LocalAvoidancePlanner, Obstacle
 from lane_corridor import LaneCorridor, project_lane_geometry
 from avoidance_runtime import RuntimeSettings
-from pedal_guard import PedalGuard
+from pedal_guard import CruiseBrake, PedalGuard
 
 
 def clamp(value, lower, upper):
@@ -301,6 +301,13 @@ class GPSWaypointFollower:
             float(rospy.get_param("~pid_ki", 0.002)),
             float(rospy.get_param("~pid_kd", 0.01)),
             float(rospy.get_param("~pid_integral_limit", 20.0)))
+        self.sector11_cruise_brake = None
+        if rospy.get_param('~sector11_smooth_braking', False):
+            self.sector11_cruise_brake = CruiseBrake(
+                gain=float(rospy.get_param('~sector11_brake_gain', .025)),
+                max_brake=float(rospy.get_param('~sector11_max_cruise_brake', .25)),
+                rise_rate=float(rospy.get_param('~sector11_brake_rise_rate', .5)),
+                deadband_kmh=float(rospy.get_param('~sector11_brake_deadband_kmh', 1.)))
 
         self.enable_local_avoidance = bool(rospy.get_param('~enable_local_avoidance', False))
         self.obstacles = []
@@ -1132,6 +1139,25 @@ class GPSWaypointFollower:
     # publish control
     # ================================================================
 
+    def sector11_cruise_braking_allowed(self):
+        """Use comfort braking only with no obstacle, lane-end or external cap."""
+        sectors = getattr(self, 'route_sectors', [])
+        index = getattr(self, 'current_waypoint_index', -1)
+        planner = getattr(self, 'local_planner', None)
+        decision = getattr(self, 'last_decision', None)
+        if (not 0 <= index < len(sectors) or sectors[index] != 11
+                or planner is None or decision is None
+                or decision.state in ('BLOCKED', 'SENSOR_HOLD')
+                or math.isfinite(decision.obstacle_distance_m)
+                or planner.lane_end_imminent
+                or getattr(self, 'drive_mode', '') in ('BLACKOUT', 'SIM_EXIT')):
+            return False
+        # A finite planner cap can encode lane-end braking even before the
+        # lane_end_imminent flag is set. Preserve that braking envelope too.
+        return all(value is None or value == float('inf') for value in (
+            decision.speed_cap_kmh, getattr(self, 'guard_speed_limit', None),
+            getattr(self, 'avoidance_speed_kmh', None)))
+
     def publish_control(
         self,
         steering,
@@ -1148,6 +1174,13 @@ class GPSWaypointFollower:
             self.last_pid_update = now
             output = self.speed_pid.update(
                 velocity, self.current_speed_kmh, dt)
+            cruise_brake = getattr(self, 'sector11_cruise_brake', None)
+            smooth = (cruise_brake is not None and velocity > 0.
+                      and self.sector11_cruise_braking_allowed())
+            if smooth:
+                output = cruise_brake.shape(output, self.current_speed_kmh, velocity, dt)
+            elif cruise_brake is not None:
+                cruise_brake.reset()
             if not hasattr(self, 'pedal_guard'):
                 self.pedal_guard = PedalGuard()
             planner = getattr(self, 'local_planner', None)
@@ -1157,6 +1190,7 @@ class GPSWaypointFollower:
             accel, brake, pedal_state = self.pedal_guard.command(output, now, sample,
                 getattr(planner, 'clear_hold_s', .4), getattr(planner, 'restart_accel_rate', .5), limit)
             self.pedal_reason = ('clearance_confirmation' if pedal_state == 'clearance_confirmation'
+                                 else 'sector11_cruise_brake' if smooth and brake > 0.
                                  else 'avoidance_deceleration' if soft and brake > 0.
                                  else 'pid_brake' if brake > 0. else 'drive')
             if pedal_state == 'clearance_confirmation':
@@ -1306,6 +1340,9 @@ class GPSWaypointFollower:
 
     def publish_full_stop(self):
         self.requested_target_speed_kmh = 0.
+        cruise_brake = getattr(self, 'sector11_cruise_brake', None)
+        if cruise_brake is not None:
+            cruise_brake.reset()
         if not hasattr(self, 'pedal_guard'):
             self.pedal_guard = PedalGuard()
         self.pedal_guard.stop(time.monotonic())

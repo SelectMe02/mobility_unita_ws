@@ -3,6 +3,7 @@ import math
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -12,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from ground_segmentation import segment_ground
 from local_avoidance_core import LocalAvoidancePlanner, Obstacle
 from lidar_obstacles import LidarObstacles
-from pedal_guard import PedalGuard
+from pedal_guard import CruiseBrake, PedalGuard
 from gps_waypoint_follower import GPSWaypointFollower, PIDController
 
 
@@ -103,6 +104,72 @@ class StabilityTests(unittest.TestCase):
         self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake, .35)
         n.publish_full_stop()
         self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
+
+    def cruise_follower(self, sector=11):
+        n = GPSWaypointFollower.__new__(GPSWaypointFollower)
+        n.longitudinal_control_mode, n.control_rate = 'pid', 20.
+        n.last_pid_update, n.current_speed_kmh = None, 60.
+        n.speed_pid = PIDController(.08, .002, .01)
+        n.ctrl_pub = MagicMock()
+        n.current_waypoint_index, n.route_sectors = 0, [sector]
+        n.sector11_cruise_brake = CruiseBrake()
+        n.local_planner = SimpleNamespace(lane_end_imminent=False)
+        n.last_decision = SimpleNamespace(state='RACELINE',
+            obstacle_distance_m=math.inf, speed_cap_kmh=math.inf)
+        return n
+
+    def test_s11_cruise_brake_ramps_up_and_releases_at_target(self):
+        n = self.cruise_follower()
+        brakes = []
+        for step in range(15):
+            with patch('gps_waypoint_follower.time.monotonic', return_value=10.+step*.05):
+                n.publish_control(0., 40.)
+            cmd = n.ctrl_pub.publish.call_args.args[0]
+            brakes.append(cmd.brake)
+            self.assertEqual(cmd.accel, 0.)
+        self.assertAlmostEqual(brakes[0], .025)
+        self.assertAlmostEqual(max(brakes), .25)
+        self.assertTrue(all(0. <= b-a <= .025001 for a, b in zip(brakes, brakes[1:])))
+        self.assertEqual(n.pedal_reason, 'sector11_cruise_brake')
+        # A negative PID integral must not keep braking through the target.
+        n.speed_pid.update = MagicMock(return_value=-1.)
+        for speed, expected in ((43., .05), (42., .025), (41., 0.), (40., 0.), (39., 0.)):
+            n.current_speed_kmh = speed
+            n.publish_control(0., 40.)
+            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake, expected)
+
+    def test_s11_hazards_and_other_sectors_bypass_cruise_brake(self):
+        for condition in ('other_sector', 'obstacle', 'lane_end', 'finite_planner_cap',
+                          'guard_cap', 'external_cap', 'blackout'):
+            with self.subTest(condition=condition):
+                n = self.cruise_follower()
+                n.speed_pid.update = MagicMock(return_value=-1.)
+                if condition == 'other_sector': n.route_sectors = [10]
+                if condition == 'obstacle': n.last_decision.obstacle_distance_m = 10.
+                if condition == 'lane_end': n.local_planner.lane_end_imminent = True
+                if condition == 'finite_planner_cap': n.last_decision.speed_cap_kmh = 20.
+                if condition == 'guard_cap': n.guard_speed_limit = 20.
+                if condition == 'external_cap': n.avoidance_speed_kmh = 20.
+                if condition == 'blackout': n.drive_mode = 'BLACKOUT'
+                n.publish_control(0., 40.)
+                self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
+                self.assertEqual(n.sector11_cruise_brake.brake, 0.)
+
+    def test_s11_full_stop_and_clearance_confirmation_remain_immediate(self):
+        n = self.cruise_follower()
+        n.publish_control(0., 40.)
+        n.publish_full_stop()
+        self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
+        self.assertEqual(n.sector11_cruise_brake.brake, 0.)
+        n.publish_control(0., 70.)
+        self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
+        self.assertEqual(n.pedal_reason, 'clearance_confirmation')
+
+    def test_invalid_cruise_brake_settings_are_rejected(self):
+        for kwargs in ({'gain': math.nan}, {'max_brake': 1.1}, {'rise_rate': 0.},
+                       {'deadband_kmh': -1.}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                CruiseBrake(**kwargs)
 
 
 if __name__ == '__main__':
