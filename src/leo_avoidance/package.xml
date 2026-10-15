@@ -11,6 +11,7 @@
   <depend>std_msgs</depend>
   <depend>morai_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>std_srvs</depend>
   <exec_depend>control</exec_depend>

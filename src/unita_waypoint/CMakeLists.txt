@@ -225,7 +225,9 @@ target_link_libraries(map_tunner_panel ${catkin_LIBRARIES} Qt5::Widgets)
 
 catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
   scripts/gps_waypoint_follower_leo.py
+  scripts/gps_waypoint_follower_local.py
   scripts/lidar_obstacles.py
+  scripts/lidar_obstacles_local.py
   scripts/ground_filter_analysis.py
   scripts/driving_log_recorder.py
   scripts/raceline_test_follower.py
@@ -238,6 +240,7 @@ catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
 install(DIRECTORY config launch scenarios DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(FILES scripts/map_tunner_core.py scripts/map_tunner_map.py
   scripts/local_avoidance_core.py
+  scripts/local_avoidance_core_local.py
   scripts/avoidance_runtime.py
   scripts/ground_segmentation.py
   scripts/pedal_guard.py
@@ -248,6 +251,7 @@ install(FILES plugin_description.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINAT
 install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_loop_tracking.py)
+  catkin_add_nosetests(test/test_loop_tracking_local.py)
   catkin_add_nosetests(test/test_extract_stoplines.py)
   catkin_add_nosetests(test/test_map_tunner.py)
   catkin_add_nosetests(test/test_map_debug.py)

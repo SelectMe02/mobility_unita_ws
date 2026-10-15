@@ -4,7 +4,7 @@ find_package(catkin REQUIRED COMPONENTS geometry_msgs morai_msgs nav_msgs rospy 
 catkin_python_setup()
 catkin_package(CATKIN_DEPENDS geometry_msgs morai_msgs nav_msgs rospy sensor_msgs std_msgs std_srvs)
 catkin_install_python(PROGRAMS scripts/morai_udp_control.py scripts/competition_udp_control.py
-  scripts/lidar_lane_guard.py
+  scripts/lidar_lane_guard.py scripts/competition_udp_control_local.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(DIRECTORY config launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   PATTERN ".gitkeep" EXCLUDE)
