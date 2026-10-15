@@ -42,8 +42,15 @@ class RouteProgress:
 class TrafficDecision:
     def __init__(self, stops, route_length, front_margin=5., maximum_kmh=58.,
                  decel=3., latency=.5, stoplines=None, crossing_kmh=None,
-                 crossing_before_m=30., crossing_after_m=40.):
+                 crossing_before_m=30., crossing_after_m=40., missed_signal_hold_s=0.):
         self.stops = sorted(stops, key=lambda v:v['s'])
+        # A frame with no detection in the head ROI keeps the last permitted
+        # signal of the same stop for this long. Red, yellow, an uncertain
+        # head and a stale camera still stop at once. 0 disables it.
+        if not math.isfinite(missed_signal_hold_s) or missed_signal_hold_s < 0:
+            raise ValueError('invalid missed signal hold')
+        self.missed_signal_hold_s = missed_signal_hold_s
+        self.last_permit = None
         # Speed through a signal-controlled intersection: from crossing_before_m
         # before the stop line until crossing_after_m past its exit, where
         # crossing pedestrians must still be stoppable for. None disables it.
@@ -96,6 +103,17 @@ class TrafficDecision:
         self.latch = SignalLatch(0.,1.,min_frames=1); self.committed = None; self.last_s = None; self.active = None
         self.post_exit = None
         self.approach_go_selected = None
+        self.last_permit = None
+
+    def held_permit(self, stop, label, now):
+        """Signal state of a recent permit when this frame shows no relevant head."""
+        if (label != 'no relevant signal' or self.last_permit is None
+                or self.missed_signal_hold_s <= 0):
+            return None
+        stop_id, state, seen = self.last_permit
+        if stop_id != stop['id'] or not 0 <= now - seen <= self.missed_signal_hold_s:
+            return None
+        return state
 
     def distance_to_next_controlled_stop(self, progress, front_offset=0.):
         """Meters from the front axle to the next signal-controlled stop line."""
@@ -179,10 +197,10 @@ class TrafficDecision:
         signal_state = 'unknown'
         if stop.get('reviewed') and stop.get('controlled') is True:
             if distance > stop.get('signal_activation_distance_m',float('inf')):
-                self.latch.update(False,None,None,now)
+                self.latch.update(False,None,None,now);self.last_permit=None
                 label='outside surveyed signal observation range'
             elif signals and signals.get('camera','front')!=stop.get('signal_camera','front'):
-                self.latch.update(False,None,None,now);label='wrong camera for surveyed signal head'
+                self.latch.update(False,None,None,now);self.last_permit=None;label='wrong camera for surveyed signal head'
             elif signals and signals.get('valid'):
                 signal_state = camera_signal_state(
                     signals.get('detections', []), stop['signal_roi'],
@@ -192,16 +210,24 @@ class TrafficDecision:
                     min_width=stop.get('signal_min_width',0.))
                 if stop['maneuver']=='right_unprotected' and yield_clear is not True:
                     allowed=False;label='right turn requires completed stop and fresh observed yield clearance'
-                allowed=self.latch.update(allowed,(stop['id'],stop['maneuver'],label),signals.get('frame'),now)
+                held = self.held_permit(stop, label, now)
+                if held is not None:
+                    # Keep the latch; the next detection continues its evidence.
+                    signal_state=held;allowed=True;label='permit held through missed detection'
+                else:
+                    allowed=self.latch.update(allowed,(stop['id'],stop['maneuver'],label),signals.get('frame'),now)
+                    self.last_permit=(stop['id'],signal_state,now) if allowed else None
             else:
-                self.latch.update(False,None,None,now);label='camera result missing or stale'
+                self.latch.update(False,None,None,now);self.last_permit=None;label='camera result missing or stale'
         else:
-            self.latch.update(False,None,None,now)
+            self.latch.update(False,None,None,now);self.last_permit=None
         detail.update(release_stable=allowed,reason=label)
         if self.stoplines is not None and stop['maneuver'] == 'straight' and stop.get('controlled') is True:
             result = self.decide_yellow(stop, progress, distance, signals, now,
                                         pose, speed_mps, ros_now, signal_state, allowed)
             if result is not None:
+                if label == 'permit held through missed detection':
+                    result = (result[0], dict(result[1], signal_held=True))
                 return result
         if allowed:
             # Use the measured GPS-to-front-wheel projection, never the

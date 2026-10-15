@@ -44,7 +44,8 @@ class SignalGuard:
             stoplines=stoplines,
             crossing_kmh=(float(rospy.get_param('~crossing_speed_kmh',0.)) or None),
             crossing_before_m=float(rospy.get_param('~crossing_before_m',30.)),
-            crossing_after_m=float(rospy.get_param('~crossing_after_m',40.)))
+            crossing_after_m=float(rospy.get_param('~crossing_after_m',40.)),
+            missed_signal_hold_s=float(rospy.get_param('~missed_signal_hold_s',0.)))
         self.pub=rospy.Publisher('/ctrl_cmd',CtrlCmd,queue_size=1)
         self.cap=rospy.Publisher('/leo/speed_limit_kmh',Float64,queue_size=1)
         self.status=rospy.Publisher('/leo/signal_status',String,queue_size=1)

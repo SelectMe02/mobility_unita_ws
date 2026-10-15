@@ -30,6 +30,9 @@
        intersection exit; a pedestrian stepping out there must be stoppable
        for. 0 disables it. -->
   <arg name="crossing_speed_kmh" default="30.0"/>
+  <!-- Keep the last green this long when a camera frame shows no signal head;
+       red, yellow and a stale camera still stop at once. 0 disables it. -->
+  <arg name="missed_signal_hold_s" default="0.8"/>
   <arg name="guard_route_max_error_m" default="$(eval 5.5 if arg('enable_route_avoidance') else 2.0)"/>
   <include file="$(find unita_launch)/launch/competition_udp_tracking_local.launch">
     <arg name="control_node_pkg" value="$(arg control_node_pkg)"/>
@@ -88,5 +91,6 @@
     <param name="pose_fault_grace_s" value="$(arg guard_pose_fault_grace_s)"/>
     <param name="route_max_error_m" value="$(arg guard_route_max_error_m)"/>
     <param name="crossing_speed_kmh" value="$(arg crossing_speed_kmh)"/>
+    <param name="missed_signal_hold_s" value="$(arg missed_signal_hold_s)"/>
   </node>
 </launch>

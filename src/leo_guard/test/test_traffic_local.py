@@ -208,3 +208,77 @@ class CrossingSpeedTests(unittest.TestCase):
         caps = self.drive_to(c, 40., 80.)
         self.assertAlmostEqual(caps[76.][0], 58. / 3.6)
         self.assertNotIn('crossing_limit_kmh', caps[76.][1])
+
+
+class MissedSignalHoldTests(unittest.TestCase):
+    STOP = dict(id='first', s=100., traffic_light_id='light1', maneuver='straight',
+                controlled=True, reviewed=True, signal_roi=[.3, .05, .7, .6],
+                clearance_m=20.)
+    # Camera results 0.2 s apart on the 2026-10-15 C016 approach:
+    # G = green_left in the head ROI, M = no detection.
+    LOGGED = 'GGMMGGMGGMGGG'
+
+    def controller(self, hold, stoplines=True):
+        lines = [dict(idx='first', x=100., y=0., traffic_light_id='light1')]
+        return TrafficDecision([dict(self.STOP)], 1000., missed_signal_hold_s=hold,
+                               stoplines=lines if stoplines else None)
+
+    def frame(self, kind, number):
+        heads = dict(M=[], G=[('traffic_light_green_left', .95)],
+                     R=[('traffic_light_red', .95)], Y=[('traffic_light_yellow', .95)],
+                     U=[('traffic_light_green', .5)])[kind]
+        return dict(valid=True, frame=number, detections=[dict(
+            label=label, confidence=score, bbox_normalized=[.45, .2, .55, .3])
+            for label, score in heads])
+
+    def run_pattern(self, c, pattern, progress=85.):
+        """Guard steps at 20 Hz; each camera result stays latest for 0.2 s."""
+        results = []
+        for step in range(len(pattern) * 4):
+            now = step * .05
+            number = step // 4
+            signals = self.frame(pattern[number], number)
+            results.append((pattern[number], c.decide(progress, signals, now,
+                pose=(85., 0., 0.), speed_mps=8., ros_now=now)))
+        return results
+
+    def test_logged_flicker_keeps_green_and_old_behaviour_brakes(self):
+        for stoplines in (True, False):
+            held = self.run_pattern(self.controller(.8, stoplines), self.LOGGED)
+            self.assertTrue(all(cap == 58. / 3.6 for _, (cap, _) in held))
+            self.assertTrue(any(detail.get('reason') == 'permit held through missed detection'
+                                or detail.get('signal_held') for _, (_, detail) in held))
+            old = self.run_pattern(self.controller(0., stoplines), self.LOGGED)
+            self.assertTrue(any(cap < 58. / 3.6 for kind, (cap, _) in old if kind == 'M'))
+
+    def test_red_or_yellow_after_green_stops_at_once(self):
+        for kind in 'RY':
+            results = self.run_pattern(self.controller(.8), 'GG' + kind)
+            self.assertTrue(all(cap < 58. / 3.6 for k, (cap, _) in results if k == kind))
+
+    def test_miss_longer_than_hold_stops(self):
+        results = self.run_pattern(self.controller(.8), 'GMMMMMM')
+        self.assertLess(results[-1][1][0], 58. / 3.6)
+
+    def test_uncertain_head_or_stale_camera_is_not_held(self):
+        c = self.controller(.8)
+        self.run_pattern(c, 'GG')
+        cap, _ = c.decide(85., self.frame('U', 9), .45, pose=(85., 0., 0.),
+                          speed_mps=8., ros_now=.45)
+        self.assertLess(cap, 58. / 3.6)
+        c = self.controller(.8)
+        self.run_pattern(c, 'GG')
+        cap, _ = c.decide(85., None, .45, pose=(85., 0., 0.), speed_mps=8., ros_now=.45)
+        self.assertLess(cap, 58. / 3.6)
+        cap, _ = c.decide(85., self.frame('M', 9), .5, pose=(85., 0., 0.),
+                          speed_mps=8., ros_now=.5)
+        self.assertLess(cap, 58. / 3.6)
+
+    def test_miss_without_earlier_green_is_not_held(self):
+        results = self.run_pattern(self.controller(.8), 'MMG')
+        self.assertTrue(all(cap < 58. / 3.6 for k, (cap, _) in results if k == 'M'))
+
+    def test_invalid_hold_rejected(self):
+        for value in (-.1, float('nan')):
+            with self.assertRaises(ValueError):
+                TrafficDecision([dict(self.STOP)], 1000., missed_signal_hold_s=value)

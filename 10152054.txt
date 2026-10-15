@@ -1,0 +1,434 @@
+... logging to /home/unita/.ros/log/7d26bcb0-c888-11f1-9a9b-8d1e01b01625/roslaunch-nuc-106500.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+]2;/home/unita/merge_ws/src/unita_launch/launch/competition_udp_tracking_leo.launch
+[1mstarted roslaunch server http://nuc:42307/[0m
+
+SUMMARY
+========
+
+PARAMETERS
+ * /camera_front_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_front_udp_bridge/diagnostic_log: False
+ * /camera_front_udp_bridge/east_offset: 0.0
+ * /camera_front_udp_bridge/north_offset: 0.0
+ * /camera_front_udp_bridge/sensor: camera_front
+ * /camera_front_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_front_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_front_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_front_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_front_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_front_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_front_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_front_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_front_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_front_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_front_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_front_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_front_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_front_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_front_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_front_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_front_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_front_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_front_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_front_udp_bridge/sensors/gps/kind: gps
+ * /camera_front_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_front_udp_bridge/sensors/gps/topic: /gps
+ * /camera_front_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_front_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_front_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_front_udp_bridge/sensors/imu/kind: imu
+ * /camera_front_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_front_udp_bridge/sensors/imu/topic: /imu
+ * /camera_front_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_front_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_front_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_front_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_front_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_front_udp_bridge/source_ip: 127.0.0.1
+ * /camera_front_udp_bridge/use_sensor_stamp: False
+ * /camera_left_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_left_udp_bridge/diagnostic_log: False
+ * /camera_left_udp_bridge/east_offset: 0.0
+ * /camera_left_udp_bridge/north_offset: 0.0
+ * /camera_left_udp_bridge/sensor: camera_left
+ * /camera_left_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_left_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_left_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_left_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_left_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_left_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_left_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_left_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_left_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_left_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_left_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_left_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_left_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_left_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_left_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_left_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_left_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_left_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_left_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_left_udp_bridge/sensors/gps/kind: gps
+ * /camera_left_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_left_udp_bridge/sensors/gps/topic: /gps
+ * /camera_left_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_left_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_left_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_left_udp_bridge/sensors/imu/kind: imu
+ * /camera_left_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_left_udp_bridge/sensors/imu/topic: /imu
+ * /camera_left_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_left_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_left_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_left_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_left_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_left_udp_bridge/source_ip: 127.0.0.1
+ * /camera_left_udp_bridge/use_sensor_stamp: False
+ * /camera_rear_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_rear_udp_bridge/diagnostic_log: False
+ * /camera_rear_udp_bridge/east_offset: 0.0
+ * /camera_rear_udp_bridge/north_offset: 0.0
+ * /camera_rear_udp_bridge/sensor: camera_rear
+ * /camera_rear_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_rear_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_rear_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_rear_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_rear_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_rear_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_rear_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_rear_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_rear_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_rear_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_rear_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_rear_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_rear_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_rear_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_rear_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_rear_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_rear_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_rear_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_rear_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_rear_udp_bridge/sensors/gps/kind: gps
+ * /camera_rear_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_rear_udp_bridge/sensors/gps/topic: /gps
+ * /camera_rear_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_rear_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_rear_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_rear_udp_bridge/sensors/imu/kind: imu
+ * /camera_rear_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_rear_udp_bridge/sensors/imu/topic: /imu
+ * /camera_rear_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_rear_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_rear_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_rear_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_rear_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_rear_udp_bridge/source_ip: 127.0.0.1
+ * /camera_rear_udp_bridge/use_sensor_stamp: False
+ * /camera_right_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_right_udp_bridge/diagnostic_log: False
+ * /camera_right_udp_bridge/east_offset: 0.0
+ * /camera_right_udp_bridge/north_offset: 0.0
+ * /camera_right_udp_bridge/sensor: camera_right
+ * /camera_right_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_right_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_right_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_right_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_right_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_right_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_right_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_right_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_right_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_right_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_right_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_right_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_right_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_right_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_right_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_right_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_right_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_right_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_right_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_right_udp_bridge/sensors/gps/kind: gps
+ * /camera_right_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_right_udp_bridge/sensors/gps/topic: /gps
+ * /camera_right_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_right_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_right_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_right_udp_bridge/sensors/imu/kind: imu
+ * /camera_right_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_right_udp_bridge/sensors/imu/topic: /imu
+ * /camera_right_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_right_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_right_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_right_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_right_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_right_udp_bridge/source_ip: 127.0.0.1
+ * /camera_right_udp_bridge/use_sensor_stamp: False
+ * /competition_udp_control/bind_ip: 0.0.0.0
+ * /competition_udp_control/command_timeout: 0.5
+ * /competition_udp_control/ego_yaw_offset_deg: 0.0
+ * /competition_udp_control/gear: 4
+ * /competition_udp_control/heading_source: ego_status
+ * /competition_udp_control/local_port: 0
+ * /competition_udp_control/max_speed_kmh: 100.0
+ * /competition_udp_control/max_steering_deg: 36.25
+ * /competition_udp_control/morai_ip: 127.0.0.1
+ * /competition_udp_control/morai_port: 9093
+ * /competition_udp_control/send_rate: 20.0
+ * /competition_udp_control/sensor_timeout: 1.0
+ * /competition_udp_control/status_port: 9096
+ * /competition_udp_control/status_timeout: 1.0
+ * /competition_udp_control/steering_sign: 1.0
+ * /gps_imu_localization/base_frame: base_link
+ * /gps_imu_localization/gps_topic: /gps
+ * /gps_imu_localization/imu_topic: /competition/head...
+ * /gps_imu_localization/map_frame: map
+ * /gps_imu_localization/max_sensor_skew: 0.2
+ * /gps_imu_localization/pose_topic: /localization/pose
+ * /gps_imu_localization/publish_rate: 20.0
+ * /gps_imu_localization/require_gps_fix: True
+ * /gps_imu_localization/sensor_timeout: 1.0
+ * /gps_imu_localization/utm_south: False
+ * /gps_imu_localization/utm_zone: 52
+ * /gps_imu_localization/valid_topic: /localization/valid
+ * /gps_imu_localization/yaw_offset: 0.0
+ * /gps_udp_bridge/bind_ip: 0.0.0.0
+ * /gps_udp_bridge/diagnostic_log: False
+ * /gps_udp_bridge/east_offset: 302595
+ * /gps_udp_bridge/north_offset: 4124145
+ * /gps_udp_bridge/sensor: gps
+ * /gps_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /gps_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /gps_udp_bridge/sensors/camera_front/host_port: 9101
+ * /gps_udp_bridge/sensors/camera_front/kind: camera
+ * /gps_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /gps_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /gps_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /gps_udp_bridge/sensors/camera_left/host_port: 9102
+ * /gps_udp_bridge/sensors/camera_left/kind: camera
+ * /gps_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /gps_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /gps_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /gps_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /gps_udp_bridge/sensors/camera_rear/kind: camera
+ * /gps_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /gps_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /gps_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /gps_udp_bridge/sensors/camera_right/host_port: 9103
+ * /gps_udp_bridge/sensors/camera_right/kind: camera
+ * /gps_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /gps_udp_bridge/sensors/gps/destination_port: 9230
+ * /gps_udp_bridge/sensors/gps/frame_id: gps
+ * /gps_udp_bridge/sensors/gps/host_port: 9130
+ * /gps_udp_bridge/sensors/gps/kind: gps
+ * /gps_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /gps_udp_bridge/sensors/gps/topic: /gps
+ * /gps_udp_bridge/sensors/imu/destination_port: 9220
+ * /gps_udp_bridge/sensors/imu/frame_id: imu
+ * /gps_udp_bridge/sensors/imu/host_port: 9120
+ * /gps_udp_bridge/sensors/imu/kind: imu
+ * /gps_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /gps_udp_bridge/sensors/imu/topic: /imu
+ * /gps_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /gps_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /gps_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /gps_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /gps_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /gps_udp_bridge/source_ip: 127.0.0.1
+ * /gps_udp_bridge/use_sensor_stamp: False
+ * /gps_waypoint_follower/avoidance_brake_limit: 0.35
+ * /gps_waypoint_follower/avoidance_clear_hold_s: 0.4
+ * /gps_waypoint_follower/avoidance_emergency_ttc_s: 1.0
+ * /gps_waypoint_follower/checkpoint_match_tolerance: 1.0
+ * /gps_waypoint_follower/checkpoints: [{'id': 'start_en...
+ * /gps_waypoint_follower/ctrl_topic: /ctrl_cmd
+ * /gps_waypoint_follower/curvature_window_m: 10.0
+ * /gps_waypoint_follower/enable_velocity_planning: True
+ * /gps_waypoint_follower/gps_topic: /gps
+ * /gps_waypoint_follower/high_speed_end_checkpoint: 13
+ * /gps_waypoint_follower/high_speed_max_speed_kmh: 100.0
+ * /gps_waypoint_follower/high_speed_start_checkpoint: 10
+ * /gps_waypoint_follower/imu_topic: /competition/head...
+ * /gps_waypoint_follower/lateral_accel_limit: 2.94
+ * /gps_waypoint_follower/longitudinal_control_mode: pid
+ * /gps_waypoint_follower/lookahead_distance: 5.0
+ * /gps_waypoint_follower/lookahead_speed_gain: 0.78
+ * /gps_waypoint_follower/loop_path: True
+ * /gps_waypoint_follower/max_lookahead_distance: 30.0
+ * /gps_waypoint_follower/max_profile_accel_mps2: 2.0
+ * /gps_waypoint_follower/max_profile_decel_mps2: 3.5
+ * /gps_waypoint_follower/max_steering_rad: 0.632681853
+ * /gps_waypoint_follower/min_curve_speed_kmh: 25.0
+ * /gps_waypoint_follower/min_lookahead_distance: 5.0
+ * /gps_waypoint_follower/normal_max_speed_kmh: 60.0
+ * /gps_waypoint_follower/pid_integral_limit: 20.0
+ * /gps_waypoint_follower/pid_kd: 0.01
+ * /gps_waypoint_follower/pid_ki: 0.002
+ * /gps_waypoint_follower/pid_kp: 0.08
+ * /gps_waypoint_follower/restart_accel_rate_per_s: 0.5
+ * /gps_waypoint_follower/speed_feedback_timeout: 0.5
+ * /gps_waypoint_follower/speed_topic: /competition/ego_...
+ * /gps_waypoint_follower/steering_sign: 1.0
+ * /gps_waypoint_follower/waypoint_file: /home/unita/merge...
+ * /gps_waypoint_follower/waypoint_format: local_xy
+ * /gps_waypoint_follower/wheelbase: 2.7
+ * /lidar_nodelet_manager_driver/cut_angle: -0.01
+ * /lidar_nodelet_manager_driver/device_ip: 127.0.0.1
+ * /lidar_nodelet_manager_driver/frame_id: lidar
+ * /lidar_nodelet_manager_driver/gps_time: False
+ * /lidar_nodelet_manager_driver/model: VLP16
+ * /lidar_nodelet_manager_driver/pcap: 
+ * /lidar_nodelet_manager_driver/pcap_time: False
+ * /lidar_nodelet_manager_driver/port: 9210
+ * /lidar_nodelet_manager_driver/read_fast: False
+ * /lidar_nodelet_manager_driver/read_once: False
+ * /lidar_nodelet_manager_driver/repeat_delay: 0.0
+ * /lidar_nodelet_manager_driver/rpm: 600
+ * /lidar_nodelet_manager_driver/timestamp_first_packet: False
+ * /lidar_nodelet_manager_laserscan/resolution: 0.007
+ * /lidar_nodelet_manager_laserscan/ring: -1
+ * /lidar_nodelet_manager_transform/calibration: /opt/ros/noetic/s...
+ * /lidar_nodelet_manager_transform/fixed_frame: 
+ * /lidar_nodelet_manager_transform/max_range: 130.0
+ * /lidar_nodelet_manager_transform/min_range: 0.4
+ * /lidar_nodelet_manager_transform/model: VLP16
+ * /lidar_nodelet_manager_transform/organize_cloud: False
+ * /lidar_nodelet_manager_transform/target_frame: 
+ * /rosdistro: noetic
+ * /rosversion: 1.17.4
+
+NODES
+  /
+    camera_front_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    camera_left_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    camera_rear_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    camera_right_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    competition_udp_control (control/competition_udp_control.py)
+    gps_imu_localization (localization/gps_imu_localization.py)
+    gps_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    gps_waypoint_follower (unita_waypoint/gps_waypoint_follower_leo.py)
+    lidar_nodelet_manager (nodelet/nodelet)
+    lidar_nodelet_manager_driver (nodelet/nodelet)
+    lidar_nodelet_manager_laserscan (nodelet/nodelet)
+    lidar_nodelet_manager_transform (nodelet/nodelet)
+    waypoint_rviz (rviz/rviz)
+    waypoint_visualizer (unita_launch/waypoint_visualizer.py)
+[0m[INFO] [1792065283.119530718]: Initializing nodelet with 22 worker threads.[0m
+[0m[INFO] [1792065283.152147824]: Velodyne VLP-16 rotating at 600 RPM[0m
+[0m[INFO] [1792065283.153843728]: publishing 76 packets per scan[0m
+[0m[INFO] [1792065283.157599467]: Cut at specific angle feature deactivated.[0m
+[0m[INFO] [1792065283.165116329]: Reconfigure Request[0m
+[0m[INFO] [1792065283.166604892]: expected frequency: 9.921 (Hz)[0m
+[0m[INFO] [1792065283.169471368]: Only accepting packets from IP address: 127.0.0.1[0m
+[0m[INFO] [1792065283.169498751]: Opening UDP socket: port 9210[0m
+0.000 2.304 4.608 6.912 9.216 11.520 13.824 16.128 18.432 20.736 23.040 25.344 27.648 29.952 32.256 34.560 55.296 57.600 59.904 62.208 64.512 66.816 69.120 71.424 73.728 76.032 78.336 80.640 82.944 85.248 87.552 89.856 
+110.592 112.896 115.200 117.504 119.808 122.112 124.416 126.720 129.024 131.328 133.632 135.936 138.240 140.544 142.848 145.152 165.888 168.192 170.496 172.800 175.104 177.408 179.712 182.016 184.320 186.624 188.928 191.232 193.536 195.840 198.144 200.448 
+221.184 223.488 225.792 228.096 230.400 232.704 235.008 237.312 239.616 241.920 244.224 246.528 248.832 251.136 253.440 255.744 276.480 278.784 281.088 283.392 285.696 288.000 290.304 292.608 294.912 297.216 299.520 301.824 304.128 306.432 308.736 311.040 
+331.776 334.080 336.384 338.688 340.992 343.296 345.600 347.904 350.208 352.512 354.816 357.120 359.424 361.728 364.032 366.336 387.072 389.376 391.680 393.984 396.288 398.592 400.896 403.200 405.504 407.808 410.112 412.416 414.720 417.024 419.328 421.632 
+442.368 444.672 446.976 449.280 451.584 453.888 456.192 458.496 460.800 463.104 465.408 467.712 470.016 472.320 474.624 476.928 497.664 499.968 502.272 504.576 506.880 509.184 511.488 513.792 516.096 518.400 520.704 523.008 525.312 527.616 529.920 532.224 
+552.960 555.264 557.568 559.872 562.176 564.480 566.784 569.088 571.392 573.696 576.000 578.304 580.608 582.912 585.216 587.520 608.256 610.560 612.864 615.168 617.472 619.776 622.080 624.384 626.688 628.992 631.296 633.600 635.904 638.208 640.512 642.816 
+663.552 665.856 668.160 670.464 672.768 675.072 677.376 679.680 681.984 684.288 686.592 688.896 691.200 693.504 695.808 698.112 718.848 721.152 723.456 725.760 728.064 730.368 732.672 734.976 737.280 739.584 741.888 744.192 746.496 748.800 751.104 753.408 
+774.144 776.448 778.752 781.056 783.360 785.664 787.968 790.272 792.576 794.880 797.184 799.488 801.792 804.096 806.400 808.704 829.440 831.744 834.048 836.352 838.656 840.960 843.264 845.568 847.872 850.176 852.480 854.784 857.088 859.392 861.696 864.000 
+884.736 887.040 889.344 891.648 893.952 896.256 898.560 900.864 903.168 905.472 907.776 910.080 912.384 914.688 916.992 919.296 940.032 942.336 944.640 946.944 949.248 951.552 953.856 956.160 958.464 960.768 963.072 965.376 967.680 969.984 972.288 974.592 
+995.328 997.632 999.936 1002.240 1004.544 1006.848 1009.152 1011.456 1013.760 1016.064 1018.368 1020.672 1022.976 1025.280 1027.584 1029.888 1050.624 1052.928 1055.232 1057.536 1059.840 1062.144 1064.448 1066.752 1069.056 1071.360 1073.664 1075.968 1078.272 1080.576 1082.880 1085.184 
+1105.920 1108.224 1110.528 1112.832 1115.136 1117.440 1119.744 1122.048 1124.352 1126.656 1128.960 1131.264 1133.568 1135.872 1138.176 1140.480 1161.216 1163.520 1165.824 1168.128 1170.432 1172.736 1175.040 1177.344 1179.648 1181.952 1184.256 1186.560 1188.864 1191.168 1193.472 1195.776 
+1216.512 1218.816 1221.120 1223.424 1225.728 1228.032 1230.336 1232.640 1234.944 1237.248 1239.552 1241.856 1244.160 1246.464 1248.768 1251.072 1271.808 1274.112 1276.416 1278.720 1281.024 1283.328 1285.632 1287.936 1290.240 1292.544 1294.848 1297.152 1299.456 1301.760 1304.064 1306.368 
+[0m[INFO] [1792065283.192412093]: correction angles: /opt/ros/noetic/share/velodyne_pointcloud/params/VLP16db.yaml[0m
+[0m[INFO] [1792065283.193680946]: laser_ring[ 0] =  0, angle = -0.261799[0m
+[0m[INFO] [1792065283.193698721]: laser_ring[ 2] =  1, angle = -0.226893[0m
+[0m[INFO] [1792065283.193705340]: laser_ring[ 4] =  2, angle = -0.191986[0m
+[0m[INFO] [1792065283.193711116]: laser_ring[ 6] =  3, angle = -0.157080[0m
+[0m[INFO] [1792065283.193746841]: laser_ring[ 8] =  4, angle = -0.122173[0m
+[0m[INFO] [1792065283.193753240]: laser_ring[10] =  5, angle = -0.087266[0m
+[0m[INFO] [1792065283.193759000]: laser_ring[12] =  6, angle = -0.052360[0m
+[0m[INFO] [1792065283.193764389]: laser_ring[14] =  7, angle = -0.017453[0m
+[0m[INFO] [1792065283.193770100]: laser_ring[ 1] =  8, angle = +0.017453[0m
+[0m[INFO] [1792065283.193775991]: laser_ring[ 3] =  9, angle = +0.052360[0m
+[0m[INFO] [1792065283.193781675]: laser_ring[ 5] = 10, angle = +0.087266[0m
+[0m[INFO] [1792065283.193789762]: laser_ring[ 7] = 11, angle = +0.122173[0m
+[0m[INFO] [1792065283.193795352]: laser_ring[ 9] = 12, angle = +0.157080[0m
+[0m[INFO] [1792065283.193800678]: laser_ring[11] = 13, angle = +0.191986[0m
+[0m[INFO] [1792065283.193805862]: laser_ring[13] = 14, angle = +0.226893[0m
+[0m[INFO] [1792065283.193810999]: laser_ring[15] = 15, angle = +0.261799[0m
+[0m[INFO] [1792065283.193890039]: Number of lasers: 16.[0m
+[0m[INFO] [1792065283.216225964]: Reconfigure request.[0m
+[0m[INFO] [1792065283.216268831]: Target frame ID now: [0m
+[0m[INFO] [1792065283.216281293]: Fixed frame ID now: [0m
+[0m[INFO] [1792065283.216323803]: Initialized container with min_range: 0.4, max_range: 130, target_frame: , fixed_frame: , init_width: 0, init_height: 1, is_dense: 1, scans_per_packet: 384[0m
+[INFO] [1792065283.636078]: GPS/IMU localization: /gps + /competition/heading_imu -> /localization/pose (frame=map)
+[INFO] [1792065283.622761]: COMPETITION UDP: SIM=127.0.0.1:9093, Ego status listen=9096, heading=ego_status, ctrl_mode=2, gear=4; NO ROS bridge/service
+[INFO] [1792065283.625242]: Automatic takeover enabled. Stop this launch or call ~set_enabled false to return to keyboard mode.
+[INFO] [1792065283.626726]: PAUSED: waiting for first valid Ego UDP status; no control packets
+[INFO] [1792065283.639052]: Loaded 4430 waypoints
+[INFO] [1792065283.663680]: Velocity profile ready: CP 10 idx=2275 -> CP 13 idx=3529, planned 25.0..100.0 km/h
+[INFO] [1792065283.691119]: ======================================
+[INFO] [1792065283.692155]:  GPS Waypoint Follower started
+[INFO] [1792065283.692852]:  GPS topic      : /gps
+[INFO] [1792065283.693425]:  IMU topic      : /competition/heading_imu
+[INFO] [1792065283.693938]:  CTRL topic     : /ctrl_cmd
+[INFO] [1792065283.694557]:  waypoint file  : /home/unita/merge_ws/src/unita_waypoint/config/waypoints.csv
+[INFO] [1792065283.695248]:  waypoint type  : local_xy
+[INFO] [1792065283.695907]:  speed limits   : normal 60.0 / CP 10-13 100.0 km/h
+[INFO] [1792065283.696547]:  longitudinal   : pid
+[INFO] [1792065283.697120]:  lookahead      : 5.00..30.00 m (gain 0.78)
+[INFO] [1792065283.697562]:  loop path      : True
+[INFO] [1792065283.697968]: ======================================
+[INFO] [1792065283.613907]: gps: UDP 0.0.0.0:9230 -> /gps (morai_msgs/GPSMessage)
+[INFO] [1792065283.628782]: camera_right: UDP 0.0.0.0:9203 -> /camera/image/right (sensor_msgs/Image)
+[INFO] [1792065283.629090]: camera_rear: UDP 0.0.0.0:9204 -> /camera/image/rear (sensor_msgs/Image)
+[INFO] [1792065283.588941]: camera_left: UDP 0.0.0.0:9202 -> /camera/image/left (sensor_msgs/Image)
+[INFO] [1792065283.596969]: camera_front: UDP 0.0.0.0:9201 -> /camera/image/front (sensor_msgs/Image)
+
+[1mROS_MASTER_URI=http://localhost:11311[0m
+]2;/home/unita/merge_ws/src/unita_launch/launch/competition_udp_tracking_leo.launch http://localhost:11311
+[1mprocess[camera_front_udp_bridge-1]: started with pid [106535][0m
+[1mprocess[camera_left_udp_bridge-2]: started with pid [106536][0m
+[1mprocess[camera_right_udp_bridge-3]: started with pid [106537][0m
+[1mprocess[camera_rear_udp_bridge-4]: started with pid [106538][0m
+[1mprocess[gps_udp_bridge-5]: started with pid [106539][0m
+[1mprocess[lidar_nodelet_manager-6]: started with pid [106540][0m
+[1mprocess[lidar_nodelet_manager_driver-7]: started with pid [106541][0m
+[1mprocess[lidar_nodelet_manager_transform-8]: started with pid [106605][0m
+[1mprocess[lidar_nodelet_manager_laserscan-9]: started with pid [106648][0m
+[1mprocess[gps_waypoint_follower-10]: started with pid [106696][0m
+[1mprocess[competition_udp_control-11]: started with pid [106698][0m
+[1mprocess[gps_imu_localization-12]: started with pid [106699][0m
+[1mprocess[waypoint_visualizer-13]: started with pid [106700][0m
+[1mprocess[waypoint_rviz-14]: started with pid [106702][0m
+[waypoint_rviz-14] killing on exit
+[waypoint_visualizer-13] killing on exit
+[gps_imu_localization-12] killing on exit
+[competition_udp_control-11] killing on exit
+[gps_waypoint_follower-10] killing on exit
+[lidar_nodelet_manager_laserscan-9] killing on exit
+[lidar_nodelet_manager_transform-8] killing on exit
+[lidar_nodelet_manager_driver-7] killing on exit
+[lidar_nodelet_manager-6] killing on exit
+[gps_udp_bridge-5] killing on exit
+[camera_rear_udp_bridge-4] killing on exit
+[camera_right_udp_bridge-3] killing on exit
+[camera_left_udp_bridge-2] killing on exit
+[camera_front_udp_bridge-1] killing on exit
+shutting down processing monitor...
+... shutting down processing monitor complete
+[1mdone[0m
