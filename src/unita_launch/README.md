@@ -136,6 +136,50 @@ roslaunch unita_launch competition_udp_tracking.launch \
   normal_max_speed_kmh:=60 high_speed_max_speed_kmh:=100
 ```
 
+### 라이다 차선 경계 보호 (시험 주행)
+
+`LEO_start_parked.json`, `LEO_SENSOR_SIGNAL_UP.json`, `LEO_COMPETITION_UDP.json`을
+MORAI에서 적용하고 Ego Network UDP 9092/9093 연결을 확인합니다. 카메라는 이
+보호기의 입력으로 쓰지 않습니다. 이미 `manual_sensor_visualization.launch`로
+센서가 발행 중이라면 다음처럼 중복 센서 브리지를 끕니다.
+시나리오를 다시 Load하면 Ego Network의 Status UDP 연결이 해제될 수 있습니다.
+이때 Network JSON을 다시 Load하지 않아도 9092/9093 연결을 다시 켜면 됩니다.
+`/competition/ego_speed_kmh`가 새 값을 발행하고 `/control/udp_status`에
+`missing/stale/frozen Ego UDP status`가 없는지 확인한 뒤 출발합니다.
+
+```bash
+roslaunch unita_launch competition_udp_tracking.launch \
+  morai_ip:=127.0.0.1 morai_port:=9093 status_port:=9092 \
+  heading_source:=imu start_sensor_bridge:=false start_rviz:=false \
+  enable_lidar_lane_guard:=true \
+  normal_max_speed_kmh:=20 high_speed_max_speed_kmh:=20
+```
+
+보호기를 켜면 waypoint 제어기는 `/ctrl_cmd_unchecked`에 명령을 내고,
+라이다 보호기가 `/lidar3D`의 노면 높이·반사강도에서 선형 경계 후보를 찾아
+`/ctrl_cmd`에 제한된 명령을 냅니다. `rostopic echo /lane_guard/status`에서
+`GUARD`는 경계 후보가 보이는 상태, `UNCERTAIN`은 후보가 없는 상태,
+`BRAKE`는 입력이 끊겼거나 예상 궤적이 경계를 침범하는 상태입니다.
+기본 속도 상한은 각각 20, 12 km/h입니다. 라이다에 차선이 보이지 않는
+구간이 실제로 있으므로 이 보호기는 실선 비침범을 보증하지 않습니다.
+전 구간 검증 전에는 시험 주행 용도로 사용합니다.
+
+2026-10-14 시험에서는 첫 주행이 1.22 km에서 경계 침범 예측으로 정지했습니다.
+차량 반폭과 검출 오차의 합을 1.30 m에서 1.10 m로 보정한 뒤 해당 지점부터
+2.15 km까지 진행했습니다. 두 구간의 최대 경로 오차는 각각 0.62 m, 0.56 m였습니다.
+일부 구간은 `UNCERTAIN`이었고, 경계 검출과 경로 오차만으로 실제 실선 접촉 여부를
+판정할 수 없으므로 카메라/외부 관측을 이용한 사후 검증이 더 필요합니다.
+
+같은 날 사후 검증용 주행에서는 2.18 km 경로를 끝까지 주행하며 약 2 m마다
+네 카메라와 라이다 점군 1,004세트를 기록했습니다. 최대 경로 오차는 0.66 m,
+최대 속도는 19.46 km/h였습니다. 영상은 제어에 사용하지 않았습니다.
+기존 반사강도 문턱값은 750–800 m의 노란 실선을 여러 번 놓쳤습니다.
+저장된 점군에 낮춘 문턱값을 적용하자 경계 후보가 없는 샘플이 151/1,004에서
+73/1,004로 줄었고, 새로 찾은 후보가 직진 조향에 제동을 요구하지는 않았습니다.
+그러나 600–629 m 교차로에서는 여전히 경계를 찾지 못했습니다. 1.22 km의
+실선은 차체 가까이에 보이지만 측면 영상에 바퀴가 보이지 않아 접촉 여부를
+판정할 수 없습니다. 문턱값 변경 후의 전체 실주행 검증도 아직 하지 않았습니다.
+
 ### 확인과 종료
 
 ```bash

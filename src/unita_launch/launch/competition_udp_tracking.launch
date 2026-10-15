@@ -16,8 +16,9 @@
   <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
   <arg name="waypoint_format" default="local_xy"/>
   <arg name="loop_path" default="true"/>
-  <arg name="normal_max_speed_kmh" default="60.0"/>
-  <arg name="high_speed_max_speed_kmh" default="100.0"/>
+  <arg name="enable_lidar_lane_guard" default="false"/>
+  <arg name="normal_max_speed_kmh" default="$(eval '20.0' if arg('enable_lidar_lane_guard') else '60.0')"/>
+  <arg name="high_speed_max_speed_kmh" default="$(eval '20.0' if arg('enable_lidar_lane_guard') else '100.0')"/>
   <arg name="control_max_speed_kmh" default="100.0"/>
   <arg name="wheelbase" default="2.7"/>
   <arg name="lookahead_distance" default="5.0"/>
@@ -26,6 +27,8 @@
   <arg name="max_steering_rad" default="0.632681853"/>
   <arg name="ego_yaw_offset_deg" default="0.0"/>
   <arg name="start_rviz" default="true"/>
+  <arg name="lane_guard_max_speed_kmh" default="20.0"/>
+  <arg name="lane_guard_uncertain_speed_kmh" default="12.0"/>
   <include if="$(arg start_sensor_bridge)" file="$(find sensor_bridge)/launch/sensor_bridge.launch">
     <arg name="source_ip" value="$(arg morai_ip)"/>
     <arg name="east_offset" value="$(arg east_offset)"/>
@@ -44,16 +47,22 @@
     <param name="loop_path" value="$(arg loop_path)"/>
     <param name="gps_topic" value="/gps"/>
     <param name="imu_topic" value="$(arg heading_topic)"/>
-    <param name="ctrl_topic" value="/ctrl_cmd"/>
+    <param name="ctrl_topic" value="$(eval '/ctrl_cmd_unchecked' if arg('enable_lidar_lane_guard') else '/ctrl_cmd')"/>
     <param name="enable_velocity_planning" value="true"/>
     <param name="longitudinal_control_mode" value="pid"/>
     <param name="speed_topic" value="/competition/ego_speed_kmh"/>
     <param name="normal_max_speed_kmh" value="$(arg normal_max_speed_kmh)"/>
     <param name="high_speed_max_speed_kmh" value="$(arg high_speed_max_speed_kmh)"/>
+    <param if="$(arg enable_lidar_lane_guard)" name="min_curve_speed_kmh" value="8.0"/>
     <param name="wheelbase" value="$(arg wheelbase)"/>
     <param name="lookahead_distance" value="$(arg lookahead_distance)"/>
     <param name="max_steering_rad" value="$(arg max_steering_rad)"/>
     <param name="steering_sign" value="1.0"/>
+  </node>
+  <node if="$(arg enable_lidar_lane_guard)" pkg="control" type="lidar_lane_guard.py"
+        name="lidar_lane_guard" output="screen">
+    <param name="max_speed_kmh" value="$(arg lane_guard_max_speed_kmh)"/>
+    <param name="uncertain_speed_kmh" value="$(arg lane_guard_uncertain_speed_kmh)"/>
   </node>
   <node pkg="control" type="competition_udp_control.py" name="competition_udp_control" output="screen" required="true">
     <rosparam command="load" file="$(find control)/config/competition_udp.yaml"/>
