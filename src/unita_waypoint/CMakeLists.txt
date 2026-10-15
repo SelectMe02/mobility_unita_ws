@@ -224,6 +224,7 @@ target_link_libraries(map_tunner_panel ${catkin_LIBRARIES} Qt5::Widgets)
 # catkin_add_nosetests(test)
 
 catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
+  scripts/gps_waypoint_follower_leo.py
   scripts/lidar_obstacles.py
   scripts/ground_filter_analysis.py
   scripts/driving_log_recorder.py

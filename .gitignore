@@ -54,3 +54,6 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# Driving run logs (rosbag 등 대용량)
+src/unita_waypoint/log/
