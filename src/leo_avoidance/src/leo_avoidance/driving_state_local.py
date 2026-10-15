@@ -4,28 +4,9 @@ import math
 from .scan_odometry import between, compose, wrap
 
 
-def bounded_pose_correction(estimate, reference, max_translation_m,
-                            max_yaw_rad):
-    """Move an estimate toward an observed pose without a discontinuous snap."""
-    if (not all(math.isfinite(v) for v in (*estimate, *reference,
-                                           max_translation_m, max_yaw_rad))
-            or max_translation_m <= 0 or max_yaw_rad <= 0):
-        raise ValueError('invalid pose correction')
-    dx = reference[0] - estimate[0]
-    dy = reference[1] - estimate[1]
-    distance = math.hypot(dx, dy)
-    fraction = min(1., max_translation_m / distance) if distance else 1.
-    yaw_delta = max(-max_yaw_rad,
-                    min(max_yaw_rad, wrap(reference[2] - estimate[2])))
-    return (estimate[0] + fraction * dx,
-            estimate[1] + fraction * dy,
-            wrap(estimate[2] + yaw_delta))
-
-
 class DrivingState:
     GPS = 'GPS'
     BLACKOUT = 'BLACKOUT'
-    SIM_EXIT = 'SIM_EXIT'
     HOLD = 'HOLD'
 
     def __init__(self, matcher, input_timeout_s=.35,
@@ -194,18 +175,7 @@ class DrivingState:
         self.scan_fault_reason = None
         self.unmatched_distance_m = 0.
 
-    def _select_sim_exit(self, pose):
-        if len(pose) != 3 or not all(math.isfinite(v) for v in pose):
-            self.mode = self.HOLD
-            self.reason = 'invalid MORAI exit pose'
-            return self.mode, None, self.reason
-        self.map_pose = tuple(pose)
-        self.mode = self.SIM_EXIT
-        self.reason = 'MORAI ENU exit pose; waypoint steering'
-        return self.mode, self.map_pose, self.reason
-
-    def select(self, now, blackout_allowed=True, route_rejoin_ok=False,
-               sim_exit_pose=None, sim_exit_active=False):
+    def select(self, now, blackout_allowed=True, route_rejoin_ok=False):
         if self.gps_available(now):
             gps = self.gps_pose[0]
             corroborated = False
@@ -216,21 +186,16 @@ class DrivingState:
                 if (math.hypot(error[0], error[1]) > self.max_rejoin_error_m
                         or abs(wrap(error[2])) > self.max_rejoin_yaw_rad):
                     if not route_rejoin_ok:
-                        if not (sim_exit_active and sim_exit_pose is not None):
-                            # The simulator can emit sub-second valid fixes
-                            # inside the tunnel. Judge a disagreeing return
-                            # only once it has persisted; until then keep the
-                            # LiDAR blackout below (gps_return_pending).
-                            if not self._gps_return_sustained(now):
-                                return self._select_blackout(
-                                    now, blackout_allowed)
-                            self.mode = self.HOLD
-                            self.reason = 'GPS return disagrees with LiDAR odometry'
-                            return self.mode, None, self.reason
-                        # Keep the exit waypoint path until GPS and the
-                        # mapped route agree; a transient GPS pose must not
-                        # interrupt the steering handoff.
-                        return self._select_sim_exit(sim_exit_pose)
+                        # The simulator can emit sub-second valid fixes
+                        # inside the tunnel. Judge a disagreeing return
+                        # only once it has persisted; until then keep the
+                        # LiDAR blackout below (gps_return_pending).
+                        if not self._gps_return_sustained(now):
+                            return self._select_blackout(
+                                now, blackout_allowed)
+                        self.mode = self.HOLD
+                        self.reason = 'GPS return disagrees with LiDAR odometry'
+                        return self.mode, None, self.reason
                     corroborated = True
             self.mode = self.GPS
             self.map_pose = gps
@@ -240,12 +205,6 @@ class DrivingState:
             self.reason = ('fresh GPS map pose; route-corroborated rejoin'
                            if corroborated else 'fresh GPS map pose')
             return self.mode, gps, self.reason
-        if sim_exit_pose is not None and self.had_blackout:
-            return self._select_sim_exit(sim_exit_pose)
-        if sim_exit_active and self.had_blackout:
-            self.mode = self.HOLD
-            self.reason = 'MORAI exit pose missing or stale'
-            return self.mode, None, self.reason
         return self._select_blackout(now, blackout_allowed)
 
     def _gps_return_sustained(self, now):

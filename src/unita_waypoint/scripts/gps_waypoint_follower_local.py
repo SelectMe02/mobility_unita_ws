@@ -23,6 +23,7 @@ from morai_msgs.msg import GPSMessage, CtrlCmd
 
 sys.path.insert(0, str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
+from avoidance_runtime import RuntimeSettings
 from lane_corridor import LaneCorridor, project_lane_geometry
 
 
@@ -89,9 +90,11 @@ def three_point_curvature(first, middle, last):
 
 
 def build_curvature_speed_profile(points, speed_limits_kmh, loop_path,
-                                  curvature_window_m, lateral_accel_limit,
-                                  min_curve_speed_kmh, max_accel, max_decel):
-    """Plan speed from path curvature, then add acceleration/braking envelopes."""
+                                  curvature_window_m, max_accel, max_decel):
+    """Join point speed limits with acceleration/braking envelopes.
+
+    Path curvature is reported for debugging only; it never lowers a speed.
+    """
     count = len(points)
     if count < 3 or len(speed_limits_kmh) != count:
         raise ValueError("speed profile requires matching path and limit arrays")
@@ -119,12 +122,7 @@ def build_curvature_speed_profile(points, speed_limits_kmh, loop_path,
             following = points[min(count - 1, index + span)]
         curvature = three_point_curvature(previous, points[index], following)
         curvatures.append(curvature)
-        curve_speed_kmh = math.sqrt(
-            lateral_accel_limit / max(curvature, 1e-6)) * 3.6
-        # A preferred minimum speed must never override either upper bound.
-        # Keep min_curve_speed_kmh in the API for existing configuration files.
-        planned_kmh = min(speed_limits_kmh[index], curve_speed_kmh)
-        raw_speed_mps.append(planned_kmh / 3.6)
+        raw_speed_mps.append(speed_limits_kmh[index] / 3.6)
 
     speeds = list(raw_speed_mps)
     # Multiple circular passes make the start/end boundary obey the same
@@ -150,14 +148,6 @@ def build_curvature_speed_profile(points, speed_limits_kmh, loop_path,
                 math.sqrt(max(0.0, speeds[following] ** 2
                                    + 2.0 * max_decel * distance)))
     return [speed * 3.6 for speed in speeds], curvatures
-
-
-def apply_index_speed_cap(speed_limits_kmh, start_index, end_index, cap_kmh):
-    if not (0 <= start_index <= end_index < len(speed_limits_kmh)
-            and math.isfinite(cap_kmh) and cap_kmh > 0):
-        raise ValueError('invalid route-index speed cap')
-    for index in range(start_index, end_index + 1):
-        speed_limits_kmh[index] = min(speed_limits_kmh[index], cap_kmh)
 
 
 class GPSWaypointFollower:
@@ -288,54 +278,21 @@ class GPSWaypointFollower:
         self.lookahead_speed_gain = float(rospy.get_param(
             "~lookahead_speed_gain", 0.0))
 
-        self.normal_max_speed_kmh = float(rospy.get_param(
-            "~normal_max_speed_kmh", self.target_speed_kmh))
-        self.high_speed_max_speed_kmh = float(rospy.get_param(
-            "~high_speed_max_speed_kmh", self.normal_max_speed_kmh))
-        self.high_speed_start_checkpoint = rospy.get_param(
-            "~high_speed_start_checkpoint", 10)
-        self.high_speed_end_checkpoint = rospy.get_param(
-            "~high_speed_end_checkpoint", 13)
-        self.checkpoint_match_tolerance = float(rospy.get_param(
-            "~checkpoint_match_tolerance", 1.0))
-        self.checkpoints = rospy.get_param("~checkpoints", [])
         self.curvature_window_m = float(rospy.get_param(
             "~curvature_window_m", 25.0))
-        self.lateral_accel_limit = float(rospy.get_param(
-            "~lateral_accel_limit", 2.94))
-        self.min_curve_speed_kmh = float(rospy.get_param(
-            "~min_curve_speed_kmh", 25.0))
         self.max_profile_accel = float(rospy.get_param(
             "~max_profile_accel_mps2", 2.0))
         self.max_profile_decel = float(rospy.get_param(
             "~max_profile_decel_mps2", 3.5))
-        self.tunnel_speed_start_index = int(rospy.get_param(
-            "~tunnel_speed_start_index", -1))
-        self.tunnel_speed_end_index = int(rospy.get_param(
-            "~tunnel_speed_end_index", -1))
-        self.tunnel_speed_cap_kmh = float(rospy.get_param(
-            "~tunnel_speed_cap_kmh", 18.0))
-        self.blackout_clear_speed_cap_kmh = float(rospy.get_param(
-            "~blackout_clear_speed_cap_kmh", 30.0))
-        if not math.isfinite(self.blackout_clear_speed_cap_kmh) or self.blackout_clear_speed_cap_kmh <= 0:
-            raise ValueError('invalid blackout clear speed cap')
-        if ((self.tunnel_speed_start_index < 0)
-                != (self.tunnel_speed_end_index < 0)):
-            raise ValueError('both tunnel speed indices must be set')
-
         positive_parameters = (
             self.speed_feedback_timeout, self.min_lookahead_distance,
-            self.max_lookahead_distance, self.normal_max_speed_kmh,
-            self.high_speed_max_speed_kmh, self.checkpoint_match_tolerance,
-            self.curvature_window_m, self.lateral_accel_limit,
-            self.min_curve_speed_kmh, self.max_profile_accel,
-            self.max_profile_decel)
+            self.max_lookahead_distance, self.curvature_window_m,
+            self.max_profile_accel, self.max_profile_decel)
         if (not all(math.isfinite(value) and value > 0.0
                     for value in positive_parameters)
                 or not math.isfinite(self.lookahead_speed_gain)
                 or self.lookahead_speed_gain < 0.0
-                or self.min_lookahead_distance > self.max_lookahead_distance
-                or self.normal_max_speed_kmh > self.high_speed_max_speed_kmh):
+                or self.min_lookahead_distance > self.max_lookahead_distance):
             raise ValueError("invalid velocity planning/look-ahead parameters")
 
         self.speed_pid = PIDController(
@@ -394,7 +351,6 @@ class GPSWaypointFollower:
         self.last_speed_received = None
         self.last_pid_update = None
         self.speed_profile = []
-        self.blackout_speed_profile = []
         self.path_curvatures = []
         self.checkpoint_indices = {}
 
@@ -523,7 +479,15 @@ class GPSWaypointFollower:
                 rear_headway_s=float(rospy.get_param('~lane_change_rear_headway_s', 2.)),
                 reaction_s=float(rospy.get_param('~avoidance_reaction_s', .4)),
                 decel=float(rospy.get_param('~avoidance_decel_mps2', 3.)),
-                pass_speed_kmh=float(rospy.get_param('~pass_speed_kmh', 20.)))
+                pass_speed_kmh=float(rospy.get_param('~pass_speed_kmh', 20.)),
+                min_turn_radius_m=float(rospy.get_param(
+                    '~lane_change_min_turn_radius_m',
+                    float(self.wheelbase) / math.tan(float(self.max_steering_rad)))),
+                arc_lane_change_max_kmh=float(rospy.get_param('~arc_lane_change_max_kmh', 15.)),
+                lane_change_lateral_accel_mps2=float(rospy.get_param(
+                    '~lane_change_lateral_accel_mps2', 6.)))
+            # Situational speed caps, editable from the map_debug panel.
+            self.runtime_settings = RuntimeSettings('leo_waypoint_follower', self.local_planner)
 
         rospy.loginfo("======================================")
         rospy.loginfo(" GPS Waypoint Follower started")
@@ -533,11 +497,7 @@ class GPSWaypointFollower:
         rospy.loginfo(" waypoint file  : %s", self.waypoint_file)
         rospy.loginfo(" waypoint type  : %s", self.waypoint_format)
         if self.enable_velocity_planning:
-            rospy.loginfo(" speed limits   : normal %.1f / CP %s-%s %.1f km/h",
-                          self.normal_max_speed_kmh,
-                          self.high_speed_start_checkpoint,
-                          self.high_speed_end_checkpoint,
-                          self.high_speed_max_speed_kmh)
+            rospy.loginfo(" speed limits   : Map Tuner project point speeds")
         else:
             rospy.loginfo(" target speed   : %.1f km/h", self.target_speed_kmh)
         rospy.loginfo(" longitudinal   : %s", self.longitudinal_control_mode)
@@ -625,7 +585,8 @@ class GPSWaypointFollower:
             if publisher is not None:
                 rospy.set_param('~effective_raceline_width', self.raceline_width)
                 publisher.publish(String(data=json.dumps(geometry)))
-            route, self.route_sectors = primary_route(project)
+            # Leo route: Raceline 1 in every sector; R2/R3 stay avoidance lanes.
+            route, self.route_sectors = primary_route(project, raceline1_only=True)
             self.project_checkpoint_positions = []
             layout = project.get('generated_racelines')
             if layout:
@@ -801,16 +762,10 @@ class GPSWaypointFollower:
         self.drive_valid_received = time.monotonic()
 
     def drive_mode_callback(self, msg):
-        previous_mode = self.drive_mode
-        self.drive_mode = (msg.data if msg.data in ('GPS', 'BLACKOUT', 'SIM_EXIT', 'HOLD')
+        self.drive_mode = (msg.data if msg.data in ('GPS', 'BLACKOUT', 'HOLD')
                            else 'HOLD')
         if self.drive_mode == 'BLACKOUT':
             self.blackout_rejoin_pending = True
-        elif self.drive_mode == 'SIM_EXIT':
-            self.blackout_rejoin_pending = True
-            if previous_mode != 'SIM_EXIT':
-                self.first_nearest_search = True
-                self.last_tracking_position = None
         elif self.drive_mode == 'GPS' and self.blackout_rejoin_pending:
             # The blackout map pose may have drifted along the route. Search
             # all waypoints on the first GPS pose rather than the local window.
@@ -860,7 +815,8 @@ class GPSWaypointFollower:
             self.last_speed_received = time.monotonic()
 
     def guard_limit_callback(self, msg):
-        if math.isfinite(msg.data) and msg.data >= 0.0:
+        # +inf: the guard adds no cap (the Map Tuner point speed is the target).
+        if not math.isnan(msg.data) and msg.data >= 0.0:
             self.guard_speed_limit = msg.data
             self.guard_limit_received = time.monotonic()
         else:
@@ -915,108 +871,32 @@ class GPSWaypointFollower:
     def prepare_velocity_profile(self):
         if not self.enable_velocity_planning:
             self.speed_profile = []
-            self.blackout_speed_profile = []
             self.path_curvatures = []
             return
 
         count = self.tracking_waypoint_count()
         tracking_points = self.waypoints[:count]
-        if not self.checkpoints:
-            raise ValueError("velocity planning requires checkpoint configuration")
-
-        self.checkpoint_indices = {}
-        for checkpoint in self.checkpoints:
-            try:
-                identifier = str(checkpoint["id"])
-                x, y = float(checkpoint["x"]), float(checkpoint["y"])
-            except (KeyError, TypeError, ValueError):
-                raise ValueError("invalid checkpoint entry: {!r}".format(checkpoint))
-            # Saved lane layout moves R1; retain the original checkpoint's
-            # longitudinal position when assigning the existing speed zones.
-            remapped = getattr(self, 'project_checkpoint_positions', [])
-            if remapped:
-                candidate = min(remapped, key=lambda p: math.hypot(p[0] - x, p[1] - y))
-                if math.hypot(candidate[0] - x, candidate[1] - y) <= self.checkpoint_match_tolerance:
-                    x, y = candidate[2:]
-            index, _ = min(
-                enumerate(tracking_points),
-                key=lambda item: math.hypot(item[1][0] - x, item[1][1] - y))
-            distance = math.hypot(tracking_points[index][0] - x,
-                                  tracking_points[index][1] - y)
-            if distance > self.checkpoint_match_tolerance:
-                raise ValueError(
-                    "checkpoint {} is {:.2f} m from waypoint path".format(
-                        identifier, distance))
-            self.checkpoint_indices[identifier] = index
-
-        start_id = str(self.high_speed_start_checkpoint)
-        end_id = str(self.high_speed_end_checkpoint)
-        if start_id not in self.checkpoint_indices or end_id not in self.checkpoint_indices:
-            raise ValueError("high-speed checkpoint IDs are missing")
-        start_index = self.checkpoint_indices[start_id]
-        end_index = self.checkpoint_indices[end_id]
-
-        speed_limits = [self.normal_max_speed_kmh] * count
-        if start_index <= end_index:
-            high_speed_indices = range(start_index, end_index + 1)
-        elif self.loop_path:
-            high_speed_indices = list(range(start_index, count)) + list(
-                range(0, end_index + 1))
-        else:
-            raise ValueError("high-speed zone runs backward on a non-loop path")
-        for index in high_speed_indices:
-            speed_limits[index] = self.high_speed_max_speed_kmh
+        # Every target speed comes from the Map Tuner project point speeds.
+        # Only the acceleration/braking envelope below joins adjacent values.
         if getattr(self, 'use_project_speed_limits', False):
             project_limits = getattr(self, 'project_speed_limits_kmh', None)
             if project_limits is None or len(project_limits) < count:
                 raise ValueError('project speed limits require a Map Tuner JSON route')
-            speed_limits = [min(limit, project_limit)
-                            for limit, project_limit in zip(speed_limits,
-                                                             project_limits[:count])]
-            rospy.loginfo('Using Map Tuner point speed limits (%.1f..%.1f km/h)',
-                          min(project_limits[:count]), max(project_limits[:count]))
-
-        # The 18 km/h tunnel cap is for GPS approach and exit. While GPS is
-        # zero, LiDAR supplies the clearance-dependent speed limit instead,
-        # so the tunnel section may exceed the GPS route maximum up to the
-        # blackout clear-road cap. Map Tuner point limits still apply.
-        blackout_limits = list(speed_limits)
-        tunnel_start = getattr(self, 'tunnel_speed_start_index', -1)
-        tunnel_end = getattr(self, 'tunnel_speed_end_index', -1)
-        if 0 <= tunnel_start <= tunnel_end < count:
-            project_limits = (getattr(self, 'project_speed_limits_kmh', None)
-                              if getattr(self, 'use_project_speed_limits', False)
-                              else None)
-            for index in range(tunnel_start, tunnel_end + 1):
-                raised = max(blackout_limits[index],
-                             self.blackout_clear_speed_cap_kmh)
-                blackout_limits[index] = (min(raised, project_limits[index])
-                                          if project_limits else raised)
-        self.blackout_speed_profile, _ = build_curvature_speed_profile(
-            tracking_points, blackout_limits, self.loop_path,
-            self.curvature_window_m, self.lateral_accel_limit,
-            self.min_curve_speed_kmh, self.max_profile_accel,
-            self.max_profile_decel)
-        speed_limits = list(speed_limits)
-        if getattr(self, 'tunnel_speed_start_index', -1) >= 0:
-            apply_index_speed_cap(speed_limits, self.tunnel_speed_start_index,
-                                  self.tunnel_speed_end_index,
-                                  self.tunnel_speed_cap_kmh)
+            speed_limits = [float(limit) for limit in project_limits[:count]]
+            rospy.loginfo('Using Map Tuner point speeds (%.1f..%.1f km/h)',
+                          min(speed_limits), max(speed_limits))
+        else:
+            speed_limits = [float(self.target_speed_kmh)] * count
 
         self.speed_profile, self.path_curvatures = build_curvature_speed_profile(
             tracking_points,
             speed_limits,
             self.loop_path,
             self.curvature_window_m,
-            self.lateral_accel_limit,
-            self.min_curve_speed_kmh,
             self.max_profile_accel,
             self.max_profile_decel)
-        rospy.loginfo(
-            "Velocity profile ready: CP %s idx=%d -> CP %s idx=%d, "
-            "planned %.1f..%.1f km/h",
-            start_id, start_index, end_id, end_index,
-            min(self.speed_profile), max(self.speed_profile))
+        rospy.loginfo("Velocity profile ready: planned %.1f..%.1f km/h",
+                      min(self.speed_profile), max(self.speed_profile))
 
     def target_speed_for_index(self, index):
         if self.enable_velocity_planning and self.speed_profile:
@@ -1024,16 +904,10 @@ class GPSWaypointFollower:
         return self.target_speed_kmh
 
     def speed_zone_for_index(self, index):
-        if not self.enable_velocity_planning or not self.checkpoint_indices:
+        if not self.enable_velocity_planning:
             return "constant"
-        start = self.checkpoint_indices[str(self.high_speed_start_checkpoint)]
-        end = self.checkpoint_indices[str(self.high_speed_end_checkpoint)]
-        inside = (start <= index <= end if start <= end
-                  else index >= start or index <= end)
-        return ("high_speed_cp{}_{}".format(
-            self.high_speed_start_checkpoint,
-            self.high_speed_end_checkpoint) if inside else "normal")
-
+        return ("map_tuner_project" if getattr(self, 'use_project_speed_limits', False)
+                else "constant")
     def update_dynamic_lookahead(self):
         if self.lookahead_speed_gain <= 0.0:
             return
@@ -1345,13 +1219,16 @@ class GPSWaypointFollower:
 
     def control_loop(self, event):
         now = time.monotonic()
+        runtime = getattr(self, 'runtime_settings', None)
+        if runtime is not None:
+            runtime.poll()
         using_drive_pose = bool(getattr(self, 'drive_pose_topic', ''))
         if using_drive_pose:
             stamps = (self.drive_pose_received, self.drive_valid_received,
                       self.drive_mode_received)
             if (any(t is None or now-t > self.pose_sensor_timeout for t in stamps)
                     or not self.drive_pose_ready or not self.drive_valid
-                    or self.drive_mode not in ('GPS', 'BLACKOUT', 'SIM_EXIT')):
+                    or self.drive_mode not in ('GPS', 'BLACKOUT')):
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Driving pose state unavailable: holding brake')
                 return
@@ -1478,15 +1355,23 @@ class GPSWaypointFollower:
             self.avoidance_kind = decision.obstacle_kind
             self.avoidance_distance = (decision.obstacle_distance_m
                                        if math.isfinite(decision.obstacle_distance_m) else None)
+            route_speed_cap = local_speed_cap
             local_speed_cap = decision.speed_cap_kmh
+            if not decision.path:
+                # No saved Raceline 2/3 manoeuvre: the route avoidance path is
+                # followed, so its pass/wait speed applies as well.
+                local_speed_cap = min(local_speed_cap, route_speed_cap)
             self.publish_local_path(decision.path)
             if decision.state == 'BLOCKED':
                 self.publish_full_stop()
+                rospy.logwarn_throttle(1., 'Local avoidance BLOCKED: %s', decision.reason)
                 return
             if decision.path:
                 target = self.local_target(decision.path)
                 if target is None:
                     self.publish_full_stop()
+                    rospy.logwarn_throttle(1., 'Local avoidance %s path shorter than lookahead',
+                                           decision.state)
                     return
         elif not route_avoidance:
             self.avoidance_state = 'RACELINE'
@@ -1538,23 +1423,8 @@ class GPSWaypointFollower:
             self.current_waypoint_index)
         target_speed_kmh = min(target_speed_kmh, local_speed_cap)
         if blackout:
-            if getattr(self, 'blackout_speed_profile', []):
-                target_speed_kmh = min(
-                    self.blackout_clear_speed_cap_kmh,
-                    self.blackout_speed_profile[
-                        self.current_waypoint_index % len(self.blackout_speed_profile)],
-                    local_speed_cap)
-            else:
-                target_speed_kmh = min(target_speed_kmh,
-                                       self.blackout_clear_speed_cap_kmh)
-            target_speed_kmh = min(target_speed_kmh, self.avoidance_speed_kmh)
-        if using_drive_pose and self.drive_mode == 'SIM_EXIT':
-            if (self.avoidance_speed_kmh is None
-                    or self.avoidance_speed_received is None
-                    or now - self.avoidance_speed_received > .35):
-                self.publish_full_stop()
-                rospy.logwarn_throttle(2., 'LiDAR exit speed limit missing/stale')
-                return
+            # The project point speed stays the target; LiDAR clearance only
+            # lowers it.
             target_speed_kmh = min(target_speed_kmh, self.avoidance_speed_kmh)
         if self.guard_limit_topic:
             if (self.guard_limit_received is None

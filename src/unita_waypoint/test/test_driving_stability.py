@@ -68,28 +68,6 @@ class StabilityTests(unittest.TestCase):
         far = p.plan(0, (0., 0.), 3., [Obstacle(35., 0., .15, confirmed=False, velocity_reliable=False)])
         self.assertEqual(far.state, 'RACELINE')
         self.assertIsNone(p.transition)
-        path = [(float(i), 0.) for i in range(50)]
-        urgent = p.transition_decision(path, [Obstacle(3., 0., .15, confirmed=False,
-                                                     velocity_reliable=False)], 3., 8., 'RETURNING')
-        self.assertEqual(urgent.state, 'BLOCKED')
-        self.assertEqual(urgent.reason, 'transition_emergency')
-
-    def test_distant_collision_slows_and_near_collision_stops(self):
-        p = planner();path = [(float(i), 0.) for i in range(100)]
-        far = p.transition_decision(path, [Obstacle(35., 0., 1.)], 5., 10., 'RETURNING')
-        self.assertEqual(far.reason, 'transition_slowing')
-        self.assertGreater(far.speed_cap_kmh, 0.)
-        near = p.transition_decision(path, [Obstacle(7., 0., 1.)], 5., 10., 'RETURNING')
-        self.assertEqual((near.state, near.speed_cap_kmh), ('BLOCKED', 0.))
-        self.assertEqual(near.reason, 'transition_emergency')
-        clear = p.transition_decision(path, [], 25., 10., 'RETURNING')
-        self.assertTrue(math.isinf(clear.speed_cap_kmh))
-
-    def test_stopping_distance_can_require_emergency_before_ttc_threshold(self):
-        p = planner();path = [(float(i), 0.) for i in range(150)]
-        d = p.transition_decision(path, [Obstacle(80., 0., 1.)], 25., 8., 'OVERTAKING')
-        self.assertGreater(p.collision_risk.time_s, p.emergency_ttc_s)
-        self.assertEqual(d.reason, 'transition_emergency')
 
     def test_clear_release_requires_time_and_distinct_sensor_frames(self):
         guard = PedalGuard();guard.stop(0.)

@@ -13,7 +13,8 @@
   <arg name="guard_speed_limit_topic" default=""/>
   <arg name="morai_port" default="9093"/>
   <arg name="status_port" default="9096"/>
-  <arg name="heading_source" default="ego_status"/>
+  <!-- Heading from the IMU sensor only (regulation: no Ego status pose). -->
+  <arg name="heading_source" default="imu"/>
   <arg name="heading_topic" default="$(eval '/competition/heading_imu' if arg('heading_source') == 'ego_status' else '/imu')"/>
   <arg name="start_sensor_bridge" default="true"/>
   <arg name="enable_imu" default="$(eval arg('heading_source') == 'imu')"/>
@@ -35,12 +36,6 @@
   <arg name="waypoint_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
   <arg name="waypoint_format" default="local_xy"/>
   <arg name="loop_path" default="true"/>
-  <arg name="normal_max_speed_kmh" default="60.0"/>
-  <arg name="high_speed_max_speed_kmh" default="100.0"/>
-  <arg name="tunnel_speed_start_index" default="-1"/>
-  <arg name="tunnel_speed_end_index" default="-1"/>
-  <arg name="tunnel_speed_cap_kmh" default="18.0"/>
-  <arg name="blackout_clear_speed_cap_kmh" default="30.0"/>
   <arg name="control_max_speed_kmh" default="100.0"/>
   <arg name="wheelbase" default="3.0"/>
   <arg name="lookahead_distance" default="5.0"/>
@@ -59,7 +54,7 @@
     <arg name="lidar_launch" value="$(arg lidar_launch)"/>
     <arg name="lidar_rpm" value="$(arg lidar_rpm)"/>
   </include>
-  <!-- Pure Pursuit + curvature speed planning + pedal PID. -->
+  <!-- Pure Pursuit + Map Tuner point speeds + pedal PID. -->
   <node pkg="unita_waypoint" type="$(arg follower_node_type)" name="gps_waypoint_follower" output="screen">
     <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile_local.yaml"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
@@ -92,12 +87,6 @@
     <param name="enable_velocity_planning" value="true"/>
     <param name="longitudinal_control_mode" value="pid"/>
     <param name="speed_topic" value="/competition/ego_speed_kmh"/>
-    <param name="normal_max_speed_kmh" value="$(arg normal_max_speed_kmh)"/>
-    <param name="high_speed_max_speed_kmh" value="$(arg high_speed_max_speed_kmh)"/>
-    <param name="tunnel_speed_start_index" value="$(arg tunnel_speed_start_index)"/>
-    <param name="tunnel_speed_end_index" value="$(arg tunnel_speed_end_index)"/>
-    <param name="tunnel_speed_cap_kmh" value="$(arg tunnel_speed_cap_kmh)"/>
-    <param name="blackout_clear_speed_cap_kmh" value="$(arg blackout_clear_speed_cap_kmh)"/>
     <param name="wheelbase" value="$(arg wheelbase)"/>
     <param name="lookahead_distance" value="$(arg lookahead_distance)"/>
     <param name="max_steering_rad" value="$(arg max_steering_rad)"/>

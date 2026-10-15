@@ -43,36 +43,6 @@ def test_logged_tunnel_exit_rejoins_after_eight_metre_icp_drift():
     assert -9. < state.rejoin_diagnostic['route_progress_delta_m'] < -7.
 
 
-def test_photo_enu_coordinate_crosses_exit_gate():
-    state = node.DrivingStateNode.__new__(node.DrivingStateNode)
-    state.exit_xy = np.array((-78.35, -545.63))
-    tangent = np.array((-78.54114889744686, -546.1438570211373)) - np.array(
-        (-78.07642846488123, -545.9593735619987))
-    state.exit_tangent = tangent / np.linalg.norm(tangent)
-    state.exit_radius_m = 15.
-    state.exit_cross_track_m = 2.
-    assert not state.past_exit_gate((-77.5, -546., 0.))
-    assert state.past_exit_gate((-78.35, -545.63, 0.))
-    assert state.past_exit_gate((-83., -548., 0.))
-    assert not state.past_exit_gate((-110., -555., 0.))
-
-
-def test_logged_exit_reanchors_only_the_on_route_simulator_pose():
-    state = node.DrivingStateNode.__new__(node.DrivingStateNode)
-    points = np.loadtxt(Path(__file__).parents[2] /
-                        'unita_waypoint/config/waypoints.csv')
-    state.exit_anchor_route = RouteProgress(points, max_error=1.9,
-                                            backward_window=30)
-    state.exit_xy = np.array((-78.35, -545.63))
-    tangent = points[4054, :2] - points[4053, :2]
-    state.exit_tangent = tangent / np.linalg.norm(tangent)
-    state.exit_rejoin_start_m = 15.
-    ego = (-74.23233795166016, -543.5196533203125, -2.7206062737405743)
-    drifted = (-82.10506665810529, -551.6543990515963, -2.7088465533151114)
-    assert state.safe_exit_anchor(ego)
-    assert not state.safe_exit_anchor(drifted)
-    assert not state.safe_exit_anchor((-74.2, -538., ego[2]))
-
 
 def test_safe_gap_returns_toward_predicted_waypoints_after_pass():
     state = node.DrivingStateNode.__new__(node.DrivingStateNode)
@@ -101,28 +71,6 @@ def test_safe_gap_returns_toward_predicted_waypoints_after_pass():
     assert returning.target_bearing_rad > .1
 
 
-def test_exit_wall_weight_uses_physical_gate_instead_of_drifted_route_index():
-    state = node.DrivingStateNode.__new__(node.DrivingStateNode)
-    points = np.column_stack((np.arange(0., 101., .5), np.zeros(202)))
-    state.route = RouteProgress(points, max_error=4.)
-    state.route_lookahead_m = 5.
-    state.exit_route_s = 60.
-    state.exit_xy = np.array((60., 0.))
-    state.exit_tangent = np.array((1., 0.))
-    state.exit_route_offset = np.zeros(2)
-    state.exit_rejoin_start_m = 15.
-    state.exit_rejoin_full_m = 0.
-    state.route_bearing((20., 0., 0.))
-    assert state.exit_wall_weight((40., 0., 0.)) == (1., 20.)
-    # ICP can report that we are already past the exit while the simulator
-    # still places the vehicle 8 m before it.
-    state.route_bearing((70., 0., 0.))
-    weight, remaining = state.exit_wall_weight((52., 0., 0.))
-    assert remaining == 8. and 0. < weight < 1.
-    assert state.exit_wall_weight((60., 0., 0.)) == (0., 0.)
-    assert state.exit_wall_weight() == (1., None)
-
-
 def test_exit_waypoint_aims_toward_photo_coordinate():
     state = node.DrivingStateNode.__new__(node.DrivingStateNode)
     points = np.column_stack((np.arange(0., 101., .5), np.zeros(202)))
@@ -136,3 +84,13 @@ def test_exit_waypoint_aims_toward_photo_coordinate():
     near_bearing = state.route_bearing((48., 0., 0.))
     assert abs(far_bearing) < 1e-12
     assert near_bearing > 0.
+
+
+def test_route_projection_lost_on_another_lane_is_reacquired():
+    # CP8-CP11 runs on Raceline 3, far from this Raceline 1 projection; the
+    # windowed search must not stay stuck at the old index afterwards.
+    points = np.column_stack((np.arange(0., 400., .5), np.zeros(800)))
+    route = RouteProgress(points, max_error=7.0, backward_window=30)
+    route.locate(10., 0., 0.)
+    progress, error = node.locate_or_reacquire(route, 300., .5, 0.)
+    assert abs(progress - 300.) < 1e-6 and error == .5

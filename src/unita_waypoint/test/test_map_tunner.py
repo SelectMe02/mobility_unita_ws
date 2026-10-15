@@ -183,6 +183,29 @@ class MapTunnerTest(unittest.TestCase):
         self.assertTrue(editor.undo())
         self.assertEqual(editor.lane(3, 1), original)
 
+    def test_range_delete_is_inclusive_one_undo_step_and_protects_raceline1(self):
+        editor = ProjectEditor(copy.deepcopy(self.original))
+        lane_number = editor.add_lane(3)
+        for i in range(25):
+            editor.add_point(3, lane_number, float(i), 3.5, 0., 30)
+        lane = editor.lane(3, lane_number)
+        original = copy.deepcopy(lane)
+        first_id, last_id = lane[10]['id'], lane[19]['id']
+        self.assertEqual(editor.remove_range(3, lane_number, last_id, first_id), 10)
+        self.assertEqual(editor.lane(3, lane_number), original[:10]+original[20:])
+        self.assertTrue(editor.undo())
+        self.assertEqual(editor.lane(3, lane_number), original)
+        r1 = editor.lane(3, 1)
+        with self.assertRaises(ValueError):
+            editor.remove_range(3, 1, r1[1]['id'], r1[5]['id'])
+        # S11 Raceline 1 may be deleted entirely, end points included.
+        s11 = editor.lane(11, 1)
+        count = len(s11)
+        self.assertEqual(editor.remove_range(11, 1, s11[0]['id'], s11[-1]['id']), count)
+        self.assertEqual(editor.lane(11, 1), [])
+        with self.assertRaises(ValueError):
+            editor.remove_range(3, lane_number, first_id, r1[0]['id'])
+
     def test_aerial_waypoint_anchor_round_trip(self):
         config = ROOT / 'config'
         checkpoints = load_checkpoints(config / 'map_tunner_checkpoints.yaml')

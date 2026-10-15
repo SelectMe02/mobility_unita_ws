@@ -41,7 +41,7 @@
   </include>
   <!-- Pure Pursuit + curvature speed planning + pedal PID. -->
   <node pkg="unita_waypoint" type="gps_waypoint_follower_leo.py" name="gps_waypoint_follower" output="screen">
-    <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile.yaml"/>
+    <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile_leo.yaml"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
     <param name="waypoint_format" value="$(arg waypoint_format)"/>
     <param name="loop_path" value="$(arg loop_path)"/>

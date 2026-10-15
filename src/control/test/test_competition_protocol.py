@@ -27,35 +27,35 @@ def status_packet(mode=1, size=229, stamp=(100, 123)):
 
 
 class CompetitionTests(unittest.TestCase):
-    def test_fresh_ego_udp_status_publishes_enu_exit_pose(self):
-        spec = importlib.util.spec_from_file_location(
-            'competition_udp_control_test',
-            Path(__file__).parents[1] / 'scripts/competition_udp_control.py')
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        packet = status_packet(mode=2)
-        struct.pack_into('<3f', packet, 77, -78.13, -546.24, 30.01)
-        struct.pack_into('<f', packet, 97, -158.)
-        node = module.CompetitionUDPControl.__new__(module.CompetitionUDPControl)
-        node.destination = ('127.0.0.1', 9093)
-        node.status_sock = MagicMock()
-        node.status_sock.recvfrom.side_effect = [
-            (bytes(packet), ('127.0.0.1', 9094)), BlockingIOError()]
-        node.lock = threading.Lock()
-        node.freshness = StatusFreshness()
-        node.mode_pub = node.speed_pub = node.ego_pub = MagicMock()
-        node.ego_pose_pub = MagicMock()
-        node.heading_pub = None
-        node.diagnostic_log = True
-        node.diagnostic_raw_pub = node.diagnostic_status_pub = MagicMock()
-        node.yaw_offset = 0.
-        with patch.object(module.rospy.Time, 'now', return_value=module.rospy.Time(100)):
-            node.receive_status()
-        pose = node.ego_pose_pub.publish.call_args[0][0]
-        self.assertEqual(pose.header.frame_id, 'map')
-        self.assertAlmostEqual(pose.pose.position.x, -78.13, places=4)
-        self.assertAlmostEqual(pose.pose.position.y, -546.24, places=4)
-        self.assertAlmostEqual(pose.pose.orientation.z, math.sin(math.radians(-79.)), places=4)
+    def test_ego_status_never_exposes_simulator_position(self):
+        for script in ('competition_udp_control.py', 'competition_udp_control_local.py'):
+            spec = importlib.util.spec_from_file_location(
+                'control_no_position_' + script[:-3],
+                Path(__file__).parents[1] / 'scripts' / script)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            packet = status_packet(mode=2)
+            struct.pack_into('<3f', packet, 77, -78.13, -546.24, 30.01)
+            node = module.CompetitionUDPControl.__new__(module.CompetitionUDPControl)
+            node.destination = ('127.0.0.1', 9093)
+            node.status_sock = MagicMock()
+            node.status_sock.recvfrom.side_effect = [
+                (bytes(packet), ('127.0.0.1', 9094)), BlockingIOError()]
+            node.lock = threading.Lock()
+            node.freshness = StatusFreshness()
+            node.mode_pub, node.speed_pub, node.ego_pub = MagicMock(), MagicMock(), MagicMock()
+            node.heading_pub = None
+            node.diagnostic_log = True
+            node.diagnostic_raw_pub, node.diagnostic_status_pub = MagicMock(), MagicMock()
+            node.yaw_offset = 0.
+            with patch.object(module.rospy.Time, 'now', return_value=module.rospy.Time(100)):
+                node.receive_status()
+            self.assertFalse(hasattr(node, 'ego_pose_pub'))
+            published = ' '.join(str(call) for pub in (node.ego_pub, node.diagnostic_raw_pub,
+                                                      node.diagnostic_status_pub)
+                                 for call in pub.publish.call_args_list)
+            self.assertNotIn('pos', published.replace('position', 'pos'))
+            self.assertNotIn(struct.pack('<3f', -78.13, -546.24, 30.01).hex(), published)
 
     def test_new_command_requests_auto_and_old_command_keeps_mode(self):
         args = (1, 0, 0, .4, 0, .1)
@@ -75,27 +75,25 @@ class CompetitionTests(unittest.TestCase):
 
     def test_both_status_layouts_have_same_heading_fields(self):
         for size in (181, 229):
-            status = decode_ego_status(status_packet(size=size), diagnostics=True)
+            status = decode_ego_status(status_packet(size=size))
             self.assertEqual((status.mode, status.gear, status.stamp), (1, 4, (100, 123)))
-            self.assertEqual(status.position, (-131.5, -428, 28.5))
+            self.assertFalse(hasattr(status, 'position'))
             self.assertAlmostEqual(status.yaw_deg, 61.3, places=4)
             self.assertAlmostEqual(status.wheelbase, 2.7, places=4)
             self.assertEqual(status.steering_deg, -5)
 
     def test_non_finite_status_fields_are_rejected(self):
-        for offset in (37, 69, 77, 81, 85, 97, 137):
+        for offset in (37, 69, 97, 137):
             for value in (math.nan, math.inf):
                 packet = status_packet()
                 struct.pack_into('<f', packet, offset, value)
                 with self.assertRaises(ValueError):
-                    decode_ego_status(packet, diagnostics=True)
+                    decode_ego_status(packet)
 
-    def test_position_is_not_read_without_diagnostic_flag(self):
+    def test_position_bytes_are_never_read(self):
         packet = status_packet()
         struct.pack_into('<3f', packet, 77, math.nan, math.nan, math.nan)
-        self.assertIsNone(decode_ego_status(packet).position)
-        with self.assertRaises(ValueError):
-            decode_ego_status(packet, diagnostics=True)
+        decode_ego_status(packet)
 
     def test_diagnostic_publishers_and_truth_pose_are_gated(self):
         spec = importlib.util.spec_from_file_location('control_log_gate',
@@ -109,14 +107,13 @@ class CompetitionTests(unittest.TestCase):
             node.status_sock.recvfrom.side_effect = [(status_packet(), ('127.0.0.1', 9096)), BlockingIOError()]
             node.lock, node.freshness = threading.Lock(), StatusFreshness()
             node.diagnostic_log, node.yaw_offset = enabled, 0.
-            for name in ('mode_pub', 'speed_pub', 'ego_pub', 'ego_pose_pub', 'diagnostic_status_pub', 'diagnostic_raw_pub'):
+            for name in ('mode_pub', 'speed_pub', 'ego_pub', 'diagnostic_status_pub', 'diagnostic_raw_pub'):
                 setattr(node, name, MagicMock())
             node.heading_pub = None
             with patch.object(module.rospy.Time, 'now', return_value=module.rospy.Time(100)):
                 node.receive_status()
             self.assertEqual(node.diagnostic_raw_pub.publish.called, enabled)
             self.assertEqual(node.diagnostic_status_pub.publish.called, enabled)
-            self.assertEqual(node.ego_pose_pub.publish.called, enabled)
             self.assertNotIn('pos=', node.ego_pub.publish.call_args.args[0].data)
 
     def test_malformed_status_is_rejected(self):

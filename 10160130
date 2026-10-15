@@ -1,0 +1,810 @@
+... logging to /home/unita/.ros/log/30f109dc-c8b4-11f1-9a9b-8d1e01b01625/roslaunch-nuc-350760.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+]2;/home/unita/unita_ws/src/unita_launch/launch/semi.launch
+[1mstarted roslaunch server http://nuc:34905/[0m
+
+SUMMARY
+========
+
+PARAMETERS
+ * /camera_front_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_front_udp_bridge/diagnostic_log: False
+ * /camera_front_udp_bridge/east_offset: 0.0
+ * /camera_front_udp_bridge/north_offset: 0.0
+ * /camera_front_udp_bridge/sensor: camera_front
+ * /camera_front_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_front_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_front_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_front_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_front_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_front_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_front_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_front_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_front_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_front_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_front_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_front_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_front_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_front_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_front_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_front_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_front_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_front_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_front_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_front_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_front_udp_bridge/sensors/gps/kind: gps
+ * /camera_front_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_front_udp_bridge/sensors/gps/topic: /gps
+ * /camera_front_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_front_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_front_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_front_udp_bridge/sensors/imu/kind: imu
+ * /camera_front_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_front_udp_bridge/sensors/imu/topic: /imu
+ * /camera_front_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_front_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_front_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_front_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_front_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_front_udp_bridge/source_ip: 127.0.0.1
+ * /camera_front_udp_bridge/use_sensor_stamp: False
+ * /camera_left_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_left_udp_bridge/diagnostic_log: False
+ * /camera_left_udp_bridge/east_offset: 0.0
+ * /camera_left_udp_bridge/north_offset: 0.0
+ * /camera_left_udp_bridge/sensor: camera_left
+ * /camera_left_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_left_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_left_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_left_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_left_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_left_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_left_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_left_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_left_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_left_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_left_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_left_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_left_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_left_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_left_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_left_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_left_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_left_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_left_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_left_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_left_udp_bridge/sensors/gps/kind: gps
+ * /camera_left_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_left_udp_bridge/sensors/gps/topic: /gps
+ * /camera_left_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_left_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_left_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_left_udp_bridge/sensors/imu/kind: imu
+ * /camera_left_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_left_udp_bridge/sensors/imu/topic: /imu
+ * /camera_left_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_left_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_left_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_left_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_left_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_left_udp_bridge/source_ip: 127.0.0.1
+ * /camera_left_udp_bridge/use_sensor_stamp: False
+ * /camera_rear_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_rear_udp_bridge/diagnostic_log: False
+ * /camera_rear_udp_bridge/east_offset: 0.0
+ * /camera_rear_udp_bridge/north_offset: 0.0
+ * /camera_rear_udp_bridge/sensor: camera_rear
+ * /camera_rear_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_rear_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_rear_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_rear_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_rear_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_rear_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_rear_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_rear_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_rear_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_rear_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_rear_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_rear_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_rear_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_rear_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_rear_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_rear_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_rear_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_rear_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_rear_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_rear_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_rear_udp_bridge/sensors/gps/kind: gps
+ * /camera_rear_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_rear_udp_bridge/sensors/gps/topic: /gps
+ * /camera_rear_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_rear_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_rear_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_rear_udp_bridge/sensors/imu/kind: imu
+ * /camera_rear_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_rear_udp_bridge/sensors/imu/topic: /imu
+ * /camera_rear_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_rear_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_rear_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_rear_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_rear_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_rear_udp_bridge/source_ip: 127.0.0.1
+ * /camera_rear_udp_bridge/use_sensor_stamp: False
+ * /camera_right_udp_bridge/bind_ip: 0.0.0.0
+ * /camera_right_udp_bridge/diagnostic_log: False
+ * /camera_right_udp_bridge/east_offset: 0.0
+ * /camera_right_udp_bridge/north_offset: 0.0
+ * /camera_right_udp_bridge/sensor: camera_right
+ * /camera_right_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /camera_right_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /camera_right_udp_bridge/sensors/camera_front/host_port: 9101
+ * /camera_right_udp_bridge/sensors/camera_front/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /camera_right_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /camera_right_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /camera_right_udp_bridge/sensors/camera_left/host_port: 9102
+ * /camera_right_udp_bridge/sensors/camera_left/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /camera_right_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /camera_right_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /camera_right_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /camera_right_udp_bridge/sensors/camera_rear/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /camera_right_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /camera_right_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /camera_right_udp_bridge/sensors/camera_right/host_port: 9103
+ * /camera_right_udp_bridge/sensors/camera_right/kind: camera
+ * /camera_right_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /camera_right_udp_bridge/sensors/gps/destination_port: 9230
+ * /camera_right_udp_bridge/sensors/gps/frame_id: gps
+ * /camera_right_udp_bridge/sensors/gps/host_port: 9130
+ * /camera_right_udp_bridge/sensors/gps/kind: gps
+ * /camera_right_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /camera_right_udp_bridge/sensors/gps/topic: /gps
+ * /camera_right_udp_bridge/sensors/imu/destination_port: 9220
+ * /camera_right_udp_bridge/sensors/imu/frame_id: imu
+ * /camera_right_udp_bridge/sensors/imu/host_port: 9120
+ * /camera_right_udp_bridge/sensors/imu/kind: imu
+ * /camera_right_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /camera_right_udp_bridge/sensors/imu/topic: /imu
+ * /camera_right_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /camera_right_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /camera_right_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /camera_right_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /camera_right_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /camera_right_udp_bridge/source_ip: 127.0.0.1
+ * /camera_right_udp_bridge/use_sensor_stamp: False
+ * /competition_udp_control/bind_ip: 0.0.0.0
+ * /competition_udp_control/command_timeout: 0.5
+ * /competition_udp_control/ego_yaw_offset_deg: 0.0
+ * /competition_udp_control/fallback_timeout_s: 0.6
+ * /competition_udp_control/gear: 4
+ * /competition_udp_control/gps_silence_timeout_s: 0.75
+ * /competition_udp_control/heading_source: imu
+ * /competition_udp_control/local_port: 0
+ * /competition_udp_control/max_blackout_distance_m: 160.0
+ * /competition_udp_control/max_speed_kmh: 100.0
+ * /competition_udp_control/max_steering_deg: 40.0
+ * /competition_udp_control/morai_ip: 127.0.0.1
+ * /competition_udp_control/morai_port: 9093
+ * /competition_udp_control/send_rate: 20.0
+ * /competition_udp_control/sensor_timeout: 1.0
+ * /competition_udp_control/status_port: 9096
+ * /competition_udp_control/status_timeout: 1.0
+ * /competition_udp_control/steering_sign: 1.0
+ * /competition_udp_control/stopline_safety_margin_m: 10.0
+ * /gps_imu_localization/base_frame: base_link
+ * /gps_imu_localization/gps_topic: /gps
+ * /gps_imu_localization/imu_topic: /imu
+ * /gps_imu_localization/map_frame: map
+ * /gps_imu_localization/max_sensor_skew: 0.2
+ * /gps_imu_localization/pose_topic: /localization/pose
+ * /gps_imu_localization/publish_rate: 20.0
+ * /gps_imu_localization/require_gps_fix: True
+ * /gps_imu_localization/sensor_timeout: 1.0
+ * /gps_imu_localization/utm_south: False
+ * /gps_imu_localization/utm_zone: 52
+ * /gps_imu_localization/valid_topic: /localization/valid
+ * /gps_imu_localization/yaw_offset: 0.0
+ * /gps_udp_bridge/bind_ip: 0.0.0.0
+ * /gps_udp_bridge/diagnostic_log: False
+ * /gps_udp_bridge/east_offset: 302595
+ * /gps_udp_bridge/north_offset: 4124145
+ * /gps_udp_bridge/sensor: gps
+ * /gps_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /gps_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /gps_udp_bridge/sensors/camera_front/host_port: 9101
+ * /gps_udp_bridge/sensors/camera_front/kind: camera
+ * /gps_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /gps_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /gps_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /gps_udp_bridge/sensors/camera_left/host_port: 9102
+ * /gps_udp_bridge/sensors/camera_left/kind: camera
+ * /gps_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /gps_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /gps_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /gps_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /gps_udp_bridge/sensors/camera_rear/kind: camera
+ * /gps_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /gps_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /gps_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /gps_udp_bridge/sensors/camera_right/host_port: 9103
+ * /gps_udp_bridge/sensors/camera_right/kind: camera
+ * /gps_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /gps_udp_bridge/sensors/gps/destination_port: 9230
+ * /gps_udp_bridge/sensors/gps/frame_id: gps
+ * /gps_udp_bridge/sensors/gps/host_port: 9130
+ * /gps_udp_bridge/sensors/gps/kind: gps
+ * /gps_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /gps_udp_bridge/sensors/gps/topic: /gps
+ * /gps_udp_bridge/sensors/imu/destination_port: 9220
+ * /gps_udp_bridge/sensors/imu/frame_id: imu
+ * /gps_udp_bridge/sensors/imu/host_port: 9120
+ * /gps_udp_bridge/sensors/imu/kind: imu
+ * /gps_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /gps_udp_bridge/sensors/imu/topic: /imu
+ * /gps_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /gps_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /gps_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /gps_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /gps_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /gps_udp_bridge/source_ip: 127.0.0.1
+ * /gps_udp_bridge/use_sensor_stamp: False
+ * /gps_waypoint_follower/avoidance_brake_limit: 0.35
+ * /gps_waypoint_follower/avoidance_clear_hold_s: 0.4
+ * /gps_waypoint_follower/ctrl_topic: /semi/raceline_ct...
+ * /gps_waypoint_follower/curvature_window_m: 10.0
+ * /gps_waypoint_follower/enable_local_avoidance: True
+ * /gps_waypoint_follower/enable_velocity_planning: True
+ * /gps_waypoint_follower/front_extent_m: 3.845
+ * /gps_waypoint_follower/gps_topic: /gps
+ * /gps_waypoint_follower/imu_topic: /imu
+ * /gps_waypoint_follower/lane_change_gap_m: 3.0
+ * /gps_waypoint_follower/lane_change_lateral_accel_mps2: 1.5
+ * /gps_waypoint_follower/lane_change_max_heading_deg: 10.0
+ * /gps_waypoint_follower/longitudinal_control_mode: pid
+ * /gps_waypoint_follower/lookahead_distance: 5.0
+ * /gps_waypoint_follower/lookahead_speed_gain: 0.78
+ * /gps_waypoint_follower/loop_path: True
+ * /gps_waypoint_follower/max_lookahead_distance: 30.0
+ * /gps_waypoint_follower/max_profile_accel_mps2: 2.0
+ * /gps_waypoint_follower/max_profile_decel_mps2: 3.5
+ * /gps_waypoint_follower/max_steering_rad: 0.6981317007977318
+ * /gps_waypoint_follower/min_lookahead_distance: 5.0
+ * /gps_waypoint_follower/pid_integral_limit: 20.0
+ * /gps_waypoint_follower/pid_kd: 0.01
+ * /gps_waypoint_follower/pid_ki: 0.002
+ * /gps_waypoint_follower/pid_kp: 0.08
+ * /gps_waypoint_follower/preferred_raceline: 3
+ * /gps_waypoint_follower/preferred_raceline_after_checkpoint: 1
+ * /gps_waypoint_follower/preferred_raceline_end_checkpoint: 11
+ * /gps_waypoint_follower/preferred_raceline_sector: 11
+ * /gps_waypoint_follower/raceline_config: /home/unita/unita...
+ * /gps_waypoint_follower/raceline_width: 
+ * /gps_waypoint_follower/rear_extent_m: 0.79
+ * /gps_waypoint_follower/restart_accel_rate_per_s: 0.5
+ * /gps_waypoint_follower/speed_feedback_timeout: 0.5
+ * /gps_waypoint_follower/speed_topic: /competition/ego_...
+ * /gps_waypoint_follower/steering_sign: 1.0
+ * /gps_waypoint_follower/use_project_speed_limits: True
+ * /gps_waypoint_follower/vehicle_half_width_m: 0.946
+ * /gps_waypoint_follower/waypoint_file: /home/unita/unita...
+ * /gps_waypoint_follower/waypoint_format: local_xy
+ * /gps_waypoint_follower/wheelbase: 3.0
+ * /imu_udp_bridge/bind_ip: 0.0.0.0
+ * /imu_udp_bridge/diagnostic_log: False
+ * /imu_udp_bridge/east_offset: 0.0
+ * /imu_udp_bridge/north_offset: 0.0
+ * /imu_udp_bridge/sensor: imu
+ * /imu_udp_bridge/sensors/camera_front/destination_port: 9201
+ * /imu_udp_bridge/sensors/camera_front/frame_id: camera_front_optical
+ * /imu_udp_bridge/sensors/camera_front/host_port: 9101
+ * /imu_udp_bridge/sensors/camera_front/kind: camera
+ * /imu_udp_bridge/sensors/camera_front/topic: /camera/image/front
+ * /imu_udp_bridge/sensors/camera_left/destination_port: 9202
+ * /imu_udp_bridge/sensors/camera_left/frame_id: camera_left_optical
+ * /imu_udp_bridge/sensors/camera_left/host_port: 9102
+ * /imu_udp_bridge/sensors/camera_left/kind: camera
+ * /imu_udp_bridge/sensors/camera_left/topic: /camera/image/left
+ * /imu_udp_bridge/sensors/camera_rear/destination_port: 9204
+ * /imu_udp_bridge/sensors/camera_rear/frame_id: camera_rear_optical
+ * /imu_udp_bridge/sensors/camera_rear/host_port: 9104
+ * /imu_udp_bridge/sensors/camera_rear/kind: camera
+ * /imu_udp_bridge/sensors/camera_rear/topic: /camera/image/rear
+ * /imu_udp_bridge/sensors/camera_right/destination_port: 9203
+ * /imu_udp_bridge/sensors/camera_right/frame_id: camera_right_optical
+ * /imu_udp_bridge/sensors/camera_right/host_port: 9103
+ * /imu_udp_bridge/sensors/camera_right/kind: camera
+ * /imu_udp_bridge/sensors/camera_right/topic: /camera/image/right
+ * /imu_udp_bridge/sensors/gps/destination_port: 9230
+ * /imu_udp_bridge/sensors/gps/frame_id: gps
+ * /imu_udp_bridge/sensors/gps/host_port: 9130
+ * /imu_udp_bridge/sensors/gps/kind: gps
+ * /imu_udp_bridge/sensors/gps/message_type: morai_msgs/GPSMes...
+ * /imu_udp_bridge/sensors/gps/topic: /gps
+ * /imu_udp_bridge/sensors/imu/destination_port: 9220
+ * /imu_udp_bridge/sensors/imu/frame_id: imu
+ * /imu_udp_bridge/sensors/imu/host_port: 9120
+ * /imu_udp_bridge/sensors/imu/kind: imu
+ * /imu_udp_bridge/sensors/imu/message_type: sensor_msgs/Imu
+ * /imu_udp_bridge/sensors/imu/topic: /imu
+ * /imu_udp_bridge/sensors/lidar3d/destination_port: 9210
+ * /imu_udp_bridge/sensors/lidar3d/frame_id: lidar
+ * /imu_udp_bridge/sensors/lidar3d/host_port: 9110
+ * /imu_udp_bridge/sensors/lidar3d/kind: velodyne
+ * /imu_udp_bridge/sensors/lidar3d/topic: /lidar3D
+ * /imu_udp_bridge/source_ip: 127.0.0.1
+ * /imu_udp_bridge/use_sensor_stamp: False
+ * /leo_driving_state/bearing_smoothing_tau_s: 0.5
+ * /leo_driving_state/blackout_end_anchor/x: -100.9611
+ * /leo_driving_state/blackout_end_anchor/y: -550.4644
+ * /leo_driving_state/blackout_end_anchor/yaw: 3.10473
+ * /leo_driving_state/blackout_start_anchor/x: 39.65
+ * /leo_driving_state/blackout_start_anchor/y: -480.063
+ * /leo_driving_state/blackout_start_anchor/yaw: -2.46728
+ * /leo_driving_state/brake_mps2: 4.0
+ * /leo_driving_state/bubble_margin_m: 0.4
+ * /leo_driving_state/collision_max_z_m: 0.8
+ * /leo_driving_state/collision_min_z_m: -1.13
+ * /leo_driving_state/crossing_confirm_scans: 3
+ * /leo_driving_state/crossing_horizon_s: 3.0
+ * /leo_driving_state/crossing_lookahead_m: 20.0
+ * /leo_driving_state/crossing_margin_m: 0.5
+ * /leo_driving_state/crossing_min_lateral_speed_mps: 0.5
+ * /leo_driving_state/disparity_m: 0.5
+ * /leo_driving_state/dynamic_confirm_scans: 2
+ * /leo_driving_state/dynamic_min_speed_mps: 0.8
+ * /leo_driving_state/dynamic_release_speed_mps: 0.4
+ * /leo_driving_state/ego_self_filter_inset_m: 0.15
+ * /leo_driving_state/emergency_brake_mps2: 6.0
+ * /leo_driving_state/exit_anchor/x: -78.35
+ * /leo_driving_state/exit_anchor/y: -545.63
+ * /leo_driving_state/exit_anchor/yaw: -2.76369
+ * /leo_driving_state/exit_rejoin_full_m: 25.0
+ * /leo_driving_state/exit_rejoin_start_m: 35.0
+ * /leo_driving_state/expected_ground_z_m: -1.23
+ * /leo_driving_state/front_bumper_from_rear_m: 3.845
+ * /leo_driving_state/front_fov_deg: 300.0
+ * /leo_driving_state/gap_target_inset_m: 0.8
+ * /leo_driving_state/gps_pose_max_age_s: 1.0
+ * /leo_driving_state/gps_return_grace_s: 1.5
+ * /leo_driving_state/gps_silence_timeout_s: 0.75
+ * /leo_driving_state/ground_height_tolerance_m: 0.25
+ * /leo_driving_state/icp_forward_weight: 0.0
+ * /leo_driving_state/icp_lateral_weight: 0.1
+ * /leo_driving_state/input_timeout_s: 0.6
+ * /leo_driving_state/lidar_frame: lidar
+ * /leo_driving_state/lidar_to_rear_x_m: 1.4
+ * /leo_driving_state/local_planning_range_m: 16.5
+ * /leo_driving_state/max_blackout_distance_m: 160.0
+ * /leo_driving_state/max_correction_m: 0.5
+ * /leo_driving_state/max_correction_rad: 0.12
+ * /leo_driving_state/max_pair_distance_m: 0.65
+ * /leo_driving_state/max_range_m: 30.0
+ * /leo_driving_state/max_rejoin_error_m: 2.0
+ * /leo_driving_state/max_rejoin_yaw_rad: 0.25
+ * /leo_driving_state/max_rmse_m: 0.25
+ * /leo_driving_state/max_target_bearing_rad: 0.6108652382
+ * /leo_driving_state/max_unmatched_distance_m: 3.0
+ * /leo_driving_state/max_z_m: 0.8
+ * /leo_driving_state/min_no_return_evidence_points: 10
+ * /leo_driving_state/min_pairs: 35
+ * /leo_driving_state/min_z_m: -0.8
+ * /leo_driving_state/obstacle_speed_hold_s: 1.0
+ * /leo_driving_state/passing_gap_width_weight: 0.35
+ * /leo_driving_state/reaction_s: 0.4
+ * /leo_driving_state/rear_detection_half_angle_deg: 15.0
+ * /leo_driving_state/rear_detection_max_lateral_m: 2.8
+ * /leo_driving_state/rear_detection_max_range_m: 12.0
+ * /leo_driving_state/right_wall_clearance_tolerance_m: 0.1
+ * /leo_driving_state/right_wall_drift_weight: 0.9
+ * /leo_driving_state/right_wall_heading_gain: 1.0
+ * /leo_driving_state/right_wall_max_correction_rad: 0.22
+ * /leo_driving_state/right_wall_min_clearance_m: 0.9
+ * /leo_driving_state/right_wall_offset_gain_rad_per_m: 0.25
+ * /leo_driving_state/right_wall_route_disagreement_rad: 0.2617993878
+ * /leo_driving_state/right_wall_target_clearance_m: 2.9
+ * /leo_driving_state/route_lookahead_m: 5.0
+ * /leo_driving_state/route_max_error_m: 7.0
+ * /leo_driving_state/scan_bins: 601
+ * /leo_driving_state/side_margin_m: 0.4
+ * /leo_driving_state/speed_timeout_s: 0.6
+ * /leo_driving_state/swept_path_horizon_m: 4.0
+ * /leo_driving_state/swept_side_margin_m: 0.3
+ * /leo_driving_state/target_accel_mps2: 0.8
+ * /leo_driving_state/target_distance_from_lidar_m: 4.0
+ * /leo_driving_state/track_gate_m: 1.5
+ * /leo_driving_state/track_history_s: 0.6
+ * /leo_driving_state/track_lost_s: 0.5
+ * /leo_driving_state/track_max_size_jump_m: 0.5
+ * /leo_driving_state/track_min_span_s: 0.2
+ * /leo_driving_state/unwalled_route_bearing_limit_rad: 0.1221730476
+ * /leo_driving_state/vehicle_half_width_m: 0.946
+ * /leo_driving_state/voxel_m: 0.25
+ * /leo_driving_state/wall_corridor_horizon_m: 6.0
+ * /leo_driving_state/wall_fast_clearance_m: 1.4
+ * /leo_driving_state/wall_point_tolerance_m: 0.35
+ * /leo_driving_state/wall_slow_clearance_m: 0.5
+ * /leo_driving_state/waypoint_file: /home/unita/unita...
+ * /leo_ego_odometry/heading_topic: /imu
+ * /leo_ego_odometry/max_heading_interval_s: 0.6
+ * /leo_ego_odometry/speed_timeout_s: 0.6
+ * /leo_lidar_obstacles/cloud_topic: /lidar3D
+ * /leo_lidar_obstacles/lidar_to_rear_x_m: 1.4
+ * /leo_lidar_obstacles/lidar_to_rear_z_m: 1.23
+ * /leo_lidar_obstacles/pose_topic: /localization/pose
+ * /leo_lidar_obstacles/rear_extent_m: 0.79
+ * /leo_lidar_obstacles/rear_range_m: 55.0
+ * /leo_route_avoidance/intersection_file: /home/unita/unita...
+ * /leo_route_avoidance/lane_change_file: /home/unita/unita...
+ * /leo_route_avoidance/pose_topic: /leo/driving_pose
+ * /leo_route_avoidance/waypoint_file: /home/unita/unita...
+ * /leo_signal_guard/auto_arm: True
+ * /leo_signal_guard/blackout/blackout_end_anchor/x: -100.9611
+ * /leo_signal_guard/blackout/blackout_end_anchor/y: -550.4644
+ * /leo_signal_guard/blackout/blackout_end_anchor/yaw: 3.10473
+ * /leo_signal_guard/blackout/blackout_start_anchor/x: 39.65
+ * /leo_signal_guard/blackout/blackout_start_anchor/y: -480.063
+ * /leo_signal_guard/blackout/blackout_start_anchor/yaw: -2.46728
+ * /leo_signal_guard/blackout/exit_anchor/x: -78.35
+ * /leo_signal_guard/blackout/exit_anchor/y: -545.63
+ * /leo_signal_guard/blackout/exit_anchor/yaw: -2.76369
+ * /leo_signal_guard/blackout/exit_rejoin_full_m: 25.0
+ * /leo_signal_guard/blackout/exit_rejoin_start_m: 35.0
+ * /leo_signal_guard/blackout/gps_pose_max_age_s: 1.0
+ * /leo_signal_guard/blackout/gps_return_grace_s: 1.5
+ * /leo_signal_guard/blackout/gps_silence_timeout_s: 0.75
+ * /leo_signal_guard/blackout/icp_forward_weight: 0.0
+ * /leo_signal_guard/blackout/icp_lateral_weight: 0.1
+ * /leo_signal_guard/blackout/input_timeout_s: 0.6
+ * /leo_signal_guard/blackout/lidar_to_rear_x_m: 1.4
+ * /leo_signal_guard/blackout/max_blackout_distance_m: 160.0
+ * /leo_signal_guard/blackout/max_correction_m: 0.5
+ * /leo_signal_guard/blackout/max_correction_rad: 0.12
+ * /leo_signal_guard/blackout/max_pair_distance_m: 0.65
+ * /leo_signal_guard/blackout/max_range_m: 18.0
+ * /leo_signal_guard/blackout/max_rejoin_error_m: 2.0
+ * /leo_signal_guard/blackout/max_rejoin_yaw_rad: 0.25
+ * /leo_signal_guard/blackout/max_rmse_m: 0.25
+ * /leo_signal_guard/blackout/max_unmatched_distance_m: 3.0
+ * /leo_signal_guard/blackout/max_z_m: 0.8
+ * /leo_signal_guard/blackout/min_pairs: 35
+ * /leo_signal_guard/blackout/min_z_m: -0.8
+ * /leo_signal_guard/blackout/route_max_error_m: 7.0
+ * /leo_signal_guard/blackout/voxel_m: 0.25
+ * /leo_signal_guard/blackout_route_max_error_m: 7.0
+ * /leo_signal_guard/gps_to_front_axle_m: 3.0
+ * /leo_signal_guard/intersection_file: /home/unita/unita...
+ * /leo_signal_guard/missed_signal_hold_s: 0.8
+ * /leo_signal_guard/passthrough_checkpoints: 8-11
+ * /leo_signal_guard/passthrough_command_topic: /semi/raceline_ct...
+ * /leo_signal_guard/pose_fault_grace_s: 2.0
+ * /leo_signal_guard/route_max_error_m: 3.75
+ * /leo_signal_guard/stop_margin_m: 5.0
+ * /leo_signal_guard/stoplines_file: /home/unita/unita...
+ * /leo_signal_guard/vehicle_half_width_m: 0.946
+ * /leo_signal_guard/waypoint_file: /home/unita/unita...
+ * /leo_traffic_lights/aux_image_topic: /camera/image/rear
+ * /leo_traffic_lights/camera_selection_topic: /leo/signal_camera
+ * /leo_traffic_lights/confidence: 0.7
+ * /leo_traffic_lights/image_timeout: 1.0
+ * /leo_traffic_lights/inference_rate: 5.0
+ * /leo_traffic_lights/model_path: /home/unita/unita...
+ * /leo_waypoint_follower/avoidance_speed_topic: /leo/avoidance_sp...
+ * /leo_waypoint_follower/avoidance_target_topic: /leo/avoidance_ta...
+ * /leo_waypoint_follower/ctrl_topic: /leo/raw_ctrl_cmd
+ * /leo_waypoint_follower/curvature_window_m: 10.0
+ * /leo_waypoint_follower/drive_mode_topic: /leo/driving_mode
+ * /leo_waypoint_follower/drive_pose_topic: /leo/driving_pose
+ * /leo_waypoint_follower/drive_valid_topic: /leo/driving_valid
+ * /leo_waypoint_follower/enable_local_avoidance: True
+ * /leo_waypoint_follower/enable_velocity_planning: True
+ * /leo_waypoint_follower/front_extent_m: 3.845
+ * /leo_waypoint_follower/gps_topic: /gps
+ * /leo_waypoint_follower/guard_speed_limit_topic: /leo/speed_limit_kmh
+ * /leo_waypoint_follower/imu_topic: /imu
+ * /leo_waypoint_follower/lane_change_min_rear_gap_m: 8.0
+ * /leo_waypoint_follower/lane_change_rear_headway_s: 2.0
+ * /leo_waypoint_follower/longitudinal_control_mode: pid
+ * /leo_waypoint_follower/lookahead_distance: 5.0
+ * /leo_waypoint_follower/lookahead_speed_gain: 0.78
+ * /leo_waypoint_follower/loop_path: True
+ * /leo_waypoint_follower/max_lookahead_distance: 30.0
+ * /leo_waypoint_follower/max_profile_accel_mps2: 2.0
+ * /leo_waypoint_follower/max_profile_decel_mps2: 3.5
+ * /leo_waypoint_follower/max_steering_rad: 0.6981317007977318
+ * /leo_waypoint_follower/min_lookahead_distance: 5.0
+ * /leo_waypoint_follower/pid_integral_limit: 20.0
+ * /leo_waypoint_follower/pid_kd: 0.01
+ * /leo_waypoint_follower/pid_ki: 0.002
+ * /leo_waypoint_follower/pid_kp: 0.08
+ * /leo_waypoint_follower/preferred_raceline: 1
+ * /leo_waypoint_follower/preferred_raceline_after_checkpoint: 1
+ * /leo_waypoint_follower/preferred_raceline_end_checkpoint: 
+ * /leo_waypoint_follower/preferred_raceline_sector: 0
+ * /leo_waypoint_follower/raceline_config: /home/unita/unita...
+ * /leo_waypoint_follower/raceline_width: 
+ * /leo_waypoint_follower/rear_extent_m: 0.79
+ * /leo_waypoint_follower/route_avoidance_topic: /leo/route_avoidance
+ * /leo_waypoint_follower/speed_feedback_timeout: 0.5
+ * /leo_waypoint_follower/speed_topic: /competition/ego_...
+ * /leo_waypoint_follower/steering_sign: 1.0
+ * /leo_waypoint_follower/use_project_speed_limits: True
+ * /leo_waypoint_follower/vehicle_half_width_m: 0.946
+ * /leo_waypoint_follower/waypoint_file: /home/unita/unita...
+ * /leo_waypoint_follower/waypoint_format: local_xy
+ * /leo_waypoint_follower/wheelbase: 3.0
+ * /lidar_nodelet_manager_driver/cut_angle: -0.01
+ * /lidar_nodelet_manager_driver/device_ip: 127.0.0.1
+ * /lidar_nodelet_manager_driver/frame_id: lidar
+ * /lidar_nodelet_manager_driver/gps_time: False
+ * /lidar_nodelet_manager_driver/model: VLP16
+ * /lidar_nodelet_manager_driver/pcap: 
+ * /lidar_nodelet_manager_driver/pcap_time: False
+ * /lidar_nodelet_manager_driver/port: 9210
+ * /lidar_nodelet_manager_driver/read_fast: False
+ * /lidar_nodelet_manager_driver/read_once: False
+ * /lidar_nodelet_manager_driver/repeat_delay: 0.0
+ * /lidar_nodelet_manager_driver/rpm: 600
+ * /lidar_nodelet_manager_driver/timestamp_first_packet: False
+ * /lidar_nodelet_manager_laserscan/resolution: 0.007
+ * /lidar_nodelet_manager_laserscan/ring: -1
+ * /lidar_nodelet_manager_transform/calibration: /opt/ros/noetic/s...
+ * /lidar_nodelet_manager_transform/fixed_frame: 
+ * /lidar_nodelet_manager_transform/max_range: 130.0
+ * /lidar_nodelet_manager_transform/min_range: 0.4
+ * /lidar_nodelet_manager_transform/model: VLP16
+ * /lidar_nodelet_manager_transform/organize_cloud: False
+ * /lidar_nodelet_manager_transform/target_frame: 
+ * /lidar_obstacles/cloud_topic: /lidar3D
+ * /lidar_obstacles/ground_imu_topic: /imu
+ * /lidar_obstacles/ground_max_slope_deg: 20.0
+ * /lidar_obstacles/ground_plane_tolerance_m: 0.04
+ * /lidar_obstacles/ground_reference_z_m: -0.38
+ * /lidar_obstacles/imu_frame_id: imu
+ * /lidar_obstacles/imu_max_skew_s: 0.05
+ * /lidar_obstacles/imu_mount_pitch_deg: 0.0
+ * /lidar_obstacles/imu_mount_roll_deg: 0.0
+ * /lidar_obstacles/imu_mount_yaw_deg: 0.0
+ * /lidar_obstacles/lidar_mount_pitch_deg: 0.0
+ * /lidar_obstacles/lidar_mount_roll_deg: 0.0
+ * /lidar_obstacles/lidar_mount_yaw_deg: 0.0
+ * /lidar_obstacles/lidar_to_rear_x_m: 1.4
+ * /lidar_obstacles/lidar_to_rear_z_m: 1.23
+ * /lidar_obstacles/obstacle_max_height_m: 2.6
+ * /lidar_obstacles/obstacle_min_height_m: 0.22
+ * /lidar_obstacles/pose_topic: /localization/pose
+ * /lidar_obstacles/rear_extent_m: 0.79
+ * /lidar_obstacles/rear_range_m: 55.0
+ * /lidar_obstacles/track_confirm_time_s: 0.2
+ * /rosdistro: noetic
+ * /rosversion: 1.17.4
+
+NODES
+  /
+    camera_front_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    camera_left_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    camera_rear_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    camera_right_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    competition_udp_control (leo_avoidance/blackout_udp_control_local.py)
+    gps_imu_localization (localization/gps_imu_localization.py)
+    gps_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    gps_waypoint_follower (unita_waypoint/raceline_test_follower.py)
+    imu_udp_bridge (sensor_bridge/udp_sensor_bridge.py)
+    leo_driving_state (leo_avoidance/driving_state_node_local.py)
+    leo_ego_odometry (leo_avoidance/ego_odometry_node.py)
+    leo_lidar_obstacles (unita_waypoint/lidar_obstacles_local.py)
+    leo_route_avoidance (leo_avoidance/route_avoidance_node.py)
+    leo_signal_guard (leo_guard/signal_guard_node_local.py)
+    leo_traffic_lights (perception/traffic_light_test.py)
+    leo_waypoint_follower (unita_waypoint/gps_waypoint_follower_local.py)
+    lidar_nodelet_manager (nodelet/nodelet)
+    lidar_nodelet_manager_driver (nodelet/nodelet)
+    lidar_nodelet_manager_laserscan (nodelet/nodelet)
+    lidar_nodelet_manager_transform (nodelet/nodelet)
+    lidar_obstacles (unita_waypoint/lidar_obstacles.py)
+    waypoint_visualizer (unita_launch/waypoint_visualizer.py)
+[0m[INFO] [1792081833.692186402]: Initializing nodelet with 22 worker threads.[0m
+0.000 2.304 4.608 6.912 9.216 11.520 13.824 16.128 18.432 20.736 23.040 25.344 27.648 29.952 32.256 34.560 55.296 57.600 59.904 62.208 64.512 66.816 69.120 71.424 73.728 76.032 78.336 80.640 82.944 85.248 87.552 89.856 
+110.592 112.896 115.200 117.504 119.808 122.112 124.416 126.720 129.024 131.328 133.632 135.936 138.240 140.544 142.848 145.152 165.888 168.192 170.496 172.800 175.104 177.408 179.712 182.016 184.320 186.624 188.928 191.232 193.536 195.840 198.144 200.448 
+221.184 223.488 225.792 228.096 230.400 232.704 235.008 237.312 239.616 241.920 244.224 246.528 248.832 251.136 253.440 255.744 276.480 278.784 281.088 283.392 285.696 288.000 290.304 292.608 294.912 297.216 299.520 301.824 304.128 306.432 308.736 311.040 
+331.776 334.080 336.384 338.688 340.992 343.296 345.600 347.904 350.208 352.512 354.816 357.120 359.424 361.728 364.032 366.336 387.072 389.376 391.680 393.984 396.288 398.592 400.896 403.200 405.504 407.808 410.112 412.416 414.720 417.024 419.328 421.632 
+442.368 444.672 446.976 449.280 451.584 453.888 456.192 458.496 460.800 463.104 465.408 467.712 470.016 472.320 474.624 476.928 497.664 499.968 502.272 504.576 506.880 509.184 511.488 513.792 516.096 518.400 520.704 523.008 525.312 527.616 529.920 532.224 
+552.960 555.264 557.568 559.872 562.176 564.480 566.784 569.088 571.392 573.696 576.000 578.304 580.608 582.912 585.216 587.520 608.256 610.560 612.864 615.168 617.472 619.776 622.080 624.384 626.688 628.992 631.296 633.600 635.904 638.208 640.512 642.816 
+663.552 665.856 668.160 670.464 672.768 675.072 677.376 679.680 681.984 684.288 686.592 688.896 691.200 693.504 695.808 698.112 718.848 721.152 723.456 725.760 728.064 730.368 732.672 734.976 737.280 739.584 741.888 744.192 746.496 748.800 751.104 753.408 
+774.144 776.448 778.752 781.056 783.360 785.664 787.968 790.272 792.576 794.880 797.184 799.488 801.792 804.096 806.400 808.704 829.440 831.744 834.048 836.352 838.656 840.960 843.264 845.568 847.872 850.176 852.480 854.784 857.088 859.392 861.696 864.000 
+884.736 887.040 889.344 891.648 893.952 896.256 898.560 900.864 903.168 905.472 907.776 910.080 912.384 914.688 916.992 919.296 940.032 942.336 944.640 946.944 949.248 951.552 953.856 956.160 958.464 960.768 963.072 965.376 967.680 969.984 972.288 974.592 
+995.328 997.632 999.936 1002.240 1004.544 1006.848 1009.152 1011.456 1013.760 1016.064 1018.368 1020.672 1022.976 1025.280 1027.584 1029.888 1050.624 1052.928 1055.232 1057.536 1059.840 1062.144 1064.448 1066.752 1069.056 1071.360 1073.664 1075.968 1078.272 1080.576 1082.880 1085.184 
+1105.920 1108.224 1110.528 1112.832 1115.136 1117.440 1119.744 1122.048 1124.352 1126.656 1128.960 1131.264 1133.568 1135.872 1138.176 1140.480 1161.216 1163.520 1165.824 1168.128 1170.432 1172.736 1175.040 1177.344 1179.648 1181.952 1184.256 1186.560 1188.864 1191.168 1193.472 1195.776 
+1216.512 1218.816 1221.120 1223.424 1225.728 1228.032 1230.336 1232.640 1234.944 1237.248 1239.552 1241.856 1244.160 1246.464 1248.768 1251.072 1271.808 1274.112 1276.416 1278.720 1281.024 1283.328 1285.632 1287.936 1290.240 1292.544 1294.848 1297.152 1299.456 1301.760 1304.064 1306.368 
+[0m[INFO] [1792081833.706751290]: correction angles: /opt/ros/noetic/share/velodyne_pointcloud/params/VLP16db.yaml[0m
+[0m[INFO] [1792081833.707752926]: laser_ring[ 0] =  0, angle = -0.261799[0m
+[0m[INFO] [1792081833.707761780]: laser_ring[ 2] =  1, angle = -0.226893[0m
+[0m[INFO] [1792081833.707766386]: laser_ring[ 4] =  2, angle = -0.191986[0m
+[0m[INFO] [1792081833.707770669]: laser_ring[ 6] =  3, angle = -0.157080[0m
+[0m[INFO] [1792081833.707775093]: laser_ring[ 8] =  4, angle = -0.122173[0m
+[0m[INFO] [1792081833.707779237]: laser_ring[10] =  5, angle = -0.087266[0m
+[0m[INFO] [1792081833.707783392]: laser_ring[12] =  6, angle = -0.052360[0m
+[0m[INFO] [1792081833.707787467]: laser_ring[14] =  7, angle = -0.017453[0m
+[0m[INFO] [1792081833.707791682]: laser_ring[ 1] =  8, angle = +0.017453[0m
+[0m[INFO] [1792081833.707795745]: laser_ring[ 3] [INFO] [1792081834.552490]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.600917]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.651444]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.701047]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.750920]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.802394]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.850969]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.900796]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.950857]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.002683]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.050823]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.100953]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.150875]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.200834]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.252750]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.300937]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.350859]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.400909]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.451019]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.502774]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.550927]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.600857]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.650780]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.700801]: Signal gate: {"state": "hold", "reason": "automatic start waiting for inputs", "armed": false, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.753470]: Signal guard armed automatically
+[INFO] [1792081835.755263]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.1174390379311, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 8.585780051362235e-06, "next_controlled_stop_distance_m": 204.94736599942422, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.801370]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.1174390379311, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 8.585780051362235e-06, "next_controlled_stop_distance_m": 204.94736599942422, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.851463]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11744642408765, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 5.494655852089636e-06, "next_controlled_stop_distance_m": 204.94737338558076, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.901197]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11744642408765, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 2.7826322366308887e-06, "next_controlled_stop_distance_m": 204.94737338558076, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081835.953678]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11745372780614, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 0.7771961092948914, "next_controlled_stop_distance_m": 204.94738068929925, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.001324]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11746328229482, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 0.7771961092948914, "next_controlled_stop_distance_m": 204.94739024378794, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.051461]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11746328229482, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 1.92702054977417, "next_controlled_stop_distance_m": 204.94739024378794, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.101277]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11764669453618, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 3.078648328781128, "next_controlled_stop_distance_m": 204.9475736560293, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.151375]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11824911060964, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 3.078648328781128, "next_controlled_stop_distance_m": 204.94817607210274, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.203291]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11824911060964, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 4.2306623458862305, "next_controlled_stop_distance_m": 204.94817607210274, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.251374]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 72.15651510572091, "front_wheel_distance": 69.11824911060964, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.47248022745195, "cross_track_error": 0.007514442251547562, "speed_kmh": 4.2306623458862305, "next_controlled_stop_distance_m": 204.94817607210274, "route_index": 0, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.301337]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 71.92425666454618, "front_wheel_distance": 68.88806612816971, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.7047386686266606, "cross_track_error": 0.03884959348764634, "speed_kmh": 5.382375240325928, "next_controlled_stop_distance_m": 204.71799308966285, "route_index": 1, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.351460]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 71.92425666454618, "front_wheel_distance": 68.88806612816971, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.7047386686266606, "cross_track_error": 0.03884959348764634, "speed_kmh": 6.528534889221191, "next_controlled_stop_distance_m": 204.71799308966285, "route_index": 1, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.403809]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 71.92425666454618, "front_wheel_distance": 68.8894256424082, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.7047386686266606, "cross_track_error": 0.03884959348764634, "speed_kmh": 7.667027950286865, "next_controlled_stop_distance_m": 204.71935260390134, "route_index": 1, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.451260]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 71.75995546552143, "front_wheel_distance": 68.72671848596282, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.8690398676513491, "cross_track_error": 0.046148158070632515, "speed_kmh": 8.799057960510254, "next_controlled_stop_distance_m": 204.55664544745602, "route_index": 1, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.501353]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 71.75995546552143, "front_wheel_distance": 68.72671848596282, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.8690398676513491, "cross_track_error": 0.046148158070632515, "speed_kmh": 8.799057960510254, "next_controlled_stop_distance_m": 204.55664544745602, "route_index": 1, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.551296]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 71.69199822467748, "front_wheel_distance": 68.66061109846432, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.9369971084952902, "cross_track_error": 0.08521362005407775, "speed_kmh": 9.926651954650879, "next_controlled_stop_distance_m": 204.49053805995752, "route_index": 1, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081836.601355]: Signal gate: {"state": "clear", "intersection_id": "A1256W000736", "signal_camera": "front", "stop_distance": 71.69199822467748, "front_wheel_distance": 68.66061109846432, "maneuver": "straight", "release_stable": false, "reason": "surveyed uncontrolled crossing", "armed": true, "route_s": 0.9369971084952902, "cross_track_error": 0.08521362005407775, "speed_kmh": 9.926651954650879, "next_controlled_stop_distance_m": 204.49053805995752, "route_index": 1, "route_max_error_m": 3.75, "d_m": null, "v_mps": null, "signal": null, "can_go": null, "can_stop": null, "decision": null}
+[INFO] [1792081834.666981]: Obstacle lane filter: width 3.60 m (+/- 1.80 m)
+[INFO] [1792081834.631419]: Saved R2: 863 points, Y -155.450..145.521, 884 mapped route samples
+[INFO] [1792081834.632653]: Saved R3: 643 points, Y -217.884..145.521, 592 mapped route samples
+[INFO] [1792081834.633724]: Loaded 4254 saved Map Tuner Raceline 1 points
+[INFO] [1792081834.635204]: Using Map Tuner point speeds (30.0..100.0 km/h)
+[INFO] [1792081834.648120]: Velocity profile ready: planned 30.0..100.0 km/h
+[INFO] [1792081834.679002]: ======================================
+[INFO] [1792081834.679775]:  GPS Waypoint Follower started
+[INFO] [1792081834.680789]:  GPS topic      : /gps
+[INFO] [1792081834.681355]:  IMU topic      : /imu
+[INFO] [1792081834.681856]:  CTRL topic     : /leo/raw_ctrl_cmd
+[INFO] [1792081834.682289]:  waypoint file  : /home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json
+[INFO] [1792081834.682921]:  waypoint type  : local_xy
+[INFO] [1792081834.683368]:  speed limits   : Map Tuner project point speeds
+[INFO] [1792081834.683797]:  longitudinal   : pid
+[INFO] [1792081834.684188]:  lookahead      : 5.00..30.00 m (gain 0.78)
+[INFO] [1792081834.684602]:  loop path      : True
+[INFO] [1792081834.684985]: ======================================
+[INFO] [1792081834.886822]: Raceline priority: R1 (default_lane) | WP 1 | pos=(-131.47, -427.91)
+[INFO] [1792081835.786820]: WP 1/4253 | target=1 | pos=(-131.47, -427.91) | yaw=63.8 deg | steer=-0.062 rad | target/current=55.0/0.0 km/h | Ld=5.0 m | zone=map_tuner_project
+[INFO] [1792081836.287031]: WP 1/4253 | target=1 | pos=(-131.32, -427.73) | yaw=63.6 deg | steer=-0.042 rad | target/current=55.0/5.4 km/h | Ld=5.0 m | zone=map_tuner_project
+[INFO] [1792081834.726743]: Obstacle lane filter: width 3.60 m (+/- 1.80 m)
+[INFO] [1792081834.670998]: Saved R1: 4305 points, Y -550.494..345.790, 567 mapped route samples
+[INFO] [1792081834.672861]: Saved R2: 863 points, Y -155.450..145.521, 861 mapped route samples
+[INFO] [1792081834.674966]: Saved R3: 643 points, Y -217.884..145.521, 1 mapped route samples
+[INFO] [1792081834.678110]: Loaded 4305 saved Map Tuner route points (S11 on R1/R3)
+[INFO] [1792081834.681970]: Using Map Tuner point speeds (30.0..100.0 km/h)
+[INFO] [1792081834.694869]: Velocity profile ready: planned 30.0..100.0 km/h
+[INFO] [1792081834.716671]: Raceline preference: R3 in sector 11 through CP 11 (idx=3115); outside R1
+[INFO] [1792081834.733515]: ======================================
+[INFO] [1792081834.734193]:  GPS Waypoint Follower started
+[INFO] [1792081834.734822]:  GPS topic      : /gps
+[INFO] [1792081834.735423]:  IMU topic      : /imu
+[INFO] [1792081834.736160]:  CTRL topic     : /semi/raceline_ctrl_cmd
+[INFO] [1792081834.736722]:  waypoint file  : /home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json
+[INFO] [1792081834.737303]:  waypoint type  : local_xy
+[INFO] [1792081834.737729]:  speed limits   : Map Tuner project point speeds
+[INFO] [1792081834.738123]:  longitudinal   : pid
+[INFO] [1792081834.738508]:  lookahead      : 5.00..30.00 m (gain 0.78)
+[INFO] [1792081834.739009]:  loop path      : True
+[INFO] [1792081834.739620]: ======================================
+[INFO] [1792081834.796215]: Raceline priority: R1 (default_lane) | WP 1 | pos=(-131.47, -427.91)
+[INFO] [1792081834.798298]: WP 1/4304 | target=11 | pos=(-131.47, -427.91) | yaw=63.9 deg | steer=-0.061 rad | target/current=55.0/0.0 km/h | Ld=5.0 m | zone=map_tuner_project
+[INFO] [1792081835.342103]: WP 1/4304 | target=11 | pos=(-131.47, -427.91) | yaw=63.8 deg | steer=-0.061 rad | target/current=55.0/0.0 km/h | Ld=5.0 m | zone=map_tuner_project
+[INFO] [1792081835.842052]: WP 1/4304 | target=11 | pos=(-131.47, -427.91) | yaw=63.8 deg | steer=-0.061 rad | target/current=55.0/0.0 km/h | Ld=5.0 m | zone=map_tuner_project
+[INFO] [1792081836.344486]: WP 1/4304 | target=12 | pos=(-131.32, -427.73) | yaw=63.5 deg | steer=-0.043 rad | target/current=16.4/6.5 km/h | Ld=5.0 m | zone=map_tuner_project
+[INFO] [1792081836.240266]: 신호등 테스트 시작: model=/home/unita/unita_ws/src/perception/../../best1.pt topic=/camera/image/front classes={0: 'traffic_light_green', 1: 'traffic_light_green_left', 2: 'traffic_light_left', 3: 'traffic_light_red', 4: 'traffic_light_red_and_yellow', 5: 'traffic_light_yellow'}
+=  9, angle = +0.052360[0m
+[0m[INFO] [1792081833.708170914]: laser_ring[ 5] = 10, angle = +0.087266[0m
+[0m[INFO] [1792081833.708177851]: laser_ring[ 7] = 11, angle = +0.122173[0m
+[0m[INFO] [1792081833.708182460]: laser_ring[ 9] = 12, angle = +0.157080[0m
+[0m[INFO] [1792081833.708187408]: laser_ring[11] = 13, angle = +0.191986[0m
+[0m[INFO] [1792081833.708192369]: laser_ring[13] = 14, angle = +0.226893[0m
+[0m[INFO] [1792081833.708196922]: laser_ring[15] = 15, angle = +0.261799[0m
+[0m[INFO] [1792081833.708277293]: Number of lasers: 16.[0m
+[0m[INFO] [1792081833.717080186]: Reconfigure request.[0m
+[0m[INFO] [1792081833.717122856]: Target frame ID now: [0m
+[0m[INFO] [1792081833.717137310]: Fixed frame ID now: [0m
+[0m[INFO] [1792081833.717180792]: Initialized container with min_range: 0.4, max_range: 130, target_frame: , fixed_frame: , init_width: 0, init_height: 1, is_dense: 1, scans_per_packet: 384[0m
+[0m[INFO] [1792081833.729785541]: Velodyne VLP-16 rotating at 600 RPM[0m
+[0m[INFO] [1792081833.730122743]: publishing 76 packets per scan[0m
+[0m[INFO] [1792081833.731140432]: Cut at specific angle feature deactivated.[0m
+[0m[INFO] [1792081833.734003104]: Reconfigure Request[0m
+[0m[INFO] [1792081833.734682303]: expected frequency: 9.921 (Hz)[0m
+[0m[INFO] [1792081833.735691919]: Only accepting packets from IP address: 127.0.0.1[0m
+[0m[INFO] [1792081833.735781248]: Opening UDP socket: port 9210[0m
+[INFO] [1792081834.224703]: COMPETITION UDP: SIM=127.0.0.1:9093, Ego status listen=9096, heading=imu, ctrl_mode=2, gear=4; NO ROS bridge/service
+[INFO] [1792081834.225389]: Automatic takeover enabled. Stop this launch or call ~set_enabled false to return to keyboard mode.
+[INFO] [1792081834.235006]: BRAKE: no fresh /ctrl_cmd
+[INFO] [1792081834.604603]: SENDING: fresh command and sensors (no UDP acknowledgement)
+[INFO] [1792081837.089501]: BRAKE: no fresh /ctrl_cmd
+[INFO] [1792081834.367105]: GPS/IMU localization: /gps + /imu -> /localization/pose (frame=map)
+[INFO] [1792081834.404213]: camera_rear: UDP 0.0.0.0:9204 -> /camera/image/rear (sensor_msgs/Image)
+[INFO] [1792081834.196586]: gps: UDP 0.0.0.0:9230 -> /gps (morai_msgs/GPSMessage)
+[INFO] [1792081834.442437]: imu: UDP 0.0.0.0:9220 -> /imu (sensor_msgs/Imu)
+[INFO] [1792081834.385052]: camera_right: UDP 0.0.0.0:9203 -> /camera/image/right (sensor_msgs/Image)
+[INFO] [1792081834.412854]: camera_left: UDP 0.0.0.0:9202 -> /camera/image/left (sensor_msgs/Image)
+[INFO] [1792081834.515898]: camera_front: UDP 0.0.0.0:9201 -> /camera/image/front (sensor_msgs/Image)
+
+[1mROS_MASTER_URI=http://localhost:11311[0m
+]2;/home/unita/unita_ws/src/unita_launch/launch/semi.launch http://localhost:11311
+[1mprocess[camera_front_udp_bridge-1]: started with pid [350799][0m
+[1mprocess[camera_left_udp_bridge-2]: started with pid [350800][0m
+[1mprocess[camera_right_udp_bridge-3]: started with pid [350801][0m
+[1mprocess[camera_rear_udp_bridge-4]: started with pid [350802][0m
+[1mprocess[imu_udp_bridge-5]: started with pid [350803][0m
+[1mprocess[gps_udp_bridge-6]: started with pid [350804][0m
+[1mprocess[lidar_nodelet_manager-7]: started with pid [350805][0m
+[1mprocess[lidar_nodelet_manager_driver-8]: started with pid [350827][0m
+[1mprocess[lidar_nodelet_manager_transform-9]: started with pid [350933][0m
+[1mprocess[lidar_nodelet_manager_laserscan-10]: started with pid [350972][0m
+[1mprocess[gps_imu_localization-11]: started with pid [350974][0m
+[1mprocess[competition_udp_control-12]: started with pid [350984][0m
+[1mprocess[waypoint_visualizer-13]: started with pid [350986][0m
+[1mprocess[gps_waypoint_follower-14]: started with pid [350987][0m
+[1mprocess[lidar_obstacles-15]: started with pid [350990][0m
+[1mprocess[leo_waypoint_follower-16]: started with pid [350991][0m
+[1mprocess[leo_lidar_obstacles-17]: started with pid [350992][0m
+[1mprocess[leo_route_avoidance-18]: started with pid [350993][0m
+[1mprocess[leo_ego_odometry-19]: started with pid [350994][0m
+[1mprocess[leo_driving_state-20]: started with pid [350995][0m
+[1mprocess[leo_traffic_lights-21]: started with pid [351083][0m
+[1mprocess[leo_signal_guard-22]: started with pid [351165][0m
+[leo_signal_guard-22] killing on exit
+[leo_traffic_lights-21] killing on exit
+[leo_driving_state-20] killing on exit
+[leo_ego_odometry-19] killing on exit
+[leo_route_avoidance-18] killing on exit
+[leo_lidar_obstacles-17] killing on exit
+[leo_waypoint_follower-16] killing on exit
+[lidar_obstacles-15] killing on exit
+[gps_waypoint_follower-14] killing on exit
+[waypoint_visualizer-13] killing on exit
+[competition_udp_control-12] killing on exit
+[gps_imu_localization-11] killing on exit
+[lidar_nodelet_manager_laserscan-10] killing on exit
+[lidar_nodelet_manager_transform-9] killing on exit
+[lidar_nodelet_manager_driver-8] killing on exit
+[lidar_nodelet_manager-7] killing on exit
+[gps_udp_bridge-6] killing on exit
+[imu_udp_bridge-5] killing on exit
+[camera_rear_udp_bridge-4] killing on exit
+[camera_right_udp_bridge-3] killing on exit
+[camera_left_udp_bridge-2] killing on exit
+[camera_front_udp_bridge-1] killing on exit
+shutting down processing monitor...
+... shutting down processing monitor complete
+[1mdone[0m

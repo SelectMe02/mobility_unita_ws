@@ -110,5 +110,51 @@ class DrivingLogTest(unittest.TestCase):
         self.assertAlmostEqual(next(point_cloud2.read_points(message))[2], -.16)
 
 
+class DrivingLogSessionTest(unittest.TestCase):
+    def test_run_folder_is_date_named_unique_and_matched_by_session(self):
+        from datetime import datetime
+        import driving_log_session as session
+        with tempfile.TemporaryDirectory() as folder:
+            now = datetime(2026, 10, 15, 23, 28, 0)
+            first = session.new_run_directory(folder, now)
+            second = session.new_run_directory(folder, now)
+            self.assertEqual(first.name, 'run_20261015_232800')
+            self.assertEqual(second.name, 'run_20261015_232800_2')
+            params = {}
+            fake = MagicMock()
+            fake.set_param.side_effect = params.__setitem__
+            fake.get_param.side_effect = lambda name, default=None: params.get(name, default)
+            self.assertIsNone(session.announced_directory(fake, 'launch_a'))
+            session.announce(fake, first, 'launch_a')
+            self.assertEqual(session.announced_directory(fake, 'launch_a'), first)
+            # A folder announced by an earlier launch is never reused.
+            self.assertIsNone(session.announced_directory(fake, 'launch_b'))
+
+    def test_raceline_log_buffers_until_recorder_announces_folder(self):
+        import driving_log_session as session
+        from raceline_test_follower import RacelineTestFollower
+        with tempfile.TemporaryDirectory() as folder:
+            params = {}
+            node = RacelineTestFollower.__new__(RacelineTestFollower)
+            node.diagnostic_file = None
+            node.last_diagnostic_key, node.last_diagnostic_time = None, 0.
+            node.diagnostic_pending = dict(explicit='', session='launch_a', root=folder,
+                                           deadline=float('inf'), buffer=[])
+            with patch('raceline_test_follower.rospy.get_param',
+                       side_effect=lambda name, default=None: params.get(name, default)), \
+                    patch('raceline_test_follower.rospy.Time.now', return_value=rospy.Time(5.)), \
+                    patch('raceline_test_follower.rospy.on_shutdown'), \
+                    patch('raceline_test_follower.rospy.loginfo'):
+                node._diagnostic('start', force=True)
+                self.assertIsNone(node.diagnostic_file)
+                run = session.new_run_directory(folder)
+                params.update({session.DIRECTORY_PARAM: str(run), session.SESSION_PARAM: 'launch_a'})
+                node._diagnostic('drive', force=True)
+                node.diagnostic_file.close()
+            rows = [json.loads(line) for path in run.glob('raceline_*.jsonl')
+                    for line in path.read_text().splitlines()]
+            self.assertEqual([row['event'] for row in rows], ['start', 'drive'])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -7,10 +7,13 @@ the follower stops when this output is missing or stale.
 """
 import json
 import math
+import sys
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
+import rospkg
 import rospy
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs import point_cloud2
@@ -21,7 +24,10 @@ from leo_avoidance.road_points import RoadPointConfig, boundary_mask, obstacle_p
 from leo_avoidance.obstacle_tracker import ObstacleTracker
 from leo_avoidance.route_avoidance import (RouteAvoidance, RouteAvoidanceConfig,
                                            RouteObstacle)
-from leo_guard.route_file import load_route_points
+from leo_guard.route_file import load_lane_changes, load_route_points, load_survey
+
+sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
+from avoidance_runtime import FrozenConfigTarget, RuntimeSettings  # noqa: E402
 
 
 class RouteAvoidanceNode:
@@ -36,18 +42,19 @@ class RouteAvoidanceNode:
         # Dashed-line intervals from MGeo (build_route_lane_changes.py); a
         # route without them never leaves its lane, it waits instead.
         lane_file = rospy.get_param('~lane_change_file', '')
-        lane_changes = json.load(open(lane_file))['lane_changes'] if lane_file else []
+        lane_changes = load_lane_changes(lane_file, points) if lane_file else []
         # Crosswalks just past each signal stop line (no crosswalk layer in
         # the map data; at C016 the crosswalk is about 7 m past the line): a
         # person crossing there means stopping before it.
         crosswalks = []
         survey_file = rospy.get_param('~intersection_file', '')
         if survey_file:
-            for stop in json.load(open(survey_file))['intersections']:
+            for stop in load_survey(survey_file, points):
                 if stop.get('controlled') is True:
                     crosswalks.append((stop['s'] + float(rospy.get_param('~crosswalk_start_m', 1.)),
                                        stop['s'] + float(rospy.get_param('~crosswalk_end_m', 10.))))
         self.planner = RouteAvoidance(points, config, lane_changes, crosswalks)
+        self.runtime = RuntimeSettings('leo_route_avoidance', FrozenConfigTarget(self.planner))
         # Open-road returns: local ground per grid cell, not the tunnel's single
         # road plane (which turns a road rising ahead into obstacles).
         self.road_points = RoadPointConfig(**{
@@ -108,6 +115,7 @@ class RouteAvoidanceNode:
     def worker(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
+            self.runtime.poll()
             with self.lock:
                 pending, self.pending = self.pending, None
             if pending is not None:

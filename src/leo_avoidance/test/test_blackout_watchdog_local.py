@@ -41,14 +41,11 @@ def test_same_command_in_gps_and_blackout():
     assert g.select(10.15, 10.15, STOP)[0] == SHARED
 
 
-def test_sim_exit_keeps_blackout_sensor_and_obstacle_gate():
+def test_simulator_pose_mode_is_not_a_blackout_source():
     g = gate()
     blackout(g)
     g.set_drive_mode('SIM_EXIT', 10.1)
-    packet, reason = g.select(10.15, 10.15, STOP)
-    assert packet == SHARED and 'MORAI ENU exit pose' in reason
-    g.set_avoidance_valid(False, 10.2)
-    assert g.select(10.2, 10.2, STOP)[0] == STOP
+    assert g.select(10.15, 10.15, STOP)[0] == STOP
 
 
 def test_no_gap_brakes():
@@ -139,14 +136,14 @@ def test_gps_approach_does_not_consume_blackout_budget():
     assert 0. < g.travelled_m < .2
 
 
-def test_entry_speed_check_does_not_pulse_brake_after_blackout_starts():
+def test_fast_blackout_keeps_shared_command():
     g = gate()
     blackout(g)
     assert g.select(10.15, 10.15, STOP)[0] == SHARED
     g.set_command(SHARED, 10.2)
     g.set_lidar(True, 10.2, 10.2)
     g.set_odom(True, 10.2, 10.2)
-    g.set_speed(g.max_entry_speed_mps + .1, 10.2)
+    g.set_speed(11.1, 10.2)
     g.set_drive_mode('BLACKOUT', 10.2)
     g.set_drive_valid(True, 10.2)
     g.set_avoidance_valid(True, 10.2)
@@ -167,25 +164,17 @@ def test_normal_gps_keeps_original_behavior_at_high_speed():
     assert g.select(10.15, 10.15, STOP)[0] == SHARED
 
 
-def test_high_speed_blackout_brakes_until_slow():
+def test_blackout_entry_speed_follows_route_profile():
+    # The project file owns the approach speed; entry does not brake for it.
     g = gate()
     blackout(g)
-    g.set_speed(4., 10.1)
-    assert g.select(10.15, 10.15, STOP)[0] == STOP
-    g.set_speed(1., 10.2)
-    g.set_lidar(True, 10.2, 10.2)
-    g.set_odom(True, 10.2, 10.2)
-    g.set_guard(True, 48., 10.2)
-    g.set_avoidance_valid(True, 10.2)
-    g.set_drive_mode('BLACKOUT', 10.2)
-    g.set_drive_valid(True, 10.2)
-    assert g.select(10.21, 10.21, STOP)[0] == SHARED
+    g.set_speed(15., 10.1)
+    assert g.select(10.15, 10.15, STOP)[0] == SHARED
 
 
 def test_tunnel_budget_survives_uncontrolled_crossing_and_guard_handoff():
     g = BlackoutWatchdog(fallback_timeout=.35,
-                         max_blackout_distance_m=160.,
-                         max_entry_speed_mps=3.)
+                         max_blackout_distance_m=160.)
     g.set_command(SHARED,10.)
     g.set_sensor('gps',True,10.,10.)
     g.set_sensor('imu',True,10.,10.)

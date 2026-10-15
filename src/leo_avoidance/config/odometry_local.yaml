@@ -16,27 +16,19 @@ input_timeout_s: 0.6
 gps_silence_timeout_s: 0.75
 gps_return_grace_s: 1.5
 gps_pose_max_age_s: 1.0
-# The GPS Denied Area covers approximately waypoints 3803-4050; allow a
-# margin for simulator sensor boundaries and rejoin near waypoint 4081.
-blackout_start_index: 3748
-blackout_end_index: 4066
+# GPS Denied Area with a margin for simulator sensor boundaries, as map
+# anchors {x, y, yaw}; the route index is computed from the current project.
+blackout_start_anchor: {x: 39.6500, y: -480.0630, yaw: -2.46728}
+blackout_end_anchor: {x: -100.9611, y: -550.4644, yaw: 3.10473}
 # Lateral limit for projecting the LiDAR pose onto the route during blackout.
 # Covers an avoidance pass (~3.5 m) plus LiDAR odometry drift; beyond it
 # the driving state latches HOLD.
 route_max_error_m: 7.0
-sim_exit_x_m: -78.35
-sim_exit_y_m: -545.63
-sim_exit_waypoint_index: 4019
-# The road bends right at the exit while the tunnel wall runs straight; hand
-# steering back to the anchored route from the anchor start, not the portal.
-exit_rejoin_start_m: 35.0  # physical distance to the photographed exit gate
-exit_rejoin_full_m: 25.0  # route bearing only from here; MORAI anchor makes it reliable
-exit_anchor_speed_cap_mps: 5.0  # 18 km/h during simulator-confirmed exit re-anchoring
-exit_anchor_start_m: 35.0  # begin correcting forward drift before the final exit turn
-exit_anchor_step_m: 1.0  # maximum map-pose correction per valid LiDAR scan
-exit_route_trust_m: 0.5  # anchored pose within this of MORAI: skip map-drift guards
-sim_exit_trigger_radius_m: 15.0
-sim_exit_cross_track_limit_m: 2.0
+# Surveyed tunnel-exit gate (map constant). The route bearing blends toward
+# it from exit_rejoin_start_m using LiDAR route progress only.
+exit_anchor: {x: -78.35, y: -545.63, yaw: -2.76369}
+exit_rejoin_start_m: 35.0
+exit_rejoin_full_m: 25.0
 max_blackout_distance_m: 160.0  # TODO: validate ICP drift over the 122 m tunnel in MORAI
 max_unmatched_distance_m: 3.0
 max_rejoin_error_m: 2.0

@@ -24,11 +24,10 @@ class BlackoutUDPControl(CompetitionUDPControl):
         timeout = float(rospy.get_param('~fallback_timeout_s', .35))
         distance = float(rospy.get_param('~max_blackout_distance_m', 20.))
         margin = float(rospy.get_param('~stopline_safety_margin_m', 10.))
-        entry_speed = float(rospy.get_param('~max_blackout_entry_speed_mps', 2.))
         silence = float(rospy.get_param('~gps_silence_timeout_s', .75))
         self.watchdog = BlackoutWatchdog(
             self.watchdog.command_timeout, self.watchdog.sensor_timeout,
-            timeout, distance, margin, entry_speed, silence)
+            timeout, distance, margin, silence)
         self.subscribers.extend([
             rospy.Subscriber('/lidar3D', PointCloud2, self.lidar_callback,
                              queue_size=1, buff_size=2 ** 24),

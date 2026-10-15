@@ -16,6 +16,34 @@ def smoothstep(t):
     return t * t * (3. - 2. * t)
 
 
+def s_curve(lateral_m, radius_m, max_heading_rad=math.radians(60.)):
+    """Two opposite minimum-radius arcs, joined by a straight above max_heading.
+
+    Returns (length_m, arc_long_m, straight_long_m, heading_rad) along the route.
+    """
+    heading = min(math.acos(max(-1., 1. - lateral_m / (2. * radius_m))), max_heading_rad)
+    arc_lateral = radius_m * (1. - math.cos(heading))
+    straight = max(0., lateral_m - 2. * arc_lateral) / math.sin(heading) if heading > 0 else 0.
+    arc_long = radius_m * math.sin(heading)
+    return 2. * arc_long + straight * math.cos(heading), arc_long, straight * math.cos(heading), heading
+
+
+def s_curve_blend(t, lateral_m, radius_m):
+    """Lateral fraction at route fraction t of the s_curve() lane change."""
+    t = max(0., min(1., t))
+    length, arc_long, straight_long, heading = s_curve(lateral_m, radius_m)
+    if lateral_m <= 0. or length <= 0.:
+        return 1.
+
+    def first_half(x):
+        if x <= arc_long:
+            return radius_m - math.sqrt(max(0., radius_m * radius_m - x * x))
+        return radius_m * (1. - math.cos(heading)) + (x - arc_long) * math.tan(heading)
+    x = t * length
+    y = first_half(x) if x <= length / 2. else lateral_m - first_half(length - x)
+    return max(0., min(1., y / lateral_m))
+
+
 @dataclass
 class Obstacle:
     x: float
@@ -42,7 +70,9 @@ class LocalAvoidancePlanner:
                  decel=3.0, lookahead_m=60., pass_speed_kmh=20.,
                  obstacle_horizon_m=45., lane_indices=None, preferred_lane=1,
                  rear_extent=.790, min_rear_gap=8., rear_headway_s=2.,
-                 preferred_lane_indices=None, finish_line=None):
+                 preferred_lane_indices=None, finish_line=None,
+                 min_turn_radius_m=3.575, arc_lane_change_max_kmh=15.,
+                 lane_change_lateral_accel_mps2=6.):
         self.route = list(route)
         self.sectors = list(sectors)
         self.lanes = {int(k): list(v) for k, v in lanes.items()}
@@ -54,6 +84,9 @@ class LocalAvoidancePlanner:
         self.decel = decel
         self.lookahead_m = lookahead_m
         self.pass_speed_kmh = pass_speed_kmh
+        self.min_turn_radius_m = min_turn_radius_m
+        self.arc_lane_change_max_kmh = arc_lane_change_max_kmh
+        self.lane_change_lateral_accel_mps2 = lane_change_lateral_accel_mps2
         self.obstacle_horizon_m = obstacle_horizon_m
         self.preferred_lane = int(preferred_lane)
         self.preferred_lane_indices = preferred_lane_indices
@@ -90,7 +123,8 @@ class LocalAvoidancePlanner:
         self.active_lane = None
         if min(half_width, margin, front_extent, reaction_s, decel,
                lookahead_m, pass_speed_kmh, obstacle_horizon_m, rear_extent,
-               min_rear_gap, rear_headway_s) <= 0 or self.preferred_lane not in (1, 2, 3):
+               min_rear_gap, rear_headway_s, min_turn_radius_m,
+               lane_change_lateral_accel_mps2) <= 0 or arc_lane_change_max_kmh < 0 or self.preferred_lane not in (1, 2, 3):
             raise ValueError('invalid avoidance geometry')
 
     def _forward(self, index, distance_m):
@@ -204,8 +238,47 @@ class LocalAvoidancePlanner:
             return after if crossed else lane
         return requested
 
-    def _merge_length(self, start, end):
-        return 16. * math.sqrt(max(1., distance(start, end)/3.2))
+    def _merge_shape(self, speed_mps):
+        return 'arc' if speed_mps <= self.arc_lane_change_max_kmh / 3.6 else 'smooth'
+
+    def _merge_length(self, start, end, speed_mps=0.):
+        # Slow: two full-lock arcs (s_curve). Fast: smoothstep, whose peak
+        # curvature 6*d/L^2 must stay within the turn radius and whose peak
+        # lateral acceleration 6*d*v^2/L^2 within lane_change_lateral_accel_mps2.
+        lateral = distance(start, end)
+        if self._merge_shape(speed_mps) == 'arc':
+            return max(1., s_curve(lateral, self.min_turn_radius_m)[0])
+        return max(1., math.sqrt(6. * lateral * self.min_turn_radius_m),
+                   speed_mps * math.sqrt(6. * lateral / self.lane_change_lateral_accel_mps2))
+
+    def _blend(self, transition, t):
+        if transition.get('shape') == 'arc':
+            return s_curve_blend(t, transition['lateral'], self.min_turn_radius_m)
+        return smoothstep(t)
+
+    def _r1_offset(self, index, ego_xy):
+        """Signed left offset of ego from R1 at this route index."""
+        point, tangent = self.route[index], self._tangent(index)
+        return (ego_xy[1]-point[1])*tangent[0] - (ego_xy[0]-point[0])*tangent[1]
+
+    def _origin(self, transition, point, index):
+        if 'offset' not in transition:
+            return self._lane_point(transition['source'], point, index)
+        tangent = self._tangent(index)
+        return (point[0]-tangent[1]*transition['offset'],
+                point[1]+tangent[0]*transition['offset'])
+
+    def _offset_path(self, ahead, ego_xy, offset):
+        """Parallel to R1 at a fixed left offset, starting from the actual ego."""
+        hold = dict(offset=offset)
+        first = self._origin(hold, ahead[0][1], ahead[0][0])
+        correction = (ego_xy[0]-first[0], ego_xy[1]-first[1])
+        path = []
+        for i, point, s in ahead:
+            origin = self._origin(hold, point, i)
+            decay = 1.-smoothstep(s/8.)
+            path.append((origin[0]+correction[0]*decay, origin[1]+correction[1]*decay))
+        return path
 
     def _path(self, ahead, ego_xy, lane, progress, transition=None):
         # The transition has a fixed route anchor. Replanning does not move
@@ -216,10 +289,10 @@ class LocalAvoidancePlanner:
         if transition is None:
             correction = (ego_xy[0]-target0[0], ego_xy[1]-target0[1])
         else:
-            origin0 = self._lane_point(transition['source'], ahead[0][1], ahead[0][0])
+            origin0 = self._origin(transition, ahead[0][1], ahead[0][0])
             if origin0 is None:
                 return []
-            t = smoothstep((progress-transition['start'])/transition['length'])
+            t = self._blend(transition, (progress-transition['start'])/transition['length'])
             expected = (origin0[0]+t*(target0[0]-origin0[0]),
                         origin0[1]+t*(target0[1]-origin0[1]))
             correction = (ego_xy[0]-expected[0], ego_xy[1]-expected[1])
@@ -229,8 +302,8 @@ class LocalAvoidancePlanner:
             if target is None:
                 break
             if transition is not None:
-                blend = smoothstep((progress+s-transition['start'])/transition['length'])
-                origin = self._lane_point(transition['source'], point, i)
+                blend = self._blend(transition, (progress+s-transition['start'])/transition['length'])
+                origin = self._origin(transition, point, i)
                 if origin is None and blend < 1.:
                     break
                 if origin is not None:
@@ -275,7 +348,8 @@ class LocalAvoidancePlanner:
                 found.append((clearance, obstacle, velocity))
         return min(found, key=lambda item: item[0]) if found else None
 
-    def _rear_gap_safe(self, index, ego_xy, target, speed_mps, length, obstacles):
+    def _rear_gap_safe(self, index, ego_xy, target, speed_mps, length, obstacles,
+                       ignore_static=False):
         tangent = self._tangent(index)
         normal = (-tangent[1], tangent[0])
         lateral = ((target[0]-ego_xy[0])*normal[0] +
@@ -289,6 +363,8 @@ class LocalAvoidancePlanner:
             if not min(0., lateral)-envelope <= side <= max(0., lateral)+envelope:
                 continue
             if longitudinal >= 0.:
+                continue
+            if ignore_static and obstacle.kind == 'static':
                 continue
             velocity = obstacle.vx*tangent[0]+obstacle.vy*tangent[1]
             closing = max(0., velocity-speed_mps)
@@ -368,7 +444,7 @@ class LocalAvoidancePlanner:
             if distance(available[preferred], available[1]) < .35:
                 self.current_lane = preferred
         if preferred != 1 and not self.finish_priority_active:
-            exit_length = self._merge_length(available[preferred], available[1])
+            exit_length = self._merge_length(available[preferred], available[1], speed_mps)
             if self._span(preferred, ahead) < exit_length+8.:
                 preferred = 1
                 self.preference_reason = 'saved_lane_ending'
@@ -381,7 +457,7 @@ class LocalAvoidancePlanner:
         if self.current_lane != 1:
             span = self._span(self.current_lane, ahead)
             if span < ahead[-1][2]:
-                merge = self._merge_length(available[self.current_lane], available[1])
+                merge = self._merge_length(available[self.current_lane], available[1], speed_mps)
                 edge_cap = math.sqrt((self.pass_speed_kmh/3.6)**2 +
                                      2.*self.decel*max(0., span-merge-8.))*3.6
                 if self.finish_priority_active:
@@ -406,6 +482,9 @@ class LocalAvoidancePlanner:
                 return self._decision(self.transition['state'], path, self.pass_speed_kmh)
 
         current = self.current_lane
+        # Off every saved lane (e.g. past the end of R2): R1 is the way back.
+        r1_offset = self._r1_offset(index, ego_xy)
+        off_r1 = current == 1 and abs(r1_offset) > .5
         current_path = self._path(ahead, ego_xy, current, progress)
         threat = self._lead(current_path, ego_xy, obstacles)
         candidates = [preferred]
@@ -422,25 +501,34 @@ class LocalAvoidancePlanner:
             holding = self._path(ahead, ego_xy, lane, progress)
             if len(holding) < 2 or self._lead(holding, ego_xy, obstacles):
                 continue
-            changing = lane != current
+            changing = lane != current or (lane == 1 and off_r1)
+            returning = changing and lane == 1
             transition = None
             if changing:
-                length = self._merge_length(ego_xy, available[lane])
-                if self._span(lane, ahead) < length+8. or self._span(current, ahead) < length:
+                length = self._merge_length(ego_xy, available[lane], speed_mps)
+                # A return is built from the actual R1 offset, so it never
+                # needs the lane it leaves to continue.
+                if self._span(lane, ahead) < length+8. or (
+                        not returning and self._span(current, ahead) < length):
                     continue
                 if not slow_enough:
                     waiting = 'slowing_for_lane_change'
                     continue
                 safe, rear, gap = self._rear_gap_safe(index, ego_xy, available[lane],
-                                                      speed_mps, length, obstacles)
+                                                      speed_mps, length, obstacles,
+                                                      ignore_static=returning)
                 if not safe:
                     waiting = 'rear_or_crossed_lane_busy'
                     continue
-                state = ('RETURNING' if lane == preferred and self.departed_preferred
+                state = ('RETURNING' if returning or (lane == preferred and self.departed_preferred)
                          else 'OVERTAKING' if threat or (self.departed_preferred and lane != preferred)
                          else 'LANE_CHANGING')
                 transition = dict(source=current, target=lane, start=progress,
-                                  length=length, state=state)
+                                  length=length, state=state,
+                                  shape=self._merge_shape(speed_mps),
+                                  lateral=distance(ego_xy, available[lane]))
+                if returning:
+                    transition.update(offset=r1_offset, lateral=abs(r1_offset))
             path = self._path(ahead, ego_xy, lane, progress, transition)
             # During steady driving a faster following vehicle is responsible
             # for its own gap. It must still block every lane-change candidate.
@@ -466,6 +554,25 @@ class LocalAvoidancePlanner:
             state = ('LANE_WAIT' if waiting else 'OVERTAKING' if self.departed_preferred else 'RACELINE')
             return self._decision(state, path if lane != 1 or distance(ego_xy, available[1]) > .35 else [],
                                   cap, reason=waiting)
+
+        if off_r1:
+            # The way back to R1 is blocked: keep the current offset and move on
+            # past the blocker, retrying the return on every cycle above.
+            self.active_lane = None
+            hold = self._offset_path(ahead, ego_xy, r1_offset)
+            lead = self._lead(hold, ego_xy, obstacles)
+            if lead:
+                return self._decision('TAILING', hold, self._stop_cap(lead[0], lead[2]),
+                                      lead, 'return_blocked_waiting')
+            tangent = self._tangent(index)
+            ahead_obstacles = [o for o in obstacles if
+                               (o.x-ego_xy[0])*tangent[0]+(o.y-ego_xy[1])*tangent[1] >= 0.]
+            if not self._collision_free(hold, ahead_obstacles,
+                                        min(max(speed_mps, 1.), self.pass_speed_kmh/3.6),
+                                        self.reaction_s+self.rear_headway_s):
+                return self._decision('TAILING', hold, 0., reason='return_blocked_waiting')
+            return self._decision('LANE_WAIT', hold, self.pass_speed_kmh,
+                                  reason='return_blocked_holding_offset')
 
         # Keep the actual lane while waiting for a merge gap; never snap to R1.
         self.active_lane = current if current != 1 else None

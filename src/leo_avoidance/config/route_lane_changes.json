@@ -1,49 +1,105 @@
 {
   "source": "MORAI MGeo link_set can_move_*_lane; route waypoints.csv",
-  "route_length_m": 2184.612,
   "max_link_match_error_m": 0.0,
   "lane_changes": [
     {
-      "start_s": 383.28,
-      "end_s": 427.85,
+      "start": {
+        "x": -59.8516,
+        "y": -88.0268,
+        "yaw": 1.57308
+      },
+      "end": {
+        "x": -60.1058,
+        "y": -43.4576,
+        "yaw": 1.5764
+      },
       "side": "right",
       "offset_m": -3.742
     },
     {
-      "start_s": 471.09,
-      "end_s": 550.62,
+      "start": {
+        "x": -60.3486,
+        "y": -0.2183,
+        "yaw": 1.57641
+      },
+      "end": {
+        "x": -60.8764,
+        "y": 79.3077,
+        "yaw": 1.54455
+      },
       "side": "right",
       "offset_m": -3.743
     },
     {
-      "start_s": 581.37,
-      "end_s": 609.87,
+      "start": {
+        "x": -41.1991,
+        "y": 98.7367,
+        "yaw": 0.00797
+      },
+      "end": {
+        "x": -12.7001,
+        "y": 98.9326,
+        "yaw": 0.00442
+      },
       "side": "right",
       "offset_m": -3.252
     },
     {
-      "start_s": 635.61,
-      "end_s": 858.5,
+      "start": {
+        "x": 2.8903,
+        "y": 115.4394,
+        "yaw": 1.59595
+      },
+      "end": {
+        "x": -99.4417,
+        "y": 291.2034,
+        "yaw": 1.57512
+      },
       "side": "right",
       "offset_m": -3.492
     },
     {
-      "start_s": 1118.74,
-      "end_s": 1243.74,
+      "start": {
+        "x": 62.0739,
+        "y": 256.4967,
+        "yaw": -1.55357
+      },
+      "end": {
+        "x": 64.5482,
+        "y": 131.547,
+        "yaw": -1.51316
+      },
       "side": "left",
       "offset_m": 3.746
     },
     {
-      "start_s": 1286.15,
-      "end_s": 1539.25,
+      "start": {
+        "x": 66.8848,
+        "y": 89.2025,
+        "yaw": -1.52925
+      },
+      "end": {
+        "x": 69.7163,
+        "y": -163.8196,
+        "yaw": -1.46706
+      },
       "side": "left",
       "offset_m": 3.607
     },
     {
-      "start_s": 1406.23,
-      "end_s": 1518.25,
+      "start": {
+        "x": 67.405,
+        "y": -30.8754,
+        "yaw": -1.56601
+      },
+      "end": {
+        "x": 68.0465,
+        "y": -142.8924,
+        "yaw": -1.54352
+      },
       "side": "right",
       "offset_m": -3.743
     }
-  ]
+  ],
+  "anchor_note": "start/end are map anchors projected onto the current route at start-up."
 }

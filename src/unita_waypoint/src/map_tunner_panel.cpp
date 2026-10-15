@@ -122,6 +122,14 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
   point_layout->addWidget(speed_edit_, 5, 0);
   point_layout->addWidget(speed_apply_button_, 5, 1);
   point_layout->addWidget(delete_point_button_, 6, 0, 1, 2);
+  delete_range_mode_button_ = button(QString::fromUtf8("연속 점 지우기"),
+      QString::fromUtf8("현재 Raceline에서 지울 구간의 시작점과 끝점을 차례로 좌클릭합니다."));
+  delete_range_apply_button_ = button(QString::fromUtf8("선택 구간 삭제"),
+      QString::fromUtf8("시작점·끝점을 포함한 구간의 점을 모두 삭제합니다. 실행 취소 가능."));
+  delete_range_label_ = note(QString::fromUtf8("연속 점 지우기: 시작점·끝점을 선택하세요."));
+  point_layout->addWidget(delete_range_mode_button_, 7, 0);
+  point_layout->addWidget(delete_range_apply_button_, 7, 1);
+  point_layout->addWidget(delete_range_label_, 8, 0, 1, 2);
   outer->addWidget(point_group);
 
   auto* range_group = new QGroupBox(QString::fromUtf8("3. 구간 속도 적용"));
@@ -215,6 +223,10 @@ MapTunnerPanel::MapTunnerPanel(QWidget* parent) : rviz::Panel(parent) {
                                     range_speed_edit_->hasAcceptableInput());
   });
   connect(delete_point_button_, &QPushButton::clicked, this, [this]() { command("delete_point"); });
+  connect(delete_range_mode_button_, &QPushButton::clicked, this, [this]() {
+    command("mode_delete_range"); activateEditTool();
+  });
+  connect(delete_range_apply_button_, &QPushButton::clicked, this, [this]() { command("delete_range"); });
   connect(undo_button, &QPushButton::clicked, this, [this]() { command("undo"); });
   connect(save_button_, &QPushButton::clicked, this, [this]() { command("save"); });
 }
@@ -334,15 +346,29 @@ void MapTunnerPanel::updateState(const QString& json) {
   } else {
     range_label_->setText(QString::fromUtf8("시작점과 끝점을 차례로 좌클릭하세요."));
   }
-  range_speed_edit_->setEnabled(has_range_end);
-  range_apply_button_->setEnabled(has_range_end && range_speed_edit_->hasAcceptableInput());
   const QString mode = state.value("mode").toString();
+  const bool deleting = mode == "delete_range";
+  range_speed_edit_->setEnabled(has_range_end && !deleting);
+  range_apply_button_->setEnabled(has_range_end && !deleting && range_speed_edit_->hasAcceptableInput());
+  delete_range_apply_button_->setEnabled(deleting && has_range_end);
+  if (deleting && has_range_end) {
+    delete_range_label_->setText(QString::fromUtf8("삭제 #%1 → #%2 · %3개 점 (양 끝 포함)")
+        .arg(state.value("range_start_id").toInt())
+        .arg(state.value("range_end_id").toInt())
+        .arg(state.value("range_count").toInt()));
+  } else if (deleting && has_range_start) {
+    delete_range_label_->setText(QString::fromUtf8("삭제 시작 #%1 · 끝점을 좌클릭하세요.")
+        .arg(state.value("range_start_id").toInt()));
+  } else {
+    delete_range_label_->setText(QString::fromUtf8("연속 점 지우기: 시작점·끝점을 선택하세요."));
+  }
   const QString active_style = "QPushButton { background: #efad54; font-weight: bold; }";
   add_point_button_->setStyleSheet(mode == "add" ? active_style : "");
   select_point_button_->setStyleSheet(mode == "select" ? active_style : "");
   interpolate_button_->setStyleSheet(mode == "interpolate" ? active_style : "");
   smooth_button_->setStyleSheet(mode == "smooth" ? active_style : "");
   range_button_->setStyleSheet(mode == "speed_range" ? active_style : "");
+  delete_range_mode_button_->setStyleSheet(deleting ? active_style : "");
   resize_button_->setStyleSheet(mode == "resize" ? active_style : "");
   const int point_id = has_point ? state.value("point_id").toInt() : -1;
   if (mode == "select" && point_id != -1 && point_id != last_selected_id_) {

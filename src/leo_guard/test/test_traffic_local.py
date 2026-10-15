@@ -34,7 +34,7 @@ class TrafficTests(unittest.TestCase):
 
     def test_green_releases_straight_but_never_left(self):
         c=self.controller();cap,detail=self.release(c,'traffic_light_green')
-        self.assertEqual(cap,58./3.6);self.assertTrue(detail['release_stable'])
+        self.assertEqual(cap,float('inf'));self.assertTrue(detail['release_stable'])
         c=self.controller('left');_,detail=self.release(c,'traffic_light_green')
         self.assertFalse(detail['release_stable'])
         _,detail=self.release(c,'traffic_light_left');self.assertTrue(detail['release_stable'])
@@ -71,11 +71,12 @@ class TrafficTests(unittest.TestCase):
         c=self.controller('right_unprotected');cap,d=self.release(c,'traffic_light_green',45.)
         self.assertEqual(cap,0.);self.assertFalse(d['release_stable'])
 
-    def test_right_only_green_plus_clearance_releases_at_turn_speed(self):
+    def test_right_only_green_plus_clearance_releases_without_fixed_turn_speed(self):
+        # The Map Tuner point speed is the turn speed; the gate adds none.
         c=self.controller('right_unprotected')
         for i in range(4):
             cap,d=c.decide(45.,self.signals('traffic_light_green',i),i*.25,yield_clear=True)
-        self.assertTrue(d['release_stable']);self.assertEqual(cap,5.)
+        self.assertTrue(d['release_stable']);self.assertEqual(cap,float('inf'))
         cap,d=c.decide(45.,self.signals('traffic_light_green',5),1.,yield_clear=False)
         self.assertFalse(d['release_stable']);self.assertEqual(cap,0.)
 
@@ -157,19 +158,14 @@ class TrafficTests(unittest.TestCase):
         _,d=c.decide(45.,s,3.25)
         self.assertTrue(d['release_stable'])  # green on the right camera goes again
 
-    def test_reviewed_uncontrolled_merge_has_local_speed_cap(self):
-        c=self.controller();c.stops[0].update(controlled=False,crossing_speed_kmh=20.)
-        cap,d=c.decide(10.,None,0.);self.assertEqual(cap,58./3.6)
+    def test_reviewed_uncontrolled_merge_has_no_fixed_speed(self):
+        c=self.controller();c.stops[0].update(controlled=False)
+        cap,d=c.decide(10.,None,0.);self.assertEqual(cap,float('inf'))
         for i in range(1,6):cap,d=c.decide(10.+8*i,None,i*.1)
-        self.assertEqual(cap,20./3.6);self.assertEqual(d['state'],'clear')
-
-    def test_invalid_crossing_speed_rejected(self):
-        for v in (0.,-1.,float('nan')):
-            c=self.controller();c.stops[0]['crossing_speed_kmh']=v
-            with self.assertRaises(ValueError):TrafficDecision(c.stops,1000.)
+        self.assertEqual(cap,float('inf'));self.assertEqual(d['state'],'clear')
 
     def test_unreviewed_merge_does_not_use_speed_cap_to_bypass_review(self):
-        c=self.controller(reviewed=False);c.stops[0].update(controlled=False,crossing_speed_kmh=20.)
+        c=self.controller(reviewed=False);c.stops[0].update(controlled=False)
         cap,d=c.decide(45.,None,0.);self.assertEqual(cap,0.);self.assertFalse(d['release_stable'])
 
 if __name__=='__main__':unittest.main()
@@ -193,21 +189,13 @@ class CrossingSpeedTests(unittest.TestCase):
             now += .25
         return caps
 
-    def test_green_crossing_is_held_to_crossing_speed_until_past_the_exit(self):
-        c = TrafficDecision([dict(self.STOP)], 1000., crossing_kmh=30.)
-        caps = self.drive_to(c, 40., 170.)
-        self.assertAlmostEqual(caps[60.][0], 58. / 3.6)       # 40 m before the line
-        self.assertAlmostEqual(caps[76.][0], 30. / 3.6)       # 24 m before, green
-        self.assertEqual(caps[76.][1]['crossing_limit_kmh'], 30.)
-        self.assertAlmostEqual(caps[110.][0], 30. / 3.6)      # inside the intersection
-        self.assertAlmostEqual(caps[154.][0], 30. / 3.6)      # exit + about 34 m
-        self.assertAlmostEqual(caps[168.][0], 58. / 3.6)      # exit + about 48 m
-
-    def test_crossing_limit_is_off_by_default(self):
+    def test_green_crossing_has_no_fixed_speed(self):
+        # Intersection speeds come from the Map Tuner point speeds.
         c = TrafficDecision([dict(self.STOP)], 1000.)
-        caps = self.drive_to(c, 40., 80.)
-        self.assertAlmostEqual(caps[76.][0], 58. / 3.6)
-        self.assertNotIn('crossing_limit_kmh', caps[76.][1])
+        caps = self.drive_to(c, 40., 170.)
+        for progress in (60., 76., 110., 154., 168.):
+            self.assertEqual(caps[progress][0], float('inf'))
+            self.assertNotIn('crossing_limit_kmh', caps[progress][1])
 
 
 class MissedSignalHoldTests(unittest.TestCase):
@@ -245,38 +233,38 @@ class MissedSignalHoldTests(unittest.TestCase):
     def test_logged_flicker_keeps_green_and_old_behaviour_brakes(self):
         for stoplines in (True, False):
             held = self.run_pattern(self.controller(.8, stoplines), self.LOGGED)
-            self.assertTrue(all(cap == 58. / 3.6 for _, (cap, _) in held))
+            self.assertTrue(all(cap == float('inf') for _, (cap, _) in held))
             self.assertTrue(any(detail.get('reason') == 'permit held through missed detection'
                                 or detail.get('signal_held') for _, (_, detail) in held))
             old = self.run_pattern(self.controller(0., stoplines), self.LOGGED)
-            self.assertTrue(any(cap < 58. / 3.6 for kind, (cap, _) in old if kind == 'M'))
+            self.assertTrue(any(cap < float('inf') for kind, (cap, _) in old if kind == 'M'))
 
     def test_red_or_yellow_after_green_stops_at_once(self):
         for kind in 'RY':
             results = self.run_pattern(self.controller(.8), 'GG' + kind)
-            self.assertTrue(all(cap < 58. / 3.6 for k, (cap, _) in results if k == kind))
+            self.assertTrue(all(cap < float('inf') for k, (cap, _) in results if k == kind))
 
     def test_miss_longer_than_hold_stops(self):
         results = self.run_pattern(self.controller(.8), 'GMMMMMM')
-        self.assertLess(results[-1][1][0], 58. / 3.6)
+        self.assertLess(results[-1][1][0], float('inf'))
 
     def test_uncertain_head_or_stale_camera_is_not_held(self):
         c = self.controller(.8)
         self.run_pattern(c, 'GG')
         cap, _ = c.decide(85., self.frame('U', 9), .45, pose=(85., 0., 0.),
                           speed_mps=8., ros_now=.45)
-        self.assertLess(cap, 58. / 3.6)
+        self.assertLess(cap, float('inf'))
         c = self.controller(.8)
         self.run_pattern(c, 'GG')
         cap, _ = c.decide(85., None, .45, pose=(85., 0., 0.), speed_mps=8., ros_now=.45)
-        self.assertLess(cap, 58. / 3.6)
+        self.assertLess(cap, float('inf'))
         cap, _ = c.decide(85., self.frame('M', 9), .5, pose=(85., 0., 0.),
                           speed_mps=8., ros_now=.5)
-        self.assertLess(cap, 58. / 3.6)
+        self.assertLess(cap, float('inf'))
 
     def test_miss_without_earlier_green_is_not_held(self):
         results = self.run_pattern(self.controller(.8), 'MMG')
-        self.assertTrue(all(cap < 58. / 3.6 for k, (cap, _) in results if k == 'M'))
+        self.assertTrue(all(cap < float('inf') for k, (cap, _) in results if k == 'M'))
 
     def test_invalid_hold_rejected(self):
         for value in (-.1, float('nan')):

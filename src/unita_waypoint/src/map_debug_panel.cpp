@@ -69,10 +69,16 @@ MapDebugPanel::MapDebugPanel(QWidget* parent) : rviz::Panel(parent) {
       "dynamic_speed_threshold_mps", "obstacle_min_height_m", "obstacle_max_height_m",
       "ground_plane_tolerance_m", "imu_max_skew_s",
       "ground_max_slope_deg", "ground_reference_z_m", "track_confirm_time_s",
-      "obstacle_horizon_m", "avoidance_margin_m", "lane_change_min_rear_gap_m",
-      "lane_change_rear_headway_s", "lane_change_smoothness_s", "avoidance_reaction_s", "avoidance_decel_mps2",
-      "avoidance_emergency_ttc_s", "avoidance_brake_limit", "avoidance_clear_hold_s",
-      "restart_accel_rate_per_s", "raceline_width"};
+      "obstacle_horizon_m", "avoidance_margin_m", "lane_change_gap_m",
+      "lane_change_lateral_accel_mps2", "lane_change_max_heading_deg", "avoidance_reaction_s", "avoidance_decel_mps2",
+      "avoidance_brake_limit", "avoidance_clear_hold_s",
+      "restart_accel_rate_per_s", "raceline_width",
+      "sector11_min_speed_kmh", "lane_change_speed_boost_kmh",
+      "lane_change_cancel_scans", "lane_change_cancel_max_progress",
+      "route_max_error_m", "blackout_route_max_error_m",
+      "pass_speed_kmh", "arc_lane_change_max_kmh", "route_pass_speed_kmh",
+      "ftg_no_return_speed_mps", "ftg_wall_min_clearance_speed_mps",
+      "ftg_near_obstacle_speed_mps", "ftg_wall_follow_min_speed_mps"};
   const int parameter_count = sizeof(keys) / sizeof(keys[0]);
   auto* table = new QTableWidget(parameter_count, 4, this);
   table->setHorizontalHeaderLabels({QString::fromUtf8("파라미터 / 설명"),

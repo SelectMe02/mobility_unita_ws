@@ -10,7 +10,7 @@ waiting before the block. A moving obstacle whose predicted track enters
 Ego's swept band around the time Ego reaches it caps speed so Ego can stop
 before it. No ROS dependency.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import math
 
 import numpy as np
@@ -171,14 +171,33 @@ class RouteAvoidance:
         allows moving to the adjacent lane offset_m to the left (+).
         crosswalks: [(start_s, end_s)] along the route; an obstacle overlapping
         the global route there makes Ego stop before it."""
-        self.crosswalks = sorted((float(a), float(b)) for a, b in crosswalks)
-        self.crosswalk_hold = None  # crosswalk start currently occupied on the route
         self.config = config or RouteAvoidanceConfig()
-        self.route = RouteFrame(route_points)
-        self.lane_changes = sorted(
-            (dict(start_s=float(v['start_s']), end_s=float(v['end_s']),
-                  side=v['side'], offset_m=float(v['offset_m'])) for v in lane_changes),
-            key=lambda v: v['start_s'])
+        cfg = self.config
+        points = np.asarray(route_points, float)[:, :2]
+        base = RouteFrame(points)
+        # A closed lap (last point back at the start) continues past the
+        # start line: append the first stretch again so locating Ego, the
+        # obstacle window and the output path run on across the seam.
+        self.loop_length = None
+        lane_changes = [dict(start_s=float(v['start_s']), end_s=float(v['end_s']),
+                             side=v['side'], offset_m=float(v['offset_m']))
+                        for v in lane_changes]
+        crosswalks = [(float(a), float(b)) for a, b in crosswalks]
+        if np.linalg.norm(base.points[-1] - base.points[0]) < 1.:
+            self.loop_length = float(base.s[-1])
+            extension = (cfg.path_length_m + cfg.oncoming_view_m
+                         + cfg.window_behind_m + 60.)
+            count = int(np.searchsorted(base.s, extension)) + 1
+            points = np.vstack((base.points, base.points[1:count + 1]))
+            lane_changes += [dict(v, start_s=v['start_s'] + self.loop_length,
+                                  end_s=v['end_s'] + self.loop_length)
+                             for v in lane_changes if v['start_s'] < extension]
+            crosswalks += [(a + self.loop_length, b + self.loop_length)
+                           for a, b in crosswalks if a < extension]
+        self.route = RouteFrame(points)
+        self.crosswalks = sorted(crosswalks)
+        self.crosswalk_hold = None  # crosswalk start currently occupied on the route
+        self.lane_changes = sorted(lane_changes, key=lambda v: v['start_s'])
         self.active = None
         self.last_s = None
 
@@ -193,6 +212,19 @@ class RouteAvoidance:
         else:
             lo, hi = self.route.window(self.last_s - 15., self.last_s + 40.)
         s, d, _ = self.route.project(x, y, lo, hi)
+        if self.loop_length is not None and s >= self.loop_length:
+            # Crossed the start line: continue on the first lap stretch.
+            s -= self.loop_length
+            if self.active is not None:
+                shift = self.loop_length
+                self.active = replace(
+                    self.active, ramp_start_s=self.active.ramp_start_s - shift,
+                    full_s=self.active.full_s - shift,
+                    hold_end_s=self.active.hold_end_s - shift,
+                    end_s=self.active.end_s - shift,
+                    block_first_s=self.active.block_first_s - shift)
+            if self.crosswalk_hold is not None:
+                self.crosswalk_hold -= self.loop_length
         self.last_s = s
         return s, d
 

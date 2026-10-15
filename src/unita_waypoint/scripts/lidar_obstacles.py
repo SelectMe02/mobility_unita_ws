@@ -96,6 +96,30 @@ def object_circles(group, minimum_size=.2, maximum_size=24.):
     return result
 
 
+def object_box(group, direction, minimum_size=.2, maximum_size=24.):
+    """Rectangle around map-frame returns, aligned with the lane direction.
+
+    LiDAR usually sees one or two faces of a car. Aligning with the lane keeps
+    the box stable and gives the true front/rear face and side extent along
+    the road. Returns (x, y, radius, length, width, yaw) or None.
+    """
+    tangent = np.asarray(direction, dtype=float)
+    normal = np.array([-tangent[1], tangent[0]])
+    longitudinal, lateral = group @ tangent, group @ normal
+    low = np.array([longitudinal.min(), lateral.min()])
+    high = np.array([longitudinal.max(), lateral.max()])
+    size = high-low
+    if np.max(size) > maximum_size or np.max(size) < minimum_size:
+        return None
+    # A single visible face has no depth; keep a thin but finite box.
+    length, width = max(.2, float(size[0])), max(.2, float(size[1]))
+    middle = (low+high)*.5
+    center = tangent*middle[0]+normal*middle[1]
+    radius = max(.15, .5*math.hypot(length, width))
+    return (float(center[0]), float(center[1]), radius, length, width,
+            math.atan2(tangent[1], tangent[0]))
+
+
 class LidarObstacles:
     def __init__(self):
         self.lidar_x = float(rospy.get_param('~lidar_to_rear_x_m', 1.4))
@@ -199,7 +223,11 @@ class LidarObstacles:
                        if stamp - track['stamp'] < .8}
         result = []
         used = set()
-        for x, y, radius in detections:
+        for detection in detections:
+            x, y, radius = detection[:3]
+            # Legacy circles become the square enclosing the circle.
+            length, width, yaw = (detection[3:6] if len(detection) >= 6
+                                  else (2.*radius, 2.*radius, 0.))
             matches = [(math.hypot(x-t['x']-t['vx']*(stamp-t['stamp']),
                                   y-t['y']-t['vy']*(stamp-t['stamp'])), key, t)
                        for key, t in self.tracks.items() if key not in used
@@ -228,11 +256,13 @@ class LidarObstacles:
             velocity_reliable = (confirmed and len(velocities) >= 2
                                  and np.max(np.linalg.norm(np.asarray(velocities)-np.median(velocities, axis=0), axis=1)) <= 3.)
             track = dict(x=x, y=y, radius=radius, vx=vx, vy=vy,
+                         length=length, width=width, yaw=yaw,
                          hits=hits, stamp=stamp, first_stamp=first_stamp, velocities=velocities,
                          confirmed=confirmed, velocity_reliable=bool(velocity_reliable))
             self.tracks[key] = track
             used.add(key)
             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
+                               length=length, width=width, yaw=yaw,
                                confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
                                hits=hits, observed_s=observed_s, measurement_stamp=stamp,
                                kind=('dynamic' if hits >= 3 and
@@ -247,6 +277,9 @@ class LidarObstacles:
                 result.append(dict(id=key, x=track['x']+(track['vx']*dt if reliable else 0.),
                                    y=track['y']+(track['vy']*dt if reliable else 0.),
                                    radius=track['radius']+.5*dt,
+                                   length=track.get('length', 2.*track['radius'])+dt,
+                                   width=track.get('width', 2.*track['radius'])+dt,
+                                   yaw=track.get('yaw', 0.),
                                    vx=track['vx'], vy=track['vy'], kind='unknown',
                                    confirmed=track.get('confirmed', False), velocity_reliable=reliable,
                                    hits=track['hits'], observed_s=track['stamp']-track.get('first_stamp', track['stamp']),
@@ -406,10 +439,13 @@ class LidarObstacles:
             xy = xy[::int(math.ceil(len(xy)/10000.))]
         found = []
         for group in clusters(xy):
-            for x, y, radius in object_circles(
-                    group, self.cluster_min_size_m, self.cluster_max_size_m):
-                found.append((pose[0]+c*x-s*y, pose[1]+s*x+c*y, radius))
-        mask = corridor.contains([(x, y) for x, y, _ in found])
+            world = np.column_stack((pose[0]+c*group[:, 0]-s*group[:, 1],
+                                     pose[1]+s*group[:, 0]+c*group[:, 1]))
+            box = object_box(world, corridor.direction(world.mean(axis=0)),
+                             self.cluster_min_size_m, self.cluster_max_size_m)
+            if box is not None:
+                found.append(box)
+        mask = corridor.contains([o[:2] for o in found])
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:
             if self.lane_corridor is not corridor:

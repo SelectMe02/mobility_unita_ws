@@ -55,6 +55,9 @@ class MapTunnerPanel : public rviz::Panel {
   QPushButton* range_button_;
   QPushButton* range_apply_button_;
   QPushButton* delete_point_button_;
+  QPushButton* delete_range_mode_button_;
+  QPushButton* delete_range_apply_button_;
+  QLabel* delete_range_label_;
   QPushButton* save_button_;
   int last_selected_id_ = -1;
 };

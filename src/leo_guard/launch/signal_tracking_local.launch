@@ -4,13 +4,7 @@
   <arg name="waypoint_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
   <arg name="intersection_file" default="$(find leo_guard)/config/intersections_local.json"/>
   <arg name="stoplines_file" default="$(find unita_waypoint)/config/stoplines.json"/>
-  <arg name="maximum_speed_kmh" default="58.0"/>
-  <!-- The guard may allow more than the GPS route cap, e.g. LiDAR blackout. -->
-  <arg name="guard_maximum_speed_kmh" default="$(arg maximum_speed_kmh)"/>
-  <arg name="tunnel_speed_start_index" default="-1"/>
-  <arg name="tunnel_speed_end_index" default="-1"/>
-  <arg name="tunnel_speed_cap_kmh" default="18.0"/>
-  <arg name="blackout_clear_speed_cap_kmh" default="30.0"/>
+  <!-- Target speeds are the Map Tuner project point speeds; nothing here caps them. -->
   <arg name="control_node_pkg" default="control"/>
   <arg name="control_node_type" default="competition_udp_control_local.py"/>
   <arg name="drive_pose_topic" default=""/>
@@ -26,14 +20,16 @@
        yield to movers. A pass leaves the route by one lane, so the guard's
        route corridor widens with it. -->
   <arg name="enable_route_avoidance" default="false"/>
-  <!-- Speed from 30 m before a signal stop line to 40 m past the
-       intersection exit; a pedestrian stepping out there must be stoppable
-       for. 0 disables it. -->
-  <arg name="crossing_speed_kmh" default="30.0"/>
   <!-- Keep the last green this long when a camera frame shows no signal head;
        red, yellow and a stale camera still stop at once. 0 disables it. -->
   <arg name="missed_signal_hold_s" default="0.8"/>
-  <arg name="guard_route_max_error_m" default="$(eval 5.5 if arg('enable_route_avoidance') else 2.0)"/>
+  <!-- Guard corridor; the map_debug panel value (saved) overrides it. -->
+  <arg name="guard_route_max_error_m" default="$(eval 3.75 if arg('enable_route_avoidance') else 2.0)"/>
+  <arg name="guard_blackout_route_max_error_m" default="$(arg guard_route_max_error_m)"/>
+  <!-- true: the guard uses guard_blackout_route_max_error_m in the tunnel window. -->
+  <arg name="blackout_window" default="false"/>
+  <!-- true: arm without rosservice once localization and speed are fresh. -->
+  <arg name="auto_arm" default="false"/>
   <include file="$(find unita_launch)/launch/competition_udp_tracking_local.launch">
     <arg name="control_node_pkg" value="$(arg control_node_pkg)"/>
     <arg name="control_node_type" value="$(arg control_node_type)"/>
@@ -48,12 +44,6 @@
     <arg name="waypoint_file" value="$(arg waypoint_file)"/>
     <arg name="follower_ctrl_topic" value="/leo/raw_ctrl_cmd"/>
     <arg name="guard_speed_limit_topic" value="/leo/speed_limit_kmh"/>
-    <arg name="normal_max_speed_kmh" value="$(arg maximum_speed_kmh)"/>
-    <arg name="high_speed_max_speed_kmh" value="$(arg maximum_speed_kmh)"/>
-    <arg name="tunnel_speed_start_index" value="$(arg tunnel_speed_start_index)"/>
-    <arg name="tunnel_speed_end_index" value="$(arg tunnel_speed_end_index)"/>
-    <arg name="tunnel_speed_cap_kmh" value="$(arg tunnel_speed_cap_kmh)"/>
-    <arg name="blackout_clear_speed_cap_kmh" value="$(arg blackout_clear_speed_cap_kmh)"/>
     <arg name="start_rviz" value="false"/>
   </include>
   <!-- Guard-only detection topic: a separately launched traffic_light_test
@@ -83,14 +73,19 @@
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
     <param name="intersection_file" value="$(arg intersection_file)"/>
     <param name="stoplines_file" value="$(arg stoplines_file)"/>
-    <param name="maximum_speed_kmh" value="$(arg guard_maximum_speed_kmh)"/>
     <!-- GPS transform inspected at (0,0,1.2), MORAI rear-axle origin. -->
     <param name="gps_to_front_axle_m" value="3.0"/>
     <param name="vehicle_half_width_m" value="0.946"/>
     <param name="stop_margin_m" value="5.0"/>
     <param name="pose_fault_grace_s" value="$(arg guard_pose_fault_grace_s)"/>
     <param name="route_max_error_m" value="$(arg guard_route_max_error_m)"/>
-    <param name="crossing_speed_kmh" value="$(arg crossing_speed_kmh)"/>
+    <param name="blackout_route_max_error_m" value="$(arg guard_blackout_route_max_error_m)"/>
+    <!-- GPS-denied window anchors, shared with the driving state node. -->
+    <rosparam if="$(arg blackout_window)" command="load" ns="blackout"
+              file="$(find leo_avoidance)/config/odometry_local.yaml"/>
     <param name="missed_signal_hold_s" value="$(arg missed_signal_hold_s)"/>
+    <param name="auto_arm" value="$(arg auto_arm)"/>
+    <!-- Corridor measured from the lane being driven (route avoidance offset, saved R2/R3). -->
+    <param name="route_avoidance_topic" value="$(eval '/leo/route_avoidance' if arg('enable_route_avoidance') else '')"/>
   </node>
 </launch>

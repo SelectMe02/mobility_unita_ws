@@ -12,18 +12,15 @@ from unita_control.udp_protocol import CommandWatchdog
 class BlackoutWatchdog(CommandWatchdog):
     def __init__(self, command_timeout=.5, sensor_timeout=1.,
                  fallback_timeout=.35, max_blackout_distance_m=20.,
-                 stopline_margin_m=10., max_entry_speed_mps=2.,
-                 gps_silence_timeout_s=.75):
+                 stopline_margin_m=10., gps_silence_timeout_s=.75):
         super().__init__(command_timeout, sensor_timeout)
         values = (fallback_timeout, max_blackout_distance_m,
-                  stopline_margin_m, max_entry_speed_mps,
-                  gps_silence_timeout_s)
+                  stopline_margin_m, gps_silence_timeout_s)
         if not all(math.isfinite(v) and v > 0 for v in values):
             raise ValueError('invalid GPS blackout transport limits')
         self.fallback_timeout = fallback_timeout
         self.max_blackout_distance_m = max_blackout_distance_m
         self.stopline_margin_m = stopline_margin_m
-        self.max_entry_speed_mps = max_entry_speed_mps
         self.gps_silence_timeout_s = gps_silence_timeout_s
         self.lidar = None
         self.odom = None
@@ -95,15 +92,14 @@ class BlackoutWatchdog(CommandWatchdog):
         self.last_select_wall = None
         self.blackout_started = False
 
-    def _ready_for_fallback(self, wall_now, ros_now, require_slow=True):
+    def _ready_for_fallback(self, wall_now, ros_now):
         if (not self._fresh(self.lidar, wall_now, ros_now, self.fallback_timeout)
                 or not self._fresh(self.odom, wall_now, ros_now, self.fallback_timeout)
                 or not self._fresh(self.sensors.get('imu'), wall_now, ros_now,
                                    self.sensor_timeout)):
             return False
         if (not self._recent(self.speed, wall_now) or not math.isfinite(self.speed[0])
-                or self.speed[0] < 0
-                or (require_slow and self.speed[0] > self.max_entry_speed_mps)):
+                or self.speed[0] < 0):
             return False
         if (not self._recent(self.guard, wall_now) or not self.guard[0]
                 or not math.isfinite(self.guard[1])
@@ -115,7 +111,7 @@ class BlackoutWatchdog(CommandWatchdog):
         normal_packet, normal_reason = super().select(wall_now, ros_now, stop)
         blackout_trigger = self._gps_blackout_trigger(wall_now, ros_now)
         blackout_mode = (self._recent(self.drive_mode, wall_now)
-                         and self.drive_mode[0] in ('BLACKOUT', 'SIM_EXIT'))
+                         and self.drive_mode[0] == 'BLACKOUT')
         if (normal_reason.startswith('SENDING:') and not blackout_trigger
                 and blackout_mode and self.armed and self.blackout_started):
             # A brief valid fix inside the tunnel that the driving state has
@@ -125,7 +121,7 @@ class BlackoutWatchdog(CommandWatchdog):
         if normal_reason.startswith('SENDING:') and not (blackout_trigger and blackout_mode):
             # Recalculate the distance available from the current GPS pose.
             # Travel on the approach must not consume the blackout allowance.
-            if (self._ready_for_fallback(wall_now, ros_now, require_slow=False)
+            if (self._ready_for_fallback(wall_now, ros_now)
                     and self._recent(self.drive_mode, wall_now)
                     and self.drive_mode[0] == 'GPS'):
                 self.distance_budget_m = min(
@@ -159,12 +155,11 @@ class BlackoutWatchdog(CommandWatchdog):
         if not blackout_trigger:
             return stop, 'BRAKE: GPS blackout trigger missing'
         if (not self._recent(self.drive_mode, wall_now)
-                or self.drive_mode[0] not in ('BLACKOUT', 'SIM_EXIT')
+                or self.drive_mode[0] != 'BLACKOUT'
                 or not self._recent(self.drive_valid, wall_now)
                 or not self.drive_valid[0]):
             return stop, 'BRAKE: LiDAR odometry state not valid'
-        if not self._ready_for_fallback(wall_now, ros_now,
-                                        require_slow=not self.blackout_started):
+        if not self._ready_for_fallback(wall_now, ros_now):
             return stop, 'BRAKE: LiDAR, odometry, speed or signal guard unavailable'
         if (not self._recent(self.avoidance_valid, wall_now)
                 or not self.avoidance_valid[0]):
@@ -172,7 +167,5 @@ class BlackoutWatchdog(CommandWatchdog):
         if self.command is None or not 0 <= wall_now-self.command[1] <= self.command_timeout:
             return stop, 'BRAKE: shared controller command stale'
         self.blackout_started = True
-        source = ('MORAI ENU exit pose' if self.drive_mode[0] == 'SIM_EXIT'
-                  else 'LiDAR odometry')
-        return self.command[0], 'SENDING: shared PP/PID with %s (%.1f/%.1f m)' % (
-            source, self.travelled_m, self.distance_budget_m)
+        return self.command[0], 'SENDING: shared PP/PID with LiDAR odometry (%.1f/%.1f m)' % (
+            self.travelled_m, self.distance_budget_m)

@@ -91,9 +91,11 @@ def three_point_curvature(first, middle, last):
 
 
 def build_curvature_speed_profile(points, speed_limits_kmh, loop_path,
-                                  curvature_window_m, lateral_accel_limit,
-                                  min_curve_speed_kmh, max_accel, max_decel):
-    """Plan speed from path curvature, then add acceleration/braking envelopes."""
+                                  curvature_window_m, max_accel, max_decel):
+    """Join point speed limits with acceleration/braking envelopes.
+
+    Path curvature is reported for debugging only; it never lowers a speed.
+    """
     count = len(points)
     if count < 3 or len(speed_limits_kmh) != count:
         raise ValueError("speed profile requires matching path and limit arrays")
@@ -121,12 +123,7 @@ def build_curvature_speed_profile(points, speed_limits_kmh, loop_path,
             following = points[min(count - 1, index + span)]
         curvature = three_point_curvature(previous, points[index], following)
         curvatures.append(curvature)
-        curve_speed_kmh = math.sqrt(
-            lateral_accel_limit / max(curvature, 1e-6)) * 3.6
-        # A preferred minimum speed must never override either upper bound.
-        # Keep min_curve_speed_kmh in the API for existing configuration files.
-        planned_kmh = min(speed_limits_kmh[index], curve_speed_kmh)
-        raw_speed_mps.append(planned_kmh / 3.6)
+        raw_speed_mps.append(speed_limits_kmh[index] / 3.6)
 
     speeds = list(raw_speed_mps)
     # Multiple circular passes make the start/end boundary obey the same
@@ -152,14 +149,6 @@ def build_curvature_speed_profile(points, speed_limits_kmh, loop_path,
                 math.sqrt(max(0.0, speeds[following] ** 2
                                    + 2.0 * max_decel * distance)))
     return [speed * 3.6 for speed in speeds], curvatures
-
-
-def apply_index_speed_cap(speed_limits_kmh, start_index, end_index, cap_kmh):
-    if not (0 <= start_index <= end_index < len(speed_limits_kmh)
-            and math.isfinite(cap_kmh) and cap_kmh > 0):
-        raise ValueError('invalid route-index speed cap')
-    for index in range(start_index, end_index + 1):
-        speed_limits_kmh[index] = min(speed_limits_kmh[index], cap_kmh)
 
 
 class GPSWaypointFollower:
@@ -290,50 +279,21 @@ class GPSWaypointFollower:
         self.lookahead_speed_gain = float(rospy.get_param(
             "~lookahead_speed_gain", 0.0))
 
-        self.normal_max_speed_kmh = float(rospy.get_param(
-            "~normal_max_speed_kmh", self.target_speed_kmh))
-        self.high_speed_max_speed_kmh = float(rospy.get_param(
-            "~high_speed_max_speed_kmh", self.normal_max_speed_kmh))
-        self.high_speed_start_checkpoint = rospy.get_param(
-            "~high_speed_start_checkpoint", 10)
-        self.high_speed_end_checkpoint = rospy.get_param(
-            "~high_speed_end_checkpoint", 13)
-        self.checkpoint_match_tolerance = float(rospy.get_param(
-            "~checkpoint_match_tolerance", 1.0))
-        self.checkpoints = rospy.get_param("~checkpoints", [])
         self.curvature_window_m = float(rospy.get_param(
             "~curvature_window_m", 25.0))
-        self.lateral_accel_limit = float(rospy.get_param(
-            "~lateral_accel_limit", 2.94))
-        self.min_curve_speed_kmh = float(rospy.get_param(
-            "~min_curve_speed_kmh", 25.0))
         self.max_profile_accel = float(rospy.get_param(
             "~max_profile_accel_mps2", 2.0))
         self.max_profile_decel = float(rospy.get_param(
             "~max_profile_decel_mps2", 3.5))
-        self.tunnel_speed_start_index = int(rospy.get_param(
-            "~tunnel_speed_start_index", -1))
-        self.tunnel_speed_end_index = int(rospy.get_param(
-            "~tunnel_speed_end_index", -1))
-        self.tunnel_speed_cap_kmh = float(rospy.get_param(
-            "~tunnel_speed_cap_kmh", 18.0))
-        if ((self.tunnel_speed_start_index < 0)
-                != (self.tunnel_speed_end_index < 0)):
-            raise ValueError('both tunnel speed indices must be set')
-
         positive_parameters = (
             self.speed_feedback_timeout, self.min_lookahead_distance,
-            self.max_lookahead_distance, self.normal_max_speed_kmh,
-            self.high_speed_max_speed_kmh, self.checkpoint_match_tolerance,
-            self.curvature_window_m, self.lateral_accel_limit,
-            self.min_curve_speed_kmh, self.max_profile_accel,
-            self.max_profile_decel)
+            self.max_lookahead_distance, self.curvature_window_m,
+            self.max_profile_accel, self.max_profile_decel)
         if (not all(math.isfinite(value) and value > 0.0
                     for value in positive_parameters)
                 or not math.isfinite(self.lookahead_speed_gain)
                 or self.lookahead_speed_gain < 0.0
-                or self.min_lookahead_distance > self.max_lookahead_distance
-                or self.normal_max_speed_kmh > self.high_speed_max_speed_kmh):
+                or self.min_lookahead_distance > self.max_lookahead_distance):
             raise ValueError("invalid velocity planning/look-ahead parameters")
 
         self.speed_pid = PIDController(
@@ -503,6 +463,7 @@ class GPSWaypointFollower:
             self.local_planner = LocalAvoidancePlanner(
                 self.waypoints, self.route_sectors, self.project_lanes,
                 lane_indices=self.project_lane_indices,
+                route_lanes=getattr(self, 'route_lanes', None),
                 half_width=float(rospy.get_param('~vehicle_half_width_m', .946)),
                 margin=float(rospy.get_param('~avoidance_margin_m', .35)),
                 front_extent=float(rospy.get_param('~front_extent_m', 3.845)),
@@ -510,9 +471,9 @@ class GPSWaypointFollower:
                 preferred_lane=default_lane,
                 preferred_lane_indices=preferred_indices,
                 finish_line=self.lane_preference_finish_line,
-                min_rear_gap=float(rospy.get_param('~lane_change_min_rear_gap_m', 8.)),
-                rear_headway_s=float(rospy.get_param('~lane_change_rear_headway_s', 2.)),
-                lane_change_smoothness_s=float(rospy.get_param('~lane_change_smoothness_s', 2.5)),
+                lane_change_gap_m=float(rospy.get_param('~lane_change_gap_m', 3.)),
+                lane_change_lateral_accel=float(rospy.get_param('~lane_change_lateral_accel_mps2', 1.5)),
+                lane_change_max_heading_deg=float(rospy.get_param('~lane_change_max_heading_deg', 10.)),
                 reaction_s=float(rospy.get_param('~avoidance_reaction_s', .4)),
                 decel=float(rospy.get_param('~avoidance_decel_mps2', 3.)),
                 obstacle_horizon_m=float(rospy.get_param('~obstacle_horizon_m', 45.)))
@@ -526,11 +487,7 @@ class GPSWaypointFollower:
         rospy.loginfo(" waypoint file  : %s", self.waypoint_file)
         rospy.loginfo(" waypoint type  : %s", self.waypoint_format)
         if self.enable_velocity_planning:
-            rospy.loginfo(" speed limits   : normal %.1f / CP %s-%s %.1f km/h",
-                          self.normal_max_speed_kmh,
-                          self.high_speed_start_checkpoint,
-                          self.high_speed_end_checkpoint,
-                          self.high_speed_max_speed_kmh)
+            rospy.loginfo(" speed limits   : Map Tuner project point speeds")
         else:
             rospy.loginfo(" target speed   : %.1f km/h", self.target_speed_kmh)
         rospy.loginfo(" longitudinal   : %s", self.longitudinal_control_mode)
@@ -568,13 +525,14 @@ class GPSWaypointFollower:
         fallback = int(rospy.get_param('~preferred_raceline_after_checkpoint', 1))
         if sector == 11 and end_id:
             mapped = self.project_lane_indices.get(lane, {})
-            start = min((i for i in indices if i in mapped), default=None)
+            route_lanes = getattr(self, 'route_lanes', [1]*len(self.waypoints))
+            start = min((i for i in indices if i in mapped or route_lanes[i] == lane), default=None)
             if start is None:
                 raise ValueError('preferred lane has no saved geometry in Sector 11')
             self.lane_preference_finish_line = dict(
                 sector=sector, lane=lane, checkpoint=end_id, start_index=start,
                 end_index=end_index, y=self.waypoints[end_index][1],
-                joins_primary=(end_index in mapped and math.hypot(
+                joins_primary=route_lanes[end_index] == lane or (end_index in mapped and math.hypot(
                     mapped[end_index][0]-self.waypoints[end_index][0],
                     mapped[end_index][1]-self.waypoints[end_index][1]) < .5))
         rospy.loginfo('Raceline preference: R%d in sector %s through CP %s (idx=%d); outside R%d',
@@ -605,7 +563,8 @@ class GPSWaypointFollower:
             if self.waypoint_format != 'local_xy':
                 raise ValueError('Map Tuner project requires local_xy waypoint_format')
             sys.path.insert(0, str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
-            from map_tunner_core import primary_route, raceline_layout_settings, saved_lane_indices
+            from map_tunner_core import (primary_route, raceline_layout_settings, saved_lane_indices,
+                                         checkpoint_route_indices)
             project = self.load_map_tunner_project(path)
             config = getattr(self, 'raceline_config',
                              str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) /
@@ -621,7 +580,7 @@ class GPSWaypointFollower:
             if publisher is not None:
                 rospy.set_param('~effective_raceline_width', self.raceline_width)
                 publisher.publish(String(data=json.dumps(geometry)))
-            route, self.route_sectors = primary_route(project)
+            route, self.route_sectors, self.route_lanes = primary_route(project, with_lanes=True)
             self.project_checkpoint_positions = []
             layout = project.get('generated_racelines')
             if layout:
@@ -635,12 +594,11 @@ class GPSWaypointFollower:
                 lane_number: [(float(p['x']), float(p['y']))
                               for sector in project['sectors']
                               for p in sector['racelines'].get(str(lane_number), [])]
-                for lane_number in (2, 3)}
-            route_indices = {point['id']: i for i, point in enumerate(route)}
-            self.project_checkpoint_indices = {
-                str(sector['to']): route_indices[sector['racelines']['1'][-1]['id']]
-                for sector in project['sectors']}
-            self.project_lane_indices = saved_lane_indices(project, route, self.route_sectors)
+                for lane_number in (1, 2, 3)}
+            self.project_checkpoint_indices = checkpoint_route_indices(
+                project, route, self.route_sectors)
+            self.project_lane_indices = saved_lane_indices(project, route, self.route_sectors,
+                                                           self.route_lanes)
             for number, points in self.project_lanes.items():
                 if points:
                     rospy.loginfo('Saved R%d: %d points, Y %.3f..%.3f, %d mapped route samples',
@@ -648,8 +606,10 @@ class GPSWaypointFollower:
                                   max(p[1] for p in points), len(self.project_lane_indices[number]))
             self.project_speed_limits_kmh = [float(point['speed_kmh'])
                                              for point in route]
-            rospy.loginfo('Loaded %d saved Map Tuner Raceline 1 points',
-                          len(self.raw_waypoints))
+            rospy.loginfo('Loaded %d saved Map Tuner route points (S11 on R%s)',
+                          len(self.raw_waypoints),
+                          '/R'.join(sorted({str(n) for n, s in zip(self.route_lanes, self.route_sectors)
+                                            if s == 11})) or '-')
             return
 
         points = []
@@ -868,7 +828,8 @@ class GPSWaypointFollower:
             self.last_speed_received = time.monotonic()
 
     def guard_limit_callback(self, msg):
-        if math.isfinite(msg.data) and msg.data >= 0.0:
+        # +inf: the guard adds no cap (the Map Tuner point speed is the target).
+        if not math.isnan(msg.data) and msg.data >= 0.0:
             self.guard_speed_limit = msg.data
             self.guard_limit_received = time.monotonic()
         else:
@@ -928,79 +889,51 @@ class GPSWaypointFollower:
 
         count = self.tracking_waypoint_count()
         tracking_points = self.waypoints[:count]
-        if not self.checkpoints:
-            raise ValueError("velocity planning requires checkpoint configuration")
-
-        self.checkpoint_indices = {}
-        for checkpoint in self.checkpoints:
-            try:
-                identifier = str(checkpoint["id"])
-                x, y = float(checkpoint["x"]), float(checkpoint["y"])
-            except (KeyError, TypeError, ValueError):
-                raise ValueError("invalid checkpoint entry: {!r}".format(checkpoint))
-            # Saved lane layout moves R1; retain the original checkpoint's
-            # longitudinal position when assigning the existing speed zones.
-            remapped = getattr(self, 'project_checkpoint_positions', [])
-            if remapped:
-                candidate = min(remapped, key=lambda p: math.hypot(p[0] - x, p[1] - y))
-                if math.hypot(candidate[0] - x, candidate[1] - y) <= self.checkpoint_match_tolerance:
-                    x, y = candidate[2:]
-            index, _ = min(
-                enumerate(tracking_points),
-                key=lambda item: math.hypot(item[1][0] - x, item[1][1] - y))
-            distance = math.hypot(tracking_points[index][0] - x,
-                                  tracking_points[index][1] - y)
-            if distance > self.checkpoint_match_tolerance:
-                raise ValueError(
-                    "checkpoint {} is {:.2f} m from waypoint path".format(
-                        identifier, distance))
-            self.checkpoint_indices[identifier] = index
-
-        start_id = str(self.high_speed_start_checkpoint)
-        end_id = str(self.high_speed_end_checkpoint)
-        if start_id not in self.checkpoint_indices or end_id not in self.checkpoint_indices:
-            raise ValueError("high-speed checkpoint IDs are missing")
-        start_index = self.checkpoint_indices[start_id]
-        end_index = self.checkpoint_indices[end_id]
-
-        speed_limits = [self.normal_max_speed_kmh] * count
-        if start_index <= end_index:
-            high_speed_indices = range(start_index, end_index + 1)
-        elif self.loop_path:
-            high_speed_indices = list(range(start_index, count)) + list(
-                range(0, end_index + 1))
-        else:
-            raise ValueError("high-speed zone runs backward on a non-loop path")
-        for index in high_speed_indices:
-            speed_limits[index] = self.high_speed_max_speed_kmh
-        if getattr(self, 'tunnel_speed_start_index', -1) >= 0:
-            apply_index_speed_cap(speed_limits, self.tunnel_speed_start_index,
-                                  self.tunnel_speed_end_index,
-                                  self.tunnel_speed_cap_kmh)
+        # Every target speed comes from the Map Tuner project point speeds.
+        # Only the acceleration/braking envelope below joins adjacent values.
         if getattr(self, 'use_project_speed_limits', False):
             project_limits = getattr(self, 'project_speed_limits_kmh', None)
             if project_limits is None or len(project_limits) < count:
                 raise ValueError('project speed limits require a Map Tuner JSON route')
-            speed_limits = [min(limit, project_limit)
-                            for limit, project_limit in zip(speed_limits,
-                                                             project_limits[:count])]
-            rospy.loginfo('Using Map Tuner point speed limits (%.1f..%.1f km/h)',
-                          min(project_limits[:count]), max(project_limits[:count]))
+            speed_limits = [float(limit) for limit in project_limits[:count]]
+            rospy.loginfo('Using Map Tuner point speeds (%.1f..%.1f km/h)',
+                          min(speed_limits), max(speed_limits))
+        else:
+            speed_limits = [float(self.target_speed_kmh)] * count
 
         self.speed_profile, self.path_curvatures = build_curvature_speed_profile(
             tracking_points,
             speed_limits,
             self.loop_path,
             self.curvature_window_m,
-            self.lateral_accel_limit,
-            self.min_curve_speed_kmh,
             self.max_profile_accel,
             self.max_profile_decel)
-        rospy.loginfo(
-            "Velocity profile ready: CP %s idx=%d -> CP %s idx=%d, "
-            "planned %.1f..%.1f km/h",
-            start_id, start_index, end_id, end_index,
-            min(self.speed_profile), max(self.speed_profile))
+        rospy.loginfo("Velocity profile ready: planned %.1f..%.1f km/h",
+                      min(self.speed_profile), max(self.speed_profile))
+
+    def sector_speed_floor(self, target_kmh):
+        """Sector 11 (planner.min_speed_sectors): keep moving and speed up
+        while changing lanes, unless something is directly ahead.
+
+        The floor never exceeds the Map Tuner point speed. An obstacle ahead
+        (its speed sets the cap) or the very end of a dropped lane may still
+        lower the target below it.
+        """
+        planner = getattr(self, 'local_planner', None)
+        decision = getattr(self, 'last_decision', None)
+        sectors = getattr(self, 'route_sectors', [])
+        index = self.current_waypoint_index
+        if (planner is None or decision is None or not 0 <= index < len(sectors)
+                or sectors[index] not in planner.min_speed_sectors):
+            return target_kmh
+        if math.isfinite(decision.obstacle_distance_m) or planner.lane_end_imminent:
+            return target_kmh
+        profile = self.target_speed_for_index(index)
+        floor = min(planner.sector_min_speed_kmh, profile)
+        if planner.transition is not None and planner.transition.get('state') != 'CANCELLING':
+            floor = max(floor, min(profile, (self.current_speed_kmh or 0.)
+                                   + planner.lane_change_speed_boost_kmh))
+        return max(target_kmh, floor)
 
     def target_speed_for_index(self, index):
         if self.enable_velocity_planning and self.speed_profile:
@@ -1008,16 +941,10 @@ class GPSWaypointFollower:
         return self.target_speed_kmh
 
     def speed_zone_for_index(self, index):
-        if not self.enable_velocity_planning or not self.checkpoint_indices:
+        if not self.enable_velocity_planning:
             return "constant"
-        start = self.checkpoint_indices[str(self.high_speed_start_checkpoint)]
-        end = self.checkpoint_indices[str(self.high_speed_end_checkpoint)]
-        inside = (start <= index <= end if start <= end
-                  else index >= start or index <= end)
-        return ("high_speed_cp{}_{}".format(
-            self.high_speed_start_checkpoint,
-            self.high_speed_end_checkpoint) if inside else "normal")
-
+        return ("map_tuner_project" if getattr(self, 'use_project_speed_limits', False)
+                else "constant")
     def update_dynamic_lookahead(self):
         if self.lookahead_speed_gain <= 0.0:
             return
@@ -1262,6 +1189,7 @@ class GPSWaypointFollower:
         now = time.monotonic()
         planner = getattr(self, 'local_planner', None)
         obstacles = [dict(x=o.x, y=o.y, vx=o.vx, vy=o.vy, radius=o.radius, kind=o.kind,
+                          length=o.length, width=o.width, yaw=o.yaw,
                           confirmed=o.confirmed, velocity_reliable=o.velocity_reliable)
                      for o in getattr(self, 'obstacles', [])]
         data = dict(stamp=rospy.Time.now().to_sec(), frame_id='map', reason=reason,
@@ -1279,9 +1207,9 @@ class GPSWaypointFollower:
             preference_reason=getattr(planner, 'preference_reason', None),
             lane_change_reason=getattr(self, 'lane_change_reason', None),
             transition=getattr(planner, 'transition', None), obstacles=obstacles,
-            collision_risk=(dict(time_s=planner.collision_risk.time_s,
-                                 distance_m=planner.collision_risk.distance_m)
-                            if getattr(planner, 'collision_risk', None) is not None else None),
+            gap_blocker=(dict(x=planner.gap_blocker[0].x, y=planner.gap_blocker[0].y,
+                              front_gap_m=planner.gap_blocker[1])
+                         if getattr(planner, 'gap_blocker', None) is not None else None),
             obstacle_age_s=(now-self.obstacle_received if getattr(self, 'obstacle_received', None) is not None else None),
             gps_age_s=(now-self.gps_received if getattr(self, 'gps_received', None) is not None else None),
             imu_age_s=(now-self.imu_received if getattr(self, 'imu_received', None) is not None else None),
@@ -1336,9 +1264,13 @@ class GPSWaypointFollower:
                     return
                 if item['kind'] not in ('static', 'dynamic', 'unknown'):
                     return
+                box = [float(item.get(key, 0.)) for key in ('length', 'width', 'yaw')]
+                if not all(math.isfinite(v) for v in box) or min(box[:2]) < 0.:
+                    return
                 obstacles.append(Obstacle(*values, kind=item['kind'],
                     confirmed=bool(item.get('confirmed', item['kind'] != 'unknown')),
-                    velocity_reliable=bool(item.get('velocity_reliable', item['kind'] != 'unknown'))))
+                    velocity_reliable=bool(item.get('velocity_reliable', item['kind'] != 'unknown')),
+                    length=box[0], width=box[1], yaw=box[2]))
             corridor = getattr(self, 'lane_corridor', None)
             if corridor is None:
                 return
@@ -1510,9 +1442,16 @@ class GPSWaypointFollower:
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Obstacle perception missing/stale')
                 return
+            # Leaders slower than this are worth passing. A red light (guard
+            # limit) lowers it so queued traffic is followed, not overtaken.
+            desired_kmh = self.target_speed_for_index(self.current_waypoint_index)
+            if (self.guard_limit_topic and self.guard_limit_received is not None
+                    and now-self.guard_limit_received <= .35):
+                desired_kmh = min(desired_kmh, self.guard_speed_limit)
             decision = self.local_planner.plan(
                 self.current_waypoint_index, position,
-                (self.current_speed_kmh or 0.)/3.6, self.obstacles, ego_yaw=self.current_yaw)
+                (self.current_speed_kmh or 0.)/3.6, self.obstacles, ego_yaw=self.current_yaw,
+                desired_speed_mps=desired_kmh/3.6)
             self.obstacle_horizon_pub.publish(String(data=json.dumps(dict(
                 frame_id='map', stamp=rospy.Time.now().to_sec(),
                 points=self.local_planner.obstacle_horizon_path,
@@ -1531,6 +1470,7 @@ class GPSWaypointFollower:
             self.avoidance_distance = (decision.obstacle_distance_m
                                        if math.isfinite(decision.obstacle_distance_m) else None)
             local_speed_cap = decision.speed_cap_kmh
+            self.last_decision = decision
             self.publish_local_path(decision.path)
             if decision.state == 'BLOCKED':
                 self.stop_reason = 'planner_blocked:' + decision.reason
@@ -1597,6 +1537,7 @@ class GPSWaypointFollower:
             guard_kmh=getattr(self, 'guard_speed_limit', None),
             external_avoidance_kmh=getattr(self, 'avoidance_speed_kmh', None))
         target_speed_kmh = min(target_speed_kmh, local_speed_cap)
+        target_speed_kmh = self.sector_speed_floor(target_speed_kmh)
         if blackout:
             target_speed_kmh = min(target_speed_kmh, self.avoidance_speed_kmh)
         if using_drive_pose and self.drive_mode == 'SIM_EXIT':

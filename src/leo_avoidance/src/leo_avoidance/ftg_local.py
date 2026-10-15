@@ -47,6 +47,12 @@ class Config:
     swept_side_margin_m: float = 0.4
     max_speed_mps: float = 1.5
     no_return_speed_mps: float = 2.0
+    # Below right_wall_min_clearance_m during wall following.
+    wall_min_clearance_speed_mps: float = 2.0
+    # Obstacle inside the stopping-distance clamp, steering target kept.
+    near_obstacle_speed_mps: float = 2.0
+    # Wall-following floor while the route bearing is not yet trusted.
+    wall_follow_min_speed_mps: float = 5.0
     min_no_return_evidence_points: int = 10
     obstacle_speed_hold_s: float = 1.0
     target_accel_mps2: float = 0.8
@@ -123,6 +129,9 @@ class Config:
                 or self.swept_path_horizon_m <= 0
                 or not 0 <= self.swept_side_margin_m <= self.side_margin_m
                 or self.no_return_speed_mps <= 0
+                or self.wall_min_clearance_speed_mps <= 0
+                or self.near_obstacle_speed_mps <= 0
+                or self.wall_follow_min_speed_mps <= 0
                 or self.min_no_return_evidence_points < 1
                 or self.obstacle_speed_hold_s < 0 or self.target_accel_mps2 <= 0
                 or self.reaction_s < 0 or self.brake_mps2 <= 0
@@ -1097,7 +1106,7 @@ class FollowTheGap:
                                    (cfg.max_speed_mps - cfg.no_return_speed_mps))
         if wall_follow and wall_clearance is not None \
                 and wall_clearance < cfg.right_wall_min_clearance_m:
-            target_speed_mps = min(target_speed_mps, 2.)
+            target_speed_mps = min(target_speed_mps, cfg.wall_min_clearance_speed_mps)
         # Rear-quarter returns are included in the avoidance scan but cannot
         # certify clear distance for forward acceleration.
         observed_range_m = float(np.percentile(forward_radii, 95.))
@@ -1115,12 +1124,12 @@ class FollowTheGap:
             # through the clearance cap instead of dropping to 2 m/s.
             # Brake while preserving a safe steering target. A zero-speed
             # plan suppresses the target publisher and loses that option.
-            target_speed_mps = min(target_speed_mps, 2.)
+            target_speed_mps = min(target_speed_mps, cfg.near_obstacle_speed_mps)
         if wall_follow:
             # Slow for alignment with the original mapped route at the exit.
             target_speed_mps = min(target_speed_mps,
-                                   5. + wall_follow_weight *
-                                   max(0., cfg.max_speed_mps - 5.))
+                                   cfg.wall_follow_min_speed_mps + wall_follow_weight *
+                                   max(0., cfg.max_speed_mps - cfg.wall_follow_min_speed_mps))
         target_speed_mps = min(target_speed_mps, self._current_obstacle_cap)
         return Plan(target_speed_mps, bearing_rad,
                     'gap fits; yielding to crossing obstacle' if threats

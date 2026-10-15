@@ -3,7 +3,11 @@
   <arg name="morai_ip"/>
   <arg name="follower_node_type" default="gps_waypoint_follower.py"/>
   <arg name="diagnostic_log" default="false"/>
-  <arg name="diagnostic_directory" default="$(find unita_waypoint)/log/$(anon driving_run)"/>
+  <!-- log:=true writes to <diagnostic_root>/run_YYYYmmdd_HHMMSS unless
+       diagnostic_directory is given explicitly. -->
+  <arg name="diagnostic_root" default="$(find unita_waypoint)/log"/>
+  <arg name="diagnostic_directory" default=""/>
+  <arg name="diagnostic_session" default="$(anon log_session)"/>
   <arg name="control_node_pkg" default="control"/>
   <arg name="control_node_type" default="competition_udp_control.py"/>
   <arg name="follower_ctrl_topic" default="/ctrl_cmd"/>
@@ -15,7 +19,8 @@
   <arg name="guard_speed_limit_topic" default=""/>
   <arg name="morai_port" default="9093"/>
   <arg name="status_port" default="9096"/>
-  <arg name="heading_source" default="ego_status"/>
+  <!-- Heading from the IMU sensor only (regulation: no Ego status pose). -->
+  <arg name="heading_source" default="imu"/>
   <arg name="heading_topic" default="$(eval '/competition/heading_imu' if arg('heading_source') == 'ego_status' else '/imu')"/>
   <arg name="start_sensor_bridge" default="true"/>
   <arg name="enable_imu" default="$(eval arg('heading_source') == 'imu')"/>
@@ -35,11 +40,6 @@
   <arg name="waypoint_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
   <arg name="waypoint_format" default="local_xy"/>
   <arg name="loop_path" default="true"/>
-  <arg name="normal_max_speed_kmh" default="60.0"/>
-  <arg name="high_speed_max_speed_kmh" default="100.0"/>
-  <arg name="tunnel_speed_start_index" default="-1"/>
-  <arg name="tunnel_speed_end_index" default="-1"/>
-  <arg name="tunnel_speed_cap_kmh" default="18.0"/>
   <arg name="control_max_speed_kmh" default="100.0"/>
   <arg name="wheelbase" default="3.0"/>
   <arg name="lookahead_distance" default="5.0"/>
@@ -59,10 +59,12 @@
     <arg name="lidar_launch" value="$(arg lidar_launch)"/>
     <arg name="lidar_rpm" value="$(arg lidar_rpm)"/>
   </include>
-  <!-- Pure Pursuit + curvature speed planning + pedal PID. -->
+  <!-- Pure Pursuit + Map Tuner point speeds + pedal PID. -->
   <node pkg="unita_waypoint" type="$(arg follower_node_type)" name="gps_waypoint_follower" output="screen">
     <param name="diagnostic_log" value="$(arg diagnostic_log)"/>
-    <param name="diagnostic_directory" value="$(arg diagnostic_directory)"/>
+    <param name="diagnostic_directory" value="$(arg diagnostic_directory)" type="str"/>
+    <param name="diagnostic_root" value="$(arg diagnostic_root)"/>
+    <param name="diagnostic_session" value="$(arg diagnostic_session)"/>
     <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile.yaml"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
     <param name="use_project_speed_limits" value="$(eval arg('waypoint_file').lower().endswith('.json'))"/>
@@ -86,19 +88,14 @@
     <param name="preferred_raceline_end_checkpoint" value="$(arg preferred_raceline_end_checkpoint)" type="str"/>
     <param name="preferred_raceline_after_checkpoint" value="$(arg preferred_raceline_after_checkpoint)"/>
     <param name="rear_extent_m" value="0.790"/>
-    <param name="lane_change_min_rear_gap_m" value="8.0"/>
-    <param name="lane_change_rear_headway_s" value="2.0"/>
-    <param name="lane_change_smoothness_s" value="2.5"/>
+    <param name="lane_change_gap_m" value="3.0"/>
+    <param name="lane_change_lateral_accel_mps2" value="1.5"/>
+    <param name="lane_change_max_heading_deg" value="10.0"/>
     <param name="vehicle_half_width_m" value="0.946"/>
     <param name="front_extent_m" value="3.845"/>
     <param name="enable_velocity_planning" value="true"/>
     <param name="longitudinal_control_mode" value="pid"/>
     <param name="speed_topic" value="/competition/ego_speed_kmh"/>
-    <param name="normal_max_speed_kmh" value="$(arg normal_max_speed_kmh)"/>
-    <param name="high_speed_max_speed_kmh" value="$(arg high_speed_max_speed_kmh)"/>
-    <param name="tunnel_speed_start_index" value="$(arg tunnel_speed_start_index)"/>
-    <param name="tunnel_speed_end_index" value="$(arg tunnel_speed_end_index)"/>
-    <param name="tunnel_speed_cap_kmh" value="$(arg tunnel_speed_cap_kmh)"/>
     <param name="wheelbase" value="$(arg wheelbase)"/>
     <param name="lookahead_distance" value="$(arg lookahead_distance)"/>
     <param name="max_steering_rad" value="$(arg max_steering_rad)"/>
@@ -129,7 +126,9 @@
   </node>
   <node if="$(arg diagnostic_log)" pkg="unita_waypoint" type="driving_log_recorder.py"
         name="driving_log_recorder" output="screen">
-    <param name="directory" value="$(arg diagnostic_directory)"/>
+    <param name="directory" value="$(arg diagnostic_directory)" type="str"/>
+    <param name="root" value="$(arg diagnostic_root)"/>
+    <param name="session" value="$(arg diagnostic_session)"/>
     <param name="waypoint_file" value="$(arg waypoint_file)"/>
   </node>
   <node pkg="localization" type="gps_imu_localization.py" name="gps_imu_localization" output="screen">

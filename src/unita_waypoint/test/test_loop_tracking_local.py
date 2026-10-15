@@ -198,7 +198,7 @@ class LoopTrackingTests(unittest.TestCase):
         self.assertTrue(stops)
         self.assertFalse(obj.commands)
 
-    def test_blackout_can_use_clear_thirty_kmh_cap_while_gps_stays_at_eighteen(self):
+    def test_blackout_target_is_point_speed_lowered_only_by_lidar(self):
         obj = self.follower([(float(i), 0.0) for i in range(40)], loop=False)
         now = time.monotonic()
         obj.drive_pose_topic = '/leo/driving_pose'
@@ -212,13 +212,15 @@ class LoopTrackingTests(unittest.TestCase):
         obj.avoidance_speed_kmh = 30.0
         obj.avoidance_speed_received = now
         obj.enable_velocity_planning = True
-        obj.speed_profile = [18.0] * 40
-        obj.blackout_speed_profile = [35.0] * 40
+        obj.speed_profile = [40.0] * 40
         self.run_loop(obj)
-        self.assertEqual(obj.commands[-1][1], 30.0)
+        self.assertEqual(obj.commands[-1][1], 30.0)  # LiDAR clearance lowers it
+        obj.avoidance_speed_kmh = 60.0
+        self.run_loop(obj)
+        self.assertEqual(obj.commands[-1][1], 40.0)  # never above the point speed
         obj.drive_mode_callback(String(data='GPS'))
         self.run_loop(obj)
-        self.assertEqual(obj.commands[-1][1], 18.0)
+        self.assertEqual(obj.commands[-1][1], 40.0)
 
     def test_pid_accelerates_brakes_and_clamps_pedals(self):
         pid = module.PIDController(0.08, 0.002, 0.01)
@@ -258,39 +260,22 @@ class LoopTrackingTests(unittest.TestCase):
         obj.update_dynamic_lookahead()
         self.assertEqual(obj.lookahead_distance, 5.0)
 
-    def test_checkpoint_coordinates_match_the_recorded_path(self):
+    def test_profile_keeps_point_speeds_and_only_ramps_between_them(self):
         points = self.actual_points()[:-1]
-        with (PACKAGE / "config/competition_speed_profile_local.yaml").open() as stream:
-            config = yaml.safe_load(stream)
-        matched = {}
-        for checkpoint in config["checkpoints"]:
-            index, point = min(
-                enumerate(points),
-                key=lambda item: math.hypot(
-                    item[1][0] - checkpoint["x"],
-                    item[1][1] - checkpoint["y"]))
-            distance = math.hypot(point[0] - checkpoint["x"],
-                                  point[1] - checkpoint["y"])
-            self.assertLess(distance, 1e-6, checkpoint["id"])
-            matched[str(checkpoint["id"])] = index
-        self.assertEqual(matched["10"], 2275)
-        self.assertEqual(matched["13"], 3529)
-
-    def test_curvature_profile_obeys_60_and_100_kmh_zones(self):
-        points = self.actual_points()[:-1]
-        limits = [60.0] * len(points)
+        limits = [55.0] * len(points)
         for index in range(2275, 3529 + 1):
             limits[index] = 100.0
         speeds, curvatures = module.build_curvature_speed_profile(
-            points, limits, True, 25.0, 2.94, 25.0, 2.0, 3.5)
+            points, limits, True, 10.0, 2.0, 3.5)
         self.assertEqual(len(speeds), len(points))
         self.assertEqual(len(curvatures), len(points))
-        self.assertLessEqual(max(speeds[:2275]), 60.0 + 1e-9)
-        self.assertLessEqual(max(speeds[3530:]), 60.0 + 1e-9)
-        self.assertGreater(max(speeds[2275:3530]), 99.0)
-        self.assertLess(speeds[3231], 80.0)  # bend around checkpoint 12
-        self.assertLess(speeds[1297], 45.0)  # tight bend around checkpoint 7
-
+        self.assertTrue(all(s <= l + 1e-9 for s, l in zip(speeds, limits)))
+        # Curvature never lowers a point speed: the tight CP7 bend keeps 55.
+        self.assertAlmostEqual(speeds[1297], 55.0)
+        self.assertAlmostEqual(speeds[2900], 100.0)
+        # Braking for the next lower point speed starts ahead of it.
+        self.assertLess(speeds[3520], 100.0)
+        self.assertGreater(speeds[3520], 55.0)
 
 if __name__ == "__main__":
     unittest.main()

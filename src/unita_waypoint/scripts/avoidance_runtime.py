@@ -27,15 +27,27 @@ SETTINGS = {
     'track_confirm_time_s': ('lidar_obstacles', .2, 'track_confirm_time_s', 's', '작은 장애물 추적 확인에 필요한 관측 지속 시간 (최소 3회)'),
     'obstacle_horizon_m': ('gps_waypoint_follower', 45., 'obstacle_horizon_m', 'm', '현재 경로를 따라 장애물 중심을 판단하는 거리'),
     'avoidance_margin_m': ('gps_waypoint_follower', .35, 'margin', 'm', '차량과 장애물 사이 안전 여유'),
-    'lane_change_min_rear_gap_m': ('gps_waypoint_follower', 8., 'min_rear_gap', 'm', '차선 변경에 필요한 기본 후방 간격'),
-    'lane_change_rear_headway_s': ('gps_waypoint_follower', 2., 'rear_headway_s', 's', '뒤차의 접근 속도에 곱하는 추가 간격 시간'),
-    'lane_change_smoothness_s': ('gps_waypoint_follower', 2.5, 'lane_change_smoothness_s', 's', '차선 변경 길이의 속도 비례 계수 · 클수록 완만함'),
+    'lane_change_gap_m': ('gps_waypoint_follower', 3., 'lane_change_gap_m', 'm', '차선 변경 시 지나는 차선의 앞·뒤 차량과 범퍼 사이 최소 간격 · 변경 중 침범하면 취소'),
+    'lane_change_lateral_accel_mps2': ('gps_waypoint_follower', 1.5, 'lane_change_lateral_accel', 'm/s²', '차선 변경 중 최대 횡가속도 · 작을수록 길고 완만함 (고속에서 길이 결정)'),
+    'lane_change_max_heading_deg': ('gps_waypoint_follower', 10., 'lane_change_max_heading_deg', '°', '차선 변경 중 차선 대비 최대 각도 (저속에서 길이 결정)'),
     'avoidance_reaction_s': ('gps_waypoint_follower', .4, 'reaction_s', 's', '감속·충돌 예측에 사용하는 반응 시간'),
     'avoidance_decel_mps2': ('gps_waypoint_follower', 3., 'decel', 'm/s²', '장애물 감속 계산에 사용하는 감속도'),
-    'avoidance_emergency_ttc_s': ('gps_waypoint_follower', 1., 'emergency_ttc_s', 's', '차선 변경 중 예상 충돌까지 이 시간 이하면 즉시 제동'),
     'avoidance_brake_limit': ('gps_waypoint_follower', .35, 'avoidance_brake_limit', '0..1', '먼 예상 충돌 감속 시 브레이크 상한 · 긴급 제동은 제한 없음'),
     'avoidance_clear_hold_s': ('gps_waypoint_follower', .4, 'clear_hold_s', 's', '정지 해제 전 안전 판단 지속 시간 · 새 점군 3회도 필요'),
     'restart_accel_rate_per_s': ('gps_waypoint_follower', .5, 'restart_accel_rate', '1/s', '액셀 증가율 제한 · 브레이크는 즉시 적용'),
+    'sector11_min_speed_kmh': ('gps_waypoint_follower', 45., 'sector_min_speed_kmh', 'km/h', 'S11 최저 속도 · 바로 앞 장애물이 없으면 정지하지 않음 (파일 속도 이하)'),
+    'lane_change_speed_boost_kmh': ('gps_waypoint_follower', 10., 'lane_change_speed_boost_kmh', 'km/h', 'S11 차선 변경 중 목표 속도 = 현재 속도 + 이 값 (파일 속도 이하)'),
+    'lane_change_cancel_scans': ('gps_waypoint_follower', 3., 'cancel_confirm_scans', '회', '차선 변경 취소에 필요한 연속 감지 횟수 (다가오는 3 m 내 차량)'),
+    'lane_change_cancel_max_progress': ('gps_waypoint_follower', .6, 'cancel_max_progress', '0..1', '이 진행률을 넘은 차선 변경은 취소하지 않고 완료'),
+    'route_max_error_m': ('leo_signal_guard', 3.75, 'route_max_error_m', 'm', '신호 guard 경로 이탈 허용 거리 (터널 밖) · 넘으면 정지 후 자동 재arm 대기'),
+    'blackout_route_max_error_m': ('leo_signal_guard', 7., 'blackout_route_max_error_m', 'm', '신호 guard 경로 이탈 허용 거리 (터널 GPS 음영 구간)'),
+    'pass_speed_kmh': ('leo_waypoint_follower', 20., 'pass_speed_kmh', 'km/h', 'Leo 장애물 추월·차선 변경 중 속도 상한'),
+    'arc_lane_change_max_kmh': ('leo_waypoint_follower', 15., 'arc_lane_change_max_kmh', 'km/h', '이 속도 이하에서는 최소 회전반경 원호로 차선 변경'),
+    'route_pass_speed_kmh': ('leo_route_avoidance', 20., 'pass_speed_kmh', 'km/h', 'GPS 경로 정적 장애물 반대 차선 추월 중 속도 상한'),
+    'ftg_no_return_speed_mps': ('leo_driving_state', 2., 'no_return_speed_mps', 'm/s', '터널 전방 LiDAR 반사 없음(출구 등) 서행 속도'),
+    'ftg_wall_min_clearance_speed_mps': ('leo_driving_state', 2., 'wall_min_clearance_speed_mps', 'm/s', '터널 우측 벽 최소 간격 미만일 때 속도 상한'),
+    'ftg_near_obstacle_speed_mps': ('leo_driving_state', 2., 'near_obstacle_speed_mps', 'm/s', '터널 장애물이 정지거리 안일 때 속도 상한'),
+    'ftg_wall_follow_min_speed_mps': ('leo_driving_state', 5., 'wall_follow_min_speed_mps', 'm/s', '터널 벽 추종 중 최소 속도 상한 (경로 방향 불신 시)'),
 }
 
 PERSISTENCE_DIR = Path(__file__).resolve().parents[1] / 'config'
@@ -59,10 +71,33 @@ def validated_value(name, value):
     elif not math.isfinite(number) or number <= 0.:
         raise ValueError('0보다 큰 유한한 값을 입력하세요.')
     limits = {'ground_plane_tolerance_m': .08, 'imu_max_skew_s': .2,
-              'ground_max_slope_deg': 30., 'avoidance_brake_limit': 1.}
+              'ground_max_slope_deg': 30., 'avoidance_brake_limit': 1.,
+              'lane_change_max_heading_deg': 45., 'lane_change_cancel_max_progress': 1.}
     if name in limits and number > limits[name]:
         raise ValueError('최대 {} {}까지 입력하세요.'.format(limits[name], SETTINGS[name][3]))
     return number
+
+
+class FrozenConfigTarget:
+    """RuntimeSettings target for a frozen dataclass config held by owner.
+
+    Assigning a field replaces owner.<attribute> with an updated copy, so the
+    planner always reads one consistent, validated config.
+    """
+    def __init__(self, owner, attribute='config'):
+        object.__setattr__(self, '_owner', owner)
+        object.__setattr__(self, '_attribute', attribute)
+
+    def __getattr__(self, name):
+        return getattr(getattr(self._owner, self._attribute), name)
+
+    def __setattr__(self, name, value):
+        from dataclasses import replace
+        config = replace(getattr(self._owner, self._attribute), **{name: value})
+        validate = getattr(config, 'validate', None)
+        if validate is not None:
+            validate()
+        setattr(self._owner, self._attribute, config)
 
 
 class RuntimeSettings:

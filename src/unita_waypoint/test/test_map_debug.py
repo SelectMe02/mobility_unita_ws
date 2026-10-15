@@ -2,6 +2,7 @@
 """Verify saved geometry reaches RViz, including appended points and live saves."""
 import copy
 import json
+import math
 import sys
 import tempfile
 import unittest
@@ -156,6 +157,29 @@ class MapDebugProjectTest(unittest.TestCase):
         status = self.status(state)
         self.assertEqual((status['x'], status['y']), (73., 89.3))
         self.assertEqual(status['preferred_raceline'], 3)
+
+
+class MapDebugObstacleBoxTest(unittest.TestCase):
+    def test_rectangle_marker_uses_detector_box(self):
+        debug = map_debug.MapDebug.__new__(map_debug.MapDebug)
+        debug.obstacle_pub = MagicMock()
+        debug.obstacle_marker_ids = set()
+        debug.lane_corridor = MagicMock()
+        debug.lane_corridor.contains = lambda points: [True]*len(points)
+        item = dict(id=4, x=1., y=2., radius=2.49, vx=0., vy=0., kind='dynamic',
+                    length=4.6, width=1.9, yaw=1.)
+        with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(10)):
+            debug.on_obstacles(MagicMock(data=json.dumps(dict(
+                stamp=10., frame_id='map', obstacles=[item]))))
+            debug.publish_obstacles(debug.obstacle_snapshot[1])
+        markers = debug.obstacle_pub.publish.call_args.args[0].markers
+        box = next(m for m in markers if m.ns == 'obstacle_boxes')
+        self.assertAlmostEqual(box.scale.x, 4.6)
+        self.assertAlmostEqual(box.scale.y, 1.9)
+        self.assertAlmostEqual(2.*math.atan2(box.pose.orientation.z, box.pose.orientation.w), 1.)
+        edges = next(m for m in markers if m.ns == 'obstacle_edges')
+        corner = edges.points[0]
+        self.assertAlmostEqual(math.hypot(corner.x-1., corner.y-2.), math.hypot(2.3, .95))
 
 
 if __name__ == '__main__':

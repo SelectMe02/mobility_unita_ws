@@ -99,7 +99,7 @@ class YellowStopTests(unittest.TestCase):
         cap, detail = controller.decide(42., self.signal('traffic_light_green', 1, 1.), 1.,
                                          pose=(42., 0., 0.), speed_mps=10., ros_now=1.)
         self.assertEqual(detail['decision'], 'go')
-        self.assertAlmostEqual(cap, 58. / 3.6)
+        self.assertEqual(cap, float('inf'))
         # Yellow right after green still stops, however close the line is.
         cap, detail = controller.decide(42., self.signal('traffic_light_yellow', 2, 1.1), 1.1,
                                          pose=(42., 0., 0.), speed_mps=10., ros_now=1.1)

@@ -1,5 +1,7 @@
 import math
 
+import numpy as np
+
 from leo_avoidance.route_avoidance import (RouteAvoidance, RouteAvoidanceConfig,
                                            RouteObstacle, stopping_speed)
 
@@ -292,3 +294,20 @@ def test_traffic_along_the_lane_over_the_crosswalk_is_trailed_not_stopped_for():
     # Someone crossing on the same crosswalk still stops Ego.
     walker = RouteObstacle(58., 1., .3, vy=1.1, dynamic=True)
     assert avoid.update((30., 0.), 8., [lead, walker]).state == 'CROSSWALK_STOP'
+
+
+def test_closed_lap_path_continues_across_the_start_line():
+    # Square lap of 400 m whose last point returns to the start.
+    side = np.arange(0., 100., 1.)
+    lap = np.vstack([np.column_stack((side, np.zeros_like(side))),
+                     np.column_stack((np.full_like(side, 100.), side)),
+                     np.column_stack((100. - side, np.full_like(side, 100.))),
+                     np.column_stack((np.zeros_like(side), 100. - side)),
+                     [[0., 0.]]])
+    planner = RouteAvoidance(lap, RouteAvoidanceConfig())
+    assert planner.loop_length == 400.
+    before = planner.update((0., 3.), 10., [])  # 3 m before the start line
+    assert before.path and before.path[-1][0] > 40.  # path runs on past the start
+    after = planner.update((2., 0.), 10., [])  # crossed the start line
+    assert planner.last_s < 5.
+    assert after.path and after.path[-1][0] > 40.

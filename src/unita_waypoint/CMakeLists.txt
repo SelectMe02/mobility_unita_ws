@@ -252,6 +252,7 @@ install(DIRECTORY include/${PROJECT_NAME}/ DESTINATION ${CATKIN_PACKAGE_INCLUDE_
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_loop_tracking.py)
   catkin_add_nosetests(test/test_loop_tracking_local.py)
+  catkin_add_nosetests(test/test_local_avoidance_local.py)
   catkin_add_nosetests(test/test_extract_stoplines.py)
   catkin_add_nosetests(test/test_map_tunner.py)
   catkin_add_nosetests(test/test_map_debug.py)

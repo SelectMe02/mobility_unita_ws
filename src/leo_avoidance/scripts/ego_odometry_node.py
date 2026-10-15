@@ -20,7 +20,8 @@ class EgoOdometryNode:
         self.pub = rospy.Publisher('/leo/ego_odom', Odometry, queue_size=1)
         self.subs = [
             rospy.Subscriber('/competition/ego_speed_kmh', Float64, self.on_speed, queue_size=1),
-            rospy.Subscriber('/competition/heading_imu', Imu, self.on_heading, queue_size=1)]
+            rospy.Subscriber(rospy.get_param('~heading_topic', '/competition/heading_imu'),
+                             Imu, self.on_heading, queue_size=1)]
 
     def on_speed(self, message):
         value = message.data / 3.6

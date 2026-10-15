@@ -8,7 +8,6 @@ import threading
 import time
 
 import rospy
-from geometry_msgs.msg import PoseStamped
 from morai_msgs.msg import CtrlCmd, GPSMessage
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64, String, UInt8
@@ -16,6 +15,13 @@ from std_srvs.srv import SetBool, SetBoolResponse
 from unita_control.competition_protocol import (
     CompetitionCommandEncoder, StatusFreshness, decode_ego_status)
 from unita_control.udp_protocol import CommandWatchdog
+
+
+def masked_status_hex(packet):
+    """Raw status for logs with pos_x/y/z (offset 77, 3 floats) zeroed."""
+    masked = bytearray(packet)
+    masked[77:89] = bytes(min(12, max(0, len(masked) - 77)))
+    return masked.hex()
 
 
 class CompetitionUDPControl:
@@ -63,8 +69,6 @@ class CompetitionUDPControl:
             self.diagnostic_status_pub = rospy.Publisher('/diagnostics/simulator/ego_status', String, queue_size=10)
             self.diagnostic_raw_pub = rospy.Publisher('/diagnostics/simulator/ego_status_udp', String, queue_size=100)
             self.diagnostic_tx_pub = rospy.Publisher('/diagnostics/control_tx', String, queue_size=100)
-        self.ego_pose_pub = (rospy.Publisher('/competition/ego_pose', PoseStamped, queue_size=1)
-                             if self.diagnostic_log and rospy.get_param('~publish_ego_pose', False) else None)
         self.speed_pub = rospy.Publisher('/competition/ego_speed_kmh', Float64, queue_size=1)
         self.heading_pub = (rospy.Publisher('/competition/heading_imu', Imu, queue_size=1)
                             if self.heading_source == 'ego_status' else None)
@@ -130,9 +134,9 @@ class CompetitionUDPControl:
             if diagnostic:
                 self.diagnostic_raw_pub.publish(String(data=json.dumps(dict(
                     ros_time=rospy.Time.now().to_sec(), received_monotonic=time.monotonic(),
-                    source=list(source), packet_hex=packet.hex()))))
+                    source=list(source), packet_hex=masked_status_hex(packet)))))
             try:
-                status = decode_ego_status(packet, diagnostics=diagnostic)
+                status = decode_ego_status(packet)
             except ValueError as error:
                 rospy.logwarn_throttle(5, 'Rejected Ego status: %s', error)
                 continue
@@ -146,17 +150,8 @@ class CompetitionUDPControl:
             if diagnostic:
                 self.diagnostic_status_pub.publish(String(data=json.dumps(dict(
                     ros_time=rospy.Time.now().to_sec(), simulator_stamp=list(status.stamp),
-                    position=list(status.position), yaw_deg=status.yaw_deg, speed_kmh=status.speed_kmh,
+                    yaw_deg=status.yaw_deg, speed_kmh=status.speed_kmh,
                     mode=status.mode, gear=status.gear, steering_deg=status.steering_deg))))
-            if changed and diagnostic and self.ego_pose_pub is not None:
-                pose = PoseStamped()
-                pose.header.stamp = rospy.Time.now()
-                pose.header.frame_id = 'map'
-                pose.pose.position.x, pose.pose.position.y = status.position[:2]
-                yaw = math.radians(status.yaw_deg + self.yaw_offset)
-                pose.pose.orientation.z = math.sin(yaw / 2.)
-                pose.pose.orientation.w = math.cos(yaw / 2.)
-                self.ego_pose_pub.publish(pose)
             if changed and self.heading_pub is not None:
                 yaw = math.radians(status.yaw_deg + self.yaw_offset)
                 message = Imu()

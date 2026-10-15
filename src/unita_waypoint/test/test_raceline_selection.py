@@ -15,6 +15,8 @@ from raceline_test_follower import RacelineTestFollower
 
 
 class RacelineSelectionTest(unittest.TestCase):
+    """Sector 11: Raceline 1 route until its lane drop, then Raceline 3 to CP11."""
+
     def test_driving_preserves_saved_geometry_even_with_leftover_width_override(self):
         from raceline_test_follower import RacelineTestFollower
         project_file = ROOT / 'config/map_tunner_project.json'
@@ -41,7 +43,8 @@ class RacelineSelectionTest(unittest.TestCase):
             fallback, preferences = obj.local_lane_preferences()
         self.assertNotIn('~raceline_width', [call.args[0] for call in set_param.call_args_list])
         p = LocalAvoidancePlanner(obj.waypoints, obj.route_sectors, obj.project_lanes,
-                                  lane_indices=obj.project_lane_indices, preferred_lane=fallback,
+                                  lane_indices=obj.project_lane_indices,
+                                  route_lanes=obj.route_lanes, preferred_lane=fallback,
                                   preferred_lane_indices=preferences,
                                   finish_line=obj.lane_preference_finish_line)
         published = json.loads(obj.lane_geometry_pub.publish.call_args.args[0].data)
@@ -132,6 +135,11 @@ class RacelineSelectionTest(unittest.TestCase):
         obj.waypoints = obj.raw_waypoints
         return obj
 
+    @staticmethod
+    def sector11_start(obj, lane):
+        """First Sector 11 route index with saved geometry for this lane."""
+        return min(i for i in obj.project_lane_indices[lane] if obj.route_sectors[i] == 11)
+
     def planner(self, obj, preferred_lane=3):
         return LocalAvoidancePlanner(obj.waypoints, obj.route_sectors,
                                      obj.project_lanes,
@@ -143,7 +151,7 @@ class RacelineSelectionTest(unittest.TestCase):
         obj.lookahead_speed_gain = 0.
         original = list(obj.waypoints)
         p = self.planner(obj)
-        first = min(obj.project_lane_indices[2]) + 60
+        first = self.sector11_start(obj, 2) + 60
         for now in (0., 10., 20., 40., 100.):
             with patch('gps_waypoint_follower.time.monotonic', return_value=now):
                 obj.update_dynamic_lookahead()
@@ -155,7 +163,7 @@ class RacelineSelectionTest(unittest.TestCase):
 
     def test_saved_map_prefers_r3_then_r2_when_r3_is_blocked(self):
         obj = self.follower()
-        first = min(obj.project_lane_indices[2]) + 60
+        first = self.sector11_start(obj, 2) + 60
         obstacle_index = first + 65
         x, y = obj.waypoints[obstacle_index]
         r1_obstacle = Obstacle(x, y, .8, kind='static')
@@ -180,7 +188,7 @@ class RacelineSelectionTest(unittest.TestCase):
     @patch('gps_waypoint_follower.rospy.Time.now', return_value=rospy.Time(100))
     def test_lane_selection_is_reported_to_map_debug(self, _clock):
         obj = self.follower()
-        obj.current_waypoint_index = min(obj.project_lane_indices[2]) + 60
+        obj.current_waypoint_index = self.sector11_start(obj, 2) + 60
         obj.tracking_state_pub = MagicMock()
         obj.local_planner = self.planner(obj)
         obj.local_planner.active_lane = 3
@@ -194,7 +202,7 @@ class RacelineSelectionTest(unittest.TestCase):
     def test_saved_r3_returns_to_r3_after_passing_and_checks_rear_gap(self):
         obj = self.follower()
         p = self.planner(obj)
-        first = min(obj.project_lane_indices[3])+60
+        first = self.sector11_start(obj, 3)+60
         lead_index = first+65
         ego = obj.project_lane_indices[3][first]
         lead = Obstacle(*obj.project_lane_indices[3][lead_index], radius=.8, kind='static')
@@ -206,13 +214,13 @@ class RacelineSelectionTest(unittest.TestCase):
         self.assertEqual(returned.state, 'RETURNING')
         self.assertEqual(p.active_lane, 3)
 
-    def test_saved_map_rear_velocity_blocks_r3_entry(self):
+    def test_saved_map_rear_car_within_gap_blocks_r3_entry(self):
         obj = self.follower()
         p = self.planner(obj)
-        first = min(obj.project_lane_indices[3])+60
+        first = self.sector11_start(obj, 3)+60
         tangent = p._tangent(first)
         x, y = obj.project_lane_indices[3][first]
-        rear = Obstacle(x-35.*tangent[0], y-35.*tangent[1], .8,
+        rear = Obstacle(x-4.*tangent[0], y-4.*tangent[1], .8,
                         vx=18.*tangent[0], vy=18.*tangent[1], kind='dynamic')
         d = p.plan(first, obj.waypoints[first], 5., [rear])
         self.assertEqual(d.state, 'LANE_WAIT')
@@ -241,20 +249,21 @@ class RacelineSelectionTest(unittest.TestCase):
             fallback, preferences = obj.local_lane_preferences()
         planner = LocalAvoidancePlanner(obj.waypoints, obj.route_sectors, obj.project_lanes,
                                        lane_indices=obj.project_lane_indices,
+                                       route_lanes=obj.route_lanes,
                                        preferred_lane=fallback, preferred_lane_indices=preferences,
                                        finish_line=obj.lane_preference_finish_line)
         return obj, planner, end
 
     def test_real_cp11_holds_r3_until_rear_clears_in_next_sector(self):
         obj, p, end = self.checkpoint_preferences()
-        self.assertAlmostEqual(p.finish_line['y'], -217.855053961277)
+        self.assertAlmostEqual(p.finish_line['y'], -217.855053961277, delta=.05)
         self.assertNotEqual(end, obj.checkpoint_indices['11'])
         for index in (end-30, end, end+1):
             ego = p._lane_point(3, obj.waypoints[index], index)
             d = p.plan(index, ego, 5., [], ego_yaw=-math.pi/2)
             self.assertEqual(d.state, 'RACELINE')
             self.assertEqual(p.effective_preferred_lane, 3)
-            self.assertEqual(p.active_lane, 3)
+            self.assertEqual(p.active_lane, None if obj.route_lanes[index] == 3 else 3)
             self.assertFalse(p.finish_line_passed)
         index = end+3
         d = p.plan(index, obj.waypoints[index], 5., [], ego_yaw=-math.pi/2)
@@ -262,7 +271,7 @@ class RacelineSelectionTest(unittest.TestCase):
         self.assertTrue(p.finish_line_passed)
         self.assertIsNone(p.active_lane)
 
-    def test_finish_line_return_still_waits_for_fast_rear_traffic(self):
+    def test_finish_line_return_still_waits_for_rear_car_within_gap(self):
         route = [(0., -float(i)) for i in range(180)]
         lanes = {n: [((n-1)*3.2, y) for _, y in route] for n in (2, 3)}
         line = dict(sector=11, lane=3, checkpoint='11', start_index=20,
@@ -271,7 +280,7 @@ class RacelineSelectionTest(unittest.TestCase):
                                   lane_indices={n: dict(enumerate(pts)) for n, pts in lanes.items()},
                                   finish_line=line)
         p.plan(80, lanes[3][80], 5., [])
-        rear = Obstacle(0., -53., .8, vy=-18., kind='dynamic')
+        rear = Obstacle(0., -79., .8, vy=-18., kind='dynamic')
         d = p.plan(83, lanes[3][83], 5., [rear])
         self.assertEqual(d.state, 'LANE_WAIT')
         self.assertEqual(p.active_lane, 3)
@@ -321,28 +330,33 @@ class RacelineSelectionTest(unittest.TestCase):
 
     def test_entire_saved_r3_and_manual_extension_keep_priority(self):
         obj, p, end = self.checkpoint_preferences()
-        for index in range(p.finish_line['start_index'], end+1):
-            ego = obj.project_lane_indices[3][index]
+        for index in range(p.finish_line['start_index'], p.finish_line['end_index']+1):
+            ego = p._lane_point(3, obj.waypoints[index], index)
             decision = p.plan(index, ego, 5., [], ego_yaw=-math.pi/2)
             self.assertEqual(p.effective_preferred_lane, 3, (index, ego, decision))
-            self.assertEqual(p.active_lane, 3, (index, ego, decision))
+            # After the Raceline 1 lane drop Raceline 3 IS the route.
+            expected = None if obj.route_lanes[index] == 3 else 3
+            self.assertEqual(p.active_lane, expected, (index, ego, decision))
         self.assertEqual(p._requested_lane(end+50, obj.waypoints[end+50]), 1)
         self.assertEqual(p._requested_lane(100, obj.waypoints[100]), 1)
         # A new lap returns to R3 at the split.
         start = p.finish_line['start_index']
-        self.assertEqual(p._requested_lane(start, obj.project_lane_indices[3][start]), 3)
+        self.assertEqual(p._requested_lane(start, p._lane_point(3, obj.waypoints[start], start)), 3)
 
     def test_obstacle_avoidance_in_manual_extension_keeps_r3_priority(self):
         obj, p, end = self.checkpoint_preferences()
-        index = min(obj.project_lane_indices[3], key=lambda i: abs(obj.waypoints[i][1]+150.))
-        obstacle = Obstacle(*obj.project_lane_indices[3][index+50], radius=.8)
-        decision = p.plan(index, obj.project_lane_indices[3][index], 5., [obstacle])
+        r3 = {i: p._lane_point(3, obj.waypoints[i], i) for i, s in enumerate(obj.route_sectors)
+              if s == 11 and p._lane_point(3, obj.waypoints[i], i) is not None}
+        index = min(r3, key=lambda i: abs(r3[i][1]+150.))
+        obstacle = Obstacle(*r3[index+20], radius=.8)
+        decision = p.plan(index, r3[index], 5., [obstacle])
         self.assertEqual(p.effective_preferred_lane, 3)
         self.assertIn(decision.state, ('OVERTAKING', 'TAILING'))
 
     def test_missing_extension_stops_without_redefining_r3_priority(self):
         obj, p, end = self.checkpoint_preferences()
-        index = end-60
+        # Raceline 3 is a mapped side lane before the Raceline 1 lane drop.
+        index = max(p.lane_indices[3]) - 10
         del p.lane_indices[3][index]
         decision = p.plan(index, (75., obj.waypoints[index][1]), 5., [])
         self.assertEqual(p.effective_preferred_lane, 3)
@@ -351,8 +365,9 @@ class RacelineSelectionTest(unittest.TestCase):
 
     def test_priority_mapping_does_not_cover_other_sectors_or_after_cp11(self):
         obj, p, end = self.checkpoint_preferences()
-        self.assertEqual(p.preferred_lane_indices[end], 3)
-        self.assertNotIn(end+1, p.preferred_lane_indices)
+        last = p.finish_line['end_index']
+        self.assertEqual(p.preferred_lane_indices[last], 3)
+        self.assertNotIn(last+1, p.preferred_lane_indices)
         for i, sector in enumerate(obj.route_sectors):
             if sector != 11:
                 self.assertNotIn(i, p.preferred_lane_indices)
@@ -369,7 +384,7 @@ class RacelineSelectionTest(unittest.TestCase):
     def test_follower_controls_using_selected_local_path_and_stops_on_stale_input(self):
         import rospy
         obj = self.follower()
-        first = min(obj.project_lane_indices[2]) + 60
+        first = self.sector11_start(obj, 2) + 60
         obj.current_waypoint_index = first
         obj.current_x, obj.current_y = obj.waypoints[first]
         next_x, next_y = obj.waypoints[first+1]
@@ -420,6 +435,134 @@ class RacelineSelectionTest(unittest.TestCase):
             obj.control_loop(None)
             obj.publish_full_stop.assert_called_once()
             self.assertEqual(obj.avoidance_state, 'SENSOR_HOLD')
+
+
+class R3RouteTest(unittest.TestCase):
+    """Default: Sector 11 driven on Raceline 3, R1 becomes a side lane."""
+    PARAMS = {'~preferred_raceline': 3, '~preferred_raceline_sector': 11,
+              '~preferred_raceline_end_checkpoint': '11', '~preferred_raceline_after_checkpoint': 1}
+
+    def load(self, project=None):
+        import tempfile
+        from map_tunner_core import save_project
+        obj = RacelineTestFollower.__new__(RacelineTestFollower)
+        obj.waypoint_format = 'local_xy'
+        obj.enable_local_avoidance = True
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'project.json'
+            save_project(path, project or load_project(ROOT/'config/map_tunner_project.json'))
+            obj.waypoint_file = str(path)
+            with patch('gps_waypoint_follower.rospy.get_param',
+                       side_effect=lambda name, default=None: self.PARAMS.get(name, default)), \
+                    patch('gps_waypoint_follower.rospy.loginfo'):
+                obj.load_waypoints()
+                obj.waypoints = obj.raw_waypoints
+                fallback, preferences = obj.local_lane_preferences()
+        planner = LocalAvoidancePlanner(obj.waypoints, obj.route_sectors, obj.project_lanes,
+                                        lane_indices=obj.project_lane_indices,
+                                        route_lanes=obj.route_lanes, preferred_lane=fallback,
+                                        preferred_lane_indices=preferences,
+                                        finish_line=obj.lane_preference_finish_line)
+        return obj, planner
+
+    def test_s11_route_is_raceline1_until_its_lane_drop_then_raceline3(self):
+        project = load_project(ROOT/'config/map_tunner_project.json')
+        sector = project['sectors'][10]
+        r1 = [(q['x'], q['y']) for q in sector['racelines']['1']]
+        obj, p = self.load(project)
+        s11 = [i for i, s in enumerate(obj.route_sectors) if s == 11]
+        on_r1 = [i for i in s11 if obj.route_lanes[i] == 1]
+        on_r3 = [i for i in s11 if obj.route_lanes[i] == 3]
+        # No bend baked into the route: it IS Raceline 1 while that lane exists.
+        route_r1 = [obj.waypoints[i] for i in on_r1]
+        self.assertTrue(set(route_r1) <= set(r1))
+        self.assertEqual(route_r1[-1], r1[-1])
+        self.assertEqual(on_r1[-1]+1, on_r3[0])
+        self.assertTrue(all(obj.waypoints[i][1] < r1[-1][1] for i in on_r3))
+        # Before the drop Raceline 3 is a side lane reached by a lane change.
+        self.assertTrue(any(obj.route_sectors[i] == 11 for i in obj.project_lane_indices[3]))
+        self.assertEqual(obj.project_checkpoint_indices['11'], on_r3[-1])
+        self.assertTrue(p.finish_line['joins_primary'])
+
+    def test_raceline3_path_is_continuous_across_the_lane_drop(self):
+        obj, p = self.load()
+        join = obj.route_lanes.index(3)
+        points = [p._lane_point(3, obj.waypoints[i], i) for i in range(join-40, join+40)]
+        self.assertTrue(all(point is not None for point in points))
+        steps = [math.hypot(b[0]-a[0], b[1]-a[1]) for a, b in zip(points, points[1:])]
+        self.assertLess(max(steps), 1.5)
+        self.assertIsNone(p._lane_point(1, obj.waypoints[join+5], join+5))
+
+    def raceline3_entry(self, p, obj):
+        index = min(i for i in p.lane_indices[3] if obj.route_sectors[i] == 11) + 40
+        return index, obj.waypoints[index], p._lane_point(3, obj.waypoints[index], index)
+
+    def test_r3_entry_waits_for_the_3m_gap_then_changes_lane(self):
+        obj, p = self.load()
+        index, on_r1, on_r3 = self.raceline3_entry(p, obj)
+        # A car in Raceline 3 beside the ego blocks the change.
+        beside = Obstacle(*p._lane_point(3, obj.waypoints[index+2], index+2), radius=2.49,
+                          vx=0., vy=-20., kind='dynamic', length=4.6, width=1.9, yaw=-math.pi/2)
+        d = p.plan(index, on_r1, 20., [beside], ego_yaw=-math.pi/2, desired_speed_mps=27.)
+        self.assertEqual(p.effective_preferred_lane, 3)
+        self.assertEqual((d.state, d.reason, p.transition), ('LANE_WAIT', 'lane_change_gap', None))
+        d = p.plan(index, on_r1, 20., [], ego_yaw=-math.pi/2, desired_speed_mps=27.)
+        self.assertEqual((d.state, p.transition['target']), ('LANE_CHANGING', 3))
+
+    def test_on_r3_holds_r3_and_passes_only_through_r2(self):
+        obj, p = self.load()
+        index, _, on_r3 = self.raceline3_entry(p, obj)
+        d = p.plan(index, on_r3, 10., [], ego_yaw=-math.pi/2, desired_speed_mps=25.)
+        self.assertEqual((d.state, p.current_lane, p.effective_preferred_lane), ('RACELINE', 3, 3))
+        self.assertEqual(p.lane_hold, 3)
+        lead = Obstacle(*p._lane_point(3, obj.waypoints[index+50], index+50), radius=2.49, vx=0.,
+                        kind='dynamic', length=4.6, width=1.9, yaw=-math.pi/2)
+        d = p.plan(index, on_r3, 10., [lead], ego_yaw=-math.pi/2, desired_speed_mps=25.)
+        self.assertEqual((d.state, p.transition['target']), ('OVERTAKING', 2))
+
+    def test_lane_drop_slows_to_stop_before_raceline1_ends(self):
+        obj, p = self.load()
+        join = obj.route_lanes.index(3)
+        caps = []
+        for remaining in (400, 260, 200, 40):
+            index = join - remaining
+            beside = Obstacle(*p._lane_point(3, obj.waypoints[index+2], index+2), radius=2.49,
+                              vx=0., vy=-20., kind='dynamic', length=4.6, width=1.9, yaw=-math.pi/2)
+            p.transition = None
+            d = p.plan(index, obj.waypoints[index], 15., [beside], ego_yaw=-math.pi/2,
+                       desired_speed_mps=27.)
+            self.assertEqual(p.current_lane, 1)
+            caps.append(d.speed_cap_kmh)
+        # Far away no cap; closer the cap falls; with no room to merge, stop.
+        self.assertEqual(caps[0], float('inf'))
+        self.assertTrue(all(a >= b for a, b in zip(caps, caps[1:])))
+        self.assertLess(caps[2], caps[1])
+        self.assertEqual(caps[-1], 0.)
+
+    def test_standstill_before_lane_drop_can_still_merge(self):
+        # Logged 2026-10-16: stopped on R1 73 m before its drop, cap stuck at 0.
+        obj, p = self.load()
+        index = min((i for i, s in enumerate(obj.route_sectors)
+                     if s == 11 and obj.route_lanes[i] == 1),
+                    key=lambda i: abs(obj.waypoints[i][1]+75.6))
+        d = p.plan(index, obj.waypoints[index], 0., [], ego_yaw=-math.pi/2,
+                   desired_speed_mps=27.)
+        self.assertEqual((d.state, p.transition['target']), ('LANE_CHANGING', 3))
+        self.assertGreater(d.speed_cap_kmh, 5.)
+
+    def test_s11_runs_when_raceline1_is_deleted(self):
+        from map_tunner_core import ProjectEditor
+        editor = ProjectEditor(load_project(ROOT/'config/map_tunner_project.json'))
+        r1 = editor.lane(11, 1)
+        editor.remove_range(11, 1, r1[0]['id'], r1[-1]['id'])
+        obj, p = self.load(editor.project)
+        s11 = [i for i, s in enumerate(obj.route_sectors) if s == 11]
+        self.assertTrue(all(obj.route_lanes[i] == 3 for i in s11))
+        self.assertEqual(obj.project_lane_indices[1], {})
+        for index in s11[::40]:
+            d = p.plan(index, obj.waypoints[index], 10., [], ego_yaw=-math.pi/2,
+                       desired_speed_mps=25.)
+            self.assertNotEqual(d.state, 'BLOCKED')
 
 
 if __name__ == '__main__':

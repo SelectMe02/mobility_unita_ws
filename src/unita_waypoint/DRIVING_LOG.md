@@ -12,7 +12,7 @@ roslaunch unita_launch test_map_raceline.launch morai_ip:=127.0.0.1 log:=true
 roslaunch unita_waypoint map_debug.launch
 ```
 
-매 실행마다 `/home/unita/unita_ws/src/unita_waypoint/log/driving_run_*/`에 새 폴더를 만듭니다.
+매 실행마다 `/home/unita/unita_ws/src/unita_waypoint/log/run_YYYYmmdd_HHMMSS/`에 새 폴더를 만듭니다.
 터미널의 `Driving log session (log=true)`에 정확한 경로가 나옵니다.
 디버그 화면 없이 실행해도 제거한 노면·장애물 후보 점을 기록합니다.
 

@@ -15,6 +15,9 @@ import yaml
 
 CHECKPOINT_ORDER = ['start'] + [str(number) for number in range(1, 15)]
 MAX_LANES = 3
+# Sector -> raceline that forms the driven route. A project may override this
+# with its own "route_racelines" entry; unlisted sectors use Raceline 1.
+DEFAULT_ROUTE_RACELINES = {'11': 3}
 
 
 def load_checkpoints(path):
@@ -121,6 +124,68 @@ def validate_project(project):
                 ids.add(point['id'])
     if project.get('next_point_id', 0) <= max(ids, default=0):
         raise ValueError('next_point_id is stale')
+    for sector, lane in project.get('route_racelines', {}).items():
+        if (not str(sector).isdecimal() or not 1 <= int(sector) <= 15
+                or type(lane) is not int or not 1 <= lane <= MAX_LANES):
+            raise ValueError('invalid route_racelines entry: {}={}'.format(sector, lane))
+
+
+def sector_route(project, sector, raceline1_only=False):
+    """Points and raceline numbers that form one sector's driven route.
+
+    Raceline 1 wherever it is drawn: moving onto another raceline is a lane
+    change for the planner (gap-checked), never a bend baked into the route.
+    A sector listed in project['route_racelines'] continues on that raceline
+    only after Raceline 1 ends (a lane drop), so the route still reaches the
+    sector's end checkpoint.
+    """
+    r1 = sector['racelines']['1']
+    choices = ({} if raceline1_only else
+               dict(DEFAULT_ROUTE_RACELINES, **project.get('route_racelines', {})))
+    lane = int(choices.get(str(sector['number']), 1))
+    chosen = sector['racelines'].get(str(lane), []) if lane <= sector['lane_count'] else []
+    if lane == 1 or len(chosen) < 2:
+        return list(r1), [1]*len(r1)
+    if len(r1) < 2:
+        return list(chosen), [lane]*len(chosen)
+    end = r1[-1]
+    tx, ty = end['x']-r1[-2]['x'], end['y']-r1[-2]['y']
+    beyond = [p for p in chosen if (p['x']-end['x'])*tx + (p['y']-end['y'])*ty > 0.]
+    return list(r1) + beyond, [1]*len(r1) + [lane]*len(beyond)
+
+
+# Same limits as the planner's lane change (lateral accel, max heading).
+ROUTE_BLEND_LATERAL_ACCEL = 1.5
+ROUTE_BLEND_MAX_HEADING_DEG = 10.
+
+
+def blend_toward(points, target, reverse):
+    """Shift the end of a polyline smoothly onto target (start if reverse).
+
+    The anchor point (last, or first if reverse) moves fully onto target;
+    earlier points move less with a smoothstep over the lane-change length.
+    """
+    if not points:
+        return []
+    order = list(reversed(points)) if not reverse else list(points)
+    anchor = order[0]
+    dx, dy = target['x']-anchor['x'], target['y']-anchor['y']
+    lateral = math.hypot(dx, dy)
+    if lateral < .3:
+        return list(points)
+    speed = max(0., float(target['speed_kmh']))/3.6
+    length = max(speed*math.sqrt(6.*lateral/ROUTE_BLEND_LATERAL_ACCEL),
+                 1.5*lateral/math.tan(math.radians(ROUTE_BLEND_MAX_HEADING_DEG)))
+    result, travelled = [], 0.
+    for k, point in enumerate(order):
+        if k:
+            travelled += math.hypot(point['x']-order[k-1]['x'], point['y']-order[k-1]['y'])
+        t = max(0., min(1., 1.-travelled/length))
+        weight = t*t*(3.-2.*t)
+        moved = dict(point)
+        moved['x'], moved['y'] = point['x']+weight*dx, point['y']+weight*dy
+        result.append(moved)
+    return list(reversed(result)) if not reverse else result
 
 
 def load_project(path):
@@ -130,24 +195,30 @@ def load_project(path):
     return project
 
 
-def primary_route(project):
-    """Return the saved Raceline 1 route and its sector for each point."""
+def primary_route(project, with_lanes=False, raceline1_only=False):
+    """Return the driven route and its sector for each point.
+
+    with_lanes also returns the raceline number each route point came from.
+    raceline1_only ignores route_racelines: Raceline 1 in every sector (the
+    Leo signal/tunnel route).
+    """
     validate_project(project)
-    route, sectors = [], []
+    route, sectors, lanes = [], [], []
     for sector in project['sectors']:
-        lane = sector['racelines']['1']
-        if len(lane) < 2:
-            raise ValueError('sector {} needs at least two Raceline 1 points'.format(
+        points, numbers = sector_route(project, sector, raceline1_only)
+        if len(points) < 2:
+            raise ValueError('sector {} needs at least two route points'.format(
                 sector['number']))
-        for point in lane:
+        for point, number in zip(points, numbers):
             if route and math.hypot(route[-1]['x'] - point['x'],
                                     route[-1]['y'] - point['y']) < 1e-6:
                 continue
             route.append(point)
             sectors.append(sector['number'])
+            lanes.append(number)
     if len(route) < 2:
         raise ValueError('project route has too few points')
-    return route, sectors
+    return (route, sectors, lanes) if with_lanes else (route, sectors)
 
 
 def raceline_layout_settings(project, config_file, raceline_width=None):
@@ -160,15 +231,41 @@ def raceline_layout_settings(project, config_file, raceline_width=None):
     return float(width)
 
 
-def saved_lane_indices(project, route, sectors):
-    """Map saved lanes to R1 progress, including manual southbound S11 points."""
-    route_ids = {p['id']: i for i, p in enumerate(route)}
-    result = {n: {} for n in (2, 3)}
+def checkpoint_route_indices(project, route, sectors, checkpoint_file=None):
+    """Route index of each sector-end checkpoint at its fixed surveyed position.
+
+    The position comes from map_tunner_checkpoints.yaml, not from the saved
+    points, so deleting or replacing a sector's end point does not move it.
+    """
+    path = (Path(checkpoint_file) if checkpoint_file is not None else
+            Path(__file__).resolve().parents[1] / 'config/map_tunner_checkpoints.yaml')
+    checkpoints = load_checkpoints(path)
+    result = {}
     for sector in project['sectors']:
-        for n in (2, 3):
+        name = str(sector['to'])
+        x, y = checkpoints[name]['position'][:2]
+        candidates = [i for i, s in enumerate(sectors) if s == sector['number']]
+        result[name] = min(candidates, key=lambda i: math.hypot(
+            route[i]['x'] - x, route[i]['y'] - y))
+    return result
+
+
+def saved_lane_indices(project, route, sectors, route_lanes=None):
+    """Map saved lanes to route progress, including manual southbound S11 points.
+
+    A route point never maps the raceline it was taken from (that lane IS the
+    route there), so in an R3-driven S11 Raceline 1 becomes a side lane.
+    """
+    route_ids = {p['id']: i for i, p in enumerate(route)}
+    if route_lanes is None:
+        route_lanes = [1]*len(route)
+    result = {n: {} for n in (1, 2, 3)}
+    for sector in project['sectors']:
+        for n in (1, 2, 3):
             points = sector['racelines'].get(str(n), [])
             result[n].update({route_ids[p['source_id']]: (p['x'], p['y'])
-                              for p in points if p.get('source_id') in route_ids})
+                              for p in points if p.get('source_id') in route_ids
+                              and route_lanes[route_ids[p['source_id']]] != n})
             if sector['number'] != 11 or len(points) < 2:
                 continue
             # Manual points have no source_id. Interpolate inside their saved
@@ -177,7 +274,7 @@ def saved_lane_indices(project, route, sectors):
             ys = [p['y'] for p in ordered]
             for i, point in enumerate(route):
                 y = point['y']
-                if sectors[i] != 11 or not ys[0] <= y <= ys[-1]:
+                if sectors[i] != 11 or route_lanes[i] == n or not ys[0] <= y <= ys[-1]:
                     continue
                 j = bisect_left(ys, y)
                 if j == 0 or ys[j] == y:
@@ -382,6 +479,20 @@ class ProjectEditor:
             raise ValueError('waypoint not found in selected raceline')
         self._checkpoint()
         return points.pop(index)
+
+    def remove_range(self, sector, lane, start_id, end_id):
+        """Delete an inclusive span of one sector raceline as one undo step."""
+        if lane == 1 and sector != 11:
+            # Raceline 1 is the driven route and checkpoint reference.
+            raise ValueError('Raceline 1 구간 삭제는 S11에서만 할 수 있습니다.')
+        points = self.lane(sector, lane)
+        indices = {point['id']: index for index, point in enumerate(points)}
+        if start_id not in indices or end_id not in indices:
+            raise ValueError('시작점과 끝점이 현재 Raceline에 있어야 합니다.')
+        first, last = sorted((indices[start_id], indices[end_id]))
+        self._checkpoint()
+        del points[first:last + 1]
+        return last - first + 1
 
     def append_continuous_points(self, sector, lane, start_xy, end_xy, interior_count):
         """Append both endpoints and the requested number of evenly spaced points."""

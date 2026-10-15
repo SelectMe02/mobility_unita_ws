@@ -64,10 +64,10 @@ class LocalAvoidanceTests(unittest.TestCase):
 
     def test_clear_fast_pass_has_no_lane_change_speed_cap(self):
         p = planner()
-        decision = p.plan(0, (0., 0.), 14., [core.Obstacle(30., 0., 1.)])
+        decision = p.plan(0, (0., 0.), 14., [core.Obstacle(44., 0., 1.)])
         self.assertEqual(decision.state, 'OVERTAKING')
         self.assertTrue(math.isinf(decision.speed_cap_kmh))
-        continued = p.plan(5, decision.path[5], 14., [core.Obstacle(30., 0., 1.)])
+        continued = p.plan(5, decision.path[5], 14., [core.Obstacle(44., 0., 1.)])
         self.assertEqual(continued.state, 'OVERTAKING')
         self.assertTrue(math.isinf(continued.speed_cap_kmh))
 
@@ -78,7 +78,9 @@ class LocalAvoidanceTests(unittest.TestCase):
         p.transition = None
         fast = p.plan(0, (0., 0.), 25., [])
         self.assertEqual(fast.state, 'LANE_CHANGING')
-        self.assertAlmostEqual(p.transition['length'], 25.*p.lane_change_smoothness_s)
+        # Fast: lateral-acceleration bound v*sqrt(6d/a) beats the heading bound.
+        self.assertAlmostEqual(p.transition['length'], 25.*math.sqrt(6.*7./p.lane_change_lateral_accel))
+        self.assertAlmostEqual(slow_length, 1.5*7./math.tan(math.radians(10.)))
         self.assertGreater(p.transition['length'], slow_length)
         self.assertLess(fast.path[20][1], slow.path[20][1])
         self.assertLess(fast.path[20][1], fast.path[-1][1])
@@ -109,7 +111,7 @@ class LocalAvoidanceTests(unittest.TestCase):
         decision = p.plan(0, (0., 0.), 20., [
             core.Obstacle(0., 3.5, 1., vx=20., kind='dynamic')])
         self.assertEqual(decision.state, 'LANE_WAIT')
-        self.assertEqual(decision.reason, 'predicted_path_occupied')
+        self.assertEqual(decision.reason, 'lane_change_gap')
 
     def test_horizon_edit_changes_threat_decision_and_visualized_distance(self):
         p = planner()
@@ -118,7 +120,7 @@ class LocalAvoidanceTests(unittest.TestCase):
         self.assertEqual(p.plan(0, (0., 0.), 14., [obstacle]).state, 'RACELINE')
         self.assertEqual(p.obstacle_horizon_path[-1], (20., 0.))
         p.obstacle_horizon_m = 40.
-        self.assertEqual(p.plan(0, (0., 0.), 14., [obstacle]).state, 'OVERTAKING')
+        self.assertEqual(p.plan(0, (0., 0.), 6., [obstacle]).state, 'OVERTAKING')
         path = p.obstacle_horizon_path
         self.assertAlmostEqual(sum(core.distance(a, b) for a, b in zip(path, path[1:])), 40.)
 
@@ -204,30 +206,32 @@ class LocalAvoidanceTests(unittest.TestCase):
         continuing = p.plan(5, d.path[5], 5., [])
         self.assertEqual(p.transition['start']+p.transition['length'], end)
         self.assertEqual(continuing.path[0], d.path[5])
-        settled = p.plan(26, (26., 7.), 5., [])
+        settled = p.plan(int(end)+1, (float(int(end)+1), 7.), 5., [])
         self.assertEqual(settled.state, 'RACELINE')
         self.assertEqual(p.active_lane, 3)
         self.assertTrue(all(abs(y-7.) < .01 for _, y in settled.path))
 
-    def test_fast_rear_car_blocks_preferred_lane_change(self):
+    def test_rear_car_within_three_metres_blocks_preferred_lane_change(self):
         p = self.preferred_planner()
-        d = p.plan(0, (0., 0.), 5., [core.Obstacle(-35., 7., 1., vx=18., kind='dynamic')])
+        # Rear car front face at -3.0; ego rear bumper at -0.79: 2.21 m gap.
+        d = p.plan(0, (0., 0.), 5., [core.Obstacle(-4., 7., 1., vx=18., kind='dynamic')])
         self.assertEqual(d.state, 'LANE_WAIT')
-        self.assertEqual(d.reason, 'rear_or_crossed_lane_busy')
+        self.assertEqual(d.reason, 'lane_change_gap')
         self.assertIsNone(p.active_lane)
         self.assertIsNone(p.transition)
         self.assertEqual(d.path, [])
         self.assertGreater(d.speed_cap_kmh, 0.)
 
-    def test_unknown_rear_velocity_waits_for_tracking_to_converge(self):
+    def test_fast_rear_car_beyond_three_metres_allows_change(self):
         p = self.preferred_planner()
-        d = p.plan(0, (0., 0.), 5., [core.Obstacle(-40., 7., 1.)])
-        self.assertEqual(d.state, 'LANE_WAIT')
-        self.assertIsNone(p.transition)
+        # Front face at -5.0: 4.21 m behind the rear bumper, speed ignored.
+        d = p.plan(0, (0., 0.), 5., [core.Obstacle(-6., 7., 1., vx=18., kind='dynamic')])
+        self.assertEqual(d.state, 'LANE_CHANGING')
+        self.assertEqual(p.active_lane, 3)
 
     def test_close_slow_rear_car_blocks_and_distant_slow_car_allows_change(self):
         p = self.preferred_planner()
-        close = p.plan(0, (0., 0.), 5., [core.Obstacle(-7., 7., 1., vx=3., kind='dynamic')])
+        close = p.plan(0, (0., 0.), 5., [core.Obstacle(-4.5, 7., 1., vx=3., kind='dynamic')])
         self.assertEqual(close.state, 'LANE_WAIT')
         clear = p.plan(0, (0., 0.), 5., [core.Obstacle(-40., 7., 1., vx=3., kind='dynamic')])
         self.assertEqual(clear.state, 'LANE_CHANGING')
@@ -235,7 +239,7 @@ class LocalAvoidanceTests(unittest.TestCase):
 
     def test_intermediate_lane_rear_traffic_blocks_two_lane_merge(self):
         p = self.preferred_planner()
-        d = p.plan(0, (0., 0.), 5., [core.Obstacle(-30., 3.5, 1., vx=18., kind='dynamic')])
+        d = p.plan(0, (0., 0.), 5., [core.Obstacle(-4., 3.5, 1., vx=18., kind='dynamic')])
         self.assertEqual(d.state, 'LANE_WAIT')
         self.assertIsNone(p.transition)
 
@@ -253,7 +257,8 @@ class LocalAvoidanceTests(unittest.TestCase):
         held = p.plan(20, (20., 3.5), 5., [core.Obstacle(35., 7., 1., vx=2., kind='dynamic')])
         self.assertEqual(p.active_lane, 2)
         self.assertTrue(held.path)
-        near = p.plan(50, (50., 3.5), 5., [core.Obstacle(45., 7., 1., vx=2., kind='dynamic')])
+        # Passed car front face 1.21 m behind the rear bumper: wait.
+        near = p.plan(48, (48., 3.5), 5., [core.Obstacle(45., 7., 1., vx=2., kind='dynamic')])
         self.assertEqual(near.state, 'LANE_WAIT')
         self.assertEqual(p.active_lane, 2)
         returned = p.plan(65, (65., 3.5), 5., [core.Obstacle(45., 7., 1., vx=2., kind='dynamic')])
@@ -261,15 +266,15 @@ class LocalAvoidanceTests(unittest.TestCase):
         self.assertEqual(p.active_lane, 3)
         self.assertAlmostEqual(returned.path[0][1], 3.5)
         self.assertAlmostEqual(returned.path[-1][1], 7.)
-        settled = p.plan(85, (85., 7.), 5., [])
+        settled = p.plan(96, (96., 7.), 5., [])
         self.assertEqual(settled.state, 'RACELINE')
         self.assertEqual(p.active_lane, 3)
 
     def test_no_free_passing_gap_tails_in_r3_without_switching_to_r1(self):
         p = self.preferred_planner()
         d = p.plan(0, (0., 7.), 5., [core.Obstacle(25., 7., 1., vx=2., kind='dynamic'),
-                    core.Obstacle(-20., 3.5, 1., vx=18., kind='dynamic'),
-                    core.Obstacle(-20., 0., 1., vx=18., kind='dynamic')])
+                    core.Obstacle(-4., 3.5, 1., vx=18., kind='dynamic'),
+                    core.Obstacle(-4., 0., 1., vx=18., kind='dynamic')])
         self.assertEqual(d.state, 'TAILING')
         self.assertEqual(p.active_lane, 3)
         self.assertTrue(all(abs(y-7.) < .01 for _, y in d.path))
@@ -278,7 +283,7 @@ class LocalAvoidanceTests(unittest.TestCase):
         p = self.preferred_planner()
         p.lane_indices = {n: {i: point for i, point in enumerate(lane) if i <= 70}
                           for n, lane in p.lanes.items()}
-        d = p.plan(45, (45., 7.), 5., [])
+        d = p.plan(5, (5., 7.), 5., [])
         self.assertEqual(p.effective_preferred_lane, 1)
         self.assertIsNone(p.active_lane)
         self.assertIsNotNone(p.transition)
@@ -297,11 +302,129 @@ class LocalAvoidanceTests(unittest.TestCase):
         self.assertGreater(missed[0]['x'], tracked[0]['x'])
         self.assertEqual(node._update_tracks([], .9), [])
 
-    def test_collision_prediction_is_not_frozen_after_three_seconds(self):
+    def test_car_rectangle_in_adjacent_lane_is_not_a_leader(self):
         p = self.preferred_planner()
-        path = [(float(i), 7.) for i in range(35)]
-        self.assertFalse(p._collision_free(path,
-                         [core.Obstacle(-30., 7., 1., vx=10., kind='dynamic')], 5.))
+        p.preferred_lane = 3
+        # 4.6 x 1.9 m car centred in R2, 3.5 m from the ego lane centre. Its
+        # enclosing circle (r=2.49) would overlap the ego band; the box does not.
+        car = core.Obstacle(10., 3.5, 2.49, kind='dynamic', length=4.6, width=1.9, yaw=0.)
+        d = p.plan(0, (0., 7.), 10., [car])
+        self.assertEqual(d.state, 'RACELINE')
+        circle = core.Obstacle(10., 3.5, 2.49, kind='dynamic')
+        self.assertIsNotNone(p._lead(d.path, (0., 7.), [circle]))
+
+    def test_rotated_rectangle_corners(self):
+        box = core.Obstacle(0., 0., 2.49, length=4., width=2., yaw=math.pi/2.)
+        xs = sorted(round(x, 6) for x, _ in box.corners())
+        ys = sorted(round(y, 6) for _, y in box.corners())
+        self.assertEqual((xs[0], xs[-1], ys[0], ys[-1]), (-1., 1., -2., 2.))
+
+    def test_lane_change_cancels_when_target_gap_is_invaded(self):
+        p = self.preferred_planner()
+        d = p.plan(0, (0., 0.), 5., [])
+        self.assertEqual(d.state, 'LANE_CHANGING')
+        self.assertEqual(p.transition['target'], 3)
+        # Mid-change, a car appears 1 m ahead of the front bumper in R3.
+        intruder = core.Obstacle(5.+3.845+1.+2.3, 7., 2.49, kind='dynamic',
+                                 length=4.6, width=1.9)
+        cancel = p.plan(5, (5., 2.), 5., [intruder])
+        self.assertEqual(cancel.state, 'CANCELLING')
+        self.assertEqual(cancel.reason, 'lane_change_cancelled')
+        self.assertEqual(p.transition['target'], 1)
+        self.assertAlmostEqual(cancel.path[0][1], 2., places=2)
+        self.assertAlmostEqual(cancel.path[-1][1], 0., places=2)
+        # The cancel finishes in R1, then the change may be retried later.
+        end = p.transition['start']+p.transition['length']
+        retry = p.plan(int(end)+1, (float(int(end)+1), 0.), 5., [])
+        self.assertEqual(p.current_lane, 1)
+        # Gap clear again: the change to the preferred lane starts afresh.
+        self.assertEqual(p.transition['source'], 1)
+        self.assertEqual(p.transition['target'], 3)
+        self.assertEqual(retry.state, 'RETURNING')
+
+    def test_both_sides_occupied_keeps_path_and_slows_for_car_ahead(self):
+        p = self.preferred_planner()
+        p.plan(0, (0., 0.), 8., [])
+        ahead = core.Obstacle(5.+3.845+2.+2.3, 7., 2.49, length=4.6, width=1.9, kind='dynamic')
+        behind = core.Obstacle(5.-.79-1.-2.3, 0., 2.49, length=4.6, width=1.9, kind='dynamic')
+        d = p.plan(5, (5., 2.), 8., [ahead, behind])
+        self.assertEqual(d.reason, 'lane_change_gap_both_sides')
+        self.assertEqual(p.transition['target'], 3)
+        self.assertLess(d.speed_cap_kmh, 8.*3.6)
+        self.assertNotEqual(d.state, 'BLOCKED')
+
+    def test_far_obstacle_on_transition_path_slows_instead_of_emergency_stop(self):
+        p = self.preferred_planner()
+        p.plan(0, (0., 0.), 18., [])
+        self.assertIsNotNone(p.transition)
+        # 36 m ahead in R3 is within the old 60 m stopping distance at 65 km/h.
+        d = p.plan(10, (10., 2.), 18., [core.Obstacle(46., 7., .67)])
+        self.assertNotEqual(d.state, 'BLOCKED')
+        self.assertGreater(d.speed_cap_kmh, 0.)
+
+    def test_lidar_box_is_lane_aligned_and_reaches_tracks(self):
+        # Rear face and left side of a car (L shape) on a lane heading +y.
+        rear = [(x, 0.) for x in np.arange(-.95, .96, .1)]
+        side = [(.95, y) for y in np.arange(0., 4.61, .1)]
+        group = np.asarray(rear+side)+[10., 20.]
+        box = detector.object_box(group, (0., 1.))
+        x, y, radius, length, width, yaw = box
+        self.assertAlmostEqual(length, 4.6, places=1)
+        self.assertAlmostEqual(width, 1.9, places=1)
+        self.assertAlmostEqual(yaw, math.pi/2.)
+        self.assertAlmostEqual((x, y), (10., 22.3), places=1)
+        self.assertIsNone(detector.object_box(group, (0., 1.), maximum_size=3.))
+        node = detector.LidarObstacles.__new__(detector.LidarObstacles)
+        node.dynamic_speed_threshold_mps = .8
+        node.tracks, node.next_id = {}, 1
+        tracked = node._update_tracks([box], 1.)[0]
+        self.assertEqual((tracked['length'], tracked['width'], tracked['yaw']), box[3:])
+        occluded = node._update_tracks([], 1.2)[0]
+        self.assertAlmostEqual(occluded['length'], box[3]+.2)
+        legacy = node._update_tracks([(0., 0., 1.)], 2.)
+        self.assertEqual([o['length'] for o in legacy if o['x'] == 0.], [2.])
+
+    def held_planner(self):
+        route = [(float(i), 0.) for i in range(400)]
+        lanes = {2: [(x, 3.6) for x, _ in route], 3: [(x, 7.2) for x, _ in route]}
+        # R3 priority interval over the whole route; R1 outside it.
+        return core.LocalAvoidancePlanner(route, [11]*len(route), lanes, preferred_lane=1,
+                                          preferred_lane_indices={i: 3 for i in range(len(route))})
+
+    def test_held_r3_passes_only_through_r2_and_never_r1(self):
+        p = self.held_planner()
+        slow = core.Obstacle(40., 7.2, 2.49, vx=2., kind='dynamic', length=4.6, width=1.9)
+        d = p.plan(0, (0., 7.2), 8., [slow], desired_speed_mps=20.)
+        self.assertEqual(p.lane_hold, 3)
+        self.assertEqual(d.state, 'OVERTAKING')
+        self.assertEqual(p.transition['target'], 2)
+        # R2 also has a slow car: tail in R3, do not escape to R1.
+        p.transition = None
+        blocked = [slow, core.Obstacle(40., 3.6, 2.49, vx=2., kind='dynamic', length=4.6, width=1.9)]
+        d = p.plan(0, (0., 7.2), 8., blocked, desired_speed_mps=20.)
+        self.assertEqual(d.state, 'TAILING')
+        self.assertIsNone(p.transition)
+
+    def test_held_lane_change_is_not_cancelled_when_gap_is_invaded(self):
+        p = self.held_planner()
+        slow = core.Obstacle(40., 7.2, 2.49, vx=2., kind='dynamic', length=4.6, width=1.9)
+        p.plan(0, (0., 7.2), 8., [slow], desired_speed_mps=20.)
+        self.assertTrue(p.transition['locked'])
+        intruder = core.Obstacle(10.+3.845+1.+2.3, 3.6, 2.49, vx=8., kind='dynamic',
+                                 length=4.6, width=1.9)
+        d = p.plan(10, (10., 6.), 8., [slow, intruder], desired_speed_mps=20.)
+        self.assertEqual(d.reason, 'lane_change_gap_hold')
+        self.assertEqual(p.transition['target'], 2)
+        self.assertLess(d.speed_cap_kmh, 8.*3.6)
+
+    def test_held_r2_returns_to_r3_after_passing(self):
+        p = self.held_planner()
+        p.lane_hold = 3
+        passed = core.Obstacle(80.-.79-3.5-2.3, 7.2, 2.49, vx=2., kind='dynamic', length=4.6, width=1.9)
+        p.departed_preferred = True
+        d = p.plan(80, (80., 3.6), 8., [passed], desired_speed_mps=20.)
+        self.assertEqual(d.state, 'RETURNING')
+        self.assertEqual(p.transition['target'], 3)
 
 
 if __name__ == '__main__':

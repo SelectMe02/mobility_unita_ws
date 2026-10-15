@@ -22,6 +22,10 @@ import rosnode
 import yaml
 from std_msgs.msg import String
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from driving_log_session import new_run_directory, announce
+
 
 JSON_TOPICS = [
     '/waypoint_debug/ground_status', '/waypoint_debug/tracking_state',
@@ -63,8 +67,14 @@ def record_command(directory):
 
 class DrivingLogRecorder:
     def __init__(self):
-        self.directory = Path(rospy.get_param('~directory')).resolve()
-        self.directory.mkdir(parents=True, exist_ok=True)
+        explicit = rospy.get_param('~directory', '')
+        if explicit:
+            self.directory = Path(explicit).resolve()
+            self.directory.mkdir(parents=True, exist_ok=True)
+        else:
+            # Default: <root>/run_YYYYmmdd_HHMMSS, shared with the follower.
+            self.directory = new_run_directory(rospy.get_param('~root'))
+        announce(rospy, self.directory, rospy.get_param('~session', ''))
         self.lock = threading.Lock()
         self.closed = False
         self.counts = collections.Counter()

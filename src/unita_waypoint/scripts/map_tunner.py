@@ -299,12 +299,14 @@ class MapTunner:
         if range_points:
             line = marker_base('speed_range', 0, Marker.LINE_STRIP, (4.0, 0.0, 0.0))
             line.points = [Point(point['x'], point['y'], 1.25) for point in range_points]
-            color(line, (1.0, 0.85, 0.05), 0.9)
+            color(line, (1.0, 0.1, 0.1) if self.mode == 'delete_range' else (1.0, 0.85, 0.05), 0.9)
             markers.append(line)
         current_points = self.editor.lane(self.active_sector, self.active_lane)
         for marker_id, point_id, label, rgb in (
-                (0, self.range_start_id, '속도 시작', (1.0, 0.55, 0.05)),
-                (1, self.range_end_id, '속도 끝', (0.95, 0.2, 0.8))):
+                (0, self.range_start_id, '삭제 시작' if self.mode == 'delete_range' else '속도 시작',
+                 (1.0, 0.55, 0.05)),
+                (1, self.range_end_id, '삭제 끝' if self.mode == 'delete_range' else '속도 끝',
+                 (0.95, 0.2, 0.8))):
             point = next((item for item in current_points if item['id'] == point_id), None)
             if point is None:
                 continue
@@ -440,7 +442,8 @@ class MapTunner:
                 self.smooth_at(x, y)
                 return
             points = self.editor.lane(self.active_sector, self.active_lane)
-            if self.mode == 'speed_range':
+            if self.mode in ('speed_range', 'delete_range'):
+                deleting = self.mode == 'delete_range'
                 index, distance = nearest_point(points, x, y)
                 if index is None or distance > 8.0:
                     self.refresh('8 m 이내에 경로점이 없습니다. 확대해서 다시 선택하세요.')
@@ -449,11 +452,14 @@ class MapTunner:
                 if self.range_start_id is None or self.range_end_id is not None:
                     self.range_start_id = point_id
                     self.range_end_id = None
-                    self.refresh('속도 시작점 #{} 선택. 끝점을 좌클릭하세요.'.format(point_id))
+                    self.refresh('{} 시작점 #{} 선택. 끝점을 좌클릭하세요.'.format(
+                        '삭제' if deleting else '속도', point_id))
                 else:
                     self.range_end_id = point_id
-                    self.refresh('속도 구간 #{} → #{} ({}점) 선택. 속도를 입력하세요.'.format(
-                        self.range_start_id, point_id, len(self.speed_range_points())))
+                    self.refresh('{} 구간 #{} → #{} ({}점) 선택. {}'.format(
+                        '삭제' if deleting else '속도', self.range_start_id, point_id,
+                        len(self.speed_range_points()),
+                        "'선택 구간 삭제'를 누르세요." if deleting else '속도를 입력하세요.'))
                 return
             if self.mode == 'select':
                 index, distance = nearest_point(points, x, y)
@@ -636,8 +642,8 @@ class MapTunner:
                     if action == 'mode_select':
                         self.selected_id = None
                     self.interpolation_start = None
-                elif action == 'mode_speed_range':
-                    self.mode = 'speed_range'
+                elif action in ('mode_speed_range', 'mode_delete_range'):
+                    self.mode = action.split('_', 1)[1]
                     self.selected_id = None
                     self.clear_speed_range()
                     self.interpolation_start = None
@@ -652,6 +658,14 @@ class MapTunner:
                     self.editor.change_point(self.active_sector, self.active_lane,
                                              selected['id'],
                                              speed_kmh=selected['speed_kmh'] + change)
+                elif action == 'delete_range':
+                    if self.mode != 'delete_range' or self.range_end_id is None:
+                        raise ValueError('연속 점 지우기에서 시작점과 끝점을 먼저 선택하세요.')
+                    self.deleted_count = self.editor.remove_range(
+                        self.active_sector, self.active_lane,
+                        self.range_start_id, self.range_end_id)
+                    self.clear_speed_range()
+                    self.selected_id = None
                 elif action == 'delete_point':
                     if self.selected_id is None:
                         raise ValueError('select a point first')
@@ -686,6 +700,8 @@ class MapTunner:
                 'mode_add': '점 추가 모드: 지도에서 좌클릭하세요.',
                 'mode_select': '점 선택 모드: 점을 좌클릭하면 노란 점을 바로 드래그할 수 있습니다.',
                 'mode_speed_range': '속도 구간: 시작점과 끝점을 차례로 좌클릭하세요.',
+                'mode_delete_range': '연속 점 지우기: 지울 구간의 시작점과 끝점을 차례로 좌클릭하세요.',
+                'delete_range': '구간 {}개 점 삭제 (실행 취소 가능)'.format(getattr(self, 'deleted_count', 0)),
                 'mode_interpolate': '연속 점찍기: 시작점과 끝점을 좌클릭하세요. 사이 {}점을 포함해 경로 끝에 추가합니다.'.format(self.continuous_point_count),
                 'mode_smooth': '스무딩 모드: 점을 좌클릭하면 주변 앞뒤 15개를 스무딩합니다.',
                 'mode_resize': '사진 손잡이를 드래그하세요. 모서리는 비율 유지, 변은 한 방향만 변경합니다.',

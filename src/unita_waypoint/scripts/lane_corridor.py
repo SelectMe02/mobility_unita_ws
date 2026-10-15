@@ -86,6 +86,12 @@ class LaneCorridor:
             np.logical_or.at(result, start+point_ids, inside)
         return result
 
+    def direction(self, xy):
+        """Unit tangent of the nearest saved lane segment (travel direction)."""
+        _, index = self.tree.query(np.asarray(xy, dtype=float))
+        vector = self.vectors[index]
+        return vector/max(float(np.hypot(*vector)), 1e-9)
+
     def filter_obstacles(self, obstacles):
         if not obstacles:
             return []

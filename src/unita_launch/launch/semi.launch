@@ -1,0 +1,241 @@
+<launch>
+  <!-- One run, every segment from the same nodes:
+       CP8-CP11            raceline follower (test_map_raceline.launch behaviour)
+       start-CP8, CP11-start  Leo follower + signal guard + route avoidance
+                              (signal_tracking_local.launch enable_route_avoidance:=true)
+       GPS-denied tunnel    same Leo follower on LiDAR odometry + FTG
+                              (signal_tracking_avoidance_local.launch)
+       The signal guard is the only /ctrl_cmd publisher: it forwards the raceline
+       command unchanged inside CP8-CP11 and gates the Leo command elsewhere.
+       It arms itself, so the car shifts to D and starts without rosservice.
+       Target speed everywhere = Map Tuner project point speed_kmh. -->
+  <arg name="morai_ip" default="127.0.0.1"/>
+  <arg name="morai_port" default="9093"/>
+  <arg name="status_port" default="9096"/>
+  <arg name="waypoint_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
+  <arg name="model_path" default="$(find perception)/../../best1.pt"/>
+  <arg name="intersection_file" default="$(find leo_guard)/config/intersections_local.json"/>
+  <arg name="stoplines_file" default="$(find unita_waypoint)/config/stoplines.json"/>
+  <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
+  <!-- Checkpoint segment driven by the raceline follower. -->
+  <arg name="raceline_checkpoints" default="8-11"/>
+  <arg name="start_rviz" default="false"/>
+  <!-- log:=true records raceline decisions/obstacles (driving_log_recorder) and
+       the Leo guard/avoidance/tunnel state to unita_waypoint/log. -->
+  <arg name="log" default="false"/>
+  <arg name="diagnostic_root" default="$(find unita_waypoint)/log"/>
+  <arg name="diagnostic_session" default="$(anon log_session)"/>
+
+  <!-- ===== Sensors, localization, simulator link (shared) ===== -->
+  <include file="$(find sensor_bridge)/launch/sensor_bridge.launch">
+    <arg name="source_ip" value="$(arg morai_ip)"/>
+    <arg name="east_offset" value="302595"/>
+    <arg name="north_offset" value="4124145"/>
+    <!-- Heading from the IMU sensor only (no Ego status pose/heading). -->
+    <arg name="enable_imu" value="true"/>
+    <arg name="enable_rear_camera" value="true"/>
+    <arg name="enable_lidar" value="true"/>
+    <arg name="lidar_launch" value="VLP16_points.launch"/>
+    <arg name="lidar_rpm" value="600"/>
+  </include>
+  <node pkg="localization" type="gps_imu_localization.py" name="gps_imu_localization" output="screen">
+    <rosparam command="load" file="$(find localization)/config/gps_imu.yaml"/>
+    <param name="imu_topic" value="/imu"/>
+  </node>
+  <!-- Single UDP owner; outside a GPS blackout it sends the guard's /ctrl_cmd as is. -->
+  <node pkg="leo_avoidance" type="blackout_udp_control_local.py" name="competition_udp_control"
+        output="screen" required="true">
+    <rosparam command="load" file="$(find control)/config/competition_udp.yaml"/>
+    <rosparam command="load" file="$(find leo_avoidance)/config/blackout.yaml"/>
+    <param name="morai_ip" value="$(arg morai_ip)"/>
+    <param name="morai_port" value="$(arg morai_port)"/>
+    <param name="status_port" value="$(arg status_port)"/>
+    <param name="heading_source" value="imu"/>
+    <param name="steering_sign" value="1.0"/>
+    <param name="max_steering_deg" value="40.0"/>
+    <param name="max_speed_kmh" value="100.0"/>
+    <param name="ego_yaw_offset_deg" value="0.0"/>
+  </node>
+  <node pkg="unita_launch" type="waypoint_visualizer.py" name="waypoint_visualizer" output="screen"/>
+
+  <!-- ===== CP8-CP11: raceline follower (test_map_raceline.launch) ===== -->
+  <node pkg="unita_waypoint" type="raceline_test_follower.py" name="gps_waypoint_follower" output="screen">
+    <param name="diagnostic_log" value="$(arg log)"/>
+    <param name="diagnostic_directory" value="" type="str"/>
+    <param name="diagnostic_root" value="$(arg diagnostic_root)"/>
+    <param name="diagnostic_session" value="$(arg diagnostic_session)"/>
+    <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile.yaml"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <param name="use_project_speed_limits" value="true"/>
+    <param name="waypoint_format" value="local_xy"/>
+    <param name="loop_path" value="true"/>
+    <param name="gps_topic" value="/gps"/>
+    <param name="imu_topic" value="/imu"/>
+    <param name="ctrl_topic" value="/semi/raceline_ctrl_cmd"/>
+    <param name="enable_local_avoidance" value="true"/>
+    <param name="raceline_config" value="$(arg raceline_config)"/>
+    <param name="raceline_width" value="" type="str"/>
+    <param name="preferred_raceline" value="3"/>
+    <param name="preferred_raceline_sector" value="11"/>
+    <param name="preferred_raceline_end_checkpoint" value="11" type="str"/>
+    <param name="preferred_raceline_after_checkpoint" value="1"/>
+    <param name="rear_extent_m" value="0.790"/>
+    <param name="lane_change_gap_m" value="3.0"/>
+    <param name="lane_change_lateral_accel_mps2" value="1.5"/>
+    <param name="lane_change_max_heading_deg" value="10.0"/>
+    <param name="vehicle_half_width_m" value="0.946"/>
+    <param name="front_extent_m" value="3.845"/>
+    <param name="enable_velocity_planning" value="true"/>
+    <param name="longitudinal_control_mode" value="pid"/>
+    <param name="speed_topic" value="/competition/ego_speed_kmh"/>
+    <param name="wheelbase" value="3.0"/>
+    <param name="lookahead_distance" value="5.0"/>
+    <param name="max_steering_rad" value="0.6981317007977318"/>
+    <param name="steering_sign" value="1.0"/>
+  </node>
+  <node pkg="unita_waypoint" type="lidar_obstacles.py" name="lidar_obstacles" output="screen">
+    <param name="pose_topic" value="/localization/pose"/>
+    <param name="cloud_topic" value="/lidar3D"/>
+    <param name="ground_imu_topic" value="/imu"/>
+    <rosparam command="load" file="$(find unita_waypoint)/config/ground_filter.yaml"/>
+    <param name="lidar_to_rear_x_m" value="1.4"/>
+    <param name="lidar_to_rear_z_m" value="1.23"/>
+    <param name="rear_range_m" value="55.0"/>
+    <param name="rear_extent_m" value="0.790"/>
+  </node>
+
+  <!-- ===== start-CP8, CP11-start, tunnel: Leo follower ===== -->
+  <!-- Its debug topics move under /leo so the two followers never mix. -->
+  <node pkg="unita_waypoint" type="gps_waypoint_follower_local.py" name="leo_waypoint_follower" output="screen">
+    <remap from="/waypoint_path" to="/leo/waypoint_path"/>
+    <remap from="/waypoint_debug/target_speed_kmh" to="/leo/waypoint_debug/target_speed_kmh"/>
+    <remap from="/waypoint_debug/current_speed_kmh" to="/leo/waypoint_debug/current_speed_kmh"/>
+    <remap from="/waypoint_debug/path_curvature" to="/leo/waypoint_debug/path_curvature"/>
+    <remap from="/waypoint_debug/speed_zone" to="/leo/waypoint_debug/speed_zone"/>
+    <remap from="/waypoint_debug/tracking_state" to="/leo/waypoint_debug/tracking_state"/>
+    <remap from="/waypoint_debug/local_path" to="/leo/waypoint_debug/local_path"/>
+    <remap from="/waypoint_debug/lane_geometry" to="/leo/waypoint_debug/lane_geometry"/>
+    <remap from="/waypoint_debug/obstacles" to="/leo/waypoint_debug/obstacles"/>
+    <rosparam command="load" file="$(find unita_waypoint)/config/competition_speed_profile_local.yaml"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <param name="use_project_speed_limits" value="true"/>
+    <param name="waypoint_format" value="local_xy"/>
+    <param name="loop_path" value="true"/>
+    <param name="gps_topic" value="/gps"/>
+    <param name="imu_topic" value="/imu"/>
+    <!-- GPS pose outside the tunnel, LiDAR odometry inside it. -->
+    <param name="drive_pose_topic" value="/leo/driving_pose"/>
+    <param name="drive_valid_topic" value="/leo/driving_valid"/>
+    <param name="drive_mode_topic" value="/leo/driving_mode"/>
+    <param name="avoidance_target_topic" value="/leo/avoidance_target"/>
+    <param name="avoidance_speed_topic" value="/leo/avoidance_speed_limit_kmh"/>
+    <param name="ctrl_topic" value="/leo/raw_ctrl_cmd"/>
+    <param name="guard_speed_limit_topic" value="/leo/speed_limit_kmh"/>
+    <param name="enable_local_avoidance" value="true"/>
+    <param name="route_avoidance_topic" value="/leo/route_avoidance"/>
+    <param name="raceline_config" value="$(arg raceline_config)"/>
+    <param name="raceline_width" value="" type="str"/>
+    <param name="preferred_raceline" value="1"/>
+    <param name="preferred_raceline_sector" value="0"/>
+    <param name="preferred_raceline_end_checkpoint" value="" type="str"/>
+    <param name="preferred_raceline_after_checkpoint" value="1"/>
+    <param name="rear_extent_m" value="0.790"/>
+    <param name="lane_change_min_rear_gap_m" value="8.0"/>
+    <param name="lane_change_rear_headway_s" value="2.0"/>
+    <param name="vehicle_half_width_m" value="0.946"/>
+    <param name="front_extent_m" value="3.845"/>
+    <param name="enable_velocity_planning" value="true"/>
+    <param name="longitudinal_control_mode" value="pid"/>
+    <param name="speed_topic" value="/competition/ego_speed_kmh"/>
+    <param name="wheelbase" value="3.0"/>
+    <param name="lookahead_distance" value="5.0"/>
+    <param name="max_steering_rad" value="0.6981317007977318"/>
+    <param name="steering_sign" value="1.0"/>
+  </node>
+  <node pkg="unita_waypoint" type="lidar_obstacles_local.py" name="leo_lidar_obstacles" output="screen">
+    <remap from="/waypoint_debug/lane_geometry" to="/leo/waypoint_debug/lane_geometry"/>
+    <remap from="/waypoint_debug/obstacles" to="/leo/waypoint_debug/obstacles"/>
+    <param name="pose_topic" value="/localization/pose"/>
+    <param name="cloud_topic" value="/lidar3D"/>
+    <param name="lidar_to_rear_x_m" value="1.4"/>
+    <param name="lidar_to_rear_z_m" value="1.23"/>
+    <param name="rear_range_m" value="55.0"/>
+    <param name="rear_extent_m" value="0.790"/>
+  </node>
+  <node pkg="leo_avoidance" type="route_avoidance_node.py" name="leo_route_avoidance"
+        output="screen" required="true">
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <!-- Driving pose: stays fresh across the GPS-to-LiDAR handoff at the portal. -->
+    <param name="pose_topic" value="/leo/driving_pose"/>
+    <!-- Lane changes only across dashed lines of the official route. -->
+    <param name="lane_change_file" value="$(find leo_avoidance)/config/route_lane_changes.json"/>
+    <param name="intersection_file" value="$(arg intersection_file)"/>
+  </node>
+  <!-- Tunnel: IMU-heading dead reckoning, LiDAR odometry and FTG avoidance. -->
+  <node pkg="leo_avoidance" type="ego_odometry_node.py" name="leo_ego_odometry" output="screen" required="true">
+    <param name="speed_timeout_s" value="0.6"/>
+    <param name="max_heading_interval_s" value="0.6"/>
+    <param name="heading_topic" value="/imu"/>
+  </node>
+  <node pkg="leo_avoidance" type="driving_state_node_local.py" name="leo_driving_state" output="screen" required="true">
+    <rosparam command="load" file="$(find leo_avoidance)/config/odometry_local.yaml"/>
+    <rosparam command="load" file="$(find leo_avoidance)/config/avoidance_local.yaml"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+  </node>
+
+  <!-- ===== Signal guard: the only /ctrl_cmd publisher ===== -->
+  <node pkg="perception" type="traffic_light_test.py" name="leo_traffic_lights" output="screen" required="true">
+    <remap from="/perception/traffic_lights" to="/leo/traffic_lights"/>
+    <param name="model_path" value="$(arg model_path)"/>
+    <param name="confidence" value="0.7"/>
+    <param name="inference_rate" value="5.0"/>
+    <param name="image_timeout" value="1.0"/>
+    <!-- Fourth freely placed camera; sensor bridge retains its old rear topic name. -->
+    <param name="aux_image_topic" value="/camera/image/rear"/>
+    <param name="camera_selection_topic" value="/leo/signal_camera"/>
+  </node>
+  <node pkg="leo_guard" type="signal_guard_node_local.py" name="leo_signal_guard" output="screen" required="true">
+    <remap from="/perception/traffic_lights" to="/leo/traffic_lights"/>
+    <remap from="/localization/pose" to="/leo/driving_pose"/>
+    <remap from="/localization/valid" to="/leo/driving_valid"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+    <param name="intersection_file" value="$(arg intersection_file)"/>
+    <param name="stoplines_file" value="$(arg stoplines_file)"/>
+    <!-- GPS transform inspected at (0,0,1.2), MORAI rear-axle origin. -->
+    <param name="gps_to_front_axle_m" value="3.0"/>
+    <param name="vehicle_half_width_m" value="0.946"/>
+    <param name="stop_margin_m" value="5.0"/>
+    <!-- Brief GPS-to-ICP handoff at the tunnel portals. -->
+    <param name="pose_fault_grace_s" value="2.0"/>
+    <!-- Corridor; the map_debug panel value (saved) overrides these. -->
+    <param name="route_max_error_m" value="3.75"/>
+    <param name="blackout_route_max_error_m" value="7.0"/>
+    <rosparam command="load" ns="blackout" file="$(find leo_avoidance)/config/odometry_local.yaml"/>
+    <param name="missed_signal_hold_s" value="0.8"/>
+    <!-- Corridor measured from the lane being driven (route avoidance offset, saved R2/R3). -->
+    <param name="route_avoidance_topic" value="/leo/route_avoidance"/>
+    <param name="passthrough_checkpoints" value="$(arg raceline_checkpoints)"/>
+    <param name="passthrough_command_topic" value="/semi/raceline_ctrl_cmd"/>
+    <param name="auto_arm" value="true"/>
+  </node>
+
+  <!-- ===== Diagnostics (log:=true) ===== -->
+  <node if="$(arg log)" pkg="unita_waypoint" type="driving_log_recorder.py"
+        name="driving_log_recorder" output="screen">
+    <param name="directory" value="" type="str"/>
+    <param name="root" value="$(arg diagnostic_root)"/>
+    <param name="session" value="$(arg diagnostic_session)"/>
+    <param name="waypoint_file" value="$(arg waypoint_file)"/>
+  </node>
+  <node if="$(arg log)" pkg="rosbag" type="record" name="semi_leo_recorder"
+        args="-o $(arg diagnostic_root)/semi_leo
+              /leo/signal_status /leo/speed_limit_kmh /leo/route_avoidance
+              /leo/driving_status /leo/driving_mode /leo/avoidance_status
+              /leo/waypoint_debug/tracking_state /leo/waypoint_debug/local_path
+              /leo/waypoint_debug/obstacles /leo/waypoint_debug/target_speed_kmh
+              /leo/raw_ctrl_cmd /semi/raceline_ctrl_cmd /ctrl_cmd /leo/traffic_lights
+              /competition/ego_speed_kmh /localization/pose /leo/driving_pose /rosout_agg"/>
+
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="waypoint_rviz"
+        args="-d $(find unita_launch)/config/waypoint_tracking.rviz"/>
+</launch>

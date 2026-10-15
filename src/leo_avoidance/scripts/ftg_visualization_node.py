@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Show only LiDAR returns FTG treats as obstacle hits, grouped into boxes."""
+"""Show only LiDAR returns FTG treats as obstacle hits, grouped into boxes.
+
+Also draws the GPS-route avoidance plan (/leo/route_avoidance): the local
+path, the global route it leaves, the obstacles it judged and its state.
+"""
 import json
+import math
 import time
 
 import numpy as np
 import rospy
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PoseStamped
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import String
@@ -15,6 +20,14 @@ from leo_avoidance.ftg_local import Config, FollowTheGap
 from leo_avoidance.ftg_visualization import (cluster_boxes,
                                              line_candidate_points,
                                              relative_lidar_xy)
+from leo_avoidance.route_avoidance import RouteFrame
+from leo_guard.route_file import load_route_points
+
+ROUTE_STATE_COLORS = {
+    'PASSING': (.2, 1., .2),
+    'WAIT_PASS': (1., .85, 0.),
+    'WAIT_SOLID_LINE': (1., .15, .15),
+}
 
 
 class FTGVisualizationNode:
@@ -46,6 +59,102 @@ class FTGVisualizationNode:
                          queue_size=1)
         rospy.Subscriber('/leo/avoidance_status', String,
                          self.on_avoidance_status, queue_size=1)
+        # GPS-route avoidance plan, drawn in the same LiDAR view.
+        waypoint_file = rospy.get_param('~waypoint_file', '')
+        self.route = RouteFrame(load_route_points(waypoint_file)) if waypoint_file else None
+        self.route_view_m = (-10., 60.)
+        self.route_pose = None
+        self.last_route_update = 0.
+        self.route_pub = rospy.Publisher('/leo/route_avoidance_markers', MarkerArray,
+                                         queue_size=1)
+        rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
+                         PoseStamped, self.on_route_pose, queue_size=1)
+        rospy.Subscriber('/leo/route_avoidance', String, self.on_route_avoidance,
+                         queue_size=1)
+
+    def on_route_pose(self, message):
+        p, q = message.pose.position, message.pose.orientation
+        yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
+        if all(math.isfinite(v) for v in (p.x, p.y, yaw)):
+            self.route_pose = (p.x, p.y, yaw)
+
+    def route_xy(self, xy):
+        """Map point -> current LiDAR view, or None outside the drawn window."""
+        local = relative_lidar_xy(xy, self.route_pose,
+                                  self.planner.config.lidar_to_rear_x_m)
+        if local is None or not self.route_view_m[0] <= local[0] <= self.route_view_m[1]:
+            return None
+        return local
+
+    def route_line(self, namespace, xy_points, color, width, z):
+        line = self.pose_marker('lidar', namespace, 0, Marker.LINE_STRIP, (0., 0.), color)
+        line.pose.position.z = 0.
+        line.points = [Point(x=x, y=y, z=z) for x, y in
+                       filter(None, (self.route_xy(p) for p in xy_points))]
+        line.scale.x = width
+        line.lifetime = rospy.Duration(1.)
+        return line if len(line.points) >= 2 else None
+
+    def on_route_avoidance(self, message):
+        now = time.monotonic()
+        if now - self.last_route_update < .1 or self.route_pose is None:
+            return
+        self.last_route_update = now
+        try:
+            status = json.loads(message.data)
+        except (TypeError, ValueError):
+            return
+        state = status.get('state')
+        color = ROUTE_STATE_COLORS.get(state, (.25, .85, 1.))
+        markers = MarkerArray()
+        clear = Marker()
+        clear.header.frame_id = 'lidar'
+        clear.action = Marker.DELETEALL
+        markers.markers.append(clear)
+        if self.route is not None:
+            ego_s, _, _ = self.route.project(self.route_pose[0], self.route_pose[1],
+                                             0, len(self.route.lengths))
+            ahead = [self.route.pose(s)[0] for s in
+                     np.arange(ego_s + self.route_view_m[0], ego_s + self.route_view_m[1], 1.)]
+            route = self.route_line('route_global_path', ahead, (.6, .6, .6), .06, .02)
+            if route is not None:
+                route.color.a = .6
+                markers.markers.append(route)
+        path = self.route_line('route_local_path', status.get('path') or [], color, .18, .08)
+        if path is not None:
+            markers.markers.append(path)
+        for index, obstacle in enumerate(status.get('obstacles') or []):
+            if self.route is None:
+                break
+            xy = self.route_xy(self.route.pose(float(obstacle['s']), float(obstacle['d']))[0])
+            if xy is None:
+                continue
+            moving = bool(obstacle.get('moving'))
+            radius = max(.2, float(obstacle.get('r', .2)))
+            disc = self.pose_marker('lidar', 'route_obstacles', index, Marker.CYLINDER, xy,
+                                    (1., .55, 0.) if moving else (1., .1, .1))
+            disc.scale.x = disc.scale.y = 2. * radius
+            disc.scale.z = .3
+            disc.color.a = .6
+            disc.lifetime = rospy.Duration(1.)
+            markers.markers.append(disc)
+            label = self.pose_marker(
+                'lidar', 'route_obstacle_labels', index, Marker.TEXT_VIEW_FACING,
+                (xy[0], xy[1] + radius + .4), (1., 1., 1.),
+                '#{} {} d={:+.2f}m'.format(obstacle.get('id'),
+                                            'moving' if moving else 'static',
+                                            float(obstacle['d'])))
+            label.lifetime = rospy.Duration(1.)
+            markers.markers.append(label)
+        text = self.pose_marker(
+            'lidar', 'route_avoidance_status', 0, Marker.TEXT_VIEW_FACING,
+            (6., 3.), color,
+            'route: {} | {} | cap {:.0f} km/h | offset {:+.2f} m'.format(
+                state, status.get('reason'), float(status.get('speed_cap_kmh') or 0.),
+                float(status.get('offset_m') or 0.)))
+        text.lifetime = rospy.Duration(1.)
+        markers.markers.append(text)
+        self.route_pub.publish(markers)
 
     def on_avoidance_status(self, message):
         now = time.monotonic()

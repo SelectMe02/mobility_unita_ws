@@ -3,22 +3,12 @@ import math
 import numpy as np
 
 from leo_avoidance.dead_reckoning import DeadReckoner
-from leo_avoidance.driving_state_local import DrivingState, bounded_pose_correction
+from leo_avoidance.driving_state_local import DrivingState
 from leo_avoidance.scan_odometry import Match, ScanOdometry, inverse, transform
 
 
 def landmarks():
     return np.random.default_rng(9).uniform([-7, -5], [12, 5], (500, 2))
-
-
-def test_exit_pose_correction_converges_without_ten_metre_jump():
-    pose = (-72.82, -546.34, -2.62)
-    actual = (-65.09, -538.97, -2.61)
-    for _ in range(12):
-        next_pose = bounded_pose_correction(pose, actual, 1., .05)
-        assert math.hypot(next_pose[0]-pose[0], next_pose[1]-pose[1]) <= 1.000001
-        pose = next_pose
-    assert math.hypot(pose[0]-actual[0], pose[1]-actual[1]) < .01
 
 
 def test_iterative_lidar_odometry_recovers_motion_with_odom_prior():
@@ -291,37 +281,6 @@ def test_route_corroborated_gps_rejoin_replaces_drifted_lidar_pose():
     assert state.map_pose == pose and not state.had_blackout
     assert 'route-corroborated' in reason
     assert state.last_rejoin_error[0] > state.max_rejoin_error_m
-
-
-def test_sim_exit_uses_ego_pose_for_waypoint_steering_until_gps_returns():
-    state = DrivingState(ScanOdometry())
-    cloud = landmarks()
-    state.update_gps((100., 200., 0.), 10.)
-    state.update_raw_gps(37., 127., 10.)
-    state.update_gps_valid(True, 10.)
-    state.update_odom((0., 0., 0.), 10.)
-    state.scan(cloud, 10.)
-    state.select(10.)
-    state.update_raw_gps(0., 0., 10.1)
-    state.update_gps_valid(False, 10.1)
-    state.update_avoidance(True, 10.1)
-    state.update_odom((0., 0., 0.), 10.1)
-    state.scan(cloud, 10.1)
-    assert state.select(10.1)[0] == state.BLACKOUT
-    mode, pose, _ = state.select(10.2, sim_exit_pose=(102., 201., .1),
-                                 sim_exit_active=True)
-    assert mode == state.SIM_EXIT and pose == (102., 201., .1)
-    assert state.select(10.3, sim_exit_active=True)[0] == state.HOLD
-    state.update_gps((110., 201., .1), 10.35)
-    state.update_raw_gps(37., 127., 10.35)
-    state.update_gps_valid(True, 10.35)
-    mode, pose, _ = state.select(10.35, sim_exit_pose=(102.2, 201., .1),
-                                 sim_exit_active=True)
-    assert mode == state.SIM_EXIT and pose == (102.2, 201., .1)
-    state.update_gps((102., 201., .1), 10.4)
-    state.update_raw_gps(37., 127., 10.4)
-    state.update_gps_valid(True, 10.4)
-    assert state.select(10.4, sim_exit_active=True)[0] == state.GPS
 
 
 def test_rejoin_checks_pose_after_temporary_icp_hold():

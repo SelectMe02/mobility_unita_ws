@@ -31,7 +31,6 @@ class EgoStatus:
     gear: int
     stamp: tuple
     speed_kmh: float
-    position: tuple
     yaw_deg: float
     wheelbase: float
     steering_deg: float
@@ -43,12 +42,13 @@ def decode_ego_status(packet):
     mode, stamp = decode_status_mode(packet)
     speed = struct.unpack_from('<f', packet, 37)[0]
     wheelbase = struct.unpack_from('<f', packet, 69)[0]
-    position = struct.unpack_from('<3f', packet, 77)
     yaw = struct.unpack_from('<f', packet, 97)[0]
     steering = struct.unpack_from('<f', packet, 137)[0]
-    if not all(math.isfinite(value) for value in (speed, wheelbase, *position, yaw, steering)):
+    if not all(math.isfinite(value) for value in (speed, wheelbase, yaw, steering)):
         raise ValueError('non-finite Ego Vehicle Status fields')
-    return EgoStatus(mode, packet[36], stamp, speed, position, yaw, wheelbase, steering)
+    # pos_x/y/z (offset 77) is not part of the Competition Vehicle Status
+    # regulation and is never read.
+    return EgoStatus(mode, packet[36], stamp, speed, yaw, wheelbase, steering)
 
 
 class StatusFreshness:

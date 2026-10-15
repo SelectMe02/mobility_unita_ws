@@ -7,7 +7,6 @@ import threading
 import time
 
 import rospy
-from geometry_msgs.msg import PoseStamped
 from morai_msgs.msg import CtrlCmd, GPSMessage
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64, String, UInt8
@@ -57,8 +56,6 @@ class CompetitionUDPControl:
         self.status_pub = rospy.Publisher('/control/udp_status', String, queue_size=1, latch=True)
         self.mode_pub = rospy.Publisher('/control/sim_mode', UInt8, queue_size=1, latch=True)
         self.ego_pub = rospy.Publisher('/competition/ego_status', String, queue_size=1, latch=True)
-        self.ego_pose_pub = (rospy.Publisher('/competition/ego_pose', PoseStamped, queue_size=1)
-                             if rospy.get_param('~publish_ego_pose', False) else None)
         self.speed_pub = rospy.Publisher('/competition/ego_speed_kmh', Float64, queue_size=1)
         self.heading_pub = (rospy.Publisher('/competition/heading_imu', Imu, queue_size=1)
                             if self.heading_source == 'ego_status' else None)
@@ -130,17 +127,8 @@ class CompetitionUDPControl:
                 changed = self.freshness.update(status.stamp, received)
             self.mode_pub.publish(UInt8(data=status.mode))
             self.speed_pub.publish(Float64(data=abs(status.speed_kmh)))
-            self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m pos={}'.format(
-                status.mode, status.gear, status.speed_kmh, status.yaw_deg, status.steering_deg, status.wheelbase, status.position)))
-            if changed and self.ego_pose_pub is not None:
-                pose = PoseStamped()
-                pose.header.stamp = rospy.Time.now()
-                pose.header.frame_id = 'map'
-                pose.pose.position.x, pose.pose.position.y = status.position[:2]
-                yaw = math.radians(status.yaw_deg + self.yaw_offset)
-                pose.pose.orientation.z = math.sin(yaw / 2.)
-                pose.pose.orientation.w = math.cos(yaw / 2.)
-                self.ego_pose_pub.publish(pose)
+            self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m'.format(
+                status.mode, status.gear, status.speed_kmh, status.yaw_deg, status.steering_deg, status.wheelbase)))
             if changed and self.heading_pub is not None:
                 yaw = math.radians(status.yaw_deg + self.yaw_offset)
                 message = Imu()

@@ -40,9 +40,8 @@ class RouteProgress:
 
 
 class TrafficDecision:
-    def __init__(self, stops, route_length, front_margin=5., maximum_kmh=58.,
-                 decel=3., latency=.5, stoplines=None, crossing_kmh=None,
-                 crossing_before_m=30., crossing_after_m=40., missed_signal_hold_s=0.):
+    def __init__(self, stops, route_length, front_margin=5.,
+                 decel=3., latency=.5, stoplines=None, missed_signal_hold_s=0.):
         self.stops = sorted(stops, key=lambda v:v['s'])
         # A frame with no detection in the head ROI keeps the last permitted
         # signal of the same stop for this long. Red, yellow, an uncertain
@@ -51,19 +50,9 @@ class TrafficDecision:
             raise ValueError('invalid missed signal hold')
         self.missed_signal_hold_s = missed_signal_hold_s
         self.last_permit = None
-        # Speed through a signal-controlled intersection: from crossing_before_m
-        # before the stop line until crossing_after_m past its exit, where
-        # crossing pedestrians must still be stoppable for. None disables it.
-        self.crossing = None if crossing_kmh is None else crossing_kmh/3.6
-        self.crossing_before_m = crossing_before_m
-        self.crossing_after_m = crossing_after_m
-        if (self.crossing is not None and not (math.isfinite(self.crossing) and self.crossing > 0)
-                or not all(math.isfinite(v) and v >= 0 for v in (crossing_before_m, crossing_after_m))):
-            raise ValueError('invalid intersection crossing speed')
-        self.post_exit = None
         if not math.isfinite(route_length) or route_length<=0:
             raise ValueError('invalid route length')
-        if any(not math.isfinite(v) or v<=0 for v in (front_margin,maximum_kmh,decel,latency)):
+        if any(not math.isfinite(v) or v<=0 for v in (front_margin,decel,latency)):
             raise ValueError('invalid traffic braking configuration')
         for stop in self.stops:
             if stop.get('signal_camera','front') not in ('front','up'):
@@ -77,14 +66,16 @@ class TrafficDecision:
                 if (not isinstance(roi,list) or len(roi)!=4 or not all(math.isfinite(v) for v in roi)
                         or not 0<=roi[0]<roi[2]<=1 or not 0<=roi[1]<roi[3]<=1):
                     raise ValueError('reviewed signal requires a valid controlling-head ROI')
-            for key in ('signal_min_width', 'signal_activation_distance_m', 'stop_margin_m', 'crossing_speed_kmh'):
+            for key in ('signal_min_width', 'signal_activation_distance_m', 'stop_margin_m'):
                 if key in stop and (not isinstance(stop[key],(float,int))
                         or not math.isfinite(stop[key]) or stop[key]<=0):
                     raise ValueError('invalid surveyed head association bound')
             if stop.get('signal_min_width',0)>=1:
                 raise ValueError('invalid surveyed head size')
         self.route_length = route_length
-        self.front_margin = front_margin; self.maximum = maximum_kmh/3.6
+        # No route speed of its own: the Map Tuner point speed is the target,
+        # this gate only lowers it to stop before an unpermitted line.
+        self.front_margin = front_margin; self.maximum = float('inf')
         self.decel = decel; self.latency = latency
         self.latch = SignalLatch(0.,1.,min_frames=1)
         self.committed = None
@@ -101,7 +92,6 @@ class TrafficDecision:
 
     def reset(self):
         self.latch = SignalLatch(0.,1.,min_frames=1); self.committed = None; self.last_s = None; self.active = None
-        self.post_exit = None
         self.approach_go_selected = None
         self.last_permit = None
 
@@ -125,33 +115,8 @@ class TrafficDecision:
 
     def decide(self, progress, signals, now, front_offset=0., yield_clear=False,
                pose=None, speed_mps=None, ros_now=None):
-        cap, detail = self._decide(progress, signals, now, front_offset, yield_clear,
-                                   pose, speed_mps, ros_now)
-        limit = self.crossing_limit(progress)
-        if limit is not None and cap > limit:
-            cap = limit
-            detail = dict(detail, crossing_limit_kmh=round(limit*3.6, 1))
-        return cap, detail
-
-    def crossing_limit(self, progress):
-        """Intersection crossing speed if Ego is near or inside a signal crossing."""
-        if self.crossing is None:
-            return None
-        if self.committed is not None:
-            stop, start, clearance = self.committed
-            self.post_exit = (start, clearance + self.crossing_after_m)
-            return self.crossing
-        if self.post_exit is not None:
-            start, length = self.post_exit
-            if (progress-start) % self.route_length < length:
-                return self.crossing
-            self.post_exit = None
-        if self.active is not None:
-            distance, stop = self.active
-            if (stop.get('controlled') is True
-                    and -5. <= distance <= self.crossing_before_m):
-                return self.crossing
-        return None
+        return self._decide(progress, signals, now, front_offset, yield_clear,
+                            pose, speed_mps, ros_now)
 
     def _decide(self, progress, signals, now, front_offset=0., yield_clear=False,
                 pose=None, speed_mps=None, ros_now=None):
@@ -168,8 +133,7 @@ class TrafficDecision:
             stop, start, clearance = self.committed
             advanced = (progress-start)%self.route_length
             if advanced < clearance:
-                maximum=min(self.maximum,18./3.6) if stop['maneuver'] in ('left','right_unprotected') else self.maximum
-                return maximum, {'state':'clearing','intersection_id':stop['id'],
+                return self.maximum, {'state':'clearing','intersection_id':stop['id'],
                                       'reason':'entered on permitted camera signal'}
             self.committed = None; self.active = None; self.latch = SignalLatch(0.,1.,min_frames=1)
             self.approach_go_selected = None
@@ -191,8 +155,7 @@ class TrafficDecision:
                 return self._decide(progress, signals, now, front_offset, yield_clear,
                                    pose, speed_mps, ros_now)
             detail.update(state='clear',reason='surveyed uncontrolled crossing')
-            maximum=min(self.maximum,stop.get('crossing_speed_kmh',self.maximum*3.6)/3.6) if distance<=30. else self.maximum
-            return maximum, detail
+            return self.maximum, detail
         allowed = False; label = 'intersection/head association not reviewed'
         signal_state = 'unknown'
         if stop.get('reviewed') and stop.get('controlled') is True:
@@ -234,8 +197,7 @@ class TrafficDecision:
             # braking margin. Keep permission through the surveyed exit.
             if distance <= front_offset:
                 self.committed=(stop,progress,stop['clearance_m']+max(0.,distance))
-            maximum=min(self.maximum,18./3.6) if stop['maneuver'] in ('left','right_unprotected') else self.maximum
-            return maximum, detail
+            return self.maximum, detail
         if distance < 0:
             return 0.,dict(detail,state='hold',reason='crossed unpermitted/unreviewed stop line: reset required')
         available=max(0.,distance-max(self.front_margin,stop.get('stop_margin_m',0.),front_offset))

@@ -2,12 +2,15 @@
 """Switch existing map-pose consumers from GPS to LiDAR ICP + Ego odometry."""
 import json
 import math
+import sys
 import threading
 import time
 from collections import deque
 from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
+import rospkg
 import rospy
 from geometry_msgs.msg import PointStamped, PoseStamped
 from morai_msgs.msg import GPSMessage
@@ -16,11 +19,29 @@ from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
 from std_msgs.msg import Bool, Float64, String
 
-from leo_avoidance.driving_state_local import DrivingState, bounded_pose_correction
+from leo_avoidance.driving_state_local import DrivingState
 from leo_avoidance.ftg_local import Config, FollowTheGap, Plan
-from leo_avoidance.scan_odometry import ScanOdometry, between
+from leo_avoidance.scan_odometry import ScanOdometry
 from leo_guard.traffic_local import RouteProgress
-from leo_guard.route_file import load_route_points
+from leo_guard.route_file import anchor_on_route, load_route_points, load_route_speeds
+
+sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
+from avoidance_runtime import FrozenConfigTarget, RuntimeSettings  # noqa: E402
+
+
+def locate_or_reacquire(route, x, y, yaw):
+    """Windowed route projection; once lost, search the whole route again.
+
+    The raceline follower may drive a lane far from Raceline 1 (CP8-CP11), so
+    a projection lost there must not stay stuck at the old route index.
+    """
+    try:
+        return route.locate(x, y, yaw)
+    except ValueError:
+        if route.index is None:
+            raise
+        route.index = None
+        return route.locate(x, y, yaw)
 
 
 class DrivingStateNode:
@@ -49,7 +70,10 @@ class DrivingStateNode:
         self.config = Config(**{key: rospy.get_param('~' + key, default)
                                 for key, default in vars(Config()).items()})
         self.planner = FollowTheGap(self.config)
+        self.runtime = RuntimeSettings('leo_driving_state', FrozenConfigTarget(self.planner))
         route_points = load_route_points(rospy.get_param('~waypoint_file'))
+        # FTG top speed = Map Tuner point speed at the current route index.
+        self.route_speeds_kmh = load_route_speeds(rospy.get_param('~waypoint_file'))
         # A safe pass can leave the mapped centerline by several metres.
         # Keep route projection available so the preferred bearing pulls
         # back toward the same waypoint path after the obstacle clears.
@@ -59,44 +83,27 @@ class DrivingStateNode:
         self.blackout_route = RouteProgress(route_points, max_error=route_max_error_m,
                                             backward_window=30)
         self.rejoin_route = RouteProgress(route_points, max_error=2.0)
-        self.exit_anchor_route = RouteProgress(route_points, max_error=1.9,
-                                               backward_window=30)
         self.rejoin_diagnostic = None
-        self.blackout_start_index = int(rospy.get_param('~blackout_start_index', 0))
-        self.blackout_end_index = int(rospy.get_param(
-            '~blackout_end_index', len(route_points) - 1))
-        exit_index = int(rospy.get_param('~sim_exit_waypoint_index', 4019))
-        self.exit_index = exit_index
+        # GPS-denied window as map anchors, projected onto the current route.
+        self.blackout_start_index, _ = anchor_on_route(
+            route_points, rospy.get_param('~blackout_start_anchor'))
+        self.blackout_end_index, _ = anchor_on_route(
+            route_points, rospy.get_param('~blackout_end_anchor'))
+        # Surveyed tunnel-exit gate (map constant, not simulator state).
         self.exit_rejoin_start_m = float(rospy.get_param('~exit_rejoin_start_m', 35.))
         self.exit_rejoin_full_m = float(rospy.get_param('~exit_rejoin_full_m', 12.))
-        self.exit_anchor_speed_cap_mps = float(rospy.get_param(
-            '~exit_anchor_speed_cap_mps', 5.))
-        self.exit_anchor_start_m = float(rospy.get_param('~exit_anchor_start_m', 35.))
-        self.exit_anchor_step_m = float(rospy.get_param('~exit_anchor_step_m', 1.))
-        self.exit_route_trust_m = float(rospy.get_param('~exit_route_trust_m', .5))
-        self.exit_xy = np.array((float(rospy.get_param('~sim_exit_x_m', -78.35)),
-                                 float(rospy.get_param('~sim_exit_y_m', -545.63))))
-        self.exit_radius_m = float(rospy.get_param('~sim_exit_trigger_radius_m', 15.))
-        self.exit_cross_track_m = float(rospy.get_param('~sim_exit_cross_track_limit_m', 2.))
+        exit_anchor = rospy.get_param('~exit_anchor')
+        self.exit_xy = np.array((float(exit_anchor['x']), float(exit_anchor['y'])))
+        exit_index, _ = anchor_on_route(route_points, exit_anchor)
+        self.exit_index = exit_index
         if (not 0 <= exit_index < len(route_points)-1
                 or not np.isfinite(self.exit_xy).all()
-                or not math.isfinite(self.exit_radius_m) or self.exit_radius_m <= 0
-                or not math.isfinite(self.exit_cross_track_m) or self.exit_cross_track_m <= 0
                 or not 0 <= self.exit_rejoin_full_m < self.exit_rejoin_start_m):
-            raise ValueError('invalid MORAI exit coordinate or limits')
-        if (not math.isfinite(self.exit_anchor_speed_cap_mps)
-                or self.exit_anchor_speed_cap_mps <= 0
-                or not math.isfinite(self.exit_anchor_start_m)
-                or self.exit_anchor_start_m < self.exit_rejoin_start_m
-                or not math.isfinite(self.exit_anchor_step_m)
-                or not 0 < self.exit_anchor_step_m <= 2.
-                or not math.isfinite(self.exit_route_trust_m)
-                or self.exit_route_trust_m <= 0):
-            raise ValueError('invalid MORAI exit anchor speed cap')
+            raise ValueError('invalid tunnel exit coordinate or limits')
         tangent = route_points[exit_index+1, :2] - route_points[exit_index, :2]
         segment_length = float(np.linalg.norm(tangent))
         if segment_length < 1e-6:
-            raise ValueError('invalid MORAI exit route tangent')
+            raise ValueError('invalid tunnel exit route tangent')
         self.exit_tangent = tangent / segment_length
         projected_m = float(np.clip(
             (self.exit_xy - route_points[exit_index, :2]) @ self.exit_tangent,
@@ -104,10 +111,7 @@ class DrivingStateNode:
         self.exit_route_s = float(self.route.s[exit_index] + projected_m)
         self.exit_route_offset = (self.exit_xy - route_points[exit_index, :2]
                                   - projected_m * self.exit_tangent)
-        self.exit_latched = False
-        self.exit_anchor_active = False
         self.previous_output_pose = None
-        self.latest_ego_pose = None
         self.gps_pose_max_age_s = float(rospy.get_param('~gps_pose_max_age_s', 1.0))
         if (not 0 <= self.blackout_start_index <= self.blackout_end_index
                 < len(route_points) or not math.isfinite(self.gps_pose_max_age_s)
@@ -143,7 +147,6 @@ class DrivingStateNode:
             rospy.Subscriber('/localization/valid', Bool, self.on_gps_valid, queue_size=1),
             rospy.Subscriber('/leo/ego_odom', Odometry, self.on_odom, queue_size=1),
             rospy.Subscriber('/competition/ego_speed_kmh', Float64, self.on_speed, queue_size=1),
-            rospy.Subscriber('/competition/ego_pose', PoseStamped, self.on_ego_pose, queue_size=1),
             rospy.Subscriber('/lidar3D', PointCloud2, self.on_cloud,
                              queue_size=1, buff_size=2 ** 24)]
         threading.Thread(target=self.cloud_worker, daemon=True).start()
@@ -185,23 +188,6 @@ class DrivingStateNode:
             self.latest_speed = sample
             self.speed_history.append(sample)
 
-    def on_ego_pose(self, message):
-        if message.header.frame_id != 'map' or not self.fresh_stamp(message):
-            return
-        p = message.pose.position
-        pose = (p.x, p.y, self.yaw(message.pose.orientation))
-        if not all(math.isfinite(v) for v in pose):
-            return
-        with self.lock:
-            self.latest_ego_pose = (pose, time.monotonic())
-
-    def past_exit_gate(self, pose):
-        delta = np.asarray(pose[:2]) - self.exit_xy
-        along = float(delta @ self.exit_tangent)
-        cross = float(self.exit_tangent[0]*delta[1] - self.exit_tangent[1]*delta[0])
-        return (along >= 0 and abs(cross) <= self.exit_cross_track_m
-                and float(np.linalg.norm(delta)) <= self.exit_radius_m)
-
     def on_gps_valid(self, message):
         with self.lock:
             self.machine.update_gps_valid(message.data, time.monotonic())
@@ -227,7 +213,7 @@ class DrivingStateNode:
 
     def route_bearing(self, pose):
         x, y, yaw = pose
-        self.route_progress_m, _ = self.route.locate(x, y, yaw)
+        self.route_progress_m, _ = locate_or_reacquire(self.route, x, y, yaw)
         index = self.route.index
         distance_m = 0.
         target = self.route.points[index]
@@ -254,47 +240,13 @@ class DrivingStateNode:
             raise ValueError('route target is behind vehicle')
         return math.atan2(local_y, local_x)
 
-    def exit_wall_weight(self, ego_pose=None):
-        """Use the simulator exit gate, not drifted LiDAR progress, for handoff."""
-        if ego_pose is None:
-            # Without an independent exit observation, a drifted map pose
-            # must not turn off wall following before the tunnel ends.
-            return 1., None
-        remaining = max(0., float((self.exit_xy - np.asarray(ego_pose[:2]))
-                                  @ self.exit_tangent))
-        weight = float(np.clip(
-            (remaining - self.exit_rejoin_full_m) /
-            (self.exit_rejoin_start_m - self.exit_rejoin_full_m), 0., 1.))
-        return weight, remaining
-
-    def safe_exit_anchor(self, ego_pose):
-        """Allow simulator pose correction only near the exit and on the route."""
-        if ego_pose is None:
-            return False
-        remaining = float((self.exit_xy - np.asarray(ego_pose[:2]))
-                          @ self.exit_tangent)
-        if not -2. <= remaining <= self.exit_anchor_start_m:
-            return False
-        try:
-            # A scenario restart can move the Ego back before this route
-            # projector's old index; validate against the full route here.
-            self.exit_anchor_route.index = None
-            self.exit_anchor_route.locate(*ego_pose)
-        except ValueError:
-            return False
-        segment = self.exit_anchor_route.delta[self.exit_anchor_route.index]
-        route_yaw = math.atan2(segment[1], segment[0])
-        yaw_error = math.atan2(math.sin(ego_pose[2] - route_yaw),
-                               math.cos(ego_pose[2] - route_yaw))
-        return abs(yaw_error) <= .35
-
     def route_rejoin_ok(self, gps_pose, map_pose, blackout_index):
         """Accept a drifted LiDAR pose only when GPS agrees with nearby route."""
         self.rejoin_diagnostic = None
         if gps_pose is None or map_pose is None or blackout_index is None:
             return False
         try:
-            map_s, map_error = self.blackout_route.locate(*map_pose)
+            map_s, map_error = locate_or_reacquire(self.blackout_route, *map_pose)
             # ICP can accumulate several metres of longitudinal error across
             # the tunnel. Search the whole route once GPS returns instead of
             # the normal 10-waypoint rear window around the drifted ICP index.
@@ -348,9 +300,7 @@ class DrivingStateNode:
             message, received = item
             points = None
             speed = None
-            with self.lock:
-                self.exit_anchor_active = False
-            route_trusted = False
+            self.runtime.poll()
             try:
                 with self.lock:
                     scan_stamp = message.header.stamp.to_sec()
@@ -360,12 +310,6 @@ class DrivingStateNode:
                     gps_capture = self.nearest_capture(self.gps_history, scan_stamp)
                     speed = self.nearest_speed(self.speed_history, received,
                                                self.speed_timeout_s)
-                    ego_phase_pose = (self.latest_ego_pose[0]
-                                     if self.machine.had_blackout
-                                     and self.latest_ego_pose is not None
-                                     and 0 <= received-self.latest_ego_pose[1]
-                                     <= self.machine.input_timeout_s else None)
-                    ego_exit_pose = ego_phase_pose if self.exit_latched else None
                     anchoring = (self.machine.gps_available(received)
                                  and not self.machine.had_blackout)
                     gps_anchor_pose = gps_capture[0] if anchoring and gps_capture else None
@@ -378,37 +322,22 @@ class DrivingStateNode:
                     message, field_names=('x', 'y', 'z'), skip_nans=True)), dtype=float)
                 if time.monotonic() - received > self.machine.input_timeout_s:
                     raise ValueError('LiDAR ICP input became stale during processing')
-                if ego_exit_pose is not None:
-                    pose = ego_exit_pose
-                else:
-                    xy = self.matcher.prepare(points)
-                    with self.lock:
-                        self.machine.scan(xy, received, odom_sample,
-                                          anchoring, gps_anchor_pose)
-                        if (self.machine.scan_valid
-                                and self.safe_exit_anchor(ego_phase_pose)):
-                            # This is a MORAI-only correction at the portal.
-                            # LiDAR matching and FTG must remain valid; the
-                            # simulator pose cannot authorize an unsafe scan.
-                            self.machine.map_pose = bounded_pose_correction(
-                                self.machine.map_pose, ego_phase_pose,
-                                self.exit_anchor_step_m, .05)
-                            self.exit_anchor_active = True
-                            # Trust the route bearing only once the bounded
-                            # correction has caught up with the simulator.
-                            route_trusted = bool(np.linalg.norm(
-                                np.asarray(self.machine.map_pose[:2])
-                                - np.asarray(ego_phase_pose[:2]))
-                                <= self.exit_route_trust_m)
-                        pose = self.machine.map_pose if self.machine.scan_valid else None
-                        scan_fault = self.machine.scan_fault_reason
-                    if pose is None:
-                        raise ValueError(scan_fault or 'LiDAR map pose missing/stale')
+                xy = self.matcher.prepare(points)
+                with self.lock:
+                    self.machine.scan(xy, received, odom_sample,
+                                      anchoring, gps_anchor_pose)
+                    pose = self.machine.map_pose if self.machine.scan_valid else None
+                    scan_fault = self.machine.scan_fault_reason
+                if pose is None:
+                    raise ValueError(scan_fault or 'LiDAR map pose missing/stale')
                 if (speed is None or not math.isfinite(speed[0])
                         or speed[0] < 0):
                     raise ValueError('Ego speed missing/stale at LiDAR scan')
                 preferred_bearing = self.route_bearing(pose)
-                wall_weight, rejoin_remaining = self.exit_wall_weight(ego_phase_pose)
+                if self.route_speeds_kmh is not None:
+                    self.planner.config = replace(
+                        self.planner.config, max_speed_mps=float(
+                            self.route_speeds_kmh[self.route.index]) / 3.6)
                 with self.lock:
                     # Until a GPS return is accepted, keep tunnel wall
                     # guidance: a brief fix or a late zero sample must not
@@ -416,19 +345,13 @@ class DrivingStateNode:
                     wall_follow = (self.machine.had_blackout
                                    or self.machine.gps_zero(received)
                                    or self.machine.gps_missing(received))
-                    wall_follow = (wall_follow and not self.exit_latched
+                    wall_follow = (wall_follow
                                    and self.blackout_start_index <= self.route.index
                                    <= self.blackout_end_index)
                 plan = self.planner.plan(points, speed[0], preferred_bearing,
                                          wall_follow=wall_follow,
-                                         wall_follow_weight=wall_weight,
-                                         route_rejoin_remaining_m=rejoin_remaining,
                                          ego_pose=odom_sample[0],
-                                         stamp=scan_stamp,
-                                         route_trusted=route_trusted)
-                if self.exit_anchor_active:
-                    plan = replace(plan, speed_mps=min(
-                        plan.speed_mps, self.exit_anchor_speed_cap_mps))
+                                         stamp=scan_stamp)
                 if time.monotonic() - received > self.machine.input_timeout_s:
                     raise ValueError('LiDAR planning exceeded input age limit')
             except Exception as error:
@@ -490,20 +413,11 @@ class DrivingStateNode:
             now = time.monotonic()
             map_pose = self.machine.map_pose
             lidar_pose_before_select = map_pose
-            ego_item = self.latest_ego_pose
-            ego_pose = (ego_item[0] if ego_item is not None
-                        and 0 <= now-ego_item[1] <= self.machine.input_timeout_s
-                        else None)
-            if (self.machine.had_blackout and not self.exit_latched
-                    and ego_pose is not None and self.past_exit_gate(ego_pose)):
-                self.exit_latched = True
-            sim_exit_pose = (ego_pose if self.exit_latched
-                             and self.machine.had_blackout else None)
             blackout_index = None
             blackout_projection_error = None
             if map_pose is not None:
                 try:
-                    self.blackout_route.locate(*map_pose)
+                    locate_or_reacquire(self.blackout_route, *map_pose)
                     blackout_index = self.blackout_route.index
                 except ValueError as error:
                     blackout_projection_error = str(error)
@@ -518,8 +432,7 @@ class DrivingStateNode:
                                  self.machine.gps_pose[0], map_pose,
                                  blackout_index))
             mode, pose, reason = self.machine.select(
-                now, blackout_allowed, gps_rejoin_ok, sim_exit_pose,
-                self.exit_latched)
+                now, blackout_allowed, gps_rejoin_ok)
             previous_output_pose = self.previous_output_pose
             output_jump_m = (float(np.linalg.norm(
                 np.asarray(pose[:2]) - np.asarray(previous_output_pose[:2])))
@@ -531,8 +444,6 @@ class DrivingStateNode:
                     and blackout_projection_error):
                 reason = 'LiDAR blackout pose outside route corridor or facing backwards'
                 self.machine.reason = reason
-            if mode == DrivingState.GPS:
-                self.exit_latched = False
             travelled = self.machine.travelled_m
             raw_gps = self.machine.raw_gps
             gps_pose = self.machine.gps_pose
@@ -548,7 +459,6 @@ class DrivingStateNode:
             last_cloud_received_wall = self.last_cloud_received_wall
             last_cloud_stamp_age_s = self.last_cloud_stamp_age_s
             last_plan_completed_wall = self.last_plan_completed_wall
-            exit_anchor_active = self.exit_anchor_active
         cloud_received_age_s = (now - last_cloud_received_wall
                                 if last_cloud_received_wall is not None else None)
         plan_completed_age_s = (now - last_plan_completed_wall
@@ -556,14 +466,11 @@ class DrivingStateNode:
         plan = item[0] if item and 0 <= now-item[1] <= self.machine.input_timeout_s else None
         speed_mps = (speed[0] if speed and 0 <= now-speed[1] <= self.speed_timeout_s
                      and math.isfinite(speed[0]) and speed[0] >= 0 else None)
-        # Compare the simulator pose with the estimate; only the guarded
-        # exit approach above may use it to re-anchor the map pose.
-        pose_error = between(ego_pose, map_pose) if ego_pose is not None and map_pose is not None else None
         if output_jump_m is not None and output_jump_m > 10.:
-            rospy.logwarn('Driving pose jump %.2f m: mode=%s previous=%s output=%s lidar_before_select=%s ego=%s',
+            rospy.logwarn('Driving pose jump %.2f m: mode=%s previous=%s output=%s lidar_before_select=%s',
                           output_jump_m, mode, previous_output_pose, pose,
-                          lidar_pose_before_select, ego_pose)
-        avoidance_valid = (mode in (DrivingState.BLACKOUT, DrivingState.SIM_EXIT)
+                          lidar_pose_before_select)
+        avoidance_valid = (mode == DrivingState.BLACKOUT
                            and pose is not None
                            and plan is not None and plan.speed_mps > 0
                            and speed_mps is not None)
@@ -614,7 +521,7 @@ class DrivingStateNode:
                 now - scan_wall if scan_wall is not None else None,
                 now - odom_sample[1] if odom_sample is not None else None,
                 plan_reason)
-            rospy.logwarn_throttle(2., 'Driving HOLD: %s; scan: %s; avoidance: %s; front_points: %d; nearest_front_x_m: %.2f; clearance_m: %.2f; right_wall_clearance_m: %s; avoidance_phase: %s; route_index: %s; route_projection_error: %s; map_pose: %s; ego_pose: %s; rejoin: %s; error: %s',
+            rospy.logwarn_throttle(2., 'Driving HOLD: %s; scan: %s; avoidance: %s; front_points: %d; nearest_front_x_m: %.2f; clearance_m: %.2f; right_wall_clearance_m: %s; avoidance_phase: %s; route_index: %s; route_projection_error: %s; map_pose: %s; rejoin: %s; error: %s',
                                    reason, scan_fault, plan_reason,
                                    plan.front_points if plan else 0,
                                    plan.nearest_front_x_m if plan else 0.,
@@ -622,7 +529,7 @@ class DrivingStateNode:
                                    plan.right_wall_clearance_m if plan else None,
                                    plan.avoidance_phase if plan else None,
                                    blackout_index, blackout_projection_error,
-                                   map_pose, ego_pose,
+                                   map_pose,
                                    self.rejoin_diagnostic,
                                    self.machine.last_rejoin_error)
         self.status_pub.publish(String(data=json.dumps({
@@ -638,23 +545,13 @@ class DrivingStateNode:
             'gps_rejoin_route_ok': gps_rejoin_ok,
             'gps_rejoin_error': self.machine.last_rejoin_error,
             'gps_rejoin_diagnostic': self.rejoin_diagnostic,
-            'sim_exit_latched': self.exit_latched,
-            'sim_exit_anchor_active': exit_anchor_active,
-            'sim_exit_distance_m': (float(np.linalg.norm(np.asarray(ego_pose[:2])
-                                                        - self.exit_xy))
-                                    if ego_pose is not None else None),
-            'ego_pose_age_s': now-ego_item[1] if ego_item is not None else None,
             'avoidance_reason': plan_reason,
             'scan_fault_reason': scan_fault,
             'map_pose': map_pose,
             'lidar_pose_before_select': lidar_pose_before_select,
-            'ego_pose': ego_pose,
             'driving_pose': pose,
             'previous_driving_pose': previous_output_pose,
             'driving_pose_jump_m': output_jump_m,
-            'sim_pose_error_forward_m': pose_error[0] if pose_error else None,
-            'sim_pose_error_left_m': pose_error[1] if pose_error else None,
-            'sim_pose_error_yaw_rad': pose_error[2] if pose_error else None,
             'scan_age_s': now - scan_wall if scan_wall is not None else None,
             'cloud_received_age_s': cloud_received_age_s,
             'cloud_stamp_age_s': last_cloud_stamp_age_s,

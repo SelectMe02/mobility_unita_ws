@@ -62,6 +62,12 @@ Visualization Manager:
     Marker Topic: /leo/ftg_planning
     Queue Size: 1
     Namespaces: {}
+  - Class: rviz/MarkerArray
+    Name: Route avoidance local path
+    Enabled: true
+    Marker Topic: /leo/route_avoidance_markers
+    Queue Size: 1
+    Namespaces: {}
   - Class: rviz/Axes
     Name: LiDAR axes
     Enabled: true

@@ -101,7 +101,7 @@ class MapDebug:
                          String, self.on_obstacles, queue_size=1)
         rospy.Subscriber('/waypoint_debug/lane_geometry', String,
                          self.on_lane_geometry, queue_size=1, buff_size=2**22)
-        for owner in ('lidar_obstacles', 'gps_waypoint_follower'):
+        for owner in sorted({spec[0] for spec in SETTINGS.values()}):
             rospy.Subscriber('/waypoint_debug/avoidance_config/' + owner, String,
                              self.on_config, callback_args=owner, queue_size=1)
         rospy.Subscriber('/map_debug/avoidance_parameter_edit', String,
@@ -266,8 +266,14 @@ class MapDebug:
                         identifier in identifiers or not all(math.isfinite(v) for v in values) or
                         not .1 <= values[2] <= 6. or kind not in ('dynamic', 'static', 'unknown')):
                     return
+                # Detector rectangle; older streams carry only the circle.
+                box = [float(item.get(key, 0.)) for key in ('length', 'width', 'yaw')]
+                if not all(math.isfinite(v) for v in box) or min(box[:2]) < 0.:
+                    return
+                if box[0] <= 0. or box[1] <= 0.:
+                    box = [2.*values[2], 2.*values[2], 0.]
                 identifiers.add(identifier)
-                obstacles.append((identifier, *values, kind))
+                obstacles.append((identifier, *values, kind, *box))
         except (ValueError, KeyError, TypeError, OverflowError):
             return
         corridor = self.lane_corridor
@@ -418,16 +424,16 @@ class MapDebug:
                 deleted = marker(namespace, identifier, Marker.CUBE)
                 deleted.action = Marker.DELETE
                 markers.append(deleted)
-        for identifier, x, y, radius, vx, vy, kind in obstacles:
+        for identifier, x, y, radius, vx, vy, kind, length, width, yaw in obstacles:
             rgb = ((1., .15, .1) if kind == 'dynamic' else
                    (.1, .65, 1.) if kind == 'static' else (1., .85, .1))
-            # The tracker reports a 2D collision radius, not an object mesh.
-            # Enclose that footprint in a box; height is for map visibility.
-            width, height, base = 2.*radius, 1.5, 3.
+            # The detector's lane-aligned rectangle; height is for visibility.
+            height, base = 1.5, 3.
             box = marker('obstacle_boxes', identifier, Marker.CUBE)
             box.pose.position.x, box.pose.position.y = x, y
             box.pose.position.z = base+height*.5
-            box.scale.x = box.scale.y = width
+            box.pose.orientation.z, box.pose.orientation.w = math.sin(yaw*.5), math.cos(yaw*.5)
+            box.scale.x, box.scale.y = length, width
             box.scale.z = height
             box.color.r, box.color.g, box.color.b, box.color.a = (*rgb, .35)
             box.lifetime = rospy.Duration(.5)
@@ -435,7 +441,8 @@ class MapDebug:
             edges = marker('obstacle_edges', identifier, Marker.LINE_LIST)
             edges.scale.x = .18
             edges.color.r, edges.color.g, edges.color.b, edges.color.a = (*rgb, 1.)
-            corners = [Point(x+sx*radius, y+sy*radius, z)
+            c, s = math.cos(yaw), math.sin(yaw)
+            corners = [Point(x+c*sx*length*.5-s*sy*width*.5, y+s*sx*length*.5+c*sy*width*.5, z)
                        for z in (base, base+height)
                        for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
             pairs = [(i, (i+1) % 4) for i in range(4)]

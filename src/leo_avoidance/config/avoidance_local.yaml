@@ -17,8 +17,8 @@ max_target_bearing_rad: 0.6108652382  # 35 degrees to either side
 passing_gap_width_weight: 0.35  # prefer a wider verified gap when first choosing a passing side
 swept_path_horizon_m: 4.0  # reject steering directions that clip a rear corner
 swept_side_margin_m: 0.3  # body clearance for the swept-path check only; gap selection keeps side_margin_m
-max_speed_mps: 11.1111111111  # 40 km/h only with sufficient forward and wall clearance
-no_return_speed_mps: 2.0  # crawl with side-scan evidence until GPS returns
+# max_speed_mps: every scan uses the Map Tuner point speed at the route index.
+# no_return_speed_mps and the other FTG speed caps: RViz map_debug panel.
 min_no_return_evidence_points: 10
 target_distance_from_lidar_m: 4.0
 route_lookahead_m: 5.0

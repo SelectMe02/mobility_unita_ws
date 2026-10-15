@@ -48,19 +48,19 @@ class LiveAvoidanceTest(unittest.TestCase):
                 patch('rospy.Publisher', return_value=MagicMock()), \
                 patch('rospy.get_name', return_value='/gps_waypoint_follower'):
             runtime = RuntimeSettings('gps_waypoint_follower', planner)
-            params['lane_change_smoothness_s'] = 3.5
+            params['lane_change_lateral_accel_mps2'] = 3.5
             runtime.poll()
             saved_file = Path(self.settings_dir.name) / 'avoidance_settings_gps_waypoint_follower.json'
-            self.assertEqual(json.loads(saved_file.read_text())['lane_change_smoothness_s'], 3.5)
-            params['lane_change_smoothness_s'] = -1.
+            self.assertEqual(json.loads(saved_file.read_text())['lane_change_lateral_accel_mps2'], 3.5)
+            params['lane_change_lateral_accel_mps2'] = -1.
             runtime.next_poll = 0.
             runtime.poll()
-            self.assertEqual(json.loads(saved_file.read_text())['lane_change_smoothness_s'], 3.5)
+            self.assertEqual(json.loads(saved_file.read_text())['lane_change_lateral_accel_mps2'], 3.5)
             params.clear()
             restarted = LocalAvoidancePlanner([(float(i), 0.) for i in range(100)], [11]*100, {})
             RuntimeSettings('gps_waypoint_follower', restarted)
-            self.assertEqual(restarted.lane_change_smoothness_s, 3.5)
-            self.assertEqual(params['lane_change_smoothness_s'], 3.5)
+            self.assertEqual(restarted.lane_change_lateral_accel, 3.5)
+            self.assertEqual(params['lane_change_lateral_accel_mps2'], 3.5)
 
     def test_detector_settings_survive_restart(self):
         params = {}
@@ -226,7 +226,7 @@ class LiveAvoidanceTest(unittest.TestCase):
         debug = self.debug()
         for name, value in [('front_range_m', 0), ('avoidance_margin_m', -1),
                             ('obstacle_horizon_m', math.inf), ('rear_range_m', 'abc'),
-                            ('pass_speed_kmh', 20), ('raceline_width', 4)]:
+                            ('pass_speed_kmh', 0), ('raceline_width', 4)]:
             with self.subTest(name=name, value=value), patch('rospy.set_param') as set_param:
                 debug.on_parameter_edit(String(data=json.dumps(dict(name=name, value=value))))
                 set_param.assert_not_called()

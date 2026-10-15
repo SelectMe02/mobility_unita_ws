@@ -16,8 +16,6 @@
   <arg name="preferred_raceline_after_checkpoint" default="1"/>
   <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
   <arg name="raceline_width" default=""/>
-  <arg name="normal_max_speed_kmh" default="60.0"/>
-  <arg name="high_speed_max_speed_kmh" default="100.0"/>
   <param name="gps_waypoint_follower/raceline_config" value="$(arg raceline_config)"/>
   <param name="gps_waypoint_follower/use_project_speed_limits" value="true"/>
   <param if="$(eval arg('raceline_width') != '')" name="gps_waypoint_follower/raceline_width" value="$(arg raceline_width)" type="double"/>
@@ -41,7 +39,5 @@
     <arg name="raceline_config" value="$(arg raceline_config)"/>
     <arg name="raceline_width" value="$(arg raceline_width)"/>
     <arg name="waypoint_file" value="$(arg waypoint_file)"/>
-    <arg name="normal_max_speed_kmh" value="$(arg normal_max_speed_kmh)"/>
-    <arg name="high_speed_max_speed_kmh" value="$(arg high_speed_max_speed_kmh)"/>
   </include>
 </launch>
