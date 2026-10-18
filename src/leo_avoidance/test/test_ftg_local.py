@@ -914,3 +914,76 @@ def test_anchored_route_is_not_clamped_when_the_portal_wall_ends():
     assert drifting.right_wall_clearance_m is None
     assert drifting.target_bearing_rad >= -math.radians(7.) - 1e-6
     assert anchored.target_bearing_rad < -math.radians(10.)
+
+
+def test_exit_wall_structure_changes_only_phase_trigger_not_collision_cloud():
+    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
+    walls = tunnel_walls(3.846, 7.37)
+    # Logged false trigger: left portal lip near x=20, y=6.57 with a
+    # fitted wall at y=7.37. It remains a geometric obstacle in both plans.
+    lip = np.array([[19.99, 6.57, -.37]])
+    cloud = np.vstack((walls, lip))
+    normal = FollowTheGap(cfg).plan(cloud, 1., wall_follow=True)
+    exit_plan = FollowTheGap(cfg).plan(
+        cloud, 1., wall_follow=True, exit_heading_error_rad=0.)
+    assert normal.avoidance_phase == 'PASSING'
+    assert exit_plan.avoidance_phase == 'WALL_FOLLOW'
+    assert normal.obstacle_points == exit_plan.obstacle_points == 1
+
+
+def test_exit_interior_obstacles_still_trigger_avoidance_on_both_sides():
+    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
+    walls = tunnel_walls(5., 5.)
+    for side in (-1., 1.):
+        obstacle = np.array([[7., side*y, 0.] for y in np.linspace(-2., .2, 30)])
+        cloud = np.vstack((walls, obstacle))
+        planner = FollowTheGap(cfg)
+        plan = planner.plan(cloud, 0., wall_follow=True,
+                            wall_follow_weight=0., exit_heading_error_rad=0.)
+        assert plan.avoidance_phase == 'PASSING'
+        assert plan.speed_mps > 0.
+        assert side * plan.target_bearing_rad > 0.
+        assert planner._swept_body_collision(cloud, plan.target_bearing_rad) is None
+
+
+def test_wall_attached_exit_return_still_causes_collision_stop():
+    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
+    walls = tunnel_walls(1.95, 5.)
+    cloud = np.vstack((walls, np.array([[2.7, -1.25, 0.]])))
+    plan = FollowTheGap(cfg).plan(
+        cloud, 0., wall_follow=True, exit_heading_error_rad=0.)
+    assert plan.avoidance_phase == 'WALL_FOLLOW'
+    assert plan.front_points > 0
+    assert plan.speed_mps == 0.
+    assert plan.obstacle_stop
+
+
+def test_exit_direction_keeps_wall_spacing_and_rejects_position_drift():
+    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
+    heading = -math.radians(9.)
+    centred_walls = tunnel_walls(3.846, 5.)
+    shifted_walls = tunnel_walls(2.846, 5.)
+    def plan(cloud, drifted_bearing):
+        return FollowTheGap(cfg).plan(
+            cloud, 1., drifted_bearing, wall_follow=True,
+            wall_follow_weight=0., exit_heading_error_rad=heading)
+    centred = plan(centred_walls, .4)
+    opposite_drift = plan(centred_walls, -.4)
+    shifted = plan(shifted_walls, .4)
+    assert centred.target_bearing_rad == opposite_drift.target_bearing_rad
+    assert centred.target_bearing_rad < -math.radians(6.)
+    # Too near the right wall: spacing still steers left even with full
+    # waypoint heading guidance, rather than fading with the wall heading.
+    assert shifted.target_bearing_rad > centred.target_bearing_rad + .1
+
+
+def test_exit_heading_handover_is_gradual_and_invalid_heading_stops():
+    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
+    cloud = tunnel_walls(3.846, 5.)
+    bearings = [FollowTheGap(cfg).plan(
+        cloud, 1., .4, wall_follow=True, wall_follow_weight=weight,
+        exit_heading_error_rad=-.2).target_bearing_rad for weight in (1., .5, 0.)]
+    assert bearings[0] > bearings[1] > bearings[2]
+    bad = FollowTheGap(cfg).plan(
+        cloud, 1., wall_follow=True, exit_heading_error_rad=float('nan'))
+    assert bad.speed_mps == 0. and bad.reason == 'invalid exit heading'

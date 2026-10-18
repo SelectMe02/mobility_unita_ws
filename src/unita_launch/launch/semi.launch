@@ -1,12 +1,12 @@
 <launch>
   <!-- One run, every segment from the same nodes:
-       CP8-CP11            raceline follower (test_map_raceline.launch behaviour)
-       start-CP8, CP11-start  Leo follower + signal guard + route avoidance
+       CP7-CP11            raceline follower (test_map_raceline.launch behaviour)
+       start-CP7, CP11-start  Leo follower + signal guard + route avoidance
                               (signal_tracking_local.launch enable_route_avoidance:=true)
        GPS-denied tunnel    same Leo follower on LiDAR odometry + FTG
                               (signal_tracking_avoidance_local.launch)
        The signal guard is the only /ctrl_cmd publisher: it forwards the raceline
-       command unchanged inside CP8-CP11 and gates the Leo command elsewhere.
+       command unchanged inside CP7-CP11 and gates the Leo command elsewhere.
        It arms itself, so the car shifts to D and starts without rosservice.
        Target speed everywhere = Map Tuner project point speed_kmh. -->
   <arg name="morai_ip" default="127.0.0.1"/>
@@ -17,11 +17,25 @@
   <arg name="intersection_file" default="$(find leo_guard)/config/intersections_local.json"/>
   <arg name="stoplines_file" default="$(find unita_waypoint)/config/stoplines.json"/>
   <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
-  <!-- Checkpoint segment driven by the raceline follower. -->
-  <arg name="raceline_checkpoints" default="8-11"/>
+  <!-- Checkpoint segment driven by the raceline follower. CP7-CP8 (the S8
+       S-curve) moved here from the Leo follower. -->
+  <arg name="raceline_checkpoints" default="7-11"/>
+  <!-- Leo follower: lane changes here need no pass speed (23.6 km/h). -->
+  <arg name="any_speed_lane_change_checkpoints" default="7-11"/>
+  <!-- Map Tuner point IDs (S12-S13 tollgate, 30 km/h in the project file):
+       follow the waypoints only, no obstacle avoidance there. -->
+  <arg name="waypoint_only_point_ids" default="3496-3572"/>
   <!-- S11 cruising target floor; obstacle/lane-end stops and stale-input
        braking still take priority. Saved Map Debug settings may override it. -->
-  <arg name="sector11_min_speed_kmh" default="40.0"/>
+  <arg name="sector11_min_speed_kmh" default="30.0"/>
+  <!-- Highway (S11 = CP10-CP11) compact following + MOBIL lane changes, Raceline 3
+       preferred, no lane-change speed precondition; collision protection wins.
+       highway_sectors:="" restores the RoboRacer-style logic there. -->
+  <arg name="highway_sectors" default="11"/>
+  <!-- UDP steer = steering / max_steering_deg. 29 deg, not 40: in the
+       2026-10-18 log the car turned only 1/1.377 of the commanded wheel
+       angle (0.2 s lag) at every lateral acceleration. -->
+  <arg name="max_steering_deg" default="29.0"/>
   <arg name="start_rviz" default="false"/>
   <!-- log:=true records raceline decisions/obstacles (driving_log_recorder) and
        the Leo guard/avoidance/tunnel state to unita_waypoint/log. -->
@@ -55,13 +69,13 @@
     <param name="status_port" value="$(arg status_port)"/>
     <param name="heading_source" value="imu"/>
     <param name="steering_sign" value="1.0"/>
-    <param name="max_steering_deg" value="40.0"/>
+    <param name="max_steering_deg" value="$(arg max_steering_deg)"/>
     <param name="max_speed_kmh" value="100.0"/>
     <param name="ego_yaw_offset_deg" value="0.0"/>
   </node>
   <node pkg="unita_launch" type="waypoint_visualizer.py" name="waypoint_visualizer" output="screen"/>
 
-  <!-- ===== CP8-CP11: raceline follower (test_map_raceline.launch) ===== -->
+  <!-- ===== CP7-CP11: raceline follower (test_map_raceline.launch) ===== -->
   <node pkg="unita_waypoint" type="raceline_test_follower.py" name="gps_waypoint_follower" output="screen">
     <param name="diagnostic_log" value="$(arg log)"/>
     <param name="diagnostic_directory" value="" type="str"/>
@@ -83,11 +97,13 @@
     <param name="preferred_raceline_end_checkpoint" value="11" type="str"/>
     <param name="preferred_raceline_after_checkpoint" value="1"/>
     <param name="sector11_min_speed_kmh" value="$(arg sector11_min_speed_kmh)"/>
-    <!-- S11 ordinary cruise braking only. Hazard/stop commands bypass this. -->
+    <param name="highway_sectors" value="$(arg highway_sectors)" type="str"/>
+    <param name="highway_preferred_lane" value="3"/>
+    <!-- S11 cruise and ordinary following: smooth brake; imminent hazards bypass. -->
     <param name="sector11_smooth_braking" value="true"/>
-    <param name="sector11_brake_gain" value="0.025"/>
-    <param name="sector11_max_cruise_brake" value="0.25"/>
-    <param name="sector11_brake_rise_rate" value="0.5"/>
+    <param name="sector11_brake_gain" value="0.02"/>
+    <param name="sector11_max_cruise_brake" value="0.22"/>
+    <param name="sector11_brake_rise_rate" value="0.3"/>
     <param name="sector11_brake_deadband_kmh" value="1.0"/>
     <param name="rear_extent_m" value="0.790"/>
     <param name="lane_change_gap_m" value="3.0"/>
@@ -100,7 +116,7 @@
     <param name="speed_topic" value="/competition/ego_speed_kmh"/>
     <param name="wheelbase" value="3.0"/>
     <param name="lookahead_distance" value="5.0"/>
-    <param name="max_steering_rad" value="0.6981317007977318"/>
+    <param name="max_steering_rad" value="$(eval radians(arg('max_steering_deg')))"/>
     <param name="steering_sign" value="1.0"/>
   </node>
   <node pkg="unita_waypoint" type="lidar_obstacles.py" name="lidar_obstacles" output="screen">
@@ -114,7 +130,7 @@
     <param name="rear_extent_m" value="0.790"/>
   </node>
 
-  <!-- ===== start-CP8, CP11-start, tunnel: Leo follower ===== -->
+  <!-- ===== start-CP7, CP11-start, tunnel: Leo follower ===== -->
   <!-- Its debug topics move under /leo so the two followers never mix. -->
   <node pkg="unita_waypoint" type="gps_waypoint_follower_local.py" name="leo_waypoint_follower" output="screen">
     <remap from="/waypoint_path" to="/leo/waypoint_path"/>
@@ -152,6 +168,11 @@
     <param name="rear_extent_m" value="0.790"/>
     <param name="lane_change_min_rear_gap_m" value="8.0"/>
     <param name="lane_change_rear_headway_s" value="2.0"/>
+    <!-- Pure Pursuit curve cutting within the lane (3.6 m lane - 1.892 m car)/2
+         is tracking error, not a lane departure needing a return lane change. -->
+    <param name="r1_tracking_tolerance_m" value="0.85"/>
+    <param name="lane_change_any_speed_checkpoints" value="$(arg any_speed_lane_change_checkpoints)" type="str"/>
+    <param name="waypoint_only_point_ids" value="$(arg waypoint_only_point_ids)" type="str"/>
     <param name="vehicle_half_width_m" value="0.946"/>
     <param name="front_extent_m" value="3.845"/>
     <param name="enable_velocity_planning" value="true"/>
@@ -159,7 +180,7 @@
     <param name="speed_topic" value="/competition/ego_speed_kmh"/>
     <param name="wheelbase" value="3.0"/>
     <param name="lookahead_distance" value="5.0"/>
-    <param name="max_steering_rad" value="0.6981317007977318"/>
+    <param name="max_steering_rad" value="$(eval radians(arg('max_steering_deg')))"/>
     <param name="steering_sign" value="1.0"/>
   </node>
   <node pkg="unita_waypoint" type="lidar_obstacles_local.py" name="leo_lidar_obstacles" output="screen">
@@ -180,6 +201,7 @@
     <!-- Lane changes only across dashed lines of the official route. -->
     <param name="lane_change_file" value="$(find leo_avoidance)/config/route_lane_changes.json"/>
     <param name="intersection_file" value="$(arg intersection_file)"/>
+    <param name="waypoint_only_point_ids" value="$(arg waypoint_only_point_ids)" type="str"/>
   </node>
   <!-- Tunnel: IMU-heading dead reckoning, LiDAR odometry and FTG avoidance. -->
   <node pkg="leo_avoidance" type="ego_odometry_node.py" name="leo_ego_odometry" output="screen" required="true">

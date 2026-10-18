@@ -1,0 +1,382 @@
+--- a/src/leo_avoidance/src/leo_avoidance/ftg_local.py
++++ b/src/leo_avoidance/src/leo_avoidance/ftg_local.py
+@@ -68,6 +68,7 @@
+     right_wall_target_clearance_m: float = 2.9
+     right_wall_clearance_tolerance_m: float = 0.1
+     wall_point_tolerance_m: float = 0.35
++    exit_wall_trigger_inset_m: float = 0.8
+     wall_corridor_horizon_m: float = 6.0
+     right_wall_min_clearance_m: float = 0.9
+     avoidance_trigger_range_m: float = 20.0
+@@ -144,6 +145,7 @@
+                 or self.right_wall_target_clearance_m < self.right_wall_min_clearance_m
+                 or self.right_wall_clearance_tolerance_m < 0
+                 or self.wall_point_tolerance_m <= 0
++                or self.exit_wall_trigger_inset_m < self.wall_point_tolerance_m
+                 or self.wall_corridor_horizon_m <= 0
+                 or self.right_wall_target_clearance_m - self.right_wall_clearance_tolerance_m
+                 <= self.right_wall_min_clearance_m
+@@ -477,7 +479,7 @@
+                              <= self.config.wall_point_tolerance_m))
+         return self._linear_side_boundaries(points[keep], walls)
+ 
+-    def _inside_walls(self, points, walls):
++    def _inside_walls(self, points, walls, inset_m=None):
+         """Mask of returns on the road side of both fitted walls.
+ 
+         The wall filter only removes returns along the measured wall span.
+@@ -485,6 +487,7 @@
+         along its end tangent so outside returns do not count as in-lane.
+         """
+         inside = np.ones(len(points), dtype=bool)
++        inset_m = self.config.wall_point_tolerance_m if inset_m is None else inset_m
+         for sign, wall in zip((-1., 1.), walls):
+             if wall is None:
+                 continue
+@@ -496,7 +499,7 @@
+             # Only extend forward; nearer than the measured span stays in-lane.
+             inside &= ((x < first_x)
+                        | (sign * (points[:, 1] - wall_y)
+-                          < -self.config.wall_point_tolerance_m))
++                          < -inset_m - 1e-9))
+         return inside
+ 
+     @staticmethod
+@@ -635,13 +638,19 @@
+ 
+     def plan(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
+              wall_follow=False, wall_follow_weight=1., route_rejoin_remaining_m=None,
+-             ego_pose=None, stamp=None, route_trusted=False):
++             ego_pose=None, stamp=None, route_trusted=False, exit_heading_error_rad=None):
+         """Plan one scan. ego_pose is the odometry rear-axle pose (x, y, yaw)
+         at the scan stamp; without it obstacles are not tracked over time.
+ 
+         route_trusted means preferred_bearing_rad comes from a map pose that
+         an independent observation has corrected (the MORAI exit anchor), so
+-        the guards against a drifted LiDAR map pose are not applied."""
++        the guards against a drifted LiDAR map pose are not applied.
++
++        exit_heading_error_rad is a waypoint direction minus the captured
++        heading sensor yaw, supplied only within the configured exit window.
++        It replaces the wall heading gradually via wall_follow_weight while
++        retaining the measured wall-spacing correction and all collision checks.
++        """
+         now = self._clock()
+         self._ego_pose = ego_pose
+         self._scan_stamp = now if stamp is None else stamp
+@@ -651,7 +660,7 @@
+         plan = self._plan_geometry(points_lidar_m, ego_speed_mps,
+                                    preferred_bearing_rad, wall_follow,
+                                    wall_follow_weight, route_rejoin_remaining_m,
+-                                   route_trusted)
++                                   route_trusted, exit_heading_error_rad)
+         cap = self._current_obstacle_cap
+         if math.isfinite(cap):
+             cap = min(cap, plan.speed_mps)
+@@ -679,7 +688,8 @@
+ 
+     def _plan_geometry(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
+              wall_follow=False, wall_follow_weight=1.,
+-             route_rejoin_remaining_m=None, route_trusted=False):
++             route_rejoin_remaining_m=None, route_trusted=False,
++             exit_heading_error_rad=None):
+         """Return a bounded low-speed plan or a full-stop plan.
+ 
+         The cloud must be fresh before calling this function. Empty or
+@@ -722,6 +732,12 @@
+             return stop('invalid Ego speed')
+         if not math.isfinite(preferred_bearing_rad):
+             return stop('invalid route bearing')
++        if exit_heading_error_rad is not None and not math.isfinite(exit_heading_error_rad):
++            return stop('invalid exit heading')
++        exit_rejoin = wall_follow and exit_heading_error_rad is not None
++        direction_trusted = route_trusted or exit_rejoin
++        if exit_rejoin:
++            preferred_bearing_rad = exit_heading_error_rad
+         preferred_bearing_rad = max(-self.half_fov_rad,
+                                     min(self.half_fov_rad, preferred_bearing_rad))
+         if len(points) == 0:
+@@ -755,7 +771,7 @@
+             bearing_rad = (float(np.clip(preferred_bearing_rad,
+                            -cfg.unwalled_route_bearing_limit_rad,
+                            cfg.unwalled_route_bearing_limit_rad))
+-                           if wall_follow and not route_trusted else
++                           if wall_follow and not direction_trusted else
+                            float(np.clip(preferred_bearing_rad,
+                            -cfg.max_target_bearing_rad,
+                            cfg.max_target_bearing_rad)))
+@@ -793,7 +809,7 @@
+                 self.right_wall_filtered_clearance_m = (
+                     wall_clearance if previous is None
+                     else .65 * previous + .35 * wall_clearance)
+-        elif wall_follow and not route_trusted:
++        elif wall_follow and not direction_trusted:
+             # When the wall disappears at the portal, do not let an
+             # uncorrected LiDAR map pose demand a full 35-degree turn.
+             preferred_bearing_rad = float(np.clip(
+@@ -815,7 +831,8 @@
+         in_clear_zone = ((np.abs(bearings) <= math.radians(135.))
+                          & (obstacles[:, 0] >= -cfg.wall_target_clear_rear_m)
+                          & (obstacles[:, 0] <= cfg.wall_target_clear_front_m)
+-                         & self._inside_walls(obstacles, wall_fits))
++                         & self._inside_walls(obstacles, wall_fits,
++                             cfg.exit_wall_trigger_inset_m if exit_rejoin else None))
+         occupied = bool(np.any(in_clear_zone))
+         self.passing_side = 0
+         self.rear_confirm_scans = 0
+@@ -831,7 +848,7 @@
+             # Match tunnel heading while selecting any collision-free gap.
+             # An anchored route bearing already follows the road, including
+             # the bend at the tunnel exit where the wall does not.
+-            if wall_heading is not None and not route_trusted:
++            if wall_heading is not None and not direction_trusted:
+                 preferred_bearing_rad = wall_heading
+         stopping_distance_m = (ego_speed_mps * cfg.reaction_s
+                                + ego_speed_mps ** 2 / (2 * cfg.brake_mps2))
+@@ -941,7 +958,7 @@
+             # boundary is evidence of map-pose drift, not an exit cue.
+             # The road bends at the tunnel exit; once the map pose is
+             # anchored, that disagreement is the curve, not drift.
+-            if (avoidance_phase != 'PASSING' and not route_trusted
++            if (avoidance_phase != 'PASSING' and not direction_trusted
+                     and abs(math.atan2(math.sin(preferred_bearing_rad - wall_bearing),
+                                        math.cos(preferred_bearing_rad - wall_bearing)))
+                     > cfg.right_wall_route_disagreement_rad):
+@@ -950,8 +967,22 @@
+             # A drifted map bearing must not cancel the measured wall
+             # clearance correction inside the tunnel. Hand control back to
+             # the saved route as the exit waypoint approaches.
+-            preferred_bearing_rad = ((1. - wall_follow_weight) * preferred_bearing_rad
+-                                     + wall_follow_weight * wall_bearing)
++            if exit_rejoin:
++                # Switch only the heading source at the portal. Do not fade
++                # out lateral spacing with it, and do not use ICP cross-track
++                # position as steering evidence. PASSING still suppresses the
++                # spacing correction so interior obstacles can be avoided.
++                offset_bearing = float(np.clip(
++                    cfg.right_wall_offset_gain_rad_per_m *
++                    (wall_error_m if self.wall_target_allowed else 0.),
++                    -cfg.right_wall_max_correction_rad, cfg.right_wall_max_correction_rad))
++                preferred_bearing_rad = (
++                    (1. - wall_follow_weight) * preferred_bearing_rad
++                    + wall_follow_weight * cfg.right_wall_heading_gain * wall_heading
++                    + offset_bearing)
++            else:
++                preferred_bearing_rad = ((1. - wall_follow_weight) * preferred_bearing_rad
++                                         + wall_follow_weight * wall_bearing)
+             if avoidance_phase == 'WALL_FOLLOW' and wall_clearance < cfg.wall_fast_clearance_m:
+                 # Do not let the mapped route keep steering into a measured
+                 # right wall while the exit blend reduces wall-follow weight.
+--- a/src/leo_avoidance/scripts/driving_state_node_local.py
++++ b/src/leo_avoidance/scripts/driving_state_node_local.py
+@@ -240,6 +240,34 @@
+             raise ValueError('route target is behind vehicle')
+         return math.atan2(local_y, local_x)
+ 
++    def exit_rejoin_guidance(self, heading_yaw):
++        """Exit-only direction from saved route geometry and captured heading.
++
++        LiDAR position selects route progress, but its drifting lateral
++        coordinate never contributes to the heading error. Wall spacing
++        remains the independent lateral reference in the planner.
++        """
++        remaining = self.exit_route_s - self.route_progress_m
++        if not 0. <= remaining < self.exit_rejoin_start_m:
++            return None, 1., None
++        progress = self.route_progress_m
++        target_s = min(progress + self.route_lookahead_m, float(self.route.s[-1]))
++        start = np.array([np.interp(progress, self.route.s, self.route.points[:, axis])
++                          for axis in (0, 1)])
++        end = np.array([np.interp(target_s, self.route.s, self.route.points[:, axis])
++                        for axis in (0, 1)])
++        delta = end - start
++        if not math.isfinite(heading_yaw) or float(np.linalg.norm(delta)) < 1e-6:
++            raise ValueError('invalid exit route direction or heading')
++        route_yaw = math.atan2(delta[1], delta[0])
++        yaw_error = math.atan2(math.sin(route_yaw - heading_yaw),
++                               math.cos(route_yaw - heading_yaw))
++        blend = float(np.clip((self.exit_rejoin_start_m - remaining) /
++                             (self.exit_rejoin_start_m - self.exit_rejoin_full_m), 0., 1.))
++        # Smooth the heading handover at both ends of the existing window.
++        blend = blend * blend * (3. - 2. * blend)
++        return yaw_error, 1. - blend, remaining
++
+     def route_rejoin_ok(self, gps_pose, map_pose, blackout_index):
+         """Accept a drifted LiDAR pose only when GPS agrees with nearby route."""
+         self.rejoin_diagnostic = None
+@@ -339,17 +367,23 @@
+                         self.planner.config, max_speed_mps=float(
+                             self.route_speeds_kmh[self.route.index]) / 3.6)
+                 with self.lock:
+-                    # Until a GPS return is accepted, keep tunnel wall
+-                    # guidance: a brief fix or a late zero sample must not
+-                    # hand steering to the drifted route bearing mid-pass.
++                    # A brief GPS fix must not hand steering to a drifted
++                    # route position. Only the surveyed exit window uses the
++                    # saved route direction and the captured heading sensor.
+                     wall_follow = (self.machine.had_blackout
+                                    or self.machine.gps_zero(received)
+                                    or self.machine.gps_missing(received))
+                     wall_follow = (wall_follow
+                                    and self.blackout_start_index <= self.route.index
+                                    <= self.blackout_end_index)
++                exit_heading, wall_weight, remaining = (
++                    self.exit_rejoin_guidance(odom_sample[0][2]) if wall_follow
++                    else (None, 1., None))
+                 plan = self.planner.plan(points, speed[0], preferred_bearing,
+                                          wall_follow=wall_follow,
++                                         wall_follow_weight=wall_weight,
++                                         route_rejoin_remaining_m=remaining,
++                                         exit_heading_error_rad=exit_heading,
+                                          ego_pose=odom_sample[0],
+                                          stamp=scan_stamp)
+                 if time.monotonic() - received > self.machine.input_timeout_s:
+--- a/src/leo_avoidance/test/test_ftg_local.py
++++ b/src/leo_avoidance/test/test_ftg_local.py
+@@ -914,3 +914,76 @@
+     assert drifting.right_wall_clearance_m is None
+     assert drifting.target_bearing_rad >= -math.radians(7.) - 1e-6
+     assert anchored.target_bearing_rad < -math.radians(10.)
++
++
++def test_exit_wall_structure_changes_only_phase_trigger_not_collision_cloud():
++    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
++    walls = tunnel_walls(3.846, 7.37)
++    # Logged false trigger: left portal lip near x=20, y=6.57 with a
++    # fitted wall at y=7.37. It remains a geometric obstacle in both plans.
++    lip = np.array([[19.99, 6.57, -.37]])
++    cloud = np.vstack((walls, lip))
++    normal = FollowTheGap(cfg).plan(cloud, 1., wall_follow=True)
++    exit_plan = FollowTheGap(cfg).plan(
++        cloud, 1., wall_follow=True, exit_heading_error_rad=0.)
++    assert normal.avoidance_phase == 'PASSING'
++    assert exit_plan.avoidance_phase == 'WALL_FOLLOW'
++    assert normal.obstacle_points == exit_plan.obstacle_points == 1
++
++
++def test_exit_interior_obstacles_still_trigger_avoidance_on_both_sides():
++    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
++    walls = tunnel_walls(5., 5.)
++    for side in (-1., 1.):
++        obstacle = np.array([[7., side*y, 0.] for y in np.linspace(-2., .2, 30)])
++        cloud = np.vstack((walls, obstacle))
++        planner = FollowTheGap(cfg)
++        plan = planner.plan(cloud, 0., wall_follow=True,
++                            wall_follow_weight=0., exit_heading_error_rad=0.)
++        assert plan.avoidance_phase == 'PASSING'
++        assert plan.speed_mps > 0.
++        assert side * plan.target_bearing_rad > 0.
++        assert planner._swept_body_collision(cloud, plan.target_bearing_rad) is None
++
++
++def test_wall_attached_exit_return_still_causes_collision_stop():
++    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
++    walls = tunnel_walls(1.95, 5.)
++    cloud = np.vstack((walls, np.array([[2.7, -1.25, 0.]])))
++    plan = FollowTheGap(cfg).plan(
++        cloud, 0., wall_follow=True, exit_heading_error_rad=0.)
++    assert plan.avoidance_phase == 'WALL_FOLLOW'
++    assert plan.front_points > 0
++    assert plan.speed_mps == 0.
++    assert plan.obstacle_stop
++
++
++def test_exit_direction_keeps_wall_spacing_and_rejects_position_drift():
++    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
++    heading = -math.radians(9.)
++    centred_walls = tunnel_walls(3.846, 5.)
++    shifted_walls = tunnel_walls(2.846, 5.)
++    def plan(cloud, drifted_bearing):
++        return FollowTheGap(cfg).plan(
++            cloud, 1., drifted_bearing, wall_follow=True,
++            wall_follow_weight=0., exit_heading_error_rad=heading)
++    centred = plan(centred_walls, .4)
++    opposite_drift = plan(centred_walls, -.4)
++    shifted = plan(shifted_walls, .4)
++    assert centred.target_bearing_rad == opposite_drift.target_bearing_rad
++    assert centred.target_bearing_rad < -math.radians(6.)
++    # Too near the right wall: spacing still steers left even with full
++    # waypoint heading guidance, rather than fading with the wall heading.
++    assert shifted.target_bearing_rad > centred.target_bearing_rad + .1
++
++
++def test_exit_heading_handover_is_gradual_and_invalid_heading_stops():
++    cfg = Config(max_range_m=30., front_fov_deg=300., scan_bins=601)
++    cloud = tunnel_walls(3.846, 5.)
++    bearings = [FollowTheGap(cfg).plan(
++        cloud, 1., .4, wall_follow=True, wall_follow_weight=weight,
++        exit_heading_error_rad=-.2).target_bearing_rad for weight in (1., .5, 0.)]
++    assert bearings[0] > bearings[1] > bearings[2]
++    bad = FollowTheGap(cfg).plan(
++        cloud, 1., wall_follow=True, exit_heading_error_rad=float('nan'))
++    assert bad.speed_mps == 0. and bad.reason == 'invalid exit heading'
+--- a/src/leo_avoidance/test/test_rejoin_route_local.py
++++ b/src/leo_avoidance/test/test_rejoin_route_local.py
+@@ -94,3 +94,49 @@
+     route.locate(10., 0., 0.)
+     progress, error = node.locate_or_reacquire(route, 300., .5, 0.)
+     assert abs(progress - 300.) < 1e-6 and error == .5
++
++
++def exit_state():
++    state = node.DrivingStateNode.__new__(node.DrivingStateNode)
++    along = np.arange(0., 101., .5)
++    yaw = -.2
++    points = np.column_stack((along*np.cos(yaw), along*np.sin(yaw)))
++    state.route = RouteProgress(points, max_error=7., backward_window=30)
++    state.route_lookahead_m = 5.
++    state.exit_route_s = 80.
++    state.exit_route_offset = np.zeros(2)
++    state.exit_rejoin_start_m = 35.
++    state.exit_rejoin_full_m = 12.
++    return state
++
++
++def test_exit_guidance_is_disabled_outside_the_existing_exit_window():
++    state = exit_state()
++    for progress in (0., 44.9, 45., 80.1, 100.):
++        state.route_progress_m = progress
++        assert state.exit_rejoin_guidance(0.) == (None, 1., None)
++    for progress in (45.1, 56., 68., 80.):
++        state.route_progress_m = progress
++        heading, weight, remaining = state.exit_rejoin_guidance(0.)
++        assert abs(heading + .2) < 1e-9
++        assert remaining == 80. - progress
++        assert 0. <= weight < 1.
++        if progress >= 68.:
++            assert weight == 0.
++
++
++def test_exit_direction_uses_sensor_heading_without_lateral_pose_correction():
++    results = []
++    bearings = []
++    for lateral_drift in (-3., 0., 3.):
++        state = exit_state()
++        forward = np.array((np.cos(-.2), np.sin(-.2)))
++        normal = np.array((-forward[1], forward[0]))
++        xy = forward * 68. + normal * lateral_drift
++        bearings.append(state.route_bearing((*xy, 0.)))
++        results.append(state.exit_rejoin_guidance(0.)[0])
++    assert max(bearings) - min(bearings) > .5
++    assert np.allclose(results, [-.2, -.2, -.2])
++    state = exit_state()
++    state.route_progress_m = 68.
++    assert abs(state.exit_rejoin_guidance(-.15)[0] + .05) < 1e-9
+--- a/src/leo_avoidance/config/avoidance_local.yaml
++++ b/src/leo_avoidance/config/avoidance_local.yaml
+@@ -35,6 +35,7 @@
+ right_wall_target_clearance_m: 2.9  # vehicle side to right tunnel wall
+ right_wall_clearance_tolerance_m: 0.1  # 2.8-3.0 m band without offset correction
+ wall_point_tolerance_m: 0.35  # coherent wall returns become track boundaries
++exit_wall_trigger_inset_m: 0.8  # exit window only: wall-attached returns do not trigger PASSING; collision checks retain them
+ wall_corridor_horizon_m: 6.0  # check selected path inside boundaries this far ahead
+ right_wall_min_clearance_m: 0.9
+ rear_detection_half_angle_deg: 15.0  # RViz/log diagnostic only; never controls pass completion
+--- a/src/leo_avoidance/CMakeLists.txt
++++ b/src/leo_avoidance/CMakeLists.txt
+@@ -16,4 +16,5 @@
+   catkin_add_nosetests(test/test_ftg_local.py)
+   catkin_add_nosetests(test/test_blackout_watchdog_local.py)
+   catkin_add_nosetests(test/test_scan_odometry_local.py)
++  catkin_add_nosetests(test/test_rejoin_route_local.py)
+ endif()

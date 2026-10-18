@@ -1,0 +1,26 @@
+{
+  "new_failures": [],
+  "remaining_failures": [
+    "test_both_sides_occupied_keeps_path_and_slows_for_car_ahead (test_local_avoidance.LocalAvoidanceTests)",
+    "test_close_slow_rear_car_blocks_and_distant_slow_car_allows_change (test_local_avoidance.LocalAvoidanceTests)",
+    "test_edit_is_acknowledged_only_after_planner_applies_it (test_avoidance_runtime.LiveAvoidanceTest)",
+    "test_elapsed_time_does_not_switch_global_route (test_raceline_selection.RacelineSelectionTest)",
+    "test_fast_lane_change_has_longer_smoother_path (test_local_avoidance.LocalAvoidanceTests)",
+    "test_fast_rear_car_beyond_three_metres_allows_change (test_local_avoidance.LocalAvoidanceTests)",
+    "test_finish_line_return_still_waits_for_rear_car_within_gap (test_raceline_selection.RacelineSelectionTest)",
+    "test_follower_controls_using_selected_local_path_and_stops_on_stale_input (test_raceline_selection.RacelineSelectionTest)",
+    "test_ftg_local.test_runtime_yaml_restores_spacing_and_expands_lidar_angle",
+    "test_lane_change_cancels_when_target_gap_is_invaded (test_local_avoidance.LocalAvoidanceTests)",
+    "test_prefers_r3_and_transition_end_does_not_move_when_replanning (test_local_avoidance.LocalAvoidanceTests)",
+    "test_r3_ends_returns_before_leaving_saved_coverage (test_local_avoidance.LocalAvoidanceTests)",
+    "test_r3_entry_waits_for_the_3m_gap_then_changes_lane (test_raceline_selection.R3RouteTest)",
+    "test_rear_car_within_three_metres_blocks_preferred_lane_change (test_local_avoidance.LocalAvoidanceTests)",
+    "test_saved_map_prefers_r3_then_r2_when_r3_is_blocked (test_raceline_selection.RacelineSelectionTest)",
+    "test_saved_map_rear_car_within_gap_blocks_r3_entry (test_raceline_selection.RacelineSelectionTest)",
+    "test_standstill_before_lane_drop_can_still_merge (test_raceline_selection.R3RouteTest)"
+  ],
+  "resolved": [
+    "test_cancel_into_an_ending_lane_never_ends_standing (test_highway_planner.HighwayPlannerTests)",
+    "test_recorder_archives_parameters_events_and_finalizes_bag (test_driving_log.DrivingLogTest)"
+  ]
+}

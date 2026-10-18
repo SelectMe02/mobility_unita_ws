@@ -273,7 +273,10 @@ class MapDebug:
                 if box[0] <= 0. or box[1] <= 0.:
                     box = [2.*values[2], 2.*values[2], 0.]
                 identifiers.add(identifier)
-                obstacles.append((identifier, *values, kind, *box))
+                lane = (int(item.get('raceline', 0)),
+                        bool(item.get('lane_stable', False)),
+                        bool(item.get('lane_boundary_crossing', True)))
+                obstacles.append((identifier, *values, kind, *box, *lane))
         except (ValueError, KeyError, TypeError, OverflowError):
             return
         corridor = self.lane_corridor
@@ -424,7 +427,7 @@ class MapDebug:
                 deleted = marker(namespace, identifier, Marker.CUBE)
                 deleted.action = Marker.DELETE
                 markers.append(deleted)
-        for identifier, x, y, radius, vx, vy, kind, length, width, yaw in obstacles:
+        for identifier, x, y, radius, vx, vy, kind, length, width, yaw, lane, stable, crossing in obstacles:
             rgb = ((1., .15, .1) if kind == 'dynamic' else
                    (.1, .65, 1.) if kind == 'static' else (1., .85, .1))
             # The detector's lane-aligned rectangle; height is for visibility.
@@ -456,6 +459,10 @@ class MapDebug:
             label.color.r, label.color.g, label.color.b, label.color.a = (*rgb, 1.)
             name = {'dynamic': 'DYNAMIC', 'static': 'STATIC', 'unknown': 'UNKNOWN'}[kind]
             label.text = '{} #{}'.format(name, identifier)
+            if lane in (1, 2, 3):
+                label.text += '\nR{}{}'.format(lane, '' if stable else ' ?')
+                if crossing:
+                    label.text += ' EDGE'
             if kind == 'dynamic':
                 label.text += '\n{:.1f} km/h'.format(math.hypot(vx, vy)*3.6)
             label.lifetime = rospy.Duration(.5)

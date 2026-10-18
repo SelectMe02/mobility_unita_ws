@@ -236,7 +236,10 @@ class RouteAvoidance:
         for o in obstacles:
             s, d, seg = self.route.project(o.x, o.y, lo, hi)
             if (not s_ego - cfg.window_behind_m <= s <= s_ego + reach
-                    or abs(d) > cfg.lateral_window_m):
+                    or abs(d) > cfg.lateral_window_m
+                    # Waypoint-only zones (tollgate): fixed structures there
+                    # are cleared by the route itself, so nothing is avoided.
+                    or any(a <= s <= b for a, b in getattr(self, 'ignored_s_ranges', ()))):
                 continue
             t = self.route.tangents[seg]
             v_s = o.vx * t[0] + o.vy * t[1]

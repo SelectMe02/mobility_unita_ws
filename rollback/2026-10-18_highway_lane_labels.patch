@@ -1,0 +1,538 @@
+--- a/src/unita_waypoint/scripts/lane_corridor.py
++++ b/src/unita_waypoint/scripts/lane_corridor.py
+@@ -20,7 +20,7 @@
+         self.width = float(geometry['raceline_width'])
+         if geometry['frame_id'] != 'map' or not math.isfinite(self.width) or self.width <= 0.:
+             raise ValueError('invalid map lane width/frame')
+-        primary, separate = [], []
++        primary, separate, labelled = [], [], []
+         for lane in geometry['lanes']:
+             if type(lane['sector']) is not int or not 1 <= lane['sector'] <= 15:
+                 raise ValueError('invalid lane sector')
+@@ -29,6 +29,9 @@
+                 raise ValueError('invalid raceline coordinates')
+             if lane['raceline'] not in (1, 2, 3):
+                 raise ValueError('invalid raceline number')
++            labelled.extend((a, b, lane['sector'], lane['raceline'])
++                            for a, b in zip(points, points[1:])
++                            if np.linalg.norm(b-a) > 1e-6)
+             if lane['raceline'] == 1:
+                 primary.extend(points.tolist())
+             else:
+@@ -62,6 +65,53 @@
+         self.squared = np.sum(self.vectors*self.vectors, axis=1)
+         self.tree = cKDTree(self.starts+.5*self.vectors)
+         self.search_radius = self.width*.5+.5*float(np.sqrt(self.squared).max())
++        # Keep lane identities separate from the union used by contains().
++        # Adjacent finite lanes must never be extrapolated across a gap.
++        starts = np.asarray([item[0] for item in labelled]).reshape(-1, 2)
++        vectors = np.asarray([item[1]-item[0] for item in labelled]).reshape(-1, 2)
++        lengths = np.linalg.norm(vectors, axis=1)
++        counts = np.maximum(1, np.ceil(lengths).astype(int))
++        indices = np.repeat(np.arange(len(starts)), counts)
++        offsets = np.repeat(np.cumsum(counts)-counts, counts)
++        t = (np.arange(len(indices))-offsets)/counts[indices]
++        self.label_starts = starts[indices]+t[:, None]*vectors[indices]
++        self.label_vectors = vectors[indices]/counts[indices, None]
++        self.label_lengths = lengths[indices]/counts[indices]
++        self.label_ids = [(labelled[i][2], labelled[i][3]) for i in indices]
++        self.label_tree = cKDTree(self.label_starts+.5*self.label_vectors)
++
++    def label_box(self, x, y, length, width, yaw):
++        """Assign a box midpoint to a finite raceline; retain boundary evidence."""
++        unknown = dict(raceline=0, lane_sector=0, lane_offset_m=0.,
++                       lane_boundary_crossing=True, lane_label_confident=False)
++        if not all(math.isfinite(v) for v in (x, y, length, width, yaw)):
++            return unknown
++        nearby = self.label_tree.query_ball_point([x, y], self.width*.5+.5+1e-9)
++        if not nearby:
++            return unknown
++        nearby = np.asarray(nearby)
++        offset = np.array([x, y])-self.label_starts[nearby]
++        tangent = self.label_vectors[nearby]/self.label_lengths[nearby, None]
++        along = np.sum(offset*tangent, axis=1)
++        lateral = tangent[:, 0]*offset[:, 1]-tangent[:, 1]*offset[:, 0]
++        valid = ((along >= -1e-9) & (along <= self.label_lengths[nearby]+1e-9)
++                 & (np.abs(lateral) <= self.width*.5+1e-9))
++        candidates = np.flatnonzero(valid)
++        if not len(candidates):
++            return unknown
++        nearest = min(candidates, key=lambda i: abs(lateral[i]))
++        sector, lane = self.label_ids[nearby[nearest]]
++        other = [abs(lateral[i]) for i in candidates
++                 if self.label_ids[nearby[i]][1] != lane]
++        confident = not other or min(other)-abs(lateral[nearest]) >= .15
++        heading = math.atan2(tangent[nearest, 1], tangent[nearest, 0])
++        half_span = (abs(math.sin(yaw-heading))*length
++                     + abs(math.cos(yaw-heading))*width)*.5
++        return dict(raceline=lane, lane_sector=sector,
++                    lane_offset_m=float(lateral[nearest]),
++                    lane_boundary_crossing=bool(abs(lateral[nearest])+half_span
++                                                > self.width*.5),
++                    lane_label_confident=bool(confident))
+ 
+     def contains(self, xy):
+         points = np.asarray(xy, dtype=float).reshape((-1, 2))
+--- a/src/unita_waypoint/scripts/lidar_obstacles.py
++++ b/src/unita_waypoint/scripts/lidar_obstacles.py
+@@ -254,9 +254,18 @@
+             length, width, yaw = (detection[3:6] if len(detection) >= 6
+                                   else (2.*radius, 2.*radius, 0.))
+             road_surface = bool(detection[6]) if len(detection) >= 7 else False
++            corridor = getattr(self, 'lane_corridor', None)
++            measured_lane = (corridor.label_box(x, y, length, width, yaw)
++                             if corridor is not None else {})
+             matches = [(math.hypot(x-t['x']-t['vx']*(stamp-t['stamp']),
+                                   y-t['y']-t['vy']*(stamp-t['stamp'])), key, t)
+                        for key, t in self.tracks.items() if key not in used
++                       and not (measured_lane.get('lane_sector') == 11
++                                and measured_lane.get('lane_label_confident', False)
++                                and not measured_lane.get('lane_boundary_crossing', True)
++                                and t.get('lane_stable', False)
++                                and t.get('lane_sector') == 11
++                                and t.get('raceline') != measured_lane.get('raceline'))
+                        and max(radius, t['radius']) <= 3.*max(.15, min(radius, t['radius']))]
+             matches.sort()
+             # Allow a fast rear car's initial displacement before velocity
+@@ -272,6 +281,7 @@
+                 first_stamp = previous.get('first_stamp', previous['stamp']-(previous['hits']-1)*dt)
+                 velocities = (previous.get('velocities', [])+[((x-previous['x'])/dt, (y-previous['y'])/dt)])[-3:]
+             else:
++                previous = {}
+                 key = self.next_id
+                 self.next_id += 1
+                 vx = vy = 0.
+@@ -281,11 +291,14 @@
+             confirmed = hits >= 3 and observed_s+1e-9 >= getattr(self, 'track_confirm_time_s', .2)
+             velocity_reliable = (confirmed and len(velocities) >= 2
+                                  and np.max(np.linalg.norm(np.asarray(velocities)-np.median(velocities, axis=0), axis=1)) <= 3.)
++            lane = self._track_lane(x, y, length, width, yaw, stamp, previous,
++                                    confirmed)
+             track = dict(x=x, y=y, radius=radius, vx=vx, vy=vy,
+                          length=length, width=width, yaw=yaw,
+                          road_surface=road_surface,
+                          hits=hits, stamp=stamp, first_stamp=first_stamp, velocities=velocities,
+-                         confirmed=confirmed, velocity_reliable=bool(velocity_reliable))
++                         confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
++                         **lane)
+             self.tracks[key] = track
+             used.add(key)
+             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
+@@ -293,6 +306,7 @@
+                                road_surface=road_surface,
+                                confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
+                                hits=hits, observed_s=observed_s, measurement_stamp=stamp,
++                               raw_width=width, predicted=False, **lane,
+                                kind=('dynamic' if hits >= 3 and
+                                      math.hypot(vx, vy) > self.dynamic_speed_threshold_mps else
+                                      'static' if hits >= 3 else 'unknown')))
+@@ -302,18 +316,69 @@
+             dt = stamp-track['stamp']
+             if key not in used and 0. < dt <= .4:
+                 reliable = track.get('velocity_reliable', False)
+-                result.append(dict(id=key, x=track['x']+(track['vx']*dt if reliable else 0.),
+-                                   y=track['y']+(track['vy']*dt if reliable else 0.),
+-                                   radius=track['radius']+.5*dt,
+-                                   length=track.get('length', 2.*track['radius'])+dt,
+-                                   width=track.get('width', 2.*track['radius'])+dt,
++                x = track['x']+(track['vx']*dt if reliable else 0.)
++                y = track['y']+(track['vy']*dt if reliable else 0.)
++                length = track.get('length', 2.*track['radius'])+dt
++                raw_width = track.get('width', 2.*track['radius'])+dt
++                width = raw_width
++                # Stable S11 traffic keeps its observed lateral footprint
++                # during short occlusions; longitudinal uncertainty remains.
++                if (track.get('lane_stable', False) and track.get('lane_sector') == 11
++                        and not track.get('lane_boundary_crossing', True)):
++                    width = track['width']
++                lane = self._predicted_lane(track, x, y, length, width)
++                if width != raw_width and (not lane['lane_stable']
++                                           or lane['lane_boundary_crossing']):
++                    width = raw_width
++                    lane = self._predicted_lane(track, x, y, length, width)
++                result.append(dict(id=key, x=x, y=y,
++                                   radius=(max(.15, .5*math.hypot(length, width))
++                                           if width != raw_width else track['radius']+.5*dt),
++                                   length=length, width=width,
+                                    yaw=track.get('yaw', 0.),
+                                    road_surface=track.get('road_surface', False),
+                                    vx=track['vx'], vy=track['vy'], kind='unknown',
+                                    confirmed=track.get('confirmed', False), velocity_reliable=reliable,
+                                    hits=track['hits'], observed_s=track['stamp']-track.get('first_stamp', track['stamp']),
+-                                   measurement_stamp=track['stamp']))
++                                   measurement_stamp=track['stamp'], raw_width=raw_width,
++                                   predicted=True, **lane))
+         return result
++
++    def _track_lane(self, x, y, length, width, yaw, stamp, previous, confirmed):
++        corridor = getattr(self, 'lane_corridor', None)
++        if corridor is None:
++            return dict(raceline=0, lane_sector=0, lane_stable=False,
++                        lane_boundary_crossing=True)
++        lane = corridor.label_box(x, y, length, width, yaw)
++        candidate = (lane['lane_sector'], lane['raceline'])
++        same = (candidate == previous.get('lane_candidate')
++                and previous.get('lane_label_confident', False)
++                and lane['lane_label_confident'])
++        hits = (previous.get('lane_hits', 0)+1 if same else 1) if lane['lane_label_confident'] else 0
++        since = previous.get('lane_since', stamp) if same else stamp
++        label = (previous.get('lane_sector', 0), previous.get('raceline', 0))
++        stable = (candidate[1] != 0 and lane['lane_label_confident']
++                  and hits >= 3 and stamp-since+1e-9 >= .2 and confirmed)
++        if not label[1] or stable:
++            label = candidate
++        lane.update(lane_candidate=candidate, lane_hits=hits, lane_since=since,
++                    lane_stable=bool(stable and label == candidate))
++        if label != candidate:
++            lane.update(lane_sector=label[0], raceline=label[1],
++                        lane_boundary_crossing=True)
++        return lane
++
++    def _predicted_lane(self, track, x, y, length, width):
++        corridor = getattr(self, 'lane_corridor', None)
++        if corridor is None:
++            return dict(raceline=0, lane_sector=0, lane_stable=False,
++                        lane_boundary_crossing=True)
++        lane = corridor.label_box(x, y, length, width, track.get('yaw', 0.))
++        lane['lane_stable'] = bool(track.get('lane_stable', False)
++            and lane['lane_label_confident']
++            and (lane['lane_sector'], lane['raceline'])
++                == (track.get('lane_sector'), track.get('raceline')))
++        return lane
+ 
+     def on_cloud(self, msg):
+         with self.lock:
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -63,6 +63,14 @@
+     width: float = 0.
+     yaw: float = 0.
+     road_surface: bool = False
++    track_id: int = 0
++    raceline: int = 0
++    lane_sector: int = 0
++    lane_stable: bool = False
++    lane_boundary_crossing: bool = True
++    raw_width: float = 0.
++    predicted: bool = False
++    measurement_stamp: float = 0.
+ 
+     def velocity(self):
+         return (self.vx, self.vy) if self.velocity_reliable else (0., 0.)
+@@ -377,7 +385,7 @@
+                          target[1]+correction[1]*decay))
+         return path
+ 
+-    def _lead(self, path, ego_xy, obstacles, horizon_m=None):
++    def _lead(self, path, ego_xy, obstacles, horizon_m=None, lane=None):
+         """Nearest obstacle whose rectangle overlaps the ego footprint band."""
+         horizon_m = self.obstacle_horizon_m if horizon_m is None else horizon_m
+         if len(path) < 2:
+@@ -414,6 +422,16 @@
+                 longitudinal.append(ox*tangent[0]+oy*tangent[1])
+                 lateral.append(-ox*tangent[1]+oy*tangent[0])
+             if s > horizon_m or min(lateral) > band or max(lateral) < -band:
++                continue
++            if (self.highway_active and self.transition is None and lane is not None
++                    and obstacle.lane_stable and obstacle.lane_sector == 11
++                    and obstacle.raceline in (1, 2, 3) and obstacle.raceline != lane
++                    and not obstacle.lane_boundary_crossing
++                    and (min(lateral) > self.half_width
++                         or max(lateral) < -self.half_width)):
++                # A stable neighbouring car wholly inside its own lane is
++                # not our leader just because it touches the extra margin.
++                # Keep measured-body overlap protection, even across labels.
+                 continue
+             clearance = max(0., s+min(longitudinal))
+             vx, vy = obstacle.velocity()
+@@ -1057,13 +1075,14 @@
+         current = self.current_lane
+         current_path = self._path(ahead, ego_xy, current, progress)
+         self.obstacle_horizon_path = path_prefix(current_path, horizon)
+-        threat = self._lead(current_path, ego_xy, obstacles, horizon) if len(current_path) >= 2 else None
++        threat = self._lead(current_path, ego_xy, obstacles, horizon,
++                            lane=current) if len(current_path) >= 2 else None
+         end = ahead[-1][2]
+         leaders, followers, spans = {}, {}, {}
+         for n in available:
+             path = current_path if n == current else self._path(ahead, ego_xy, n, progress)
+             lead = threat if n == current else (
+-                self._lead(path, ego_xy, tracked, horizon) if len(path) >= 2 else None)
++                self._lead(path, ego_xy, tracked, horizon, lane=n) if len(path) >= 2 else None)
+             item = None if lead is None else (lead[0]-self.front_extent, lead[2])
+             spans[n] = self._span(n, ahead)
+             if spans[n] < end-1e-6 and (item is None or spans[n]-self.front_extent < item[0]):
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -1242,7 +1242,12 @@
+         obstacles = [dict(x=o.x, y=o.y, vx=o.vx, vy=o.vy, radius=o.radius, kind=o.kind,
+                           length=o.length, width=o.width, yaw=o.yaw,
+                           confirmed=o.confirmed, velocity_reliable=o.velocity_reliable,
+-                          road_surface=o.road_surface)
++                          road_surface=o.road_surface, id=o.track_id,
++                          raceline=o.raceline, lane_sector=o.lane_sector,
++                          lane_stable=o.lane_stable,
++                          lane_boundary_crossing=o.lane_boundary_crossing,
++                          raw_width=o.raw_width, predicted=o.predicted,
++                          measurement_stamp=o.measurement_stamp)
+                      for o in getattr(self, 'obstacles', [])]
+         data = dict(stamp=rospy.Time.now().to_sec(), frame_id='map', reason=reason,
+             stop_reason=getattr(self, 'stop_reason', None), target_speed_kmh=target_speed,
+@@ -1328,7 +1333,15 @@
+                     confirmed=bool(item.get('confirmed', item['kind'] != 'unknown')),
+                     velocity_reliable=bool(item.get('velocity_reliable', item['kind'] != 'unknown')),
+                     length=box[0], width=box[1], yaw=box[2],
+-                    road_surface=bool(item.get('road_surface', False))))
++                    road_surface=bool(item.get('road_surface', False)),
++                    track_id=int(item.get('id', 0)),
++                    raceline=int(item.get('raceline', 0)),
++                    lane_sector=int(item.get('lane_sector', 0)),
++                    lane_stable=bool(item.get('lane_stable', False)),
++                    lane_boundary_crossing=bool(item.get('lane_boundary_crossing', True)),
++                    raw_width=float(item.get('raw_width', box[1])),
++                    predicted=bool(item.get('predicted', False)),
++                    measurement_stamp=float(item.get('measurement_stamp', stamp))))
+             corridor = getattr(self, 'lane_corridor', None)
+             if corridor is None:
+                 return
+--- a/src/unita_waypoint/scripts/map_debug.py
++++ b/src/unita_waypoint/scripts/map_debug.py
+@@ -273,7 +273,10 @@
+                 if box[0] <= 0. or box[1] <= 0.:
+                     box = [2.*values[2], 2.*values[2], 0.]
+                 identifiers.add(identifier)
+-                obstacles.append((identifier, *values, kind, *box))
++                lane = (int(item.get('raceline', 0)),
++                        bool(item.get('lane_stable', False)),
++                        bool(item.get('lane_boundary_crossing', True)))
++                obstacles.append((identifier, *values, kind, *box, *lane))
+         except (ValueError, KeyError, TypeError, OverflowError):
+             return
+         corridor = self.lane_corridor
+@@ -424,7 +427,7 @@
+                 deleted = marker(namespace, identifier, Marker.CUBE)
+                 deleted.action = Marker.DELETE
+                 markers.append(deleted)
+-        for identifier, x, y, radius, vx, vy, kind, length, width, yaw in obstacles:
++        for identifier, x, y, radius, vx, vy, kind, length, width, yaw, lane, stable, crossing in obstacles:
+             rgb = ((1., .15, .1) if kind == 'dynamic' else
+                    (.1, .65, 1.) if kind == 'static' else (1., .85, .1))
+             # The detector's lane-aligned rectangle; height is for visibility.
+@@ -456,6 +459,10 @@
+             label.color.r, label.color.g, label.color.b, label.color.a = (*rgb, 1.)
+             name = {'dynamic': 'DYNAMIC', 'static': 'STATIC', 'unknown': 'UNKNOWN'}[kind]
+             label.text = '{} #{}'.format(name, identifier)
++            if lane in (1, 2, 3):
++                label.text += '\nR{}{}'.format(lane, '' if stable else ' ?')
++                if crossing:
++                    label.text += ' EDGE'
+             if kind == 'dynamic':
+                 label.text += '\n{:.1f} km/h'.format(math.hypot(vx, vy)*3.6)
+             label.lifetime = rospy.Duration(.5)
+--- a/src/unita_waypoint/test/test_lane_corridor.py
++++ b/src/unita_waypoint/test/test_lane_corridor.py
+@@ -26,6 +26,33 @@
+ 
+ 
+ class LaneCorridorTests(unittest.TestCase):
++    def test_box_midpoint_labels_three_lanes_and_tracks_boundary_intrusion(self):
++        c = LaneCorridor(geometry(width=3.6, lanes=[dict(sector=11, raceline=n,
++             points=[[-50., (n-1)*3.6], [50., (n-1)*3.6]]) for n in (1, 2, 3)]))
++        for n in (1, 2, 3):
++            label = c.label_box(20., (n-1)*3.6, 4.5, 1.9, 0.)
++            self.assertEqual((label['lane_sector'], label['raceline']), (11, n))
++            self.assertTrue(label['lane_label_confident'])
++            self.assertFalse(label['lane_boundary_crossing'])
++        crossing = c.label_box(20., 1.2, 4.5, 1.9, 0.)
++        self.assertEqual(crossing['raceline'], 1)
++        self.assertTrue(crossing['lane_boundary_crossing'])
++        angled = c.label_box(20., 0., 4.5, 1.9, math.pi/4.)
++        self.assertTrue(angled['lane_boundary_crossing'])
++        edge = c.label_box(20., 1.8, 4.5, 1.9, 0.)
++        self.assertFalse(edge['lane_label_confident'])
++
++    def test_lane_label_never_extrapolates_finite_lane_or_accepts_roadside(self):
++        c = LaneCorridor(geometry(lanes=[
++            dict(sector=11, raceline=1, points=[[-50., 0.], [50., 0.]]),
++            dict(sector=11, raceline=2, points=[[-20., 3.2], [-10., 3.2]]),
++            dict(sector=12, raceline=2, points=[[10., 3.2], [20., 3.2]])]))
++        self.assertEqual(c.label_box(-15., 3.2, 4., 1.8, 0.)['raceline'], 2)
++        for x, y in ((0., 3.2), (60., 0.), (0., 10.), (float('nan'), 0.)):
++            label = c.label_box(x, y, 4., 1.8, 0.)
++            self.assertEqual(label['raceline'], 0)
++            self.assertFalse(label['lane_label_confident'])
++
+     def test_boundary_is_half_full_width_and_interpolates_between_waypoints(self):
+         c = LaneCorridor(geometry())
+         self.assertEqual(c.contains([[0., 1.6], [0., -1.6], [0., 1.601],
+@@ -139,6 +166,32 @@
+         self.assertEqual(len(d.obstacle_snapshot[0]), 1)
+         self.assertEqual(d.obstacle_snapshot[0][0][0], 1)
+ 
++    def test_lane_metadata_reaches_planner_and_visible_box_label(self):
++        corridor = LaneCorridor(geometry())
++        f = GPSWaypointFollower.__new__(GPSWaypointFollower)
++        f.lane_corridor = corridor
++        d = MapDebug.__new__(MapDebug)
++        d.lane_corridor, d.obstacle_snapshot = corridor, None
++        d.obstacle_marker_ids, d.obstacle_pub = set(), MagicMock()
++        item = dict(id=7, x=20., y=0., radius=2.5, length=4.5, width=1.9,
++                    yaw=0., vx=10., vy=0., kind='dynamic', raceline=1,
++                    lane_sector=11, lane_stable=True, lane_boundary_crossing=False,
++                    raw_width=2.2, predicted=True, measurement_stamp=99.8)
++        message = String(data=json.dumps(dict(stamp=100., frame_id='map', obstacles=[item])))
++        with patch('rospy.Time.now', return_value=rospy.Time(100)):
++            f.obstacles_callback(message)
++            d.on_obstacles(message)
++            d.publish_obstacles(d.obstacle_snapshot[1])
++        o = f.obstacles[0]
++        self.assertEqual((o.track_id, o.raceline, o.lane_sector), (7, 1, 11))
++        self.assertTrue(o.lane_stable)
++        self.assertFalse(o.lane_boundary_crossing)
++        self.assertTrue(o.predicted)
++        markers = d.obstacle_pub.publish.call_args.args[0].markers
++        label = next(m for m in markers if m.ns == 'obstacle_labels')
++        self.assertIn('R1', label.text)
++        self.assertNotIn('?', label.text)
++
+     def test_width_update_reaches_perception_and_debug_and_clears_old_tracks(self):
+         n = self.lidar_node(LaneCorridor(geometry()))
+         n.tracks = {1: dict(x=0., y=0.)}
+--- a/src/unita_waypoint/test/test_driving_stability.py
++++ b/src/unita_waypoint/test/test_driving_stability.py
+@@ -13,6 +13,7 @@
+ from ground_segmentation import segment_ground
+ from local_avoidance_core import LocalAvoidancePlanner, Obstacle
+ from lidar_obstacles import LidarObstacles, road_surface_evidence, road_surface_in_box
++from lane_corridor import LaneCorridor
+ from pedal_guard import CruiseBrake, PedalGuard
+ from gps_waypoint_follower import GPSWaypointFollower, PIDController
+ 
+@@ -24,6 +25,82 @@
+ 
+ 
+ class StabilityTests(unittest.TestCase):
++    def labelled_tracker(self, sector=11):
++        n = LidarObstacles.__new__(LidarObstacles)
++        n.tracks, n.next_id, n.dynamic_speed_threshold_mps = {}, 1, .8
++        n.lane_corridor = LaneCorridor(dict(frame_id='map', raceline_width=3.6,
++            loop=False, lanes=[dict(sector=sector, raceline=i,
++                points=[[-50., (i-1)*3.6], [100., (i-1)*3.6]]) for i in (1, 2, 3)]))
++        return n
++
++    def detection(self, x=20., y=3.6, width=1.9):
++        return (x, y, math.hypot(4.5, width)/2, 4.5, width, 0.)
++
++    def test_midpoint_lane_needs_distinct_observations_and_elapsed_time(self):
++        n = self.labelled_tracker()
++        for stamp in (1., 1.01, 1.02):
++            o = n._update_tracks([self.detection()], stamp)[0]
++            self.assertEqual(o['raceline'], 2)
++            self.assertFalse(o['lane_stable'])
++        o = n._update_tracks([self.detection()], 1.21)[0]
++        self.assertTrue(o['lane_stable'])
++        self.assertFalse(o['lane_boundary_crossing'])
++
++    def test_stable_neighbour_track_does_not_steal_another_lanes_detection(self):
++        n = self.labelled_tracker()
++        for stamp in (1., 1.1, 1.2):
++            previous = n._update_tracks([self.detection()], stamp)[0]
++        objects = n._update_tracks([self.detection(y=7.2)], 1.4)
++        current = next(o for o in objects if not o['predicted'])
++        self.assertNotEqual(current['id'], previous['id'])
++        self.assertEqual(current['raceline'], 3)
++        self.assertFalse(current['lane_stable'])
++
++    def test_ambiguous_midpoints_do_not_count_toward_stable_label(self):
++        n = self.labelled_tracker()
++        for stamp in (1., 1.1, 1.2):
++            o = n._update_tracks([self.detection(y=1.8)], stamp)[0]
++            self.assertFalse(o['lane_stable'])
++        o = n._update_tracks([self.detection(y=1.6)], 1.3)[0]
++        self.assertFalse(o['lane_stable'])
++        for stamp in (1.4, 1.5):
++            o = n._update_tracks([self.detection(y=1.6)], stamp)[0]
++        self.assertTrue(o['lane_stable'])
++        self.assertTrue(o['lane_boundary_crossing'])
++
++    def test_highway_occlusion_keeps_measured_width_and_longitudinal_uncertainty(self):
++        n = self.labelled_tracker()
++        for stamp in (1., 1.1, 1.2):
++            n._update_tracks([self.detection()], stamp)
++        o = n._update_tracks([], 1.5)[0]
++        self.assertTrue(o['predicted'])
++        self.assertTrue(o['lane_stable'])
++        self.assertAlmostEqual(o['width'], 1.9)
++        self.assertAlmostEqual(o['raw_width'], 2.2)
++        self.assertAlmostEqual(o['length'], 4.8)
++        self.assertEqual(n._update_tracks([], 1.61), [])
++        # A prediction moving toward the boundary loses the narrow-box rule.
++        crossing = self.labelled_tracker()
++        for stamp in (1., 1.1, 1.2):
++            o = crossing._update_tracks([self.detection()], stamp)[0]
++        crossing.tracks[o['id']].update(vy=4., velocity_reliable=True)
++        o = crossing._update_tracks([], 1.5)[0]
++        self.assertTrue(o['lane_boundary_crossing'])
++        self.assertAlmostEqual(o['width'], 2.2)
++        normal = self.labelled_tracker(sector=10)
++        for stamp in (1., 1.1, 1.2):
++            normal._update_tracks([self.detection()], stamp)
++        self.assertAlmostEqual(normal._update_tracks([], 1.5)[0]['width'], 2.2)
++
++    def test_actual_box_growth_and_boundary_intrusion_are_not_smoothed_away(self):
++        n = self.labelled_tracker()
++        for stamp in (1., 1.1, 1.2):
++            n._update_tracks([self.detection()], stamp)
++        o = n._update_tracks([self.detection(width=4.8)], 1.3)[0]
++        self.assertTrue(o['lane_boundary_crossing'])
++        self.assertEqual(o['width'], 4.8)
++        self.assertGreater(n._update_tracks([], 1.5)[0]['width'], 4.8)
++
+     def test_shifted_road_is_confirmed_without_removing_low_object_or_roof(self):
+         x, y = np.meshgrid(np.arange(5., 40., .4), np.arange(-2.5, 2.6, .4))
+         road = np.column_stack((x.ravel(), y.ravel(), np.full(x.size, -.38)))
+--- a/src/unita_waypoint/test/test_highway_planner.py
++++ b/src/unita_waypoint/test/test_highway_planner.py
+@@ -59,6 +59,42 @@
+ 
+ 
+ class HighwayPlannerTests(unittest.TestCase):
++    def test_stable_neighbour_in_margin_is_not_a_straight_lane_leader(self):
++        p = planner()
++        p.highway_active = True
++        # Ego is offset toward R2; the body clears it by 30.4 cm, inside
++        # the former 35 cm margin. R2's box remains inside its own lane.
++        path = [(0., 1.4), (55., 1.4)]
++        neighbour = car(20., 2, speed=15.)
++        self.assertIsNotNone(p._lead(path, path[0], [neighbour], 55., lane=1))
++        neighbour.raceline, neighbour.lane_sector = 2, 11
++        neighbour.lane_stable, neighbour.lane_boundary_crossing = True, False
++        self.assertIsNone(p._lead(path, path[0], [neighbour], 55., lane=1))
++        # Same-lane following and lane-change envelopes keep the old margin.
++        self.assertIsNotNone(p._lead(path, path[0], [neighbour], 55., lane=2))
++        p.transition = {'target': 2}
++        self.assertIsNotNone(p._lead(path, path[0], [neighbour], 55., lane=1))
++
++    def test_lane_label_never_hides_body_overlap_or_boundary_crossing(self):
++        p = planner()
++        p.highway_active = True
++        neighbour = car(20., 2, speed=0.)
++        neighbour.raceline, neighbour.lane_sector = 2, 11
++        neighbour.lane_stable, neighbour.lane_boundary_crossing = True, False
++        path = [(0., 1.8), (55., 1.8)]
++        lead = p._lead(path, path[0], [neighbour], 55., lane=1)
++        self.assertIsNotNone(lead)
++        self.assertLess(p._idm_cap(CRUISE, CRUISE, lead), CRUISE*3.6)
++        path = [(0., 1.4), (55., 1.4)]
++        neighbour.lane_boundary_crossing = True
++        self.assertIsNotNone(p._lead(path, path[0], [neighbour], 55., lane=1))
++        neighbour.lane_boundary_crossing = False
++        neighbour.lane_stable = False
++        self.assertIsNotNone(p._lead(path, path[0], [neighbour], 55., lane=1))
++        neighbour.lane_stable = True
++        p.highway_active = False
++        self.assertIsNotNone(p._lead(path, path[0], [neighbour], 55., lane=1))
++
+     def test_free_road_moves_to_r3_at_full_speed(self):
+         p = planner()
+         decision = p.plan(0, (0., 0.), CRUISE, [], desired_speed_mps=CRUISE)

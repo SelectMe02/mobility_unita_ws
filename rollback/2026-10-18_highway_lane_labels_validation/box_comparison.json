@@ -1,0 +1,266 @@
+[
+  {
+    "run": "run_20261018_225612",
+    "recorded_scenes": 196,
+    "evaluated_highway_scenes": 0,
+    "narrowed_coasting_boxes": 0,
+    "coasting_examples": [],
+    "lane_labels": [],
+    "measured_width_jumps_over_half_metre": 3,
+    "measured_growth_examples": [
+      {
+        "stamp": 1792331788.2164347,
+        "id": 17,
+        "width": 1.955711864907471,
+        "previous_width": 1.286519775507486
+      },
+      {
+        "stamp": 1792331788.752914,
+        "id": 20,
+        "width": 2.336802381452287,
+        "previous_width": 1.4819081812824493
+      },
+      {
+        "stamp": 1792331815.7837138,
+        "id": 25,
+        "width": 0.7860632813255393,
+        "previous_width": 1.4046160664602212
+      }
+    ],
+    "leader_removed_scenes": 0,
+    "stable_neighbour_margin_exclusions": 0,
+    "leader_changes": [],
+    "recorded_brake_reasons": [],
+    "limitation": "Recorded-pose geometry comparison, not a new closed-loop drive."
+  },
+  {
+    "run": "run_20261018_225727",
+    "recorded_scenes": 501,
+    "evaluated_highway_scenes": 247,
+    "narrowed_coasting_boxes": 28,
+    "coasting_examples": [
+      {
+        "stamp": 1792331858.2136958,
+        "id": 1,
+        "raceline": 1,
+        "old_width": 0.6267401691066681,
+        "new_width": 0.4268862720119415
+      },
+      {
+        "stamp": 1792331858.9934254,
+        "id": 2,
+        "raceline": 1,
+        "old_width": 1.0643700907000095,
+        "new_width": 0.8266481706865818
+      },
+      {
+        "stamp": 1792331862.4605656,
+        "id": 2,
+        "raceline": 1,
+        "old_width": 1.091829567794207,
+        "new_width": 0.9851727780145438
+      },
+      {
+        "stamp": 1792331862.6194067,
+        "id": 2,
+        "raceline": 1,
+        "old_width": 1.2506707009118827,
+        "new_width": 0.9851727780145438
+      },
+      {
+        "stamp": 1792331863.3103561,
+        "id": 2,
+        "raceline": 1,
+        "old_width": 2.862897185472164,
+        "new_width": 2.673244742540035
+      },
+      {
+        "stamp": 1792331863.478589,
+        "id": 2,
+        "raceline": 1,
+        "old_width": 3.0311301032578086,
+        "new_width": 2.673244742540035
+      },
+      {
+        "stamp": 1792331863.8371437,
+        "id": 12,
+        "raceline": 3,
+        "old_width": 3.5858670768588183,
+        "new_width": 3.3807841834872363
+      },
+      {
+        "stamp": 1792331866.9055276,
+        "id": 21,
+        "raceline": 3,
+        "old_width": 0.6611284269111337,
+        "new_width": 0.497355367066163
+      }
+    ],
+    "lane_labels": [
+      {
+        "raceline": 1,
+        "stable": false,
+        "boundary_crossing": false,
+        "count": 21
+      },
+      {
+        "raceline": 1,
+        "stable": false,
+        "boundary_crossing": true,
+        "count": 11
+      },
+      {
+        "raceline": 1,
+        "stable": true,
+        "boundary_crossing": false,
+        "count": 15
+      },
+      {
+        "raceline": 1,
+        "stable": true,
+        "boundary_crossing": true,
+        "count": 9
+      },
+      {
+        "raceline": 2,
+        "stable": false,
+        "boundary_crossing": false,
+        "count": 29
+      },
+      {
+        "raceline": 2,
+        "stable": false,
+        "boundary_crossing": true,
+        "count": 38
+      },
+      {
+        "raceline": 2,
+        "stable": true,
+        "boundary_crossing": false,
+        "count": 121
+      },
+      {
+        "raceline": 2,
+        "stable": true,
+        "boundary_crossing": true,
+        "count": 4
+      },
+      {
+        "raceline": 3,
+        "stable": false,
+        "boundary_crossing": false,
+        "count": 72
+      },
+      {
+        "raceline": 3,
+        "stable": false,
+        "boundary_crossing": true,
+        "count": 36
+      },
+      {
+        "raceline": 3,
+        "stable": true,
+        "boundary_crossing": false,
+        "count": 134
+      },
+      {
+        "raceline": 3,
+        "stable": true,
+        "boundary_crossing": true,
+        "count": 72
+      }
+    ],
+    "measured_width_jumps_over_half_metre": 35,
+    "measured_growth_examples": [
+      {
+        "stamp": 1792331859.31142,
+        "id": 2,
+        "width": 2.9123722297435677,
+        "previous_width": 0.8266481706865818
+      },
+      {
+        "stamp": 1792331861.498363,
+        "id": 3,
+        "width": 1.3128506732229823,
+        "previous_width": 0.8068582385275107
+      },
+      {
+        "stamp": 1792331862.0199487,
+        "id": 2,
+        "width": 2.024586313869662,
+        "previous_width": 2.85608286241893
+      },
+      {
+        "stamp": 1792331862.2431102,
+        "id": 3,
+        "width": 3.67833464131013,
+        "previous_width": 1.9143649611538365
+      },
+      {
+        "stamp": 1792331862.3539088,
+        "id": 2,
+        "width": 0.9851727780145438,
+        "previous_width": 2.326687113904768
+      },
+      {
+        "stamp": 1792331863.1207037,
+        "id": 10,
+        "width": 3.746337603947083,
+        "previous_width": 1.7353218029970634
+      },
+      {
+        "stamp": 1792331863.478589,
+        "id": 4,
+        "width": 4.366259291930902,
+        "previous_width": 1.801744860401044
+      },
+      {
+        "stamp": 1792331863.6320608,
+        "id": 12,
+        "width": 3.3807841834872363,
+        "previous_width": 1.8152917797532666
+      }
+    ],
+    "leader_removed_scenes": 0,
+    "stable_neighbour_margin_exclusions": 0,
+    "leader_changes": [],
+    "recorded_brake_reasons": [
+      {
+        "reason": "sector11_cruise_brake",
+        "state": "LANE_CHANGING",
+        "count": 32
+      },
+      {
+        "reason": "pid_brake",
+        "state": "TAILING",
+        "count": 26
+      },
+      {
+        "reason": "pid_brake",
+        "state": "LANE_CHANGING",
+        "count": 22
+      },
+      {
+        "reason": "clearance_confirmation",
+        "state": "TAILING",
+        "count": 9
+      },
+      {
+        "reason": "sector11_cruise_brake",
+        "state": "TAILING",
+        "count": 7
+      },
+      {
+        "reason": "planned_speed_zero",
+        "state": "TAILING",
+        "count": 5
+      },
+      {
+        "reason": "sector11_cruise_brake",
+        "state": "RACELINE",
+        "count": 4
+      }
+    ],
+    "limitation": "Recorded-pose geometry comparison, not a new closed-loop drive."
+  }
+]

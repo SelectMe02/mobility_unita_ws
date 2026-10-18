@@ -68,6 +68,7 @@ class Config:
     right_wall_target_clearance_m: float = 2.9
     right_wall_clearance_tolerance_m: float = 0.1
     wall_point_tolerance_m: float = 0.35
+    exit_wall_trigger_inset_m: float = 0.8
     wall_corridor_horizon_m: float = 6.0
     right_wall_min_clearance_m: float = 0.9
     avoidance_trigger_range_m: float = 20.0
@@ -144,6 +145,7 @@ class Config:
                 or self.right_wall_target_clearance_m < self.right_wall_min_clearance_m
                 or self.right_wall_clearance_tolerance_m < 0
                 or self.wall_point_tolerance_m <= 0
+                or self.exit_wall_trigger_inset_m < self.wall_point_tolerance_m
                 or self.wall_corridor_horizon_m <= 0
                 or self.right_wall_target_clearance_m - self.right_wall_clearance_tolerance_m
                 <= self.right_wall_min_clearance_m
@@ -477,7 +479,7 @@ class FollowTheGap:
                              <= self.config.wall_point_tolerance_m))
         return self._linear_side_boundaries(points[keep], walls)
 
-    def _inside_walls(self, points, walls):
+    def _inside_walls(self, points, walls, inset_m=None):
         """Mask of returns on the road side of both fitted walls.
 
         The wall filter only removes returns along the measured wall span.
@@ -485,6 +487,7 @@ class FollowTheGap:
         along its end tangent so outside returns do not count as in-lane.
         """
         inside = np.ones(len(points), dtype=bool)
+        inset_m = self.config.wall_point_tolerance_m if inset_m is None else inset_m
         for sign, wall in zip((-1., 1.), walls):
             if wall is None:
                 continue
@@ -496,7 +499,7 @@ class FollowTheGap:
             # Only extend forward; nearer than the measured span stays in-lane.
             inside &= ((x < first_x)
                        | (sign * (points[:, 1] - wall_y)
-                          < -self.config.wall_point_tolerance_m))
+                          < -inset_m - 1e-9))
         return inside
 
     @staticmethod
@@ -635,13 +638,19 @@ class FollowTheGap:
 
     def plan(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
              wall_follow=False, wall_follow_weight=1., route_rejoin_remaining_m=None,
-             ego_pose=None, stamp=None, route_trusted=False):
+             ego_pose=None, stamp=None, route_trusted=False, exit_heading_error_rad=None):
         """Plan one scan. ego_pose is the odometry rear-axle pose (x, y, yaw)
         at the scan stamp; without it obstacles are not tracked over time.
 
         route_trusted means preferred_bearing_rad comes from a map pose that
         an independent observation has corrected (the MORAI exit anchor), so
-        the guards against a drifted LiDAR map pose are not applied."""
+        the guards against a drifted LiDAR map pose are not applied.
+
+        exit_heading_error_rad is a waypoint direction minus the captured
+        heading sensor yaw, supplied only within the configured exit window.
+        It replaces the wall heading gradually via wall_follow_weight while
+        retaining the measured wall-spacing correction and all collision checks.
+        """
         now = self._clock()
         self._ego_pose = ego_pose
         self._scan_stamp = now if stamp is None else stamp
@@ -651,7 +660,7 @@ class FollowTheGap:
         plan = self._plan_geometry(points_lidar_m, ego_speed_mps,
                                    preferred_bearing_rad, wall_follow,
                                    wall_follow_weight, route_rejoin_remaining_m,
-                                   route_trusted)
+                                   route_trusted, exit_heading_error_rad)
         cap = self._current_obstacle_cap
         if math.isfinite(cap):
             cap = min(cap, plan.speed_mps)
@@ -679,7 +688,8 @@ class FollowTheGap:
 
     def _plan_geometry(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
              wall_follow=False, wall_follow_weight=1.,
-             route_rejoin_remaining_m=None, route_trusted=False):
+             route_rejoin_remaining_m=None, route_trusted=False,
+             exit_heading_error_rad=None):
         """Return a bounded low-speed plan or a full-stop plan.
 
         The cloud must be fresh before calling this function. Empty or
@@ -722,6 +732,12 @@ class FollowTheGap:
             return stop('invalid Ego speed')
         if not math.isfinite(preferred_bearing_rad):
             return stop('invalid route bearing')
+        if exit_heading_error_rad is not None and not math.isfinite(exit_heading_error_rad):
+            return stop('invalid exit heading')
+        exit_rejoin = wall_follow and exit_heading_error_rad is not None
+        direction_trusted = route_trusted or exit_rejoin
+        if exit_rejoin:
+            preferred_bearing_rad = exit_heading_error_rad
         preferred_bearing_rad = max(-self.half_fov_rad,
                                     min(self.half_fov_rad, preferred_bearing_rad))
         if len(points) == 0:
@@ -755,7 +771,7 @@ class FollowTheGap:
             bearing_rad = (float(np.clip(preferred_bearing_rad,
                            -cfg.unwalled_route_bearing_limit_rad,
                            cfg.unwalled_route_bearing_limit_rad))
-                           if wall_follow and not route_trusted else
+                           if wall_follow and not direction_trusted else
                            float(np.clip(preferred_bearing_rad,
                            -cfg.max_target_bearing_rad,
                            cfg.max_target_bearing_rad)))
@@ -793,7 +809,7 @@ class FollowTheGap:
                 self.right_wall_filtered_clearance_m = (
                     wall_clearance if previous is None
                     else .65 * previous + .35 * wall_clearance)
-        elif wall_follow and not route_trusted:
+        elif wall_follow and not direction_trusted:
             # When the wall disappears at the portal, do not let an
             # uncorrected LiDAR map pose demand a full 35-degree turn.
             preferred_bearing_rad = float(np.clip(
@@ -815,7 +831,8 @@ class FollowTheGap:
         in_clear_zone = ((np.abs(bearings) <= math.radians(135.))
                          & (obstacles[:, 0] >= -cfg.wall_target_clear_rear_m)
                          & (obstacles[:, 0] <= cfg.wall_target_clear_front_m)
-                         & self._inside_walls(obstacles, wall_fits))
+                         & self._inside_walls(obstacles, wall_fits,
+                             cfg.exit_wall_trigger_inset_m if exit_rejoin else None))
         occupied = bool(np.any(in_clear_zone))
         self.passing_side = 0
         self.rear_confirm_scans = 0
@@ -831,7 +848,7 @@ class FollowTheGap:
             # Match tunnel heading while selecting any collision-free gap.
             # An anchored route bearing already follows the road, including
             # the bend at the tunnel exit where the wall does not.
-            if wall_heading is not None and not route_trusted:
+            if wall_heading is not None and not direction_trusted:
                 preferred_bearing_rad = wall_heading
         stopping_distance_m = (ego_speed_mps * cfg.reaction_s
                                + ego_speed_mps ** 2 / (2 * cfg.brake_mps2))
@@ -941,7 +958,7 @@ class FollowTheGap:
             # boundary is evidence of map-pose drift, not an exit cue.
             # The road bends at the tunnel exit; once the map pose is
             # anchored, that disagreement is the curve, not drift.
-            if (avoidance_phase != 'PASSING' and not route_trusted
+            if (avoidance_phase != 'PASSING' and not direction_trusted
                     and abs(math.atan2(math.sin(preferred_bearing_rad - wall_bearing),
                                        math.cos(preferred_bearing_rad - wall_bearing)))
                     > cfg.right_wall_route_disagreement_rad):
@@ -950,8 +967,22 @@ class FollowTheGap:
             # A drifted map bearing must not cancel the measured wall
             # clearance correction inside the tunnel. Hand control back to
             # the saved route as the exit waypoint approaches.
-            preferred_bearing_rad = ((1. - wall_follow_weight) * preferred_bearing_rad
-                                     + wall_follow_weight * wall_bearing)
+            if exit_rejoin:
+                # Switch only the heading source at the portal. Do not fade
+                # out lateral spacing with it, and do not use ICP cross-track
+                # position as steering evidence. PASSING still suppresses the
+                # spacing correction so interior obstacles can be avoided.
+                offset_bearing = float(np.clip(
+                    cfg.right_wall_offset_gain_rad_per_m *
+                    (wall_error_m if self.wall_target_allowed else 0.),
+                    -cfg.right_wall_max_correction_rad, cfg.right_wall_max_correction_rad))
+                preferred_bearing_rad = (
+                    (1. - wall_follow_weight) * preferred_bearing_rad
+                    + wall_follow_weight * cfg.right_wall_heading_gain * wall_heading
+                    + offset_bearing)
+            else:
+                preferred_bearing_rad = ((1. - wall_follow_weight) * preferred_bearing_rad
+                                         + wall_follow_weight * wall_bearing)
             if avoidance_phase == 'WALL_FOLLOW' and wall_clearance < cfg.wall_fast_clearance_m:
                 # Do not let the mapped route keep steering into a measured
                 # right wall while the exit blend reduces wall-follow weight.

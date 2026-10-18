@@ -1,0 +1,24 @@
+{
+  "targeted_tests_passed": 121,
+  "full_tests": 469,
+  "full_existing_failures": 17,
+  "new_failures": [],
+  "protected_files_unchanged": 205,
+  "syntax_ok": true,
+  "diff_check_ok": true,
+  "rollback_roundtrip_ok": true,
+  "changed_files": [
+    "src/unita_waypoint/scripts/lane_corridor.py",
+    "src/unita_waypoint/scripts/lidar_obstacles.py",
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower.py",
+    "src/unita_waypoint/scripts/map_debug.py",
+    "src/unita_waypoint/test/test_lane_corridor.py",
+    "src/unita_waypoint/test/test_driving_stability.py",
+    "src/unita_waypoint/test/test_highway_planner.py"
+  ],
+  "preserve_on_rollback": [
+    "src/unita_waypoint/config/avoidance_settings_lidar_obstacles.json"
+  ],
+  "actual_drive_executed": false
+}

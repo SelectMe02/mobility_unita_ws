@@ -1,0 +1,852 @@
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -24,7 +24,8 @@
+ from leo_avoidance.obstacle_tracker import ObstacleTracker
+ from leo_avoidance.route_avoidance import (RouteAvoidance, RouteAvoidanceConfig,
+                                            RouteObstacle)
+-from leo_guard.route_file import load_lane_changes, load_route_points, load_survey
++from leo_guard.route_file import (load_lane_changes, load_route_points, load_survey,
++                                  point_id_ranges)
+ 
+ sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
+ from avoidance_runtime import FrozenConfigTarget, RuntimeSettings  # noqa: E402
+@@ -54,6 +55,15 @@
+                     crosswalks.append((stop['s'] + float(rospy.get_param('~crosswalk_start_m', 1.)),
+                                        stop['s'] + float(rospy.get_param('~crosswalk_end_m', 10.))))
+         self.planner = RouteAvoidance(points, config, lane_changes, crosswalks)
++        # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.
++        route = self.planner.route
++        self.planner.ignored_s_ranges = []
++        for first, last in point_id_ranges(rospy.get_param('~waypoint_file'),
++                                           rospy.get_param('~waypoint_only_point_ids', '')):
++            s_first = route.project(points[first, 0], points[first, 1], 0, len(route.lengths))[0]
++            s_last = route.project(points[last, 0], points[last, 1], 0, len(route.lengths))[0]
++            self.planner.ignored_s_ranges.append((s_first, s_last))
++            rospy.loginfo('Route avoidance ignores obstacles at s %.1f..%.1f m', s_first, s_last)
+         self.runtime = RuntimeSettings('leo_route_avoidance', FrozenConfigTarget(self.planner))
+         # Open-road returns: local ground per grid cell, not the tunnel's single
+         # road plane (which turns a road rising ahead into obstacles).
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -236,7 +236,10 @@
+         for o in obstacles:
+             s, d, seg = self.route.project(o.x, o.y, lo, hi)
+             if (not s_ego - cfg.window_behind_m <= s <= s_ego + reach
+-                    or abs(d) > cfg.lateral_window_m):
++                    or abs(d) > cfg.lateral_window_m
++                    # Waypoint-only zones (tollgate): fixed structures there
++                    # are cleared by the route itself, so nothing is avoided.
++                    or any(a <= s <= b for a, b in getattr(self, 'ignored_s_ranges', ()))):
+                 continue
+             t = self.route.tangents[seg]
+             v_s = o.vx * t[0] + o.vy * t[1]
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -311,3 +311,15 @@
+     after = planner.update((2., 0.), 10., [])  # crossed the start line
+     assert planner.last_s < 5.
+     assert after.path and after.path[-1][0] > 40.
++
++
++def test_waypoint_only_zone_ignores_a_block_inside_it_but_not_outside():
++    # Tollgate (Map Tuner points 3496-3572): booths there are cleared by the route.
++    for block_x, expected in ((60., 'FOLLOW'), (120., 'PASSING')):
++        avoid = planner()
++        avoid.ignored_s_ranges = [(50., 80.)]
++        decision = avoid.update((30., 0.), 5.5, [RouteObstacle(block_x, 0., 1.2)])
++        if expected == 'FOLLOW':
++            assert decision.state == 'FOLLOW' and math.isinf(decision.speed_cap_mps)
++        else:
++            assert decision.state != 'FOLLOW'
+--- a/src/leo_guard/src/leo_guard/route_file.py
++++ b/src/leo_guard/src/leo_guard/route_file.py
+@@ -79,6 +79,21 @@
+     return hashlib.sha256(points.tobytes()).hexdigest()
+ 
+ 
++def point_id_ranges(path, text):
++    """'3496-3572' (Map Tuner point IDs) -> [(first, last)] Leo route indices."""
++    core = _map_tunner_core()
++    route, _ = core.primary_route(core.load_project(path), raceline1_only=True)
++    ids = {point['id']: index for index, point in enumerate(route)}
++    ranges = []
++    for item in filter(None, (part.strip() for part in str(text).split(','))):
++        first, last = (int(part) for part in item.split('-'))
++        indices = [ids[i] for i in range(first, last + 1) if i in ids]
++        if not indices:
++            raise ValueError('no Raceline 1 route point with id in ' + item)
++        ranges.append((min(indices), max(indices)))
++    return ranges
++
++
+ def checkpoint_indices(path):
+     """Route index of every checkpoint ('start', '1'..'14') on the Leo route.
+ 
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -22,6 +22,9 @@
+   <arg name="raceline_checkpoints" default="7-11"/>
+   <!-- Leo follower: lane changes here need no pass speed (23.6 km/h). -->
+   <arg name="any_speed_lane_change_checkpoints" default="7-11"/>
++  <!-- Map Tuner point IDs (S12-S13 tollgate, 30 km/h in the project file):
++       follow the waypoints only, no obstacle avoidance there. -->
++  <arg name="waypoint_only_point_ids" default="3496-3572"/>
+   <!-- S11 cruising target floor; obstacle/lane-end stops and stale-input
+        braking still take priority. Saved Map Debug settings may override it. -->
+   <arg name="sector11_min_speed_kmh" default="40.0"/>
+@@ -169,6 +172,7 @@
+          is tracking error, not a lane departure needing a return lane change. -->
+     <param name="r1_tracking_tolerance_m" value="0.85"/>
+     <param name="lane_change_any_speed_checkpoints" value="$(arg any_speed_lane_change_checkpoints)" type="str"/>
++    <param name="waypoint_only_point_ids" value="$(arg waypoint_only_point_ids)" type="str"/>
+     <param name="vehicle_half_width_m" value="0.946"/>
+     <param name="front_extent_m" value="3.845"/>
+     <param name="enable_velocity_planning" value="true"/>
+@@ -197,6 +201,7 @@
+     <!-- Lane changes only across dashed lines of the official route. -->
+     <param name="lane_change_file" value="$(find leo_avoidance)/config/route_lane_changes.json"/>
+     <param name="intersection_file" value="$(arg intersection_file)"/>
++    <param name="waypoint_only_point_ids" value="$(arg waypoint_only_point_ids)" type="str"/>
+   </node>
+   <!-- Tunnel: IMU-heading dead reckoning, LiDAR odometry and FTG avoidance. -->
+   <node pkg="leo_avoidance" type="ego_odometry_node.py" name="leo_ego_odometry" output="screen" required="true">
+--- a/src/unita_waypoint/config/map_tunner_project.json
++++ b/src/unita_waypoint/config/map_tunner_project.json
+@@ -35595,322 +35595,322 @@
+             "x": 70.31182126004778,
+             "y": -343.6153391323988,
+             "z": 28.355165044404266,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3497,
+             "x": 70.30027539754488,
+             "y": -344.11520495650433,
+             "z": 28.356087514116428,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3498,
+             "x": 70.28872953504198,
+             "y": -344.61507078060987,
+             "z": 28.35700998382859,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3499,
+             "x": 70.27718367253908,
+             "y": -345.1149366047154,
+             "z": 28.35793245354075,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3500,
+             "x": 70.26563781003618,
+             "y": -345.61480242882095,
+             "z": 28.358854923252913,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3501,
+             "x": 70.25409194753328,
+             "y": -346.1146682529265,
+             "z": 28.359777392965075,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3502,
+             "x": 70.24254608503038,
+             "y": -346.61453407703203,
+             "z": 28.360699862677237,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3503,
+             "x": 70.23100022252748,
+             "y": -347.1143999011376,
+             "z": 28.3616223323894,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3504,
+             "x": 70.21945436002459,
+             "y": -347.6142657252431,
+             "z": 28.36254480210156,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3505,
+             "x": 70.20790849752169,
+             "y": -348.11413154934866,
+             "z": 28.36346727181372,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3506,
+             "x": 70.19636263501879,
+             "y": -348.6139973734542,
+             "z": 28.364389741525883,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3507,
+             "x": 70.1920200493374,
+             "y": -349.1139779915897,
+             "z": 28.365113231971854,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3508,
+             "x": 70.18767746365602,
+             "y": -349.6139586097252,
+             "z": 28.365836722417825,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3509,
+             "x": 70.18333487797463,
+             "y": -350.1139392278607,
+             "z": 28.366560212863796,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3510,
+             "x": 70.17899229229324,
+             "y": -350.61391984599624,
+             "z": 28.367283703309766,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3511,
+             "x": 70.17464970661186,
+             "y": -351.11390046413175,
+             "z": 28.368007193755737,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3512,
+             "x": 70.17030712093047,
+             "y": -351.61388108226726,
+             "z": 28.368730684201708,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3513,
+             "x": 70.16596453524909,
+             "y": -352.11386170040277,
+             "z": 28.36945417464768,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3514,
+             "x": 70.1616219495677,
+             "y": -352.6138423185383,
+             "z": 28.37017766509365,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3515,
+             "x": 70.16495049215817,
+             "y": -353.1138273431076,
+             "z": 28.368203833632503,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3516,
+             "x": 70.16827903474864,
+             "y": -353.61381236767687,
+             "z": 28.366230002171356,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3517,
+             "x": 70.1716075773391,
+             "y": -354.11379739224617,
+             "z": 28.36425617071021,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3518,
+             "x": 70.17493611992957,
+             "y": -354.61378241681547,
+             "z": 28.362282339249063,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3519,
+             "x": 70.17826466252004,
+             "y": -355.11376744138477,
+             "z": 28.360308507787916,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3520,
+             "x": 70.1815932051105,
+             "y": -355.61375246595406,
+             "z": 28.35833467632677,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3521,
+             "x": 70.18492174770097,
+             "y": -356.11373749052336,
+             "z": 28.356360844865623,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3522,
+             "x": 70.18825029029144,
+             "y": -356.61372251509266,
+             "z": 28.354387013404477,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3523,
+             "x": 70.18687752493267,
+             "y": -357.1137180629754,
+             "z": 28.352784636203967,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3524,
+             "x": 70.1855047595739,
+             "y": -357.61371361085816,
+             "z": 28.35118225900346,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3525,
+             "x": 70.18413199421514,
+             "y": -358.1137091587409,
+             "z": 28.34957988180295,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3526,
+             "x": 70.18275922885637,
+             "y": -358.61370470662365,
+             "z": 28.34797750460244,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3527,
+             "x": 70.1813864634976,
+             "y": -359.1137002545064,
+             "z": 28.34637512740193,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3528,
+             "x": 70.18001369813884,
+             "y": -359.61369580238915,
+             "z": 28.34477275020142,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3529,
+             "x": 70.1839336621279,
+             "y": -360.11366810739514,
+             "z": 28.34126160946121,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3530,
+             "x": 70.18785362611696,
+             "y": -360.61364041240114,
+             "z": 28.337750468720998,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3531,
+             "x": 70.19177359010602,
+             "y": -361.11361271740714,
+             "z": 28.334239327980786,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3532,
+             "x": 70.19569355409509,
+             "y": -361.61358502241313,
+             "z": 28.330728187240574,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3533,
+             "x": 70.19961351808415,
+             "y": -362.11355732741913,
+             "z": 28.327217046500362,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3534,
+             "x": 70.20353348207321,
+             "y": -362.6135296324251,
+             "z": 28.32370590576015,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3535,
+             "x": 70.20745344606227,
+             "y": -363.1135019374311,
+             "z": 28.320194765019938,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3536,
+             "x": 70.21137341005134,
+             "y": -363.6134742424371,
+             "z": 28.316683624279726,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3537,
+             "x": 70.2152933740404,
+             "y": -364.1134465474431,
+             "z": 28.313172483539514,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3538,
+             "x": 70.21494337723652,
+             "y": -364.61343386965524,
+             "z": 28.309629161738197,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3539,
+             "x": 70.21459338043265,
+             "y": -365.11342119186736,
+             "z": 28.30608583993688,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3540,
+             "x": 70.21424338362877,
+             "y": -365.6134085140795,
+             "z": 28.302542518135564,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3541,
+             "x": 70.21414883446414,
+             "y": -365.74847655789927,
+             "z": 28.301585314776467,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           }
+         ]
+       }
+@@ -35931,217 +35931,217 @@
+             "x": 70.21414883446414,
+             "y": -365.74847655789927,
+             "z": 28.301585314776467,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3543,
+             "x": 70.21414883446414,
+             "y": -365.74847655789927,
+             "z": 28.301585314776467,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3544,
+             "x": 70.21371694946687,
+             "y": -366.24846381172665,
+             "z": 28.298041378334673,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3545,
+             "x": 70.2132850644696,
+             "y": -366.74845106555404,
+             "z": 28.29449744189288,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3546,
+             "x": 70.21519854343384,
+             "y": -367.248427197072,
+             "z": 28.29000227664466,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3547,
+             "x": 70.21711202239808,
+             "y": -367.7484033285899,
+             "z": 28.28550711139644,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3548,
+             "x": 70.21902550136232,
+             "y": -368.24837946010786,
+             "z": 28.281011946148222,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3549,
+             "x": 70.22093898032657,
+             "y": -368.7483555916258,
+             "z": 28.276516780900003,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3550,
+             "x": 70.2228524592908,
+             "y": -369.24833172314374,
+             "z": 28.272021615651784,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3551,
+             "x": 70.22476593825505,
+             "y": -369.7483078546617,
+             "z": 28.267526450403565,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3552,
+             "x": 70.22745876921132,
+             "y": -370.2482595620102,
+             "z": 28.261120283005145,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3553,
+             "x": 70.2301516001676,
+             "y": -370.74821126935876,
+             "z": 28.254714115606724,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3554,
+             "x": 70.23284443112388,
+             "y": -371.2481629767073,
+             "z": 28.248307948208303,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3555,
+             "x": 70.23553726208016,
+             "y": -371.74811468405585,
+             "z": 28.241901780809883,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3556,
+             "x": 70.23823009303644,
+             "y": -372.2480663914044,
+             "z": 28.235495613411462,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3557,
+             "x": 70.24092292399271,
+             "y": -372.74801809875294,
+             "z": 28.22908944601304,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3558,
+             "x": 70.24289347731839,
+             "y": -373.24799369961244,
+             "z": 28.22456004596911,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3559,
+             "x": 70.24486403064407,
+             "y": -373.74796930047194,
+             "z": 28.220030645925178,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3560,
+             "x": 70.24683458396974,
+             "y": -374.24794490133144,
+             "z": 28.215501245881246,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3561,
+             "x": 70.24880513729542,
+             "y": -374.74792050219094,
+             "z": 28.210971845837314,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3562,
+             "x": 70.2507756906211,
+             "y": -375.24789610305044,
+             "z": 28.206442445793382,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3563,
+             "x": 70.25274624394677,
+             "y": -375.74787170390994,
+             "z": 28.20191304574945,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3564,
+             "x": 70.25471679727245,
+             "y": -376.24784730476944,
+             "z": 28.197383645705518,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3565,
+             "x": 70.2701079933335,
+             "y": -376.7475941549289,
+             "z": 28.19335911598062,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3566,
+             "x": 70.28549918939454,
+             "y": -377.24734100508834,
+             "z": 28.189334586255722,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3567,
+             "x": 70.30089038545559,
+             "y": -377.7470878552478,
+             "z": 28.185310056530824,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3568,
+             "x": 70.31628158151663,
+             "y": -378.24683470540725,
+             "z": 28.181285526805926,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3569,
+             "x": 70.33167277757768,
+             "y": -378.7465815555667,
+             "z": 28.177260997081028,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3570,
+             "x": 70.34706397363873,
+             "y": -379.24632840572616,
+             "z": 28.17323646735613,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3571,
+             "x": 70.36245516969977,
+             "y": -379.7460752558856,
+             "z": 28.169211937631232,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3572,
+             "x": 70.37784636576082,
+             "y": -380.24582210604507,
+             "z": 28.165187407906334,
+-            "speed_kmh": 55
++            "speed_kmh": 28
+           },
+           {
+             "id": 3573,
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
+@@ -22,6 +22,9 @@
+ from morai_msgs.msg import GPSMessage, CtrlCmd
+ 
+ sys.path.insert(0, str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
++import numpy as np
++from scipy.spatial import cKDTree
++
+ from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
+ from avoidance_runtime import RuntimeSettings
+ from lane_corridor import LaneCorridor, project_lane_geometry
+@@ -461,6 +464,12 @@
+             self.path_ready = True
+             self.prepare_velocity_profile()
+             self.publish_path()
++        # Tollgate and similar: fixed structures the waypoints already clear.
++        # Obstacles inside are ignored, and no avoidance runs while inside.
++        self.waypoint_only_ranges = self.point_id_ranges(
++            rospy.get_param('~waypoint_only_point_ids', ''))
++        if self.waypoint_only_ranges:
++            self.route_tree = cKDTree(np.asarray(self.waypoints, dtype=float))
+         if self.enable_local_avoidance:
+             if self.waypoint_format != 'local_xy' or not self.waypoint_file.endswith('.json'):
+                 raise ValueError('local avoidance requires a saved map project')
+@@ -551,6 +560,22 @@
+                       lane, sector or 'all', end_id or 'end', end_index, fallback)
+         return fallback, indices
+ 
++    def point_id_ranges(self, text):
++        """'3496-3572' (Map Tuner point IDs) -> [(first, last)] route indices."""
++        ids = {point_id: i for i, point_id in enumerate(getattr(self, 'route_point_ids', []))}
++        ranges = []
++        for item in filter(None, (part.strip() for part in str(text).split(','))):
++            first, last = (int(part) for part in item.split('-'))
++            indices = [ids[i] for i in range(first, last + 1) if i in ids]
++            if not indices:
++                raise ValueError('no Raceline 1 route point with id in ' + item)
++            ranges.append((min(indices), max(indices)))
++            rospy.loginfo('Waypoint-only zone: points %s (idx %d..%d)', item, *ranges[-1])
++        return ranges
++
++    def in_waypoint_only_zone(self, index):
++        return any(lo <= index <= hi for lo, hi in getattr(self, 'waypoint_only_ranges', []))
++
+     def checkpoint_ranges(self, text):
+         """'7-11' -> [(route index of CP7, route index of CP11)]."""
+         checkpoints = getattr(self, 'project_checkpoint_indices', {})
+@@ -603,6 +628,7 @@
+                 publisher.publish(String(data=json.dumps(geometry)))
+             # Leo route: Raceline 1 in every sector; R2/R3 stay avoidance lanes.
+             route, self.route_sectors = primary_route(project, raceline1_only=True)
++            self.route_point_ids = [point['id'] for point in route]
+             self.project_checkpoint_positions = []
+             layout = project.get('generated_racelines')
+             if layout:
+@@ -1189,6 +1215,10 @@
+                 return
+             mask = corridor.contains([(o.x, o.y) for o in obstacles])
+             obstacles = [o for o, inside in zip(obstacles, mask) if inside]
++            if obstacles and getattr(self, 'waypoint_only_ranges', None):
++                _, nearest = self.route_tree.query([(o.x, o.y) for o in obstacles])
++                obstacles = [o for o, i in zip(obstacles, nearest)
++                             if not self.in_waypoint_only_zone(int(i))]
+             self.obstacles = obstacles
+             self.obstacle_stamp = stamp
+             self.obstacle_received = time.monotonic()
+@@ -1338,8 +1368,9 @@
+ 
+         target = self.find_lookahead_point()
+         local_speed_cap = float('inf')
+-        route_avoidance = (getattr(self, 'route_avoidance_topic', '')
+-                           and self.drive_mode != 'BLACKOUT')
++        avoid = (self.drive_mode != 'BLACKOUT'
++                 and not self.in_waypoint_only_zone(self.current_waypoint_index))
++        route_avoidance = getattr(self, 'route_avoidance_topic', '') and avoid
+         if route_avoidance:
+             plan = self.route_avoidance
+             if (plan is None or self.route_avoidance_received is None
+@@ -1357,7 +1388,7 @@
+                     self.publish_full_stop()
+                     rospy.logwarn_throttle(2., 'Route avoidance path has no lookahead point')
+                     return
+-        if getattr(self, 'enable_local_avoidance', False) and self.drive_mode != 'BLACKOUT':
++        if getattr(self, 'enable_local_avoidance', False) and avoid:
+             if (self.obstacle_received is None or
+                     now-self.obstacle_received > .5 or
+                     rospy.Time.now().to_sec()-self.obstacle_stamp > .5):
+--- a/src/unita_waypoint/test/test_loop_tracking_local.py
++++ b/src/unita_waypoint/test/test_loop_tracking_local.py
+@@ -277,5 +277,29 @@
+         self.assertLess(speeds[3520], 100.0)
+         self.assertGreater(speeds[3520], 55.0)
+ 
++    def test_waypoint_only_zone_maps_point_ids_and_drops_its_obstacles(self):
++        # Tollgate (Map Tuner points 3496-3572): follow waypoints, ignore booths.
++        import json as _json
++        import numpy as np
++        from lane_corridor import LaneCorridor
++        points = [(float(x), 0.) for x in range(100)]
++        obj = self.follower(points, loop=False)
++        obj.route_point_ids = [1000 + i for i in range(100)]
++        obj.waypoint_only_ranges = obj.point_id_ranges('1040-1060')
++        self.assertEqual(obj.waypoint_only_ranges, [(40, 60)])
++        self.assertTrue(obj.in_waypoint_only_zone(50))
++        self.assertFalse(obj.in_waypoint_only_zone(61))
++        with self.assertRaises(ValueError):
++            obj.point_id_ranges('5000-5010')
++        obj.route_tree = module.cKDTree(np.asarray(points))
++        obj.lane_corridor = LaneCorridor(dict(frame_id='map', raceline_width=3.6, loop=False,
++            lanes=[dict(sector=1, raceline=1, points=[[0., 0.], [99., 0.]])]))
++        item = dict(radius=.5, vx=0., vy=0., kind='static', y=0.)
++        message = String(data=_json.dumps(dict(stamp=10., frame_id='map', obstacles=[
++            dict(item, x=50.), dict(item, x=70.)])))
++        with patch.object(module.rospy.Time, 'now', return_value=module.rospy.Time(10.)):
++            obj.obstacles_callback(message)
++        self.assertEqual([o.x for o in obj.obstacles], [70.])
++
+ if __name__ == "__main__":
+     unittest.main()

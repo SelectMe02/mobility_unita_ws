@@ -1,0 +1,47 @@
+test_rejoin_route_local.test_gps_rejoin_accepts_nearby_route_aligned_fix ... ok
+test_rejoin_route_local.test_logged_tunnel_exit_rejoins_after_eight_metre_icp_drift ... ok
+test_rejoin_route_local.test_safe_gap_returns_toward_predicted_waypoints_after_pass ... ok
+test_rejoin_route_local.test_exit_waypoint_aims_toward_photo_coordinate ... ok
+test_rejoin_route_local.test_route_projection_lost_on_another_lane_is_reacquired ... ok
+test_rejoin_route_local.test_exit_guidance_is_disabled_outside_the_existing_exit_window ... ok
+test_rejoin_route_local.test_exit_direction_uses_sensor_heading_without_lateral_pose_correction ... ok
+test_rejoin_route_local.test_started_exit_guidance_stays_active_past_the_estimated_exit ... ok
+test_rejoin_route_local.test_exit_guidance_only_resets_after_gps_rejoin_is_accepted ... ok
+test_rejoin_route_local.test_latched_exit_guidance_does_not_bypass_sensor_fault_stop ... ok
+test_rejoin_route_local.test_latched_exit_guidance_does_not_extend_allowed_blackout_section ... ok
+test_scan_odometry_local.test_iterative_lidar_odometry_recovers_motion_with_odom_prior ... ok
+test_scan_odometry_local.test_sparse_cloud_cannot_authorize_blackout ... ok
+test_scan_odometry_local.test_gps_to_blackout_uses_lidar_match_then_returns_to_gps ... ok
+test_scan_odometry_local.test_tunnel_icp_yaw_bias_does_not_move_estimate_toward_wall ... ok
+test_scan_odometry_local.test_gps_return_waits_briefly_for_localization_pose ... ok
+test_scan_odometry_local.test_gps_rejoin_succeeds_after_exit_lidar_features_disappear ... ok
+test_scan_odometry_local.test_blackout_without_gps_anchor_holds ... ok
+test_scan_odometry_local.test_blackout_outside_tunnel_section_holds ... ok
+test_scan_odometry_local.test_failed_icp_scan_references_next_scan_without_authorizing_motion ... ok
+test_scan_odometry_local.test_stale_scan_holds_brake_state ... ok
+test_scan_odometry_local.test_gps_rejoin_mismatch_holds_until_route_corroborates ... ok
+test_scan_odometry_local.test_brief_disagreeing_gps_fix_inside_tunnel_keeps_blackout ... ok
+test_scan_odometry_local.test_route_corroborated_gps_rejoin_replaces_drifted_lidar_pose ... ok
+test_scan_odometry_local.test_rejoin_checks_pose_after_temporary_icp_hold ... ok
+test_scan_odometry_local.test_dead_reckoner_uses_speed_and_yaw_not_gps ... ok
+test_scan_odometry_local.test_tunnel_forward_motion_ignores_biased_wall_icp_translation ... ok
+test_scan_odometry_local.test_dead_reckoner_keeps_odom_frame_after_heading_gap ... ok
+test_scan_odometry_local.test_dead_reckoner_integrates_short_heading_delay ... ok
+test_scan_odometry_local.test_failed_icp_does_not_integrate_beyond_recovery_limit ... ok
+test_scan_odometry_local.test_invalid_nonzero_gps_never_enters_blackout ... ok
+test_scan_odometry_local.test_zero_gps_requires_safe_gap_and_fresh_zero_sample ... ok
+test_scan_odometry_local.test_obstacle_stop_keeps_blackout_pose_valid ... ok
+test_scan_odometry_local.test_missing_gps_stream_enters_blackout_after_debounce ... ok
+test_scan_odometry_local.test_nonzero_no_fix_holds_even_if_stream_later_stops ... ok
+test_scan_odometry_local.test_late_zero_sample_has_no_gap_before_missing_stream_trigger ... ok
+test_ftg_local.test_exit_fades_wall_spacing_and_limits_speed_for_route_alignment ... ok
+test_ftg_local.test_exit_wall_structure_changes_only_phase_trigger_not_collision_cloud ... ok
+test_ftg_local.test_exit_interior_obstacles_still_trigger_avoidance_on_both_sides ... ok
+test_ftg_local.test_wall_attached_exit_return_still_causes_collision_stop ... ok
+test_ftg_local.test_exit_direction_keeps_wall_spacing_and_rejects_position_drift ... ok
+test_ftg_local.test_exit_heading_handover_is_gradual_and_invalid_heading_stops ... ok
+
+----------------------------------------------------------------------
+Ran 42 tests in 0.166s
+
+OK

@@ -92,6 +92,7 @@ class DrivingStateNode:
         # Surveyed tunnel-exit gate (map constant, not simulator state).
         self.exit_rejoin_start_m = float(rospy.get_param('~exit_rejoin_start_m', 35.))
         self.exit_rejoin_full_m = float(rospy.get_param('~exit_rejoin_full_m', 12.))
+        self.exit_rejoin_active = False
         exit_anchor = rospy.get_param('~exit_anchor')
         self.exit_xy = np.array((float(exit_anchor['x']), float(exit_anchor['y'])))
         exit_index, _ = anchor_on_route(route_points, exit_anchor)
@@ -240,6 +241,38 @@ class DrivingStateNode:
             raise ValueError('route target is behind vehicle')
         return math.atan2(local_y, local_x)
 
+    def exit_rejoin_guidance(self, heading_yaw):
+        """Exit-only direction from saved route geometry and captured heading.
+
+        LiDAR position selects route progress, but its drifting lateral
+        coordinate never contributes to the heading error. Wall spacing
+        remains the independent lateral reference in the planner. Once the
+        exit window is entered, keep guidance until select() accepts GPS;
+        accumulated position error can put progress beyond the exit early.
+        """
+        remaining = self.exit_route_s - self.route_progress_m
+        if 0. <= remaining < self.exit_rejoin_start_m:
+            self.exit_rejoin_active = True
+        if not self.exit_rejoin_active:
+            return None, 1., None
+        progress = self.route_progress_m
+        target_s = min(progress + self.route_lookahead_m, float(self.route.s[-1]))
+        start = np.array([np.interp(progress, self.route.s, self.route.points[:, axis])
+                          for axis in (0, 1)])
+        end = np.array([np.interp(target_s, self.route.s, self.route.points[:, axis])
+                        for axis in (0, 1)])
+        delta = end - start
+        if not math.isfinite(heading_yaw) or float(np.linalg.norm(delta)) < 1e-6:
+            raise ValueError('invalid exit route direction or heading')
+        route_yaw = math.atan2(delta[1], delta[0])
+        yaw_error = math.atan2(math.sin(route_yaw - heading_yaw),
+                               math.cos(route_yaw - heading_yaw))
+        blend = float(np.clip((self.exit_rejoin_start_m - remaining) /
+                             (self.exit_rejoin_start_m - self.exit_rejoin_full_m), 0., 1.))
+        # Smooth the heading handover at both ends of the existing window.
+        blend = blend * blend * (3. - 2. * blend)
+        return yaw_error, 1. - blend, remaining
+
     def route_rejoin_ok(self, gps_pose, map_pose, blackout_index):
         """Accept a drifted LiDAR pose only when GPS agrees with nearby route."""
         self.rejoin_diagnostic = None
@@ -339,17 +372,23 @@ class DrivingStateNode:
                         self.planner.config, max_speed_mps=float(
                             self.route_speeds_kmh[self.route.index]) / 3.6)
                 with self.lock:
-                    # Until a GPS return is accepted, keep tunnel wall
-                    # guidance: a brief fix or a late zero sample must not
-                    # hand steering to the drifted route bearing mid-pass.
+                    # A brief GPS fix must not hand steering to a drifted
+                    # route position. Exit guidance starts in the surveyed
+                    # window and stays active until GPS rejoin is accepted.
                     wall_follow = (self.machine.had_blackout
                                    or self.machine.gps_zero(received)
                                    or self.machine.gps_missing(received))
                     wall_follow = (wall_follow
                                    and self.blackout_start_index <= self.route.index
                                    <= self.blackout_end_index)
+                    exit_heading, wall_weight, remaining = (
+                        self.exit_rejoin_guidance(odom_sample[0][2]) if wall_follow
+                        else (None, 1., None))
                 plan = self.planner.plan(points, speed[0], preferred_bearing,
                                          wall_follow=wall_follow,
+                                         wall_follow_weight=wall_weight,
+                                         route_rejoin_remaining_m=remaining,
+                                         exit_heading_error_rad=exit_heading,
                                          ego_pose=odom_sample[0],
                                          stamp=scan_stamp)
                 if time.monotonic() - received > self.machine.input_timeout_s:
@@ -433,6 +472,8 @@ class DrivingStateNode:
                                  blackout_index))
             mode, pose, reason = self.machine.select(
                 now, blackout_allowed, gps_rejoin_ok)
+            if mode == DrivingState.GPS:
+                self.exit_rejoin_active = False
             previous_output_pose = self.previous_output_pose
             output_jump_m = (float(np.linalg.norm(
                 np.asarray(pose[:2]) - np.asarray(previous_output_pose[:2])))

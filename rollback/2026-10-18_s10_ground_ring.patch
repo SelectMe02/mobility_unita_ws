@@ -1,0 +1,67 @@
+--- a/src/unita_waypoint/scripts/ground_segmentation.py
++++ b/src/unita_waypoint/scripts/ground_segmentation.py
+@@ -5,6 +5,7 @@
+ """
+ import math
+ import numpy as np
++from scipy.spatial import cKDTree
+ 
+ 
+ def rotation_rpy(roll=0., pitch=0., yaw=0.):
+@@ -126,6 +127,7 @@
+     min_plane_height (default: tolerance) is the obstacle bound above a
+     trusted plane: one 8x6 m plane cannot follow a banked bend's crown, so
+     road returns a few centimetres above it are neither ground nor obstacle.
++    When given, it also applies against the measured road within 1 m.
+     """
+     plane_height = tolerance if min_plane_height is None else max(tolerance, min_plane_height)
+     points = np.asarray(points, dtype=float).reshape((-1, 3))
+@@ -183,5 +185,20 @@
+         obstacle[indices] = (distance > plane_height) & (distance < max_height)
+         residuals.extend(np.abs(distance[inlier]).tolist())
+         supported_count += len(indices)
++    if min_plane_height is not None and ground.any() and obstacle.any():
++        # A patch holding one or two rings can fit a tilted plane, leaving a
++        # road ring a decimetre above it (S10, 2026-10-18: 1 cm above the
++        # road around it). Measured road within 1 m outranks the patch plane.
++        road = points[ground]
++        candidates = np.flatnonzero(obstacle)
++        distance, neighbour = cKDTree(road[:, :2]).query(
++            points[candidates, :2], k=8, distance_upper_bound=1.)
++        found = np.isfinite(distance)
++        enough = found.sum(axis=1) >= 3
++        heights = np.where(found, road[np.minimum(neighbour, len(road)-1), 2], np.nan)
++        on_road = np.zeros(len(candidates), dtype=bool)
++        on_road[enough] = (points[candidates[enough], 2]
++                           - np.nanmedian(heights[enough], axis=1)) < plane_height
++        obstacle[candidates[on_road]] = False
+     return ground, obstacle, dict(planes=len(accepted), supported_points=supported_count,
+                                  residual_p95_m=float(np.percentile(residuals, 95)) if residuals else None)
+--- a/src/unita_waypoint/test/test_ground_segmentation.py
++++ b/src/unita_waypoint/test/test_ground_segmentation.py
+@@ -92,6 +92,25 @@
+         self.assertFalse(after[len(scene()):len(scene())+len(crown)].any())
+         self.assertEqual(after[-len(cone):].tolist(), [True]*len(cone))
+ 
++    def test_minimum_height_also_holds_against_measured_road_nearby(self):
++        # S10 2026-10-18: a sparse patch's plane let a road ring 1 cm above
++        # the road around it through as a 0.5-0.7 m wide obstacle.
++        x, y = np.meshgrid(np.arange(-4., 27.7, .4), np.arange(-2.6, 2.7, .4))
++        road = np.column_stack((x.ravel(), y.ravel(), np.zeros(x.size)))
++        ring = np.array([[28.2, y, .05] for y in np.arange(-1., 1.01, .25)])
++        post = np.array([[28.2, 1.5, z] for z in (.3, .5, .7)])
++        points = np.vstack((road, ring, post))
++        eligible = np.ones(len(points), dtype=bool)
++        # The ring's patch has too few returns for a plane: the absolute
++        # fallback gate (0.15 m above reference > 0.12 m) flags it.
++        kwargs = dict(min_height=.12, reference_z=-.1)
++        _, before, status = segment_ground(points, eligible, **kwargs)
++        self.assertGreater(status['planes'], 0)
++        _, after, _ = segment_ground(points, eligible, min_plane_height=.10, **kwargs)
++        self.assertTrue(before[len(road):len(road)+len(ring)].all())
++        self.assertFalse(after[len(road):len(road)+len(ring)].any())
++        self.assertTrue(after[-len(post):].all())
++
+     def test_braking_roll_pitch_removes_ground_and_keeps_low_and_tall_objects(self):
+         n = node()
+         for roll, pitch in [(0., 0.), (.04, -.14), (-.06, .10)]:

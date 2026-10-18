@@ -35,6 +35,7 @@ collision_max_z_m: 0.8  # about 2.0 m above road; omit tunnel roof
 right_wall_target_clearance_m: 2.9  # vehicle side to right tunnel wall
 right_wall_clearance_tolerance_m: 0.1  # 2.8-3.0 m band without offset correction
 wall_point_tolerance_m: 0.35  # coherent wall returns become track boundaries
+exit_wall_trigger_inset_m: 0.8  # exit window only: wall-attached returns do not trigger PASSING; collision checks retain them
 wall_corridor_horizon_m: 6.0  # check selected path inside boundaries this far ahead
 right_wall_min_clearance_m: 0.9
 rear_detection_half_angle_deg: 15.0  # RViz/log diagnostic only; never controls pass completion

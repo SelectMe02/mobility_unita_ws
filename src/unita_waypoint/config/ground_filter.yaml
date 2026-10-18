@@ -10,6 +10,12 @@ track_confirm_time_s: 0.2
 # Fallback absolute height gate; confirmed road uses plane tolerance for its
 # lower bound and obstacle_max_height_m for its upper plane-relative height.
 obstacle_min_height_m: 0.22
+# Above a trusted plane: road returns on a banked bend sit 4-7 cm above one
+# 8x6 m plane (S8, 2026-10-18 log); real obstacles are taller than this.
+obstacle_min_plane_height_m: 0.10
+# Clusters only within this outer band of the lane strip are its boundary
+# (guardrail along the S8 yellow line), not obstacles.
+lane_edge_band_m: 0.35
 obstacle_max_height_m: 2.6
 imu_frame_id: imu
 # Sensor->body Rz(yaw)*Ry(pitch)*Rx(roll); degrees, fixed extrinsics.

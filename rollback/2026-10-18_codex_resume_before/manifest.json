@@ -1,0 +1,13 @@
+[
+  "src/unita_waypoint/scripts/local_avoidance_core.py",
+  "src/unita_waypoint/test/test_highway_planner.py",
+  "src/leo_avoidance/src/leo_avoidance/ftg_local.py",
+  "src/leo_avoidance/scripts/driving_state_node_local.py",
+  "src/leo_avoidance/test/test_ftg_local.py",
+  "src/leo_avoidance/test/test_rejoin_route_local.py",
+  "src/leo_avoidance/config/avoidance_local.yaml",
+  "src/unita_waypoint/CMakeLists.txt",
+  "src/leo_avoidance/CMakeLists.txt",
+  "src/unita_waypoint/scripts/gps_waypoint_follower.py",
+  "src/unita_waypoint/test/test_driving_stability.py"
+]

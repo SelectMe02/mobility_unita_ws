@@ -1,0 +1,371 @@
+{
+  "end_index": 3140,
+  "cp11_index": 3138,
+  "final_lane": 3,
+  "elapsed_s": 39.7,
+  "minimum_speed_kmh": 8.267353863582379,
+  "zero_cap_samples": 13,
+  "confirmed_car_overlap_samples": 0,
+  "changes": [
+    {
+      "time_s": 0.0,
+      "index": 2251,
+      "lane": 1,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 54.55632510375976,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 5.8,
+      "index": 2474,
+      "lane": 1,
+      "state": "LANE_CHANGING",
+      "reason": "mobil_gain",
+      "speed_kmh": 83.53632510375988,
+      "cap_kmh": 83.53632510375988
+    },
+    {
+      "time_s": 5.85,
+      "index": 2476,
+      "lane": 1,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 83.53632510375988,
+      "cap_kmh": 83.53632510375988
+    },
+    {
+      "time_s": 7.9,
+      "index": 2571,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 83.53632510375988,
+      "cap_kmh": 83.53632510375988
+    },
+    {
+      "time_s": 9.5,
+      "index": 2645,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "lane_change_hazard_ahead",
+      "speed_kmh": 78.13632510375986,
+      "cap_kmh": 28.542650117149417
+    },
+    {
+      "time_s": 9.7,
+      "index": 2653,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "lane_change_no_room",
+      "speed_kmh": 73.81632510375985,
+      "cap_kmh": 14.84381955469548
+    },
+    {
+      "time_s": 9.95,
+      "index": 2663,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 68.41632510375985,
+      "cap_kmh": 9.348781245023474
+    },
+    {
+      "time_s": 10.35,
+      "index": 2678,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 59.77632510375982,
+      "cap_kmh": 6.418023906182729
+    },
+    {
+      "time_s": 10.4,
+      "index": 2679,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 58.69632510375982,
+      "cap_kmh": 47.28753641056933
+    },
+    {
+      "time_s": 10.45,
+      "index": 2681,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 57.61632510375981,
+      "cap_kmh": 47.28442378936766
+    },
+    {
+      "time_s": 10.5,
+      "index": 2682,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 56.536325103759815,
+      "cap_kmh": 46.816325103759816
+    },
+    {
+      "time_s": 10.55,
+      "index": 2684,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 55.45632510375981,
+      "cap_kmh": 45.73632510375981
+    },
+    {
+      "time_s": 11.8,
+      "index": 2714,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "lane_change_no_room",
+      "speed_kmh": 28.45632510375975,
+      "cap_kmh": 8.58755725645763
+    },
+    {
+      "time_s": 11.95,
+      "index": 2716,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 25.21632510375975,
+      "cap_kmh": 4.497029336977613
+    },
+    {
+      "time_s": 12.0,
+      "index": 2716,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "lane_change_no_room",
+      "speed_kmh": 24.13632510375975,
+      "cap_kmh": 5.701480341036058
+    },
+    {
+      "time_s": 12.05,
+      "index": 2717,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 23.05632510375975,
+      "cap_kmh": 4.294166314781934
+    },
+    {
+      "time_s": 12.15,
+      "index": 2718,
+      "lane": 2,
+      "state": "TAILING",
+      "reason": "lane_change_no_room",
+      "speed_kmh": 20.896325103759754,
+      "cap_kmh": 8.508277180546543
+    },
+    {
+      "time_s": 12.55,
+      "index": 2722,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "mobil_gain",
+      "speed_kmh": 12.256325103759757,
+      "cap_kmh": 11.743017086771033
+    },
+    {
+      "time_s": 12.6,
+      "index": 2723,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 11.176325103759758,
+      "cap_kmh": 9.964027051665097
+    },
+    {
+      "time_s": 16.85,
+      "index": 2763,
+      "lane": 3,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 24.098412345345384,
+      "cap_kmh": 37.38058873203486
+    },
+    {
+      "time_s": 19.35,
+      "index": 2802,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 33.84563216503803,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 20.0,
+      "index": 2815,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 35.78963216503804,
+      "cap_kmh": 14.975545537852314
+    },
+    {
+      "time_s": 20.5,
+      "index": 2823,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_idm",
+      "speed_kmh": 26.32163216503803,
+      "cap_kmh": 30.060335641259407
+    },
+    {
+      "time_s": 20.9,
+      "index": 2829,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 27.005632165038037,
+      "cap_kmh": 17.285632165038034
+    },
+    {
+      "time_s": 21.15,
+      "index": 2833,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_idm",
+      "speed_kmh": 22.93763216503804,
+      "cap_kmh": 27.62478524666082
+    },
+    {
+      "time_s": 21.8,
+      "index": 2841,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 24.881632165038052,
+      "cap_kmh": 20.730128159246604
+    },
+    {
+      "time_s": 22.05,
+      "index": 2845,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_idm",
+      "speed_kmh": 20.813632165038058,
+      "cap_kmh": 25.76283073645681
+    },
+    {
+      "time_s": 22.15,
+      "index": 2846,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 21.31763216503806,
+      "cap_kmh": 21.89909753638431
+    },
+    {
+      "time_s": 22.45,
+      "index": 2849,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_idm",
+      "speed_kmh": 21.682615733617908,
+      "cap_kmh": 22.372495264392672
+    },
+    {
+      "time_s": 22.85,
+      "index": 2854,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_change_hold",
+      "speed_kmh": 23.565989464058518,
+      "cap_kmh": 24.65486584350898
+    },
+    {
+      "time_s": 23.5,
+      "index": 2862,
+      "lane": 3,
+      "state": "OVERTAKING",
+      "reason": "mobil_gain",
+      "speed_kmh": 19.537940993712084,
+      "cap_kmh": 19.537940993712084
+    },
+    {
+      "time_s": 23.55,
+      "index": 2863,
+      "lane": 3,
+      "state": "OVERTAKING",
+      "reason": "",
+      "speed_kmh": 19.789940993712086,
+      "cap_kmh": 36.89172932968132
+    },
+    {
+      "time_s": 26.65,
+      "index": 2900,
+      "lane": 2,
+      "state": "OVERTAKING",
+      "reason": "",
+      "speed_kmh": 19.298791083527178,
+      "cap_kmh": 19.298791083527178
+    },
+    {
+      "time_s": 28.95,
+      "index": 2929,
+      "lane": 2,
+      "state": "OVERTAKING",
+      "reason": "lane_change_gap_hold",
+      "speed_kmh": 28.758501861086984,
+      "cap_kmh": 36.89172932968132
+    },
+    {
+      "time_s": 29.05,
+      "index": 2930,
+      "lane": 2,
+      "state": "OVERTAKING",
+      "reason": "",
+      "speed_kmh": 29.26250186108698,
+      "cap_kmh": 36.89172932968132
+    },
+    {
+      "time_s": 29.1,
+      "index": 2931,
+      "lane": 2,
+      "state": "OVERTAKING",
+      "reason": "lane_change_gap_hold",
+      "speed_kmh": 29.514501861086984,
+      "cap_kmh": 36.89172932968132
+    },
+    {
+      "time_s": 29.55,
+      "index": 2939,
+      "lane": 2,
+      "state": "RETURNING",
+      "reason": "mobil_gain",
+      "speed_kmh": 31.782501861086992,
+      "cap_kmh": 37.15684407330952
+    },
+    {
+      "time_s": 29.6,
+      "index": 2940,
+      "lane": 2,
+      "state": "RETURNING",
+      "reason": "",
+      "speed_kmh": 32.034501861086994,
+      "cap_kmh": 37.15684407330952
+    },
+    {
+      "time_s": 31.55,
+      "index": 2978,
+      "lane": 3,
+      "state": "RETURNING",
+      "reason": "",
+      "speed_kmh": 37.15684407330952,
+      "cap_kmh": 37.15684407330952
+    },
+    {
+      "time_s": 33.4,
+      "index": 3016,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 37.408844073309524,
+      "cap_kmh": Infinity
+    }
+  ]
+}

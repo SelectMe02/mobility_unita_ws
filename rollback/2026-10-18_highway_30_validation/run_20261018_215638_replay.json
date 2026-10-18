@@ -1,0 +1,138 @@
+{
+  "end_index": 3140,
+  "cp11_index": 3138,
+  "final_lane": 3,
+  "elapsed_s": 20.25,
+  "minimum_speed_kmh": 54.39699935913086,
+  "minimum_after_reaching_30_kmh": 54.64899935913086,
+  "zero_cap_samples": 0,
+  "confirmed_car_overlap_samples": 0,
+  "changes": [
+    {
+      "time_s": 0.0,
+      "index": 2253,
+      "lane": 1,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 54.64899935913086,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 5.75,
+      "index": 2473,
+      "lane": 1,
+      "state": "LANE_WAIT",
+      "reason": "lane_change_gap",
+      "speed_kmh": 83.62899935913097,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 5.95,
+      "index": 2482,
+      "lane": 1,
+      "state": "LANE_WAIT",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 84.63699935913098,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 6.0,
+      "index": 2485,
+      "lane": 1,
+      "state": "LANE_WAIT",
+      "reason": "lane_change_gap",
+      "speed_kmh": 84.88899935913098,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 6.05,
+      "index": 2487,
+      "lane": 1,
+      "state": "LANE_WAIT",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 85.14099935913099,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 6.2,
+      "index": 2494,
+      "lane": 1,
+      "state": "LANE_CHANGING",
+      "reason": "mobil_gain",
+      "speed_kmh": 85.64499935913098,
+      "cap_kmh": 85.64499935913098
+    },
+    {
+      "time_s": 6.25,
+      "index": 2497,
+      "lane": 1,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 85.64499935913098,
+      "cap_kmh": 85.64499935913098
+    },
+    {
+      "time_s": 8.3,
+      "index": 2594,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 85.64499935913098,
+      "cap_kmh": 85.64499935913098
+    },
+    {
+      "time_s": 10.1,
+      "index": 2680,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "mobil_gain",
+      "speed_kmh": 85.64499935913098,
+      "cap_kmh": 85.64499935913098
+    },
+    {
+      "time_s": 10.15,
+      "index": 2682,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 85.64499935913098,
+      "cap_kmh": 85.64499935913098
+    },
+    {
+      "time_s": 12.15,
+      "index": 2778,
+      "lane": 3,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 85.64499935913098,
+      "cap_kmh": 85.64499935913098
+    },
+    {
+      "time_s": 13.95,
+      "index": 2863,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 85.89699935913097,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 15.2,
+      "index": 2925,
+      "lane": 3,
+      "state": "LANE_WAIT",
+      "reason": "mobil_unsafe",
+      "speed_kmh": 92.196999359131,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 17.55,
+      "index": 3065,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 100.0,
+      "cap_kmh": Infinity
+    }
+  ]
+}

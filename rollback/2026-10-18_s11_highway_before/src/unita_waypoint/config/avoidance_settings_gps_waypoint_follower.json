@@ -1,0 +1,12 @@
+{
+  "avoidance_brake_limit": 0.35,
+  "avoidance_clear_hold_s": 0.4,
+  "avoidance_decel_mps2": 3.0,
+  "avoidance_margin_m": 0.35,
+  "avoidance_reaction_s": 0.4,
+  "lane_change_gap_m": 3.0,
+  "lane_change_lateral_accel_mps2": 1.5,
+  "lane_change_max_heading_deg": 10.0,
+  "obstacle_horizon_m": 45.0,
+  "restart_accel_rate_per_s": 0.5
+}

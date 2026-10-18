@@ -1,0 +1,189 @@
+--- a/src/leo_avoidance/scripts/driving_state_node_local.py
++++ b/src/leo_avoidance/scripts/driving_state_node_local.py
+@@ -92,6 +92,7 @@
+         # Surveyed tunnel-exit gate (map constant, not simulator state).
+         self.exit_rejoin_start_m = float(rospy.get_param('~exit_rejoin_start_m', 35.))
+         self.exit_rejoin_full_m = float(rospy.get_param('~exit_rejoin_full_m', 12.))
++        self.exit_rejoin_active = False
+         exit_anchor = rospy.get_param('~exit_anchor')
+         self.exit_xy = np.array((float(exit_anchor['x']), float(exit_anchor['y'])))
+         exit_index, _ = anchor_on_route(route_points, exit_anchor)
+@@ -245,10 +246,14 @@
+ 
+         LiDAR position selects route progress, but its drifting lateral
+         coordinate never contributes to the heading error. Wall spacing
+-        remains the independent lateral reference in the planner.
++        remains the independent lateral reference in the planner. Once the
++        exit window is entered, keep guidance until select() accepts GPS;
++        accumulated position error can put progress beyond the exit early.
+         """
+         remaining = self.exit_route_s - self.route_progress_m
+-        if not 0. <= remaining < self.exit_rejoin_start_m:
++        if 0. <= remaining < self.exit_rejoin_start_m:
++            self.exit_rejoin_active = True
++        if not self.exit_rejoin_active:
+             return None, 1., None
+         progress = self.route_progress_m
+         target_s = min(progress + self.route_lookahead_m, float(self.route.s[-1]))
+@@ -368,17 +373,17 @@
+                             self.route_speeds_kmh[self.route.index]) / 3.6)
+                 with self.lock:
+                     # A brief GPS fix must not hand steering to a drifted
+-                    # route position. Only the surveyed exit window uses the
+-                    # saved route direction and the captured heading sensor.
++                    # route position. Exit guidance starts in the surveyed
++                    # window and stays active until GPS rejoin is accepted.
+                     wall_follow = (self.machine.had_blackout
+                                    or self.machine.gps_zero(received)
+                                    or self.machine.gps_missing(received))
+                     wall_follow = (wall_follow
+                                    and self.blackout_start_index <= self.route.index
+                                    <= self.blackout_end_index)
+-                exit_heading, wall_weight, remaining = (
+-                    self.exit_rejoin_guidance(odom_sample[0][2]) if wall_follow
+-                    else (None, 1., None))
++                    exit_heading, wall_weight, remaining = (
++                        self.exit_rejoin_guidance(odom_sample[0][2]) if wall_follow
++                        else (None, 1., None))
+                 plan = self.planner.plan(points, speed[0], preferred_bearing,
+                                          wall_follow=wall_follow,
+                                          wall_follow_weight=wall_weight,
+@@ -467,6 +472,8 @@
+                                  blackout_index))
+             mode, pose, reason = self.machine.select(
+                 now, blackout_allowed, gps_rejoin_ok)
++            if mode == DrivingState.GPS:
++                self.exit_rejoin_active = False
+             previous_output_pose = self.previous_output_pose
+             output_jump_m = (float(np.linalg.norm(
+                 np.asarray(pose[:2]) - np.asarray(previous_output_pose[:2])))
+--- a/src/leo_avoidance/test/test_rejoin_route_local.py
++++ b/src/leo_avoidance/test/test_rejoin_route_local.py
+@@ -1,11 +1,15 @@
+ """Route checks used to recover GPS after LiDAR drift at a tunnel exit."""
+ import importlib.util
+ from pathlib import Path
++import threading
++from unittest.mock import Mock, patch
+ 
+ import numpy as np
+ 
+ from leo_guard.traffic_local import RouteProgress
+ from leo_avoidance.ftg_local import Config, FollowTheGap
++from leo_avoidance.driving_state_local import DrivingState
++from leo_avoidance.scan_odometry import ScanOdometry
+ 
+ 
+ path = Path(__file__).parents[1] / 'scripts/driving_state_node_local.py'
+@@ -107,6 +111,7 @@
+     state.exit_route_offset = np.zeros(2)
+     state.exit_rejoin_start_m = 35.
+     state.exit_rejoin_full_m = 12.
++    state.exit_rejoin_active = False
+     return state
+ 
+ 
+@@ -140,3 +145,103 @@
+     state = exit_state()
+     state.route_progress_m = 68.
+     assert abs(state.exit_rejoin_guidance(-.15)[0] + .05) < 1e-9
++
++
++def test_started_exit_guidance_stays_active_past_the_estimated_exit():
++    state = exit_state()
++    for progress in (68., 79.9, 80., 80.1, 85., 95.):
++        state.route_progress_m = progress
++        heading, weight, remaining = state.exit_rejoin_guidance(-.15)
++        assert abs(heading + .05) < 1e-9
++        assert weight == 0.
++        assert remaining == 80. - progress
++
++
++def exit_tick_state():
++    """Exercise the real node tick and GPS acceptance without ROS transport."""
++    state = exit_state()
++    state.lock = threading.RLock()
++    state.machine = DrivingState(ScanOdometry(), max_blackout_distance_m=200.)
++    xy = state.route.points[162]
++    pose = (*xy, -.2)
++    state.machine.map_pose = pose
++    state.machine.mode = DrivingState.BLACKOUT
++    state.machine.had_blackout = True
++    state.machine.scan_valid = True
++    state.machine.last_scan_wall = 10.
++    state.machine.update_raw_gps(0., 0., 10.)
++    state.machine.update_odom(pose, 10.)
++    state.machine.update_avoidance(True, 10.)
++    state.blackout_route = RouteProgress(state.route.points, max_error=7.)
++    state.rejoin_route = RouteProgress(state.route.points, max_error=2.)
++    state.blackout_start_index = 0
++    state.blackout_end_index = 190
++    state.rejoin_diagnostic = None
++    state.previous_output_pose = None
++    state.latest_plan = (node.Plan(5., 0., 'test safe plan', 20., 5.), 10.)
++    state.latest_speed = (5., 10.)
++    state.speed_timeout_s = .35
++    state.last_cloud_received_wall = 10.
++    state.last_cloud_stamp_age_s = 0.
++    state.last_plan_completed_wall = 10.
++    state.config = Config()
++    state.target_distance_m = 4.
++    for name in ('pose', 'valid', 'mode', 'status', 'target', 'speed',
++                 'avoidance_status'):
++        setattr(state, name + '_pub', Mock())
++    state.route_progress_m = 68.
++    state.exit_rejoin_guidance(0.)
++    return state
++
++
++def tick_at_capture(state):
++    with patch.object(node.time, 'monotonic', return_value=10.), \
++            patch.object(node.rospy.Time, 'now', return_value=node.rospy.Time(10.)), \
++            patch.object(node.rospy, 'logwarn_throttle'):
++        state.tick(None)
++
++
++def test_exit_guidance_only_resets_after_gps_rejoin_is_accepted():
++    state = exit_tick_state()
++    # A fresh but disagreeing fix must keep both BLACKOUT and exit guidance.
++    state.machine.update_raw_gps(37., 127., 10.)
++    state.machine.update_gps_valid(True, 10.)
++    state.machine.update_gps((90., 0., -.2), 10.)
++    tick_at_capture(state)
++    assert state.machine.gps_available(10.)
++    assert state.machine.mode == DrivingState.BLACKOUT
++    state.route_progress_m = 85.
++    assert state.exit_rejoin_guidance(0.)[0] is not None
++    # Only the existing select() decision releases the latch.
++    state.machine.update_gps(state.machine.map_pose, 10.)
++    tick_at_capture(state)
++    assert state.machine.mode == DrivingState.GPS
++    assert not state.exit_rejoin_active
++    assert state.exit_rejoin_guidance(0.) == (None, 1., None)
++    # No stale latch on the next approach; activation uses the same window.
++    state.route_progress_m = 44.
++    assert state.exit_rejoin_guidance(0.) == (None, 1., None)
++    state.route_progress_m = 68.
++    assert state.exit_rejoin_guidance(0.)[0] is not None
++
++
++def test_latched_exit_guidance_does_not_bypass_sensor_fault_stop():
++    state = exit_tick_state()
++    state.machine.last_scan_wall = 9.
++    tick_at_capture(state)
++    assert state.machine.mode == DrivingState.HOLD
++    assert state.exit_rejoin_active
++    assert state.valid_pub.publish.call_args[0][0].data is False
++    assert state.speed_pub.publish.call_args[0][0].data == 0.
++    state.target_pub.publish.assert_not_called()
++
++
++def test_latched_exit_guidance_does_not_extend_allowed_blackout_section():
++    state = exit_tick_state()
++    state.blackout_end_index = 120
++    tick_at_capture(state)
++    assert state.machine.mode == DrivingState.HOLD
++    assert state.machine.reason == 'GPS blackout outside configured tunnel section'
++    assert state.valid_pub.publish.call_args[0][0].data is False
++    assert state.speed_pub.publish.call_args[0][0].data == 0.
++    state.target_pub.publish.assert_not_called()

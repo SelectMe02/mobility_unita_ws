@@ -116,3 +116,53 @@ class ReturnToR1Tests(unittest.TestCase):
                 self.assertEqual(d.speed_cap_kmh, 0.)
             else:
                 self.assertTrue(0. < d.speed_cap_kmh < 20.)
+
+
+def long_planner(**kwargs):
+    route = [(0., float(y)) for y in range(400)]
+    return LocalAvoidancePlanner(route, [1] * len(route), {},
+                                 min_turn_radius_m=RADIUS, **kwargs)
+
+
+class R1TrackingErrorTests(unittest.TestCase):
+    """S8 S-curve: Pure Pursuit cut 0.5 m inside at 48 km/h."""
+    FAST = 48. / 3.6
+
+    def test_curve_cutting_within_tolerance_keeps_raceline_speed(self):
+        p = long_planner(r1_tracking_tolerance_m=.85)
+        d = p.plan(100, (-.55, 100.), self.FAST, [], ego_yaw=math.pi / 2)
+        self.assertEqual(d.state, 'RACELINE')
+        self.assertEqual(d.speed_cap_kmh, float('inf'))
+        # The corrected R1 path still brings the car back to R1.
+        self.assertAlmostEqual(d.path[0][0], -.55, 2)
+        self.assertAlmostEqual([x for x, y in d.path if y >= 110.][0], 0., 2)
+
+    def test_default_tolerance_keeps_the_previous_return_rule(self):
+        p = long_planner()
+        d = p.plan(100, (-.55, 100.), self.FAST, [], ego_yaw=math.pi / 2)
+        self.assertEqual((d.state, d.reason), ('LANE_WAIT', 'return_blocked_holding_offset'))
+        self.assertEqual(d.speed_cap_kmh, 20.)
+
+    def test_offset_at_the_tolerance_does_not_toggle(self):
+        p = long_planner(r1_tracking_tolerance_m=.85, pass_speed_kmh=20.)
+        states = [p.plan(100 + i, (x, 100. + i), self.FAST, [], ego_yaw=math.pi / 2).state
+                  for i, x in enumerate((-.9, -.8, -.9, -.8, -.6))]
+        # Entered above 0.85 m, held until back within 0.55 m.
+        self.assertEqual(states, ['LANE_WAIT'] * 5)
+        d = p.plan(110, (-.5, 110.), self.FAST, [], ego_yaw=math.pi / 2)
+        self.assertEqual(d.state, 'RACELINE')
+
+    def test_return_needs_no_pass_speed_inside_any_speed_checkpoints(self):
+        for index, expected in ((100, 'RETURNING'), (300, 'LANE_WAIT')):
+            p = long_planner(r1_tracking_tolerance_m=.85,
+                             any_speed_lane_change_ranges=[(50, 200)])
+            d = p.plan(index, (-1.2, float(index)), self.FAST, [], ego_yaw=math.pi / 2)
+            self.assertEqual(d.state, expected)
+        with self.assertRaises(ValueError):
+            long_planner(any_speed_lane_change_ranges=[(200, 50)])
+        with self.assertRaises(ValueError):
+            long_planner(r1_tracking_tolerance_m=.2)
+
+
+if __name__ == '__main__':
+    unittest.main()

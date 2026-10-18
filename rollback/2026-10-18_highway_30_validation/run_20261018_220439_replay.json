@@ -1,0 +1,201 @@
+{
+  "end_index": 3139,
+  "cp11_index": 3138,
+  "final_lane": 3,
+  "elapsed_s": 38.35,
+  "minimum_speed_kmh": 0.008078902028501034,
+  "minimum_after_reaching_30_kmh": 24.476999172434443,
+  "zero_cap_samples": 22,
+  "confirmed_car_overlap_samples": 0,
+  "changes": [
+    {
+      "time_s": 0.0,
+      "index": 2325,
+      "lane": 1,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 0.26007890202850104,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 10.25,
+      "index": 2473,
+      "lane": 1,
+      "state": "LANE_CHANGING",
+      "reason": "mobil_gain",
+      "speed_kmh": 50.588078902028634,
+      "cap_kmh": 49.77807890202863
+    },
+    {
+      "time_s": 10.3,
+      "index": 2474,
+      "lane": 1,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 49.50807890202863,
+      "cap_kmh": 0.0
+    },
+    {
+      "time_s": 12.45,
+      "index": 2533,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 50.51607890202864,
+      "cap_kmh": 51.66807890202864
+    },
+    {
+      "time_s": 14.25,
+      "index": 2584,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "mobil_gain",
+      "speed_kmh": 51.66807890202864,
+      "cap_kmh": 51.66807890202864
+    },
+    {
+      "time_s": 14.3,
+      "index": 2586,
+      "lane": 2,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 51.66807890202864,
+      "cap_kmh": 51.66807890202864
+    },
+    {
+      "time_s": 16.35,
+      "index": 2644,
+      "lane": 3,
+      "state": "LANE_CHANGING",
+      "reason": "",
+      "speed_kmh": 51.66807890202864,
+      "cap_kmh": 51.66807890202864
+    },
+    {
+      "time_s": 18.15,
+      "index": 2696,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 51.920078902028635,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 22.0,
+      "index": 2828,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_idm",
+      "speed_kmh": 69.99207890202871,
+      "cap_kmh": 49.12636882693792
+    },
+    {
+      "time_s": 22.4,
+      "index": 2843,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 62.684078902028695,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 22.75,
+      "index": 2855,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_idm",
+      "speed_kmh": 63.1160789020287,
+      "cap_kmh": 10.851336614484334
+    },
+    {
+      "time_s": 23.05,
+      "index": 2865,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "lane_change_gap",
+      "speed_kmh": 56.636078902028686,
+      "cap_kmh": 0.0
+    },
+    {
+      "time_s": 23.35,
+      "index": 2874,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 51.488078902028676,
+      "cap_kmh": Infinity
+    },
+    {
+      "time_s": 23.95,
+      "index": 2892,
+      "lane": 3,
+      "state": "TAILING",
+      "reason": "highway_idm",
+      "speed_kmh": 53.18007890202868,
+      "cap_kmh": 29.285823759479538
+    },
+    {
+      "time_s": 24.0,
+      "index": 2893,
+      "lane": 3,
+      "state": "OVERTAKING",
+      "reason": "mobil_gain",
+      "speed_kmh": 52.10007890202868,
+      "cap_kmh": 27.47648856284399
+    },
+    {
+      "time_s": 24.05,
+      "index": 2895,
+      "lane": 3,
+      "state": "OVERTAKING",
+      "reason": "",
+      "speed_kmh": 51.02007890202868,
+      "cap_kmh": 25.895438407014108
+    },
+    {
+      "time_s": 26.15,
+      "index": 2949,
+      "lane": 2,
+      "state": "OVERTAKING",
+      "reason": "",
+      "speed_kmh": 41.624078902028664,
+      "cap_kmh": 49.79825644485473
+    },
+    {
+      "time_s": 28.9,
+      "index": 3004,
+      "lane": 2,
+      "state": "RETURNING",
+      "reason": "mobil_gain",
+      "speed_kmh": 24.728999172434445,
+      "cap_kmh": 27.54034658771934
+    },
+    {
+      "time_s": 28.95,
+      "index": 3004,
+      "lane": 2,
+      "state": "RETURNING",
+      "reason": "",
+      "speed_kmh": 24.980999172434448,
+      "cap_kmh": 27.54034658771934
+    },
+    {
+      "time_s": 30.8,
+      "index": 3032,
+      "lane": 3,
+      "state": "RETURNING",
+      "reason": "",
+      "speed_kmh": 27.54034658771934,
+      "cap_kmh": 27.54034658771934
+    },
+    {
+      "time_s": 32.05,
+      "index": 3065,
+      "lane": 3,
+      "state": "RACELINE",
+      "reason": "",
+      "speed_kmh": 27.792346587719344,
+      "cap_kmh": Infinity
+    }
+  ]
+}

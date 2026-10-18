@@ -79,6 +79,21 @@ def route_digest(path):
     return hashlib.sha256(points.tobytes()).hexdigest()
 
 
+def point_id_ranges(path, text):
+    """'3496-3572' (Map Tuner point IDs) -> [(first, last)] Leo route indices."""
+    core = _map_tunner_core()
+    route, _ = core.primary_route(core.load_project(path), raceline1_only=True)
+    ids = {point['id']: index for index, point in enumerate(route)}
+    ranges = []
+    for item in filter(None, (part.strip() for part in str(text).split(','))):
+        first, last = (int(part) for part in item.split('-'))
+        indices = [ids[i] for i in range(first, last + 1) if i in ids]
+        if not indices:
+            raise ValueError('no Raceline 1 route point with id in ' + item)
+        ranges.append((min(indices), max(indices)))
+    return ranges
+
+
 def checkpoint_indices(path):
     """Route index of every checkpoint ('start', '1'..'14') on the Leo route.
 

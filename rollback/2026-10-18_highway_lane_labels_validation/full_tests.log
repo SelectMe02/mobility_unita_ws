@@ -1,0 +1,206 @@
+....F......................................................................................F...F....FF.....F........F.F.F........................................................................................F...F..F.FF.......FF................................................................................................................F...............................................................................................................................
+======================================================================
+FAIL: test_edit_is_acknowledged_only_after_planner_applies_it (test_avoidance_runtime.LiveAvoidanceTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_avoidance_runtime.py", line 201, in test_edit_is_acknowledged_only_after_planner_applies_it
+    self.assertEqual(getattr(planner, spec[2]), params[name])
+AssertionError: 0.6 != 1.2
+
+======================================================================
+FAIL: test_both_sides_occupied_keeps_path_and_slows_for_car_ahead (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 351, in test_both_sides_occupied_keeps_path_and_slows_for_car_ahead
+    self.assertEqual(d.reason, 'lane_change_gap_both_sides')
+AssertionError: '' != 'lane_change_gap_both_sides'
++ lane_change_gap_both_sides
+
+======================================================================
+FAIL: test_close_slow_rear_car_blocks_and_distant_slow_car_allows_change (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 235, in test_close_slow_rear_car_blocks_and_distant_slow_car_allows_change
+    self.assertEqual(close.state, 'LANE_WAIT')
+AssertionError: 'LANE_CHANGING' != 'LANE_WAIT'
+- LANE_CHANGING
++ LANE_WAIT
+
+
+======================================================================
+FAIL: test_fast_lane_change_has_longer_smoother_path (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 82, in test_fast_lane_change_has_longer_smoother_path
+    self.assertAlmostEqual(p.transition['length'], 25.*math.sqrt(6.*7./p.lane_change_lateral_accel))
+AssertionError: 93.54143466934853 != 132.28756555322954 within 7 places (38.74613088388101 difference)
+
+======================================================================
+FAIL: test_fast_rear_car_beyond_three_metres_allows_change (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 230, in test_fast_rear_car_beyond_three_metres_allows_change
+    self.assertEqual(p.active_lane, 3)
+AssertionError: 2 != 3
+
+======================================================================
+FAIL: test_lane_change_cancels_when_target_gap_is_invaded (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 326, in test_lane_change_cancels_when_target_gap_is_invaded
+    self.assertEqual(p.transition['target'], 3)
+AssertionError: 2 != 3
+
+======================================================================
+FAIL: test_prefers_r3_and_transition_end_does_not_move_when_replanning (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 204, in test_prefers_r3_and_transition_end_does_not_move_when_replanning
+    self.assertEqual(p.active_lane, 3)
+AssertionError: 2 != 3
+
+======================================================================
+FAIL: test_r3_ends_returns_before_leaving_saved_coverage (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 288, in test_r3_ends_returns_before_leaving_saved_coverage
+    self.assertIsNone(p.active_lane)
+AssertionError: 2 is not None
+
+======================================================================
+FAIL: test_rear_car_within_three_metres_blocks_preferred_lane_change (test_local_avoidance.LocalAvoidanceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_local_avoidance.py", line 218, in test_rear_car_within_three_metres_blocks_preferred_lane_change
+    self.assertEqual(d.state, 'LANE_WAIT')
+AssertionError: 'LANE_CHANGING' != 'LANE_WAIT'
+- LANE_CHANGING
++ LANE_WAIT
+
+
+======================================================================
+FAIL: test_r3_entry_waits_for_the_3m_gap_then_changes_lane (test_raceline_selection.R3RouteTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_raceline_selection.py", line 508, in test_r3_entry_waits_for_the_3m_gap_then_changes_lane
+    self.assertEqual((d.state, d.reason, p.transition), ('LANE_WAIT', 'lane_change_gap', None))
+AssertionError: Tuples differ: ('LANE_CHANGING', '', {'source': 1, 'target': 2,[97 chars]lse}) != ('LANE_WAIT', 'lane_change_gap', None)
+
+First differing element 0:
+'LANE_CHANGING'
+'LANE_WAIT'
+
++ ('LANE_WAIT', 'lane_change_gap', None)
+- ('LANE_CHANGING',
+-  '',
+-  {'length': 75.89466384404105,
+-   'locked': False,
+-   'source': 1,
+-   'start': 1249.7416180874538,
+-   'state': 'LANE_CHANGING',
+-   'target': 2})
+
+======================================================================
+FAIL: test_standstill_before_lane_drop_can_still_merge (test_raceline_selection.R3RouteTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_raceline_selection.py", line 550, in test_standstill_before_lane_drop_can_still_merge
+    self.assertEqual((d.state, p.transition['target']), ('LANE_CHANGING', 3))
+AssertionError: Tuples differ: ('LANE_CHANGING', 2) != ('LANE_CHANGING', 3)
+
+First differing element 1:
+2
+3
+
+- ('LANE_CHANGING', 2)
+?                   ^
+
++ ('LANE_CHANGING', 3)
+?                   ^
+
+
+======================================================================
+FAIL: test_elapsed_time_does_not_switch_global_route (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_raceline_selection.py", line 160, in test_elapsed_time_does_not_switch_global_route
+    self.assertEqual(p.active_lane, 3)
+AssertionError: 2 != 3
+-------------------- >> begin captured logging << --------------------
+rosout: INFO: Saved R1: 4305 points, Y -550.494..345.790, 0 mapped route samples
+rosout: INFO: Saved R2: 863 points, Y -155.450..145.521, 884 mapped route samples
+rosout: INFO: Saved R3: 643 points, Y -217.884..145.521, 592 mapped route samples
+rosout: INFO: Loaded 4328 saved Map Tuner route points (S11 on R1/R3)
+--------------------- >> end captured logging << ---------------------
+
+======================================================================
+FAIL: test_finish_line_return_still_waits_for_rear_car_within_gap (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_raceline_selection.py", line 285, in test_finish_line_return_still_waits_for_rear_car_within_gap
+    self.assertEqual(d.state, 'LANE_WAIT')
+AssertionError: 'RETURNING' != 'LANE_WAIT'
+- RETURNING
++ LANE_WAIT
+
+
+======================================================================
+FAIL: test_follower_controls_using_selected_local_path_and_stops_on_stale_input (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_raceline_selection.py", line 426, in test_follower_controls_using_selected_local_path_and_stops_on_stale_input
+    self.assertEqual(obj.local_planner.active_lane, 3)
+AssertionError: None != 3
+-------------------- >> begin captured logging << --------------------
+rosout: INFO: Saved R1: 4305 points, Y -550.494..345.790, 0 mapped route samples
+rosout: INFO: Saved R2: 863 points, Y -155.450..145.521, 884 mapped route samples
+rosout: INFO: Saved R3: 643 points, Y -217.884..145.521, 592 mapped route samples
+rosout: INFO: Loaded 4328 saved Map Tuner route points (S11 on R1/R3)
+rosout: INFO: Raceline priority: R3 (default_lane) | WP 2533 | pos=(65.48, 115.57)
+--------------------- >> end captured logging << ---------------------
+
+======================================================================
+FAIL: test_saved_map_prefers_r3_then_r2_when_r3_is_blocked (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_raceline_selection.py", line 173, in test_saved_map_prefers_r3_then_r2_when_r3_is_blocked
+    self.assertEqual(p.active_lane, 3)
+AssertionError: 2 != 3
+-------------------- >> begin captured logging << --------------------
+rosout: INFO: Saved R1: 4305 points, Y -550.494..345.790, 0 mapped route samples
+rosout: INFO: Saved R2: 863 points, Y -155.450..145.521, 884 mapped route samples
+rosout: INFO: Saved R3: 643 points, Y -217.884..145.521, 592 mapped route samples
+rosout: INFO: Loaded 4328 saved Map Tuner route points (S11 on R1/R3)
+--------------------- >> end captured logging << ---------------------
+
+======================================================================
+FAIL: test_saved_map_rear_car_within_gap_blocks_r3_entry (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/src/unita_waypoint/test/test_raceline_selection.py", line 226, in test_saved_map_rear_car_within_gap_blocks_r3_entry
+    self.assertEqual(d.state, 'LANE_WAIT')
+AssertionError: 'LANE_CHANGING' != 'LANE_WAIT'
+- LANE_CHANGING
++ LANE_WAIT
+
+-------------------- >> begin captured logging << --------------------
+rosout: INFO: Saved R1: 4305 points, Y -550.494..345.790, 0 mapped route samples
+rosout: INFO: Saved R2: 863 points, Y -155.450..145.521, 884 mapped route samples
+rosout: INFO: Saved R3: 643 points, Y -217.884..145.521, 592 mapped route samples
+rosout: INFO: Loaded 4328 saved Map Tuner route points (S11 on R1/R3)
+--------------------- >> end captured logging << ---------------------
+
+======================================================================
+FAIL: test_ftg_local.test_runtime_yaml_restores_spacing_and_expands_lidar_angle
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/nose/case.py", line 197, in runTest
+    self.test(*self.arg)
+  File "/home/unita/unita_ws/src/leo_avoidance/test/test_ftg_local.py", line 683, in test_runtime_yaml_restores_spacing_and_expands_lidar_angle
+    assert cfg.bubble_margin_m == .35 and cfg.side_margin_m == .4
+AssertionError
+
+----------------------------------------------------------------------
+Ran 469 tests in 35.204s
+
+FAILED (failures=17)

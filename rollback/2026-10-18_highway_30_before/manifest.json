@@ -1,0 +1,12 @@
+[
+  "src/unita_waypoint/scripts/local_avoidance_core.py",
+  "src/unita_waypoint/scripts/gps_waypoint_follower.py",
+  "src/unita_waypoint/scripts/pedal_guard.py",
+  "src/unita_waypoint/scripts/avoidance_runtime.py",
+  "src/unita_waypoint/config/avoidance_settings_gps_waypoint_follower.json",
+  "src/unita_launch/launch/semi.launch",
+  "src/unita_waypoint/test/test_highway_planner.py",
+  "src/unita_waypoint/test/test_driving_stability.py",
+  "src/unita_waypoint/test/test_avoidance_runtime.py",
+  "src/unita_waypoint/scripts/lidar_obstacles.py"
+]

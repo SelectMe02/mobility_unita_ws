@@ -483,7 +483,16 @@ class GPSWaypointFollower:
                 lane_change_max_heading_deg=float(rospy.get_param('~lane_change_max_heading_deg', 10.)),
                 reaction_s=float(rospy.get_param('~avoidance_reaction_s', .4)),
                 decel=float(rospy.get_param('~avoidance_decel_mps2', 3.)),
-                obstacle_horizon_m=float(rospy.get_param('~obstacle_horizon_m', 45.)))
+                obstacle_horizon_m=float(rospy.get_param('~obstacle_horizon_m', 45.)),
+                # IDM/MOBIL highway logic only in these sectors (e.g. "11").
+                highway_sectors=[int(s) for s in
+                                 str(rospy.get_param('~highway_sectors', '')).replace(',', ' ').split()],
+                highway_preferred_lane=int(rospy.get_param('~highway_preferred_lane', 3)),
+                min_turn_radius_m=float(self.wheelbase)/math.tan(float(self.max_steering_rad)))
+            if self.local_planner.highway_sectors:
+                rospy.loginfo('Highway compact following/MOBIL in sector(s) %s, preferred R%d',
+                              ','.join(map(str, self.local_planner.highway_sectors)),
+                              self.local_planner.highway_preferred_lane)
             self.runtime_settings = RuntimeSettings('gps_waypoint_follower', self.local_planner)
 
         rospy.loginfo("======================================")
@@ -933,7 +942,9 @@ class GPSWaypointFollower:
         if (planner is None or decision is None or not 0 <= index < len(sectors)
                 or sectors[index] not in planner.min_speed_sectors):
             return target_kmh
-        if math.isfinite(decision.obstacle_distance_m) or planner.lane_end_imminent:
+        if (math.isfinite(decision.obstacle_distance_m) or planner.lane_end_imminent
+                or (getattr(planner, 'highway_active', False)
+                    and math.isfinite(decision.speed_cap_kmh))):
             return target_kmh
         profile = self.target_speed_for_index(index)
         floor = min(planner.sector_min_speed_kmh, profile)
@@ -1140,7 +1151,7 @@ class GPSWaypointFollower:
     # ================================================================
 
     def sector11_cruise_braking_allowed(self):
-        """Use comfort braking only with no obstacle, lane-end or external cap."""
+        """Smooth highway following unless collision, lane-end or external gates win."""
         sectors = getattr(self, 'route_sectors', [])
         index = getattr(self, 'current_waypoint_index', -1)
         planner = getattr(self, 'local_planner', None)
@@ -1148,9 +1159,14 @@ class GPSWaypointFollower:
         if (not 0 <= index < len(sectors) or sectors[index] != 11
                 or planner is None or decision is None
                 or decision.state in ('BLOCKED', 'SENSOR_HOLD')
-                or math.isfinite(decision.obstacle_distance_m)
                 or planner.lane_end_imminent
                 or getattr(self, 'drive_mode', '') in ('BLACKOUT', 'SIM_EXIT')):
+            return False
+        if (getattr(planner, 'highway_active', False)
+                and not getattr(planner, 'highway_emergency', False)):
+            return all(value is None or value == float('inf') for value in (
+                getattr(self, 'guard_speed_limit', None), getattr(self, 'avoidance_speed_kmh', None)))
+        if math.isfinite(decision.obstacle_distance_m):
             return False
         # A finite planner cap can encode lane-end braking even before the
         # lane_end_imminent flag is set. Preserve that braking envelope too.
@@ -1166,6 +1182,7 @@ class GPSWaypointFollower:
         cmd = CtrlCmd()
         cmd.steering = steering
         cmd.acceleration = 0.0
+        self.last_steering = steering
 
         if self.longitudinal_control_mode == "pid":
             now = time.monotonic()
@@ -1224,7 +1241,13 @@ class GPSWaypointFollower:
         planner = getattr(self, 'local_planner', None)
         obstacles = [dict(x=o.x, y=o.y, vx=o.vx, vy=o.vy, radius=o.radius, kind=o.kind,
                           length=o.length, width=o.width, yaw=o.yaw,
-                          confirmed=o.confirmed, velocity_reliable=o.velocity_reliable)
+                          confirmed=o.confirmed, velocity_reliable=o.velocity_reliable,
+                          road_surface=o.road_surface, id=o.track_id,
+                          raceline=o.raceline, lane_sector=o.lane_sector,
+                          lane_stable=o.lane_stable,
+                          lane_boundary_crossing=o.lane_boundary_crossing,
+                          raw_width=o.raw_width, predicted=o.predicted,
+                          measurement_stamp=o.measurement_stamp)
                      for o in getattr(self, 'obstacles', [])]
         data = dict(stamp=rospy.Time.now().to_sec(), frame_id='map', reason=reason,
             stop_reason=getattr(self, 'stop_reason', None), target_speed_kmh=target_speed,
@@ -1240,6 +1263,8 @@ class GPSWaypointFollower:
             preferred_lane=getattr(planner, 'effective_preferred_lane', None),
             preference_reason=getattr(planner, 'preference_reason', None),
             lane_change_reason=getattr(self, 'lane_change_reason', None),
+            highway_emergency=getattr(planner, 'highway_emergency', False),
+            highway_road_returns_ignored=getattr(planner, 'highway_road_returns_ignored', 0),
             transition=getattr(planner, 'transition', None), obstacles=obstacles,
             gap_blocker=(dict(x=planner.gap_blocker[0].x, y=planner.gap_blocker[0].y,
                               front_gap_m=planner.gap_blocker[1])
@@ -1294,7 +1319,10 @@ class GPSWaypointFollower:
             obstacles = []
             for item in data['obstacles']:
                 values = [float(item[key]) for key in ('x', 'y', 'radius', 'vx', 'vy')]
-                if not all(math.isfinite(v) for v in values) or not .1 <= values[2] <= 6.:
+                # The detector keeps lane-aligned boxes up to 24 m long (radius
+                # ~12 m plus coasting growth). A larger bound here would drop the
+                # whole message, and every obstacle in it, for one long object.
+                if not all(math.isfinite(v) for v in values) or not .1 <= values[2] <= 15.:
                     return
                 if item['kind'] not in ('static', 'dynamic', 'unknown'):
                     return
@@ -1304,7 +1332,16 @@ class GPSWaypointFollower:
                 obstacles.append(Obstacle(*values, kind=item['kind'],
                     confirmed=bool(item.get('confirmed', item['kind'] != 'unknown')),
                     velocity_reliable=bool(item.get('velocity_reliable', item['kind'] != 'unknown')),
-                    length=box[0], width=box[1], yaw=box[2]))
+                    length=box[0], width=box[1], yaw=box[2],
+                    road_surface=bool(item.get('road_surface', False)),
+                    track_id=int(item.get('id', 0)),
+                    raceline=int(item.get('raceline', 0)),
+                    lane_sector=int(item.get('lane_sector', 0)),
+                    lane_stable=bool(item.get('lane_stable', False)),
+                    lane_boundary_crossing=bool(item.get('lane_boundary_crossing', True)),
+                    raw_width=float(item.get('raw_width', box[1])),
+                    predicted=bool(item.get('predicted', False)),
+                    measurement_stamp=float(item.get('measurement_stamp', stamp))))
             corridor = getattr(self, 'lane_corridor', None)
             if corridor is None:
                 return
@@ -1351,7 +1388,9 @@ class GPSWaypointFollower:
         cmd.longlCmdType = 1
         cmd.accel = 0.0
         cmd.brake = 1.0
-        cmd.steering = 0.0
+        # Brake on the last steering: snapping the wheel straight mid-curve
+        # leaves the lane while the car is still rolling.
+        cmd.steering = getattr(self, 'last_steering', 0.0)
         cmd.velocity = 0.0
         cmd.acceleration = 0.0
         self.ctrl_pub.publish(cmd)

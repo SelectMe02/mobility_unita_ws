@@ -24,7 +24,8 @@ from leo_avoidance.road_points import RoadPointConfig, boundary_mask, obstacle_p
 from leo_avoidance.obstacle_tracker import ObstacleTracker
 from leo_avoidance.route_avoidance import (RouteAvoidance, RouteAvoidanceConfig,
                                            RouteObstacle)
-from leo_guard.route_file import load_lane_changes, load_route_points, load_survey
+from leo_guard.route_file import (load_lane_changes, load_route_points, load_survey,
+                                  point_id_ranges)
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from avoidance_runtime import FrozenConfigTarget, RuntimeSettings  # noqa: E402
@@ -54,6 +55,15 @@ class RouteAvoidanceNode:
                     crosswalks.append((stop['s'] + float(rospy.get_param('~crosswalk_start_m', 1.)),
                                        stop['s'] + float(rospy.get_param('~crosswalk_end_m', 10.))))
         self.planner = RouteAvoidance(points, config, lane_changes, crosswalks)
+        # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.
+        route = self.planner.route
+        self.planner.ignored_s_ranges = []
+        for first, last in point_id_ranges(rospy.get_param('~waypoint_file'),
+                                           rospy.get_param('~waypoint_only_point_ids', '')):
+            s_first = route.project(points[first, 0], points[first, 1], 0, len(route.lengths))[0]
+            s_last = route.project(points[last, 0], points[last, 1], 0, len(route.lengths))[0]
+            self.planner.ignored_s_ranges.append((s_first, s_last))
+            rospy.loginfo('Route avoidance ignores obstacles at s %.1f..%.1f m', s_first, s_last)
         self.runtime = RuntimeSettings('leo_route_avoidance', FrozenConfigTarget(self.planner))
         # Open-road returns: local ground per grid cell, not the tunnel's single
         # road plane (which turns a road rising ahead into obstacles).

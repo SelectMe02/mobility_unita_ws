@@ -277,5 +277,29 @@ class LoopTrackingTests(unittest.TestCase):
         self.assertLess(speeds[3520], 100.0)
         self.assertGreater(speeds[3520], 55.0)
 
+    def test_waypoint_only_zone_maps_point_ids_and_drops_its_obstacles(self):
+        # Tollgate (Map Tuner points 3496-3572): follow waypoints, ignore booths.
+        import json as _json
+        import numpy as np
+        from lane_corridor import LaneCorridor
+        points = [(float(x), 0.) for x in range(100)]
+        obj = self.follower(points, loop=False)
+        obj.route_point_ids = [1000 + i for i in range(100)]
+        obj.waypoint_only_ranges = obj.point_id_ranges('1040-1060')
+        self.assertEqual(obj.waypoint_only_ranges, [(40, 60)])
+        self.assertTrue(obj.in_waypoint_only_zone(50))
+        self.assertFalse(obj.in_waypoint_only_zone(61))
+        with self.assertRaises(ValueError):
+            obj.point_id_ranges('5000-5010')
+        obj.route_tree = module.cKDTree(np.asarray(points))
+        obj.lane_corridor = LaneCorridor(dict(frame_id='map', raceline_width=3.6, loop=False,
+            lanes=[dict(sector=1, raceline=1, points=[[0., 0.], [99., 0.]])]))
+        item = dict(radius=.5, vx=0., vy=0., kind='static', y=0.)
+        message = String(data=_json.dumps(dict(stamp=10., frame_id='map', obstacles=[
+            dict(item, x=50.), dict(item, x=70.)])))
+        with patch.object(module.rospy.Time, 'now', return_value=module.rospy.Time(10.)):
+            obj.obstacles_callback(message)
+        self.assertEqual([o.x for o in obj.obstacles], [70.])
+
 if __name__ == "__main__":
     unittest.main()

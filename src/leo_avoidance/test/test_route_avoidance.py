@@ -311,3 +311,15 @@ def test_closed_lap_path_continues_across_the_start_line():
     after = planner.update((2., 0.), 10., [])  # crossed the start line
     assert planner.last_s < 5.
     assert after.path and after.path[-1][0] > 40.
+
+
+def test_waypoint_only_zone_ignores_a_block_inside_it_but_not_outside():
+    # Tollgate (Map Tuner points 3496-3572): booths there are cleared by the route.
+    for block_x, expected in ((60., 'FOLLOW'), (120., 'PASSING')):
+        avoid = planner()
+        avoid.ignored_s_ranges = [(50., 80.)]
+        decision = avoid.update((30., 0.), 5.5, [RouteObstacle(block_x, 0., 1.2)])
+        if expected == 'FOLLOW':
+            assert decision.state == 'FOLLOW' and math.isinf(decision.speed_cap_mps)
+        else:
+            assert decision.state != 'FOLLOW'

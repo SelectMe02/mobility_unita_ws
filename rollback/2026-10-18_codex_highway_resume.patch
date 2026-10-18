@@ -1,0 +1,153 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -775,8 +775,8 @@
+ 
+     def _follower(self, index, ego_xy, centre, obstacles, assumed_mps):
+         """Nearest object fully behind the rear bumper in the lane at lateral
+-        offset centre: (bumper gap, speed along the route). An unreliable
+-        velocity is assumed to be assumed_mps (as fast as the road)."""
++        offset centre: (bumper gap, speed along the route). Confirmed tracks
++        use their measured estimate; other inputs use assumed_mps."""
+         tangent = self._tangent(index)
+         normal = (-tangent[1], tangent[0])
+         band = self.half_width+self.margin
+@@ -874,7 +874,10 @@
+                 lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
+                 if lead is None or self._idm(min(v, speed), v0, lead[0]-self.front_extent,
+                                              lead[2]) >= -self.mobil_safe_decel_mps2:
+-                    if speed < v-.05:
++                    # A short merge planned from standstill must keep its
++                    # curvature speed limit as the controller accelerates.
++                    requested = max(v, v0) if math.isfinite(v0) else v
++                    if speed < requested-.05:
+                         transition['speed_cap_kmh'] = speed*3.6
+                     return transition, path, lead
+             if length <= minimum+1e-6:
+@@ -1056,7 +1059,8 @@
+             if held and not toward and not ending:
+                 waiting = waiting or 'highway_change_hold'
+                 continue
+-            blocker = self._gap_blocker(index, ego_xy, available, lane, tracked)
++            # Even a new track must keep the immediate bumper/side gap clear.
++            blocker = self._gap_blocker(index, ego_xy, available, lane, obstacles)
+             if blocker is not None:
+                 self.gap_blocker = blocker
+                 waiting = 'lane_change_gap'
+@@ -1080,6 +1084,12 @@
+             self.departed_preferred = (not toward) or (self.departed_preferred and lane != preferred)
+             self.active_lane = lane if lane != base else None
+             self.obstacle_horizon_path = path_prefix(path, horizon)
++            # The selected merge can leave the ending lane in time. Recompute
++            # its envelope now; the old keep-lane cap can be zero at standstill.
++            edge_cap = self._highway_lane_end_cap(ahead, available)
++            # Track confirmation controls lane selection, not collision braking
++            # on the actual path (including this first scan of a new change).
++            lead = self._lead(path, ego_xy, obstacles, horizon)
+             cap = min(edge_cap, self._idm_cap(v, v0, lead))
+             if transition['speed_cap_kmh'] is not None:
+                 cap = min(cap, transition['speed_cap_kmh'])
+--- a/src/unita_waypoint/test/test_highway_planner.py
++++ b/src/unita_waypoint/test/test_highway_planner.py
+@@ -190,11 +190,12 @@
+         self.assertNotEqual(decision.state, 'CANCELLING')
+         self.assertEqual(p.transition['target'], 2)
+ 
+-    def test_cancel_into_an_ending_lane_never_ends_standing(self):
++    def test_cancel_into_an_ending_lane_restarts_when_a_merge_fits(self):
+         # The run stopped for good while CANCELLING back into ending R1.
+         p = planner(r3_end=None, r2_end=None)
+         p.route_lanes = [1]*ROAD
+-        # R1 ends at x=120 (no saved R1 beyond), R2/R3 continue.
++        # R1 ends at x=124, R2/R3 continue. At x=110 a short, slow
++        # one-lane merge still fits within the steering limit (~10.6 m).
+         p.lane_indices[1] = {}
+         p.route = list(p.route)
+         p.plan(100, (100., 0.), 3., [], desired_speed_mps=CRUISE)
+@@ -202,10 +203,41 @@
+                             length=30., state='CANCELLING', shape='quintic', highway=True,
+                             speed_cap_kmh=None)
+         p._lane_point = (lambda lane, point, index, orig=p._lane_point:
+-                         None if lane == 1 and index > 118 else orig(lane, point, index))
++                         None if lane == 1 and index > 124 else orig(lane, point, index))
+         decision = p.plan(110, (110., 0.), 0., [], desired_speed_mps=CRUISE)
+         self.assertNotEqual(decision.state, 'CANCELLING')
+         self.assertGreater(decision.speed_cap_kmh, 0.)
++        self.assertEqual(p.transition['target'], 2)
++        self.assertLessEqual(p.transition['length'], 14.)
++        self.assertLessEqual(decision.speed_cap_kmh,
++                             p._length_speed(LANE_Y[2], p.transition['length'])*3.6)
++        log, ego, _ = drive(p, (110., 0.), 0., lambda t: [], 20.)
++        self.assertGreater(ego[0], 150.)
++        self.assertEqual(p.current_lane, 3)
++
++    def test_insufficient_steering_room_at_lane_end_keeps_stop(self):
++        p = planner()
++        original = p._lane_point
++        p._lane_point = lambda lane, point, index: (
++            None if lane == 1 and index > 118 else original(lane, point, index))
++        decision = p.plan(110, (110., 0.), 0., [], desired_speed_mps=CRUISE)
++        self.assertIsNone(p.transition)
++        self.assertEqual(decision.speed_cap_kmh, 0.)
++
++    def test_unconfirmed_near_obstacle_brakes_on_first_change_scan(self):
++        p = planner()
++        obstacle = core.Obstacle(4., 0., .5, confirmed=False,
++                                 velocity_reliable=False, length=.5, width=1.)
++        decision = p.plan(0, (0., 0.), 15., [obstacle], desired_speed_mps=CRUISE)
++        self.assertEqual(decision.speed_cap_kmh, 0.)
++
++    def test_unconfirmed_car_beside_target_lane_keeps_immediate_gap(self):
++        p = planner()
++        obstacle = car(0., 2, 15.)
++        obstacle.confirmed = obstacle.velocity_reliable = False
++        decision = p.plan(0, (0., 0.), 15., [obstacle], desired_speed_mps=CRUISE)
++        self.assertIsNone(p.transition)
++        self.assertEqual(decision.reason, 'lane_change_gap')
+ 
+     def test_lane_only_crossed_ignores_its_far_slow_leader(self):
+         p = planner()
+--- a/src/unita_waypoint/CMakeLists.txt
++++ b/src/unita_waypoint/CMakeLists.txt
+@@ -258,6 +258,7 @@
+   catkin_add_nosetests(test/test_map_debug.py)
+   catkin_add_nosetests(test/test_raceline_selection.py)
+   catkin_add_nosetests(test/test_local_avoidance.py)
++  catkin_add_nosetests(test/test_highway_planner.py)
+   catkin_add_nosetests(test/test_avoidance_runtime.py)
+   catkin_add_nosetests(test/test_lane_corridor.py)
+   catkin_add_nosetests(test/test_ground_segmentation.py)
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -942,7 +942,9 @@
+         if (planner is None or decision is None or not 0 <= index < len(sectors)
+                 or sectors[index] not in planner.min_speed_sectors):
+             return target_kmh
+-        if math.isfinite(decision.obstacle_distance_m) or planner.lane_end_imminent:
++        if (math.isfinite(decision.obstacle_distance_m) or planner.lane_end_imminent
++                or (getattr(planner, 'highway_active', False)
++                    and math.isfinite(decision.speed_cap_kmh))):
+             return target_kmh
+         profile = self.target_speed_for_index(index)
+         floor = min(planner.sector_min_speed_kmh, profile)
+--- a/src/unita_waypoint/test/test_driving_stability.py
++++ b/src/unita_waypoint/test/test_driving_stability.py
+@@ -138,6 +138,19 @@
+             n.publish_control(0., 40.)
+             self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake, expected)
+ 
++    def test_highway_merge_curvature_cap_is_not_raised_by_sector_floor_or_boost(self):
++        n = self.cruise_follower()
++        n.local_planner = SimpleNamespace(
++            lane_end_imminent=False, highway_active=True, min_speed_sectors=(11,),
++            sector_min_speed_kmh=40., lane_change_speed_boost_kmh=10.,
++            transition={'state': 'LANE_CHANGING'})
++        n.current_speed_kmh = 12.
++        n.target_speed_for_index = lambda index: 100.
++        n.last_decision.speed_cap_kmh = 13.
++        self.assertEqual(n.sector_speed_floor(13.), 13.)
++        n.last_decision.speed_cap_kmh = math.inf
++        self.assertEqual(n.sector_speed_floor(13.), 40.)
++
+     def test_s11_hazards_and_other_sectors_bypass_cruise_brake(self):
+         for condition in ('other_sector', 'obstacle', 'lane_end', 'finite_planner_cap',
+                           'guard_cap', 'external_cap', 'blackout'):

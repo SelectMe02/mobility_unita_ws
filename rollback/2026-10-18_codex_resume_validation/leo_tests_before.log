@@ -1,0 +1,15 @@
+...........................................................................................................F....................................................................................................................
+======================================================================
+FAIL: test_ftg_local.test_runtime_yaml_restores_spacing_and_expands_lidar_angle
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/nose/case.py", line 197, in runTest
+    self.test(*self.arg)
+  File "/home/unita/unita_ws/src/leo_avoidance/test/test_ftg_local.py", line 683, in test_runtime_yaml_restores_spacing_and_expands_lidar_angle
+    assert cfg.bubble_margin_m == .35 and cfg.side_margin_m == .4
+AssertionError
+
+----------------------------------------------------------------------
+Ran 224 tests in 2.846s
+
+FAILED (failures=1)

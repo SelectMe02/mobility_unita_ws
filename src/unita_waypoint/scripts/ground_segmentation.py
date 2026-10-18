@@ -5,6 +5,7 @@ Unknown patches retain the original height gate; they never erase objects.
 """
 import math
 import numpy as np
+from scipy.spatial import cKDTree
 
 
 def rotation_rpy(roll=0., pitch=0., yaw=0.):
@@ -115,7 +116,7 @@ def _plane(points, tolerance, slope_deg, minimum, accept):
 
 
 def segment_ground(points, eligible, tolerance=.04, max_slope_deg=20., minimum=12,
-                   min_height=.22, max_height=2.6, reference_z=0.):
+                   min_height=.22, max_height=2.6, reference_z=0., min_plane_height=None):
     """8x6 m patches grown from near-ego road, with height/slope continuity.
 
     Only directly supported planes are used (never extrapolated into an
@@ -123,7 +124,12 @@ def segment_ground(points, eligible, tolerance=.04, max_slope_deg=20., minimum=1
     Returns ground mask, obstacle mask, and diagnostics. Low objects above
     a trusted plane survive even below min_height; that bound applies only
     to unknown road patches. max_height applies in both cases.
+    min_plane_height (default: tolerance) is the obstacle bound above a
+    trusted plane: one 8x6 m plane cannot follow a banked bend's crown, so
+    road returns a few centimetres above it are neither ground nor obstacle.
+    When given, it also applies against the measured road within 1 m.
     """
+    plane_height = tolerance if min_plane_height is None else max(tolerance, min_plane_height)
     points = np.asarray(points, dtype=float).reshape((-1, 3))
     ground = np.zeros(len(points), dtype=bool)
     height = points[:, 2]-reference_z
@@ -176,8 +182,23 @@ def segment_ground(points, eligible, tolerance=.04, max_slope_deg=20., minimum=1
         distance = (points[indices, 2]-points[indices, 0]*plane[0]-points[indices, 1]*plane[1]-plane[2])/math.sqrt(1+np.dot(plane[:2], plane[:2]))
         inlier = np.abs(distance) <= tolerance
         ground[indices[inlier]] = True
-        obstacle[indices] = (distance > tolerance) & (distance < max_height)
+        obstacle[indices] = (distance > plane_height) & (distance < max_height)
         residuals.extend(np.abs(distance[inlier]).tolist())
         supported_count += len(indices)
+    if min_plane_height is not None and ground.any() and obstacle.any():
+        # A patch holding one or two rings can fit a tilted plane, leaving a
+        # road ring a decimetre above it (S10, 2026-10-18: 1 cm above the
+        # road around it). Measured road within 1 m outranks the patch plane.
+        road = points[ground]
+        candidates = np.flatnonzero(obstacle)
+        distance, neighbour = cKDTree(road[:, :2]).query(
+            points[candidates, :2], k=8, distance_upper_bound=1.)
+        found = np.isfinite(distance)
+        enough = found.sum(axis=1) >= 3
+        heights = np.where(found, road[np.minimum(neighbour, len(road)-1), 2], np.nan)
+        on_road = np.zeros(len(candidates), dtype=bool)
+        on_road[enough] = (points[candidates[enough], 2]
+                           - np.nanmedian(heights[enough], axis=1)) < plane_height
+        obstacle[candidates[on_road]] = False
     return ground, obstacle, dict(planes=len(accepted), supported_points=supported_count,
                                  residual_p95_m=float(np.percentile(residuals, 95)) if residuals else None)

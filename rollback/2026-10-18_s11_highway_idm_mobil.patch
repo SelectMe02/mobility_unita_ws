@@ -1,0 +1,824 @@
+diff --git a/src/unita_waypoint/scripts/local_avoidance_core.py b/src/unita_waypoint/scripts/local_avoidance_core.py
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -14,6 +14,18 @@
+ def smoothstep(t):
+     t = max(0., min(1., t))
+     return t * t * (3. - 2. * t)
++
++
++# Quintic minimum-jerk lane change (Werling et al., ICRA 2010): zero lateral
++# speed and acceleration at both ends. Peak slope 1.875*d/L, peak curvature
++# 5.774*d/L^2 (smoothstep jumps to 6*d/L^2 at its start and end).
++QUINTIC_PEAK_SLOPE = 1.875
++QUINTIC_PEAK_CURVATURE = 10./math.sqrt(3.)
++
++
++def quintic(t):
++    t = max(0., min(1., t))
++    return t * t * t * (10. + t * (-15. + 6. * t))
+ 
+ 
+ def path_prefix(path, length_m):
+@@ -88,7 +100,13 @@
+                  avoidance_brake_limit=.35, restart_accel_rate=.5, route_lanes=None,
+                  cancel_confirm_scans=3, cancel_max_progress=.6,
+                  sector_min_speed_kmh=45., lane_change_speed_boost_kmh=10.,
+-                 min_speed_sectors=(11,)):
++                 min_speed_sectors=(11,), highway_sectors=(),
++                 idm_time_gap_s=1.2, idm_min_gap_m=4., idm_accel_mps2=1.5,
++                 idm_comfort_decel_mps2=2., idm_command_horizon_s=1.,
++                 mobil_politeness=.2, mobil_threshold_mps2=.2, mobil_safe_decel_mps2=4.,
++                 highway_preferred_lane=3, highway_lane_bias_mps2=.6,
++                 highway_obstacle_horizon_m=55., highway_change_hold_m=30.,
++                 min_turn_radius_m=5.4):
+         self.route = list(route)
+         self.sectors = list(sectors)
+         # Raceline each route point was taken from (S11 may be driven on R3).
+@@ -165,6 +183,33 @@
+         self.lane_change_speed_boost_kmh = lane_change_speed_boost_kmh
+         self.min_speed_sectors = tuple(min_speed_sectors)
+         self.lane_end_imminent = False
++        # Highway sectors: IDM car following (Treiber 2000), MOBIL lane
++        # selection (Kesting et al. 2007) with a bias toward the preferred
++        # lane, quintic lane changes whose length adapts to the free space
++        # instead of a speed precondition, and no planner standstill.
++        self.highway_sectors = tuple(int(s) for s in highway_sectors)
++        self.idm_time_gap_s = idm_time_gap_s
++        self.idm_min_gap_m = idm_min_gap_m
++        self.idm_accel_mps2 = idm_accel_mps2
++        self.idm_comfort_decel_mps2 = idm_comfort_decel_mps2
++        self.idm_command_horizon_s = idm_command_horizon_s
++        self.mobil_politeness = mobil_politeness
++        self.mobil_threshold_mps2 = mobil_threshold_mps2
++        self.mobil_safe_decel_mps2 = mobil_safe_decel_mps2
++        self.highway_preferred_lane = int(highway_preferred_lane)
++        self.highway_lane_bias_mps2 = highway_lane_bias_mps2
++        self.highway_obstacle_horizon_m = highway_obstacle_horizon_m
++        self.highway_change_hold_m = highway_change_hold_m
++        self.highway_change_end = None
++        self.highway_active = False
++        # Tightest path the car can steer (wheelbase / tan(max steering)):
++        # the shortest, slow merge out of a lane that is about to end.
++        self.min_turn_radius_m = min_turn_radius_m
++        if min(idm_time_gap_s, idm_min_gap_m, idm_accel_mps2, idm_comfort_decel_mps2,
++               idm_command_horizon_s, mobil_threshold_mps2, mobil_safe_decel_mps2,
++               highway_obstacle_horizon_m, min_turn_radius_m) <= 0 or min(
++                   mobil_politeness, highway_lane_bias_mps2, highway_change_hold_m) < 0:
++            raise ValueError('invalid highway IDM/MOBIL settings')
+         if min(half_width, margin, front_extent, reaction_s, decel,
+                lookahead_m, obstacle_horizon_m, rear_extent,
+                lane_change_gap_m, lane_change_lateral_accel, lane_change_max_heading_deg,
+@@ -297,13 +342,15 @@
+         target0 = self._lane_point(lane, ahead[0][1], ahead[0][0])
+         if target0 is None:
+             return []
++        blend_of = (quintic if transition is not None and transition.get('shape') == 'quintic'
++                    else smoothstep)
+         if transition is None:
+             correction = (ego_xy[0]-target0[0], ego_xy[1]-target0[1])
+         else:
+             origin0 = self._lane_point(transition['source'], ahead[0][1], ahead[0][0])
+             if origin0 is None:
+                 return []
+-            t = smoothstep((progress-transition['start'])/transition['length'])
++            t = blend_of((progress-transition['start'])/transition['length'])
+             expected = (origin0[0]+t*(target0[0]-origin0[0]),
+                         origin0[1]+t*(target0[1]-origin0[1]))
+             correction = (ego_xy[0]-expected[0], ego_xy[1]-expected[1])
+@@ -313,7 +360,7 @@
+             if target is None:
+                 break
+             if transition is not None:
+-                blend = smoothstep((progress+s-transition['start'])/transition['length'])
++                blend = blend_of((progress+s-transition['start'])/transition['length'])
+                 origin = self._lane_point(transition['source'], point, i)
+                 if origin is None and blend < 1.:
+                     break
+@@ -327,8 +374,9 @@
+                          target[1]+correction[1]*decay))
+         return path
+ 
+-    def _lead(self, path, ego_xy, obstacles):
++    def _lead(self, path, ego_xy, obstacles, horizon_m=None):
+         """Nearest obstacle whose rectangle overlaps the ego footprint band."""
++        horizon_m = self.obstacle_horizon_m if horizon_m is None else horizon_m
+         if len(path) < 2:
+             return None
+         dx, dy = path[1][0]-path[0][0], path[1][1]-path[0][1]
+@@ -362,7 +410,7 @@
+                 ox, oy = cx-point[0], cy-point[1]
+                 longitudinal.append(ox*tangent[0]+oy*tangent[1])
+                 lateral.append(-ox*tangent[1]+oy*tangent[0])
+-            if s > self.obstacle_horizon_m or min(lateral) > band or max(lateral) < -band:
++            if s > horizon_m or min(lateral) > band or max(lateral) < -band:
+                 continue
+             clearance = max(0., s+min(longitudinal))
+             vx, vy = obstacle.velocity()
+@@ -431,6 +479,34 @@
+     def _decision(self, state, path, cap, threat=None, reason=''):
+         return Decision(state, path, cap, threat[1].kind if threat else '',
+                         threat[0] if threat else float('inf'), reason)
++
++    def _lane_end_cap(self, ahead, available, preferred, base, speed_mps, merge_length=None):
++        merge_length = merge_length or self._merge_length
++        edge_cap = float('inf')
++        self.lane_end_imminent = False
++        span = self._span(self.current_lane, ahead)
++        if span < ahead[-1][2]:
++            # The lane being driven ends ahead (saved side lane, or a lane drop
++            # on the route itself). Merge into the lane that continues.
++            changing = self.transition['target'] if self.transition is not None else None
++            target = next((n for n in (changing, preferred, base)
++                           if n is not None and n != self.current_lane and n in available
++                           and self._span(n, ahead) > span), None)
++            if target is not None:
++                if changing == target:
++                    # Already merging: stop the bumper short of the lane end.
++                    edge_cap = self._stop_cap(span)
++                    self.lane_end_imminent = span < speed_mps*self.reaction_s+self.front_extent+8.
++                else:
++                    # Stop where a low-speed (heading-limited) merge still fits.
++                    room = span - merge_length(
++                        available[self.current_lane], available[target], 0.) - 8.
++                    edge_cap = (self._stop_cap(room+self.front_extent+self.margin)
++                                if room > 0. else 0.)
++                    self.lane_end_imminent = room <= 0.
++                if self.finish_priority_active and self.current_lane != base:
++                    edge_cap = min(edge_cap, self._stop_cap(span))
++        return edge_cap
+ 
+     def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, desired_speed_mps=None):
+         # See lane endings early enough to decelerate before merging back.
+@@ -460,6 +536,10 @@
+         available = {n: point for n, point in available.items() if point is not None}
+         self.current_lane = min(available, key=lambda n: distance(ego_xy, available[n]))
+         requested = self._requested_lane(index, ego_xy, ego_yaw)
++        self.highway_active = self.sectors[index] in self.highway_sectors
++        if self.highway_active:
++            return self._plan_highway(index, ego_xy, speed_mps, obstacles,
++                                      desired_speed_mps, ahead, progress, available)
+         self.preference_reason = 'priority_interval' if requested != self.preferred_lane else 'default_lane'
+         preferred = requested if requested in available else base
+         if requested not in available:
+@@ -487,30 +567,7 @@
+             self.lane_hold = None
+         elif self.lane_hold is None and self.transition is None and self.current_lane == preferred:
+             self.lane_hold = preferred
+-        edge_cap = float('inf')
+-        self.lane_end_imminent = False
+-        span = self._span(self.current_lane, ahead)
+-        if span < ahead[-1][2]:
+-            # The lane being driven ends ahead (saved side lane, or a lane drop
+-            # on the route itself). Merge into the lane that continues.
+-            changing = self.transition['target'] if self.transition is not None else None
+-            target = next((n for n in (changing, preferred, base)
+-                           if n is not None and n != self.current_lane and n in available
+-                           and self._span(n, ahead) > span), None)
+-            if target is not None:
+-                if changing == target:
+-                    # Already merging: stop the bumper short of the lane end.
+-                    edge_cap = self._stop_cap(span)
+-                    self.lane_end_imminent = span < speed_mps*self.reaction_s+self.front_extent+8.
+-                else:
+-                    # Stop where a low-speed (heading-limited) merge still fits.
+-                    room = span - self._merge_length(
+-                        available[self.current_lane], available[target], 0.) - 8.
+-                    edge_cap = (self._stop_cap(room+self.front_extent+self.margin)
+-                                if room > 0. else 0.)
+-                    self.lane_end_imminent = room <= 0.
+-                if self.finish_priority_active and self.current_lane != base:
+-                    edge_cap = min(edge_cap, self._stop_cap(span))
++        edge_cap = self._lane_end_cap(ahead, available, preferred, base, speed_mps)
+         current_path = self._path(ahead, ego_xy, self.current_lane, progress)
+         self.obstacle_horizon_path = path_prefix(current_path, self.obstacle_horizon_m)
+         # Without a speed target every leader counts as slow (pass if possible).
+@@ -660,3 +717,358 @@
+                 threat = gap_threat
+         cap = edge_cap if threat is None else min(edge_cap, self._stop_cap(threat[0], threat[2]))
+         return self._decision(transition['state'], path, cap, threat, reason)
++
++    # ------------------------------------------------------------------
++    # Highway sectors (highway_sectors): IDM + MOBIL, never a planner stop
++    # ------------------------------------------------------------------
++    def _idm(self, v, v0, gap, lead_v):
++        """IDM acceleration for a bumper gap and leader speed (None: free road)."""
++        a = self.idm_accel_mps2
++        v = max(0., v)
++        free = 1.-(v/v0)**4 if math.isfinite(v0) and v0 > .1 else 1.
++        if lead_v is None:
++            return a*free
++        b = self.idm_comfort_decel_mps2
++        s_star = self.idm_min_gap_m+max(0., v*self.idm_time_gap_s +
++                                         v*(v-lead_v)/(2.*math.sqrt(a*b)))
++        return a*(free-(s_star/max(gap, .1))**2)
++
++    def _idm_cap(self, v, v0, lead, room=0.):
++        """Speed command reached with the IDM acceleration over the command
++        horizon, bounded by the stopping envelope. room: extra standstill gap
++        kept behind a static leader so a heading-limited change still fits."""
++        if lead is None:
++            return float('inf')
++        gap = lead[0]-self.front_extent
++        if room > 0. and gap-room > self.idm_min_gap_m:
++            gap -= room
++        # Planned braking stays within avoidance_decel; the stopping envelope
++        # below is the hard limit for anything closer.
++        a = max(-self.decel, self._idm(v, v0, gap, lead[2]))
++        return min(max(0., v+a*self.idm_command_horizon_s)*3.6,
++                   self._stop_cap(lead[0], lead[2]))
++
++    def _highway_length(self, lateral, speed_mps):
++        """Quintic length within the lateral-acceleration and heading limits."""
++        lateral = max(.1, lateral)
++        by_accel = max(0., speed_mps)*math.sqrt(
++            QUINTIC_PEAK_CURVATURE*lateral/self.lane_change_lateral_accel)
++        heading = math.radians(min(max(self.lane_change_max_heading_deg, 1.), 45.))
++        return max(by_accel, QUINTIC_PEAK_SLOPE*lateral/math.tan(heading))
++
++    def _turn_limited_length(self, lateral):
++        """Shortest quintic whose peak curvature the steering still reaches."""
++        return math.sqrt(QUINTIC_PEAK_CURVATURE*max(.1, lateral)*self.min_turn_radius_m)
++
++    def _highway_merge_length(self, start, end, speed_mps=0.):
++        return self._highway_length(distance(start, end), speed_mps)
++
++    def _length_speed(self, lateral, length):
++        """Highest speed at which a quintic of this length keeps the
++        lateral-acceleration limit."""
++        return length*math.sqrt(self.lane_change_lateral_accel /
++                                (QUINTIC_PEAK_CURVATURE*max(.1, lateral)))
++
++    def _lateral_offset(self, index, ego_xy, point):
++        tangent = self._tangent(index)
++        return (point[1]-ego_xy[1])*tangent[0]-(point[0]-ego_xy[0])*tangent[1]
++
++    def _follower(self, index, ego_xy, centre, obstacles, assumed_mps):
++        """Nearest object fully behind the rear bumper in the lane at lateral
++        offset centre: (bumper gap, speed along the route). An unreliable
++        velocity is assumed to be assumed_mps (as fast as the road)."""
++        tangent = self._tangent(index)
++        normal = (-tangent[1], tangent[0])
++        band = self.half_width+self.margin
++        best = None
++        for obstacle in obstacles:
++            longitudinal, lateral = [], []
++            for cx, cy in obstacle.corners():
++                ox, oy = cx-ego_xy[0], cy-ego_xy[1]
++                longitudinal.append(ox*tangent[0]+oy*tangent[1])
++                lateral.append(ox*normal[0]+oy*normal[1])
++            gap = -self.rear_extent-max(longitudinal)
++            if gap <= 0. or min(lateral) > centre+band or max(lateral) < centre-band:
++                continue
++            speed = (obstacle.vx*tangent[0]+obstacle.vy*tangent[1]
++                     if obstacle.velocity_reliable else assumed_mps)
++            if best is None or gap < best[0]:
++                best = (gap, speed)
++        return best
++
++    def _follower_desired(self, speed, v, v0):
++        return max(speed, v0 if math.isfinite(v0) else v)
++
++    def _mobil(self, current, lane, v, v0, leaders, followers):
++        """MOBIL incentive and safety of moving from current to lane.
++
++        leaders/followers: lane -> (bumper gap, speed) or None. A lane end is
++        a standing leader, so an ending lane is left like a blocked one.
++        """
++        floor = -2.*self.mobil_safe_decel_mps2
++
++        def accel(speed, desired, lead):
++            # Clamped: beyond physical braking a deficit only means unsafe.
++            return max(floor, self._idm(speed, desired, lead[0], lead[1]) if lead is not None
++                       else self._idm(speed, desired, 0., None))
++        body = self.front_extent+self.rear_extent
++
++        def through(follower, lead):
++            # The follower's leader when the ego is not between them.
++            return None if lead is None else (follower[0]+body+lead[0], lead[1])
++        lead_c, lead_l = leaders[current], leaders[lane]
++        a_current = accel(v, v0, lead_c)
++        a_lane = accel(v, v0, lead_l)
++        gain_followers, safe = 0., a_lane >= -self.mobil_safe_decel_mps2
++        new = followers.get(lane)
++        if new is not None:
++            desired = self._follower_desired(new[1], v, v0)
++            after = accel(new[1], desired, (new[0], v))
++            gain_followers += after-accel(new[1], desired, through(new, lead_l))
++            safe = safe and after >= -self.mobil_safe_decel_mps2
++        old = followers.get(current)
++        if old is not None:
++            desired = self._follower_desired(old[1], v, v0)
++            gain_followers += (accel(old[1], desired, through(old, lead_c)) -
++                               accel(old[1], desired, (old[0], v)))
++        pref = self.highway_preferred_lane
++        toward = abs(lane-pref) < abs(current-pref)
++        bias = (self.highway_lane_bias_mps2 if toward else
++                -self.highway_lane_bias_mps2 if abs(lane-pref) > abs(current-pref) else 0.)
++        incentive = a_lane-a_current+self.mobil_politeness*gain_followers+bias
++        return incentive, safe, toward
++
++    def _highway_change(self, ahead, ego_xy, progress, current, lane, available,
++                        obstacles, v, v0):
++        """Quintic change, shortened (and slowed) until nothing on the swept
++        path needs more than the safe deceleration. No speed precondition."""
++        lateral = distance(ego_xy, available[lane])
++        minimum = self._highway_length(lateral, 0.)
++        length = min(self._highway_length(lateral, v), self._span(current, ahead),
++                     self._span(lane, ahead)-8.)
++        if length < minimum:
++            # The lane ends first: a short, slow merge within the steering limit.
++            minimum = min(minimum, self._turn_limited_length(lateral))
++        while length >= minimum-1e-6:
++            transition = dict(source=current, target=lane, start=progress, length=length,
++                              state='', shape='quintic', highway=True, speed_cap_kmh=None)
++            path = self._path(ahead, ego_xy, lane, progress, transition)
++            speed = self._length_speed(lateral, length)
++            if len(path) >= 2:
++                lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
++                if lead is None or self._idm(min(v, speed), v0, lead[0]-self.front_extent,
++                                             lead[2]) >= -self.mobil_safe_decel_mps2:
++                    if speed < v-.05:
++                        transition['speed_cap_kmh'] = speed*3.6
++                    return transition, path, lead
++            if length <= minimum+1e-6:
++                break
++            length = max(minimum, length*.85)
++        return None
++
++    def _target_lane_danger(self, index, ego_xy, v, v0, assumed, available, lane, obstacles):
++        blocker = self._gap_blocker(index, ego_xy, available, lane, obstacles)
++        if blocker is not None and self._closing(index, ego_xy, v, blocker[0]):
++            return blocker
++        follower = self._follower(index, ego_xy, self._lateral_offset(index, ego_xy, available[lane]),
++                                  obstacles, assumed)
++        if follower is not None and self._idm(
++                follower[1], self._follower_desired(follower[1], v, v0),
++                follower[0], v) < -self.mobil_safe_decel_mps2:
++            return None, -follower[0]-self.rear_extent-self.front_extent
++        return None
++
++    def _highway_transition(self, index, ego_xy, v, v0, assumed, progress, ahead,
++                            available, obstacles, edge_cap):
++        """Continue, finish or abort the active change. None: it is finished
++        (or its geometry is gone) and lane selection runs again."""
++        transition = self.transition
++        lane = transition['target']
++        if lane not in available or progress >= transition['start']+transition['length']:
++            self.transition = None
++            if lane in available:
++                self.current_lane = lane
++            self.highway_change_end = progress
++            return None
++        reason = ''
++        if transition['state'] != 'CANCELLING':
++            danger = self._target_lane_danger(index, ego_xy, v, v0, assumed, available,
++                                              lane, obstacles)
++            # Something revealed on the swept path (e.g. a parked car beyond
++            # the sensor range when the change began) that needs more than
++            # the safe deceleration: steering back is the way out at speed.
++            path = self._path(ahead, ego_xy, lane, progress, transition)
++            lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
++            hazard = lead is not None and self._idm(
++                v, v0, lead[0]-self.front_extent, lead[2]) < -self.mobil_safe_decel_mps2
++            self.cancel_votes = self.cancel_votes+1 if danger is not None or hazard else 0
++            fraction = (progress-transition['start'])/max(transition['length'], 1e-6)
++            source = transition['source']
++            if danger is not None or hazard:
++                if danger is not None and danger[0] is not None:
++                    self.gap_blocker = danger
++                reason = 'lane_change_hazard_ahead' if hazard else 'lane_change_gap_hold'
++                back = (self.cancel_votes >= self.cancel_confirm_scans and source in available
++                        and (hazard or fraction <= self.cancel_max_progress)
++                        and self._gap_blocker(index, ego_xy, available, source, obstacles) is None)
++                change = (self._highway_change(ahead, ego_xy, progress, lane, source, available,
++                                               obstacles, v, v0) if back else None)
++                if change is not None:
++                    # Abort: steer back to the lane we left.
++                    self.transition = transition = dict(change[0], state='CANCELLING')
++                    self.departed_preferred = source != self.effective_preferred_lane
++                    self.cancel_votes = 0
++                    lane = source
++                    reason = 'lane_change_cancelled'
++        path = self._path(ahead, ego_xy, lane, progress, transition)
++        if len(path) < 2:
++            # Never stop on the highway for missing geometry: drop the change.
++            self.transition = None
++            return None
++        horizon = self.highway_obstacle_horizon_m
++        self.active_lane = lane if lane != self.route_lanes[index] else None
++        self.obstacle_horizon_path = path_prefix(path, horizon)
++        lead = self._lead(path, ego_xy, obstacles, horizon)
++        cap = min(edge_cap, self._idm_cap(v, v0, lead))
++        if transition.get('speed_cap_kmh') is not None:
++            cap = min(cap, transition['speed_cap_kmh'])
++        return self._decision(transition['state'], path, cap, lead, reason)
++
++    def _highway_lane_end_cap(self, ahead, available):
++        """Lane drop ahead (S11: R1 and R2 end, R3 continues): keep the speed
++        from which the remaining one-lane steps still fit at low speed. An
++        active change toward the continuing lane is never brought to a halt:
++        its length was fitted inside the ending lane when it started."""
++        self.lane_end_imminent = False
++        current = self.current_lane
++        spans = {n: self._span(n, ahead) for n in available}
++        span = spans[current]
++        longest = max(spans.values())
++        if span >= ahead[-1][2]-1e-6 or longest <= span+8.:
++            return float('inf')
++        # The lane that really continues (R1 ends a metre after R2 in S11).
++        target = min((n for n in available if spans[n] >= longest-8.),
++                     key=lambda n: abs(n-current))
++        step = 1 if target > current else -1
++        transition = self.transition
++        via = current
++        if (transition is not None and transition['target'] in available
++                and (transition['target']-transition['source'])*step > 0):
++            via = transition['target']
++        if via == target:
++            return float('inf')
++        neighbour = via+step
++        spacing = (distance(available[via], available[neighbour])
++                   if via in available and neighbour in available else 3.6)
++        room = spans.get(via, span)-abs(target-via)*self._turn_limited_length(spacing)-8.
++        cap = self._stop_cap(room+self.front_extent+self.margin) if room > 0. else 0.
++        # Lets the follower's S11 floor yield to this envelope, so the car
++        # can fall in behind traffic in the continuing lane.
++        self.lane_end_imminent = cap < float('inf')
++        return cap
++
++    def _plan_highway(self, index, ego_xy, speed_mps, obstacles, desired_speed_mps,
++                      ahead, progress, available):
++        v = max(0., speed_mps)
++        v0 = float('inf') if desired_speed_mps is None else max(desired_speed_mps, .1)
++        assumed = v if not math.isfinite(v0) else max(v, v0)
++        base = self.route_lanes[index]
++        pref = self.highway_preferred_lane
++        preferred = min(available, key=lambda n: (abs(n-pref), n != base))
++        self.effective_preferred_lane = self.previous_preferred_lane = preferred
++        self.preference_reason = 'highway_preferred_lane'
++        self.lane_hold = None
++        edge_cap = self._highway_lane_end_cap(ahead, available)
++        horizon = self.highway_obstacle_horizon_m
++        if self.transition is not None:
++            decision = self._highway_transition(index, ego_xy, v, v0, assumed, progress, ahead,
++                                                available, obstacles, edge_cap)
++            if decision is not None:
++                return decision
++            edge_cap = self._highway_lane_end_cap(ahead, available)
++
++        current = self.current_lane
++        current_path = self._path(ahead, ego_xy, current, progress)
++        self.obstacle_horizon_path = path_prefix(current_path, horizon)
++        threat = self._lead(current_path, ego_xy, obstacles, horizon) if len(current_path) >= 2 else None
++        end = ahead[-1][2]
++        leaders, followers, spans = {}, {}, {}
++        for n in available:
++            if abs(n-current) > 1:
++                continue
++            path = current_path if n == current else self._path(ahead, ego_xy, n, progress)
++            lead = threat if n == current else (
++                self._lead(path, ego_xy, obstacles, horizon) if len(path) >= 2 else None)
++            item = None if lead is None else (lead[0]-self.front_extent, lead[2])
++            spans[n] = self._span(n, ahead)
++            if spans[n] < end-1e-6 and (item is None or spans[n]-self.front_extent < item[0]):
++                item = (spans[n]-self.front_extent, 0.)
++            leaders[n] = item
++            followers[n] = self._follower(index, ego_xy,
++                                          self._lateral_offset(index, ego_xy, available[n]),
++                                          obstacles, assumed)
++        ending = spans[current] < end-1e-6
++        held = (self.highway_change_end is not None and
++                0. <= progress-self.highway_change_end < self.highway_change_hold_m)
++        best, waiting = None, ''
++        for lane in leaders:
++            if lane == current:
++                continue
++            incentive, safe, toward = self._mobil(current, lane, v, v0, leaders, followers)
++            if not toward and not ending and not self._slow(threat, v0):
++                # IDM keeps a long gap behind a leader near the desired
++                # speed; only a clearly slower one is worth passing.
++                continue
++            if not safe:
++                waiting = 'mobil_unsafe'
++                continue
++            if incentive <= self.mobil_threshold_mps2:
++                continue
++            if held and not toward and not ending:
++                waiting = waiting or 'highway_change_hold'
++                continue
++            blocker = self._gap_blocker(index, ego_xy, available, lane, obstacles)
++            if blocker is not None:
++                self.gap_blocker = blocker
++                waiting = 'lane_change_gap'
++                continue
++            change = self._highway_change(ahead, ego_xy, progress, current, lane, available,
++                                          obstacles, v, v0)
++            if change is None:
++                waiting = waiting or 'lane_change_no_room'
++                continue
++            if best is None or incentive > best[0]:
++                best = (incentive, lane, toward, change)
++        if best is not None:
++            _, lane, toward, (transition, path, lead) = best
++            state = ('RETURNING' if toward and self.departed_preferred
++                     else 'LANE_CHANGING' if toward else 'OVERTAKING')
++            transition['state'] = state
++            self.transition = transition
++            self.cancel_votes = 0
++            # Departed only by moving away from the preferred lane; R1 -> R2
++            # on the way to R3 is a lane change, not an overtake.
++            self.departed_preferred = (not toward) or (self.departed_preferred and lane != preferred)
++            self.active_lane = lane if lane != base else None
++            self.obstacle_horizon_path = path_prefix(path, horizon)
++            cap = min(edge_cap, self._idm_cap(v, v0, lead))
++            if transition['speed_cap_kmh'] is not None:
++                cap = min(cap, transition['speed_cap_kmh'])
++            return self._decision(state, path, cap, lead or threat, 'mobil_gain')
++
++        # Keep the lane and follow its leader (IDM). A static leader is
++        # followed with room for a heading-limited change to a free lane.
++        self.active_lane = current if current != base else None
++        if current == preferred:
++            self.departed_preferred = False
++        path = (current_path if len(current_path) >= 2 and
++                (current != base or distance(ego_xy, available[base]) > .35) else [])
++        room = 0.
++        if threat is not None and threat[2] < .5:
++            room = min((self._highway_length(abs(self._lateral_offset(index, ego_xy, available[n])), 0.)
++                        for n in leaders if n != current and spans[n] > threat[0]), default=0.)
++        cap = min(edge_cap, self._idm_cap(v, v0, threat, room))
++        if threat is not None:
++            return self._decision('TAILING', path, cap, threat, waiting or 'highway_idm')
++        state = 'LANE_WAIT' if waiting else 'OVERTAKING' if self.departed_preferred else 'RACELINE'
++        return self._decision(state, path, cap, reason=waiting)
+diff --git a/src/unita_waypoint/scripts/gps_waypoint_follower.py b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -483,7 +483,16 @@
+                 lane_change_max_heading_deg=float(rospy.get_param('~lane_change_max_heading_deg', 10.)),
+                 reaction_s=float(rospy.get_param('~avoidance_reaction_s', .4)),
+                 decel=float(rospy.get_param('~avoidance_decel_mps2', 3.)),
+-                obstacle_horizon_m=float(rospy.get_param('~obstacle_horizon_m', 45.)))
++                obstacle_horizon_m=float(rospy.get_param('~obstacle_horizon_m', 45.)),
++                # IDM/MOBIL highway logic only in these sectors (e.g. "11").
++                highway_sectors=[int(s) for s in
++                                 str(rospy.get_param('~highway_sectors', '')).replace(',', ' ').split()],
++                highway_preferred_lane=int(rospy.get_param('~highway_preferred_lane', 3)),
++                min_turn_radius_m=float(self.wheelbase)/math.tan(float(self.max_steering_rad)))
++            if self.local_planner.highway_sectors:
++                rospy.loginfo('Highway IDM/MOBIL planner in sector(s) %s, preferred R%d',
++                              ','.join(map(str, self.local_planner.highway_sectors)),
++                              self.local_planner.highway_preferred_lane)
+             self.runtime_settings = RuntimeSettings('gps_waypoint_follower', self.local_planner)
+ 
+         rospy.loginfo("======================================")
+diff --git a/src/unita_waypoint/scripts/avoidance_runtime.py b/src/unita_waypoint/scripts/avoidance_runtime.py
+--- a/src/unita_waypoint/scripts/avoidance_runtime.py
++++ b/src/unita_waypoint/scripts/avoidance_runtime.py
+@@ -41,6 +41,17 @@
+     'lane_change_speed_boost_kmh': ('gps_waypoint_follower', 10., 'lane_change_speed_boost_kmh', 'km/h', 'S11 차선 변경 중 목표 속도 = 현재 속도 + 이 값 (파일 속도 이하)'),
+     'lane_change_cancel_scans': ('gps_waypoint_follower', 3., 'cancel_confirm_scans', '회', '차선 변경 취소에 필요한 연속 감지 횟수 (다가오는 3 m 내 차량)'),
+     'lane_change_cancel_max_progress': ('gps_waypoint_follower', .6, 'cancel_max_progress', '0..1', '이 진행률을 넘은 차선 변경은 취소하지 않고 완료'),
++    'highway_idm_time_gap_s': ('gps_waypoint_follower', 1.2, 'idm_time_gap_s', 's', '고주로(S11) IDM 앞차 추종 시간 간격 T'),
++    'highway_idm_min_gap_m': ('gps_waypoint_follower', 4., 'idm_min_gap_m', 'm', '고주로 IDM 정지 시 앞차 범퍼 간격 s0'),
++    'highway_idm_accel_mps2': ('gps_waypoint_follower', 1.5, 'idm_accel_mps2', 'm/s²', '고주로 IDM 최대 가속도 a'),
++    'highway_idm_comfort_decel_mps2': ('gps_waypoint_follower', 2., 'idm_comfort_decel_mps2', 'm/s²', '고주로 IDM 편안한 감속도 b'),
++    'highway_idm_command_horizon_s': ('gps_waypoint_follower', 1., 'idm_command_horizon_s', 's', '고주로 속도 명령 = 현재 속도 + IDM 가속도 × 이 시간'),
++    'highway_mobil_politeness': ('gps_waypoint_follower', .2, 'mobil_politeness', '0..1', '고주로 MOBIL 배려 계수 p · 클수록 뒤차 감속을 더 피함'),
++    'highway_mobil_threshold_mps2': ('gps_waypoint_follower', .2, 'mobil_threshold_mps2', 'm/s²', '고주로 MOBIL 차선 변경 최소 이득 (가속도)'),
++    'highway_mobil_safe_decel_mps2': ('gps_waypoint_follower', 4., 'mobil_safe_decel_mps2', 'm/s²', '고주로 MOBIL 안전 조건 · 목표 차선 뒤차/자차 요구 감속 한계'),
++    'highway_r3_bias_mps2': ('gps_waypoint_follower', .6, 'highway_lane_bias_mps2', 'm/s²', '고주로 Raceline 3 우선 가중치 · 클수록 R3 유지·복귀 우선'),
++    'highway_obstacle_horizon_m': ('gps_waypoint_follower', 55., 'highway_obstacle_horizon_m', 'm', '고주로 앞차 판단 거리 (경로 따라)'),
++    'highway_change_hold_m': ('gps_waypoint_follower', 30., 'highway_change_hold_m', 'm', '고주로 차선 변경 완료 후 다음 추월 변경까지 최소 주행 거리 (R3 방향·차선 끝은 예외)'),
+     'route_max_error_m': ('leo_signal_guard', 3.75, 'route_max_error_m', 'm', '신호 guard 경로 이탈 허용 거리 (터널 밖) · 넘으면 정지 후 자동 재arm 대기'),
+     'blackout_route_max_error_m': ('leo_signal_guard', 7., 'blackout_route_max_error_m', 'm', '신호 guard 경로 이탈 허용 거리 (터널 GPS 음영 구간)'),
+     'pass_speed_kmh': ('leo_waypoint_follower', 20., 'pass_speed_kmh', 'km/h', 'Leo 장애물 추월·차선 변경 중 속도 상한'),
+@@ -75,7 +86,8 @@
+     limits = {'ground_plane_tolerance_m': .08, 'imu_max_skew_s': .2,
+               'obstacle_min_plane_height_m': .3, 'lane_edge_band_m': 1.,
+               'ground_max_slope_deg': 30., 'avoidance_brake_limit': 1.,
+-              'lane_change_max_heading_deg': 45., 'lane_change_cancel_max_progress': 1.}
++              'lane_change_max_heading_deg': 45., 'lane_change_cancel_max_progress': 1.,
++              'highway_mobil_politeness': 1.}
+     if name in limits and number > limits[name]:
+         raise ValueError('최대 {} {}까지 입력하세요.'.format(limits[name], SETTINGS[name][3]))
+     return number
+diff --git a/src/unita_waypoint/src/map_debug_panel.cpp b/src/unita_waypoint/src/map_debug_panel.cpp
+--- a/src/unita_waypoint/src/map_debug_panel.cpp
++++ b/src/unita_waypoint/src/map_debug_panel.cpp
+@@ -75,6 +75,10 @@
+       "restart_accel_rate_per_s", "raceline_width",
+       "sector11_min_speed_kmh", "lane_change_speed_boost_kmh",
+       "lane_change_cancel_scans", "lane_change_cancel_max_progress",
++      "highway_idm_time_gap_s", "highway_idm_min_gap_m", "highway_idm_accel_mps2",
++      "highway_idm_comfort_decel_mps2", "highway_idm_command_horizon_s",
++      "highway_mobil_politeness", "highway_mobil_threshold_mps2", "highway_mobil_safe_decel_mps2",
++      "highway_r3_bias_mps2", "highway_obstacle_horizon_m", "highway_change_hold_m",
+       "route_max_error_m", "blackout_route_max_error_m",
+       "pass_speed_kmh", "arc_lane_change_max_kmh", "route_pass_speed_kmh",
+       "ftg_no_return_speed_mps", "ftg_wall_min_clearance_speed_mps",
+diff --git a/src/unita_launch/launch/semi.launch b/src/unita_launch/launch/semi.launch
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -28,6 +28,10 @@
+   <!-- S11 cruising target floor; obstacle/lane-end stops and stale-input
+        braking still take priority. Saved Map Debug settings may override it. -->
+   <arg name="sector11_min_speed_kmh" default="40.0"/>
++  <!-- Highway (S11 = CP10-CP11) IDM following + MOBIL lane changes, Raceline 3
++       preferred, no lane-change speed precondition, no planner stop.
++       highway_sectors:="" restores the RoboRacer-style logic there. -->
++  <arg name="highway_sectors" default="11"/>
+   <!-- UDP steer = steering / max_steering_deg. 29 deg, not 40: in the
+        2026-10-18 log the car turned only 1/1.377 of the commanded wheel
+        angle (0.2 s lag) at every lateral acceleration. -->
+@@ -93,6 +97,8 @@
+     <param name="preferred_raceline_end_checkpoint" value="11" type="str"/>
+     <param name="preferred_raceline_after_checkpoint" value="1"/>
+     <param name="sector11_min_speed_kmh" value="$(arg sector11_min_speed_kmh)"/>
++    <param name="highway_sectors" value="$(arg highway_sectors)" type="str"/>
++    <param name="highway_preferred_lane" value="3"/>
+     <!-- S11 ordinary cruise braking only. Hazard/stop commands bypass this. -->
+     <param name="sector11_smooth_braking" value="true"/>
+     <param name="sector11_brake_gain" value="0.025"/>
+diff --git a/src/unita_waypoint/test/test_highway_planner.py b/src/unita_waypoint/test/test_highway_planner.py
+new file mode 100644
+--- /dev/null
++++ b/src/unita_waypoint/test/test_highway_planner.py
+@@ -0,0 +1,176 @@
++"""Sector 11 highway mode: IDM following, MOBIL lane changes, R3 priority."""
++import importlib.util
++import math
++from pathlib import Path
++import sys
++import unittest
++
++
++SCRIPT = Path(__file__).resolve().parents[1] / 'scripts/local_avoidance_core.py'
++spec = importlib.util.spec_from_file_location('local_avoidance_core', SCRIPT)
++core = importlib.util.module_from_spec(spec)
++sys.modules[spec.name] = core
++spec.loader.exec_module(core)
++
++ROAD = 2000
++LANE_Y = {1: 0., 2: 3.6, 3: 7.2}
++CRUISE = 100./3.6
++
++
++def planner(highway=True, r3_end=None, r2_end=None, sector_10_until=0, **kwargs):
++    route = [(float(i), 0.) for i in range(ROAD)]
++    ends = {2: r2_end or ROAD, 3: r3_end or ROAD}
++    lanes = {n: [(float(i), LANE_Y[n]) for i in range(ends[n])] for n in (2, 3)}
++    indices = {n: {i: (float(i), LANE_Y[n]) for i in range(ends[n])} for n in (2, 3)}
++    sectors = [10 if i < sector_10_until else 11 for i in range(ROAD)]
++    return core.LocalAvoidancePlanner(route, sectors, lanes, lane_indices=indices,
++                                      highway_sectors=(11,) if highway else (), **kwargs)
++
++
++def car(x, lane, speed=0., kind='dynamic'):
++    return core.Obstacle(x, LANE_Y[lane], 1.2, vx=speed, kind=kind if speed else 'static',
++                         length=4.5, width=1.9)
++
++
++def point_at(path, distance_m):
++    remaining = distance_m
++    for a, b in zip(path, path[1:]):
++        length = core.distance(a, b)
++        if length >= remaining and length > 0.:
++            t = remaining/length
++            return (a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]))
++        remaining -= length
++    return path[-1]
++
++
++def drive(p, ego, speed, traffic, seconds, dt=.1, desired=CRUISE):
++    """Ego follows each decision path; its speed tracks the planner cap."""
++    log = []
++    for k in range(int(seconds/dt)):
++        obstacles = traffic(k*dt)
++        index = max(0, min(ROAD-2, int(round(ego[0]))))
++        decision = p.plan(index, ego, speed, obstacles, desired_speed_mps=desired)
++        log.append((decision, ego, speed, p.current_lane, obstacles))
++        target = min(desired, decision.speed_cap_kmh/3.6)
++        speed = max(0., speed+max(-6.*dt, min(2.*dt, target-speed)))
++        ego = (point_at(decision.path, speed*dt) if len(decision.path) >= 2
++               else (ego[0]+speed*dt, ego[1]))
++    return log, ego, speed
++
++
++class HighwayPlannerTests(unittest.TestCase):
++    def test_free_road_moves_to_r3_at_full_speed(self):
++        p = planner()
++        decision = p.plan(0, (0., 0.), CRUISE, [], desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'LANE_CHANGING')
++        self.assertEqual(p.transition['target'], 2)
++        self.assertEqual(p.transition['shape'], 'quintic')
++        # No speed precondition and no slow-down for a clear change.
++        self.assertTrue(math.isinf(decision.speed_cap_kmh))
++        log, ego, _ = drive(p, (0., 0.), CRUISE, lambda t: [], 20.)
++        self.assertAlmostEqual(ego[1], LANE_Y[3], delta=.2)
++        self.assertEqual(p.current_lane, 3)
++        self.assertEqual(log[-1][0].state, 'RACELINE')
++        self.assertNotIn('BLOCKED', {d.state for d, *_ in log})
++
++    def test_quintic_change_starts_without_a_lateral_kink(self):
++        p = planner()
++        decision = p.plan(0, (0., 0.), CRUISE, [], desired_speed_mps=CRUISE)
++        start = point_at(decision.path, 5.)
++        self.assertLess(start[1], .01)
++        # Lateral acceleration limit sets the length at speed.
++        lateral = LANE_Y[2]
++        expected = CRUISE*math.sqrt(core.QUINTIC_PEAK_CURVATURE*lateral/p.lane_change_lateral_accel)
++        self.assertAlmostEqual(p.transition['length'], expected, delta=1.)
++
++    def test_static_obstacle_in_r3_is_passed_at_speed_without_stopping(self):
++        p = planner()
++        obstacle = car(150., 3)
++        log, ego, _ = drive(p, (0., LANE_Y[3]), CRUISE, lambda t: [obstacle], 14.)
++        states = [d.state for d, *_ in log]
++        self.assertIn('OVERTAKING', states)
++        self.assertNotIn('BLOCKED', states)
++        self.assertGreater(min(s for _, _, s, _, _ in log), 10.)
++        self.assertGreater(ego[0], 200.)
++        # Back in R3 after the pass.
++        self.assertAlmostEqual(ego[1], LANE_Y[3], delta=.3)
++
++    def test_close_static_obstacle_shortens_change_and_slows_instead_of_waiting(self):
++        p = planner()
++        decision = p.plan(0, (0., LANE_Y[3]), CRUISE, [car(50., 3)], desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'OVERTAKING')
++        self.assertLess(p.transition['length'], CRUISE*3.)
++        self.assertLess(decision.speed_cap_kmh, 100.)
++        self.assertGreater(decision.speed_cap_kmh, 30.)
++
++    def test_occupied_neighbour_tails_static_obstacle_without_planner_stop(self):
++        p = planner()
++        decision = p.plan(0, (0., LANE_Y[3]), 15., [car(50., 3), car(1., 2, 15.)],
++                          desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'TAILING')
++        self.assertGreater(decision.speed_cap_kmh, 0.)
++
++    def test_fast_follower_in_target_lane_blocks_overtake_until_it_passes(self):
++        p = planner()
++        leader = car(35., 3, 10.)
++        decision = p.plan(0, (0., LANE_Y[3]), 15., [leader, car(-12., 2, 30.)],
++                          desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'TAILING')
++        self.assertEqual(decision.reason, 'mobil_unsafe')
++        decision = p.plan(0, (0., LANE_Y[3]), 15., [leader, car(-50., 2, 15.)],
++                          desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'OVERTAKING')
++
++    def test_slightly_slower_leader_is_followed_in_r3(self):
++        p = planner()
++        decision = p.plan(0, (0., LANE_Y[3]), 27., [car(50., 3, 27.)], desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'TAILING')
++        self.assertIsNone(p.transition)
++
++    def test_slow_leader_is_overtaken_then_r3_is_resumed(self):
++        p = planner()
++        traffic = lambda t: [car(60.+15.*t, 3, 15.)]
++        log, ego, _ = drive(p, (0., LANE_Y[3]), 20., traffic, 30.)
++        states = [d.state for d, *_ in log]
++        self.assertIn('OVERTAKING', states)
++        self.assertIn('RETURNING', states)
++        self.assertNotIn('BLOCKED', states)
++        self.assertGreater(ego[0], 60.+15.*30.)
++        self.assertAlmostEqual(ego[1], LANE_Y[3], delta=.3)
++        # IDM following: no full brake to a standstill.
++        self.assertGreater(min(s for _, _, s, _, _ in log), 10.)
++
++    def test_ending_r3_is_left_even_against_the_r3_bias(self):
++        p = planner(r3_end=250)
++        log, ego, _ = drive(p, (0., LANE_Y[3]), CRUISE, lambda t: [], 12.)
++        self.assertAlmostEqual(ego[1], LANE_Y[2], delta=.3)
++        self.assertGreater(ego[0], 250.)
++
++    def test_change_is_aborted_when_target_lane_is_invaded_early(self):
++        p = planner()
++        leader = car(45., 3, 12.)
++        decision = p.plan(0, (0., LANE_Y[3]), 20., [leader], desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'OVERTAKING')
++        intruder = car(-9., 2, 32.)
++        for step in range(p.cancel_confirm_scans):
++            x = 1.+step
++            decision = p.plan(int(x), (x, LANE_Y[3]-.2), 20., [leader, intruder],
++                              desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'CANCELLING')
++        self.assertEqual(p.transition['target'], 3)
++
++    def test_outside_highway_sector_keeps_original_logic(self):
++        scenario = dict(index=0, ego_xy=(0., LANE_Y[3]), speed_mps=8.,
++                        obstacles=[car(30., 3)], desired_speed_mps=CRUISE)
++        old = planner(highway=False, sector_10_until=500).plan(**scenario)
++        new = planner(sector_10_until=500).plan(**scenario)
++        self.assertEqual((old.state, old.speed_cap_kmh, old.reason, old.path),
++                         (new.state, new.speed_cap_kmh, new.reason, new.path))
++
++    def test_invalid_highway_settings_are_rejected(self):
++        with self.assertRaises(ValueError):
++            planner(idm_time_gap_s=0.)
++
++
++if __name__ == '__main__':
++    unittest.main()

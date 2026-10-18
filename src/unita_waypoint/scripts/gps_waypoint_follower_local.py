@@ -22,6 +22,9 @@ from tf.transformations import euler_from_quaternion
 from morai_msgs.msg import GPSMessage, CtrlCmd
 
 sys.path.insert(0, str(FilePath(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
+import numpy as np
+from scipy.spatial import cKDTree
+
 from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
 from avoidance_runtime import RuntimeSettings
 from lane_corridor import LaneCorridor, project_lane_geometry
@@ -461,6 +464,12 @@ class GPSWaypointFollower:
             self.path_ready = True
             self.prepare_velocity_profile()
             self.publish_path()
+        # Tollgate and similar: fixed structures the waypoints already clear.
+        # Obstacles inside are ignored, and no avoidance runs while inside.
+        self.waypoint_only_ranges = self.point_id_ranges(
+            rospy.get_param('~waypoint_only_point_ids', ''))
+        if self.waypoint_only_ranges:
+            self.route_tree = cKDTree(np.asarray(self.waypoints, dtype=float))
         if self.enable_local_avoidance:
             if self.waypoint_format != 'local_xy' or not self.waypoint_file.endswith('.json'):
                 raise ValueError('local avoidance requires a saved map project')
@@ -485,7 +494,10 @@ class GPSWaypointFollower:
                     float(self.wheelbase) / math.tan(float(self.max_steering_rad)))),
                 arc_lane_change_max_kmh=float(rospy.get_param('~arc_lane_change_max_kmh', 15.)),
                 lane_change_lateral_accel_mps2=float(rospy.get_param(
-                    '~lane_change_lateral_accel_mps2', 6.)))
+                    '~lane_change_lateral_accel_mps2', 6.)),
+                r1_tracking_tolerance_m=float(rospy.get_param('~r1_tracking_tolerance_m', .5)),
+                any_speed_lane_change_ranges=self.checkpoint_ranges(
+                    rospy.get_param('~lane_change_any_speed_checkpoints', '')))
             # Situational speed caps, editable from the map_debug panel.
             self.runtime_settings = RuntimeSettings('leo_waypoint_follower', self.local_planner)
 
@@ -548,6 +560,35 @@ class GPSWaypointFollower:
                       lane, sector or 'all', end_id or 'end', end_index, fallback)
         return fallback, indices
 
+    def point_id_ranges(self, text):
+        """'3496-3572' (Map Tuner point IDs) -> [(first, last)] route indices."""
+        ids = {point_id: i for i, point_id in enumerate(getattr(self, 'route_point_ids', []))}
+        ranges = []
+        for item in filter(None, (part.strip() for part in str(text).split(','))):
+            first, last = (int(part) for part in item.split('-'))
+            indices = [ids[i] for i in range(first, last + 1) if i in ids]
+            if not indices:
+                raise ValueError('no Raceline 1 route point with id in ' + item)
+            ranges.append((min(indices), max(indices)))
+            rospy.loginfo('Waypoint-only zone: points %s (idx %d..%d)', item, *ranges[-1])
+        return ranges
+
+    def in_waypoint_only_zone(self, index):
+        return any(lo <= index <= hi for lo, hi in getattr(self, 'waypoint_only_ranges', []))
+
+    def checkpoint_ranges(self, text):
+        """'7-11' -> [(route index of CP7, route index of CP11)]."""
+        checkpoints = getattr(self, 'project_checkpoint_indices', {})
+        ranges = []
+        for item in filter(None, (part.strip() for part in str(text).split(','))):
+            start, end = (part.strip() for part in item.split('-'))
+            if start not in checkpoints or end not in checkpoints:
+                raise ValueError('unknown checkpoint range ' + item)
+            ranges.append((checkpoints[start], checkpoints[end]))
+            rospy.loginfo('Lane changes at any speed: CP%s-CP%s (idx %d..%d)',
+                          start, end, *ranges[-1])
+        return ranges
+
     def load_map_tunner_project(self, path):
         from map_tunner_core import load_project
         return load_project(path)
@@ -587,6 +628,7 @@ class GPSWaypointFollower:
                 publisher.publish(String(data=json.dumps(geometry)))
             # Leo route: Raceline 1 in every sector; R2/R3 stay avoidance lanes.
             route, self.route_sectors = primary_route(project, raceline1_only=True)
+            self.route_point_ids = [point['id'] for point in route]
             self.project_checkpoint_positions = []
             layout = project.get('generated_racelines')
             if layout:
@@ -1103,6 +1145,7 @@ class GPSWaypointFollower:
         cmd = CtrlCmd()
         cmd.steering = steering
         cmd.acceleration = 0.0
+        self.last_steering = steering
 
         if self.longitudinal_control_mode == "pid":
             now = time.monotonic()
@@ -1172,11 +1215,22 @@ class GPSWaypointFollower:
                 return
             mask = corridor.contains([(o.x, o.y) for o in obstacles])
             obstacles = [o for o, inside in zip(obstacles, mask) if inside]
+            if obstacles and getattr(self, 'waypoint_only_ranges', None):
+                _, nearest = self.route_tree.query([(o.x, o.y) for o in obstacles])
+                obstacles = [o for o, i in zip(obstacles, nearest)
+                             if not self.in_waypoint_only_zone(int(i))]
             self.obstacles = obstacles
             self.obstacle_stamp = stamp
             self.obstacle_received = time.monotonic()
         except (ValueError, KeyError, TypeError):
             return
+
+    def local_planner_owns_steering(self):
+        """A saved-lane change or drive on R2/R3, not an R1 offset hold/return."""
+        planner = self.local_planner
+        transition = planner.transition
+        return (planner.active_lane is not None
+                or (transition is not None and 'offset' not in transition))
 
     def local_target(self, path):
         for x, y in path:
@@ -1206,7 +1260,9 @@ class GPSWaypointFollower:
         cmd.longlCmdType = 1
         cmd.accel = 0.0
         cmd.brake = 1.0
-        cmd.steering = 0.0
+        # Brake on the last steering: snapping the wheel straight mid-curve
+        # leaves the lane while the car is still rolling.
+        cmd.steering = getattr(self, 'last_steering', 0.0)
         cmd.velocity = 0.0
         cmd.acceleration = 0.0
         self.ctrl_pub.publish(cmd)
@@ -1312,8 +1368,9 @@ class GPSWaypointFollower:
 
         target = self.find_lookahead_point()
         local_speed_cap = float('inf')
-        route_avoidance = (getattr(self, 'route_avoidance_topic', '')
-                           and self.drive_mode != 'BLACKOUT')
+        avoid = (self.drive_mode != 'BLACKOUT'
+                 and not self.in_waypoint_only_zone(self.current_waypoint_index))
+        route_avoidance = getattr(self, 'route_avoidance_topic', '') and avoid
         if route_avoidance:
             plan = self.route_avoidance
             if (plan is None or self.route_avoidance_received is None
@@ -1331,7 +1388,7 @@ class GPSWaypointFollower:
                     self.publish_full_stop()
                     rospy.logwarn_throttle(2., 'Route avoidance path has no lookahead point')
                     return
-        if getattr(self, 'enable_local_avoidance', False) and self.drive_mode != 'BLACKOUT':
+        if getattr(self, 'enable_local_avoidance', False) and avoid:
             if (self.obstacle_received is None or
                     now-self.obstacle_received > .5 or
                     rospy.Time.now().to_sec()-self.obstacle_stamp > .5):
@@ -1357,16 +1414,22 @@ class GPSWaypointFollower:
                                        if math.isfinite(decision.obstacle_distance_m) else None)
             route_speed_cap = local_speed_cap
             local_speed_cap = decision.speed_cap_kmh
-            if not decision.path:
+            # One steering source per manoeuvre: the route avoidance path,
+            # unless the local planner is driving its own saved R2/R3 change.
+            local_steers = bool(decision.path) and (
+                not (route_avoidance and plan['path'])
+                or self.local_planner_owns_steering())
+            if not local_steers:
                 # No saved Raceline 2/3 manoeuvre: the route avoidance path is
                 # followed, so its pass/wait speed applies as well.
                 local_speed_cap = min(local_speed_cap, route_speed_cap)
-            self.publish_local_path(decision.path)
+            if local_steers or not (route_avoidance and plan['path']):
+                self.publish_local_path(decision.path)
             if decision.state == 'BLOCKED':
                 self.publish_full_stop()
                 rospy.logwarn_throttle(1., 'Local avoidance BLOCKED: %s', decision.reason)
                 return
-            if decision.path:
+            if local_steers:
                 target = self.local_target(decision.path)
                 if target is None:
                     self.publish_full_stop()

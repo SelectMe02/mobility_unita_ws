@@ -1,0 +1,126 @@
+test_cancel_into_an_ending_lane_restarts_when_a_merge_fits (test_highway_planner.HighwayPlannerTests) ... ok
+test_change_is_aborted_when_target_lane_is_invaded_early (test_highway_planner.HighwayPlannerTests) ... ok
+test_close_static_obstacle_shortens_change_and_slows_instead_of_waiting (test_highway_planner.HighwayPlannerTests) ... ok
+test_collision_envelope_overrides_floor_for_a_stopped_close_car (test_highway_planner.HighwayPlannerTests) ... ok
+test_confirmed_road_surface_evidence_is_used_only_on_highway (test_highway_planner.HighwayPlannerTests) ... ok
+test_ending_r3_is_left_even_against_the_r3_bias (test_highway_planner.HighwayPlannerTests) ... ok
+test_fast_follower_in_target_lane_blocks_overtake_until_it_passes (test_highway_planner.HighwayPlannerTests) ... ok
+test_free_road_moves_to_r3_at_full_speed (test_highway_planner.HighwayPlannerTests) ... ok
+test_insufficient_steering_room_at_lane_end_keeps_stop (test_highway_planner.HighwayPlannerTests) ... ok
+test_invalid_highway_settings_are_rejected (test_highway_planner.HighwayPlannerTests) ... ok
+test_lane_label_never_hides_body_overlap_or_boundary_crossing (test_highway_planner.HighwayPlannerTests) ... ok
+test_lane_only_crossed_ignores_its_far_slow_leader (test_highway_planner.HighwayPlannerTests) ... ok
+test_low_speed_lane_change_is_planned_for_the_cruise_floor (test_highway_planner.HighwayPlannerTests) ... ok
+test_occupied_neighbour_tails_static_obstacle_without_planner_stop (test_highway_planner.HighwayPlannerTests) ... ok
+test_ordinary_following_has_thirty_kmh_floor (test_highway_planner.HighwayPlannerTests) ... ok
+test_outside_highway_sector_keeps_original_logic (test_highway_planner.HighwayPlannerTests) ... ok
+test_quintic_change_starts_without_a_lateral_kink (test_highway_planner.HighwayPlannerTests) ... ok
+test_same_speed_leader_with_three_metre_gap_does_not_brake (test_highway_planner.HighwayPlannerTests) ... ok
+test_slightly_slower_leader_is_followed_in_r3 (test_highway_planner.HighwayPlannerTests) ... ok
+test_slow_leader_is_overtaken_then_r3_is_resumed (test_highway_planner.HighwayPlannerTests) ... ok
+test_stable_neighbour_in_margin_is_not_a_straight_lane_leader (test_highway_planner.HighwayPlannerTests) ... ok
+test_static_obstacle_in_r3_is_passed_at_speed_without_stopping (test_highway_planner.HighwayPlannerTests) ... ok
+test_target_lane_accepts_same_speed_cars_with_three_metre_bumper_gaps (test_highway_planner.HighwayPlannerTests) ... ok
+test_target_lane_rejects_either_bumper_gap_below_three_metres (test_highway_planner.HighwayPlannerTests) ... ok
+test_unconfirmed_car_beside_target_lane_keeps_immediate_gap (test_highway_planner.HighwayPlannerTests) ... ok
+test_unconfirmed_near_obstacle_brakes_on_first_change_scan (test_highway_planner.HighwayPlannerTests) ... ok
+test_unconfirmed_rear_clutter_does_not_block_the_r3_change (test_highway_planner.HighwayPlannerTests) ... ok
+test_unconfirmed_wide_patch_ahead_does_not_cancel_the_change (test_highway_planner.HighwayPlannerTests) ... ok
+test_all_three_lanes_are_kept_and_roadside_is_rejected (test_lane_corridor.LaneCorridorTests) ... ok
+test_boundary_is_half_full_width_and_interpolates_between_waypoints (test_lane_corridor.LaneCorridorTests) ... ok
+test_box_midpoint_labels_three_lanes_and_tracks_boundary_intrusion (test_lane_corridor.LaneCorridorTests) ... ok
+test_depth_is_distance_from_the_edge_and_constant_along_a_bend (test_lane_corridor.LaneCorridorTests) ... ok
+test_distance_is_perpendicular_for_rotated_lanes (test_lane_corridor.LaneCorridorTests) ... ok
+test_invalid_geometry_rejected (test_lane_corridor.LaneCorridorTests) ... ok
+test_lane_label_never_extrapolates_finite_lane_or_accepts_roadside (test_lane_corridor.LaneCorridorTests) ... ok
+test_lane_metadata_reaches_planner_and_visible_box_label (test_lane_corridor.LaneCorridorTests) ... ok
+test_lidar_filters_roadside_before_tracking_including_rear (test_lane_corridor.LaneCorridorTests) ... ok
+test_outside_debug_detection_deletes_previously_visible_box (test_lane_corridor.LaneCorridorTests) ... ok
+test_planning_and_debug_reject_outside_center_even_with_large_radius (test_lane_corridor.LaneCorridorTests) ... ok
+test_prediction_leaving_lane_is_deleted_and_empty_cloud_clears (test_lane_corridor.LaneCorridorTests) ... ok
+test_primary_lane_remains_continuous_across_sector_boundary (test_lane_corridor.LaneCorridorTests) ... ok
+test_separate_adjacent_lane_intervals_are_not_joined (test_lane_corridor.LaneCorridorTests) ... ok
+test_width_update_reaches_perception_and_debug_and_clears_old_tracks (test_lane_corridor.LaneCorridorTests) ... ok
+test_actual_box_growth_and_boundary_intrusion_are_not_smoothed_away (test_driving_stability.StabilityTests) ... ok
+test_ambiguous_midpoints_do_not_count_toward_stable_label (test_driving_stability.StabilityTests) ... ok
+test_clear_release_requires_time_and_distinct_sensor_frames (test_driving_stability.StabilityTests) ... ok
+test_far_single_frame_return_does_not_start_pass_but_close_one_is_protected (test_driving_stability.StabilityTests) ... ok
+test_follower_soft_brake_limit_never_limits_full_stop (test_driving_stability.StabilityTests) ... ok
+test_highway_merge_curvature_cap_is_not_raised_by_sector_floor_or_boost (test_driving_stability.StabilityTests) ... ok
+test_highway_occlusion_keeps_measured_width_and_longitudinal_uncertainty (test_driving_stability.StabilityTests) ... ok
+test_highway_ordinary_following_brake_ramps_but_emergency_is_immediate (test_driving_stability.StabilityTests) ... ok
+test_invalid_cruise_brake_settings_are_rejected (test_driving_stability.StabilityTests) ... ok
+test_midpoint_lane_needs_distinct_observations_and_elapsed_time (test_driving_stability.StabilityTests) ... ok
+test_road_ring_evidence_does_not_mark_low_obstacles_or_unknown_ground (test_driving_stability.StabilityTests) ... ok
+test_s11_cruise_brake_ramps_up_and_releases_at_target (test_driving_stability.StabilityTests) ... ok
+test_s11_full_stop_and_clearance_confirmation_remain_immediate (test_driving_stability.StabilityTests) ... ok
+test_s11_hazards_and_other_sectors_bypass_cruise_brake (test_driving_stability.StabilityTests) ... ok
+test_shifted_road_is_confirmed_without_removing_low_object_or_roof (test_driving_stability.StabilityTests) ... ok
+test_small_track_requires_observation_time_and_bad_size_match_gets_new_id (test_driving_stability.StabilityTests) ... ok
+test_stable_neighbour_track_does_not_steal_another_lanes_detection (test_driving_stability.StabilityTests) ... ok
+test_throttle_ramps_brake_is_immediate_and_clock_reset_restarts_confirmation (test_driving_stability.StabilityTests) ... ok
+test_unstable_track_does_not_extrapolate_into_another_lane (test_driving_stability.StabilityTests) ... ok
+test_braking_roll_pitch_removes_ground_and_keeps_low_and_tall_objects (test_ground_segmentation.GroundTests) ... ok
+test_car_roof_wall_and_disconnected_platform_cannot_be_road (test_ground_segmentation.GroundTests) ... ok
+test_end_to_end_empty_braking_road_and_static_dynamic_tracks (test_ground_segmentation.GroundTests) ... ok
+test_guardrail_in_the_lane_edge_band_is_boundary_not_obstacle (test_ground_segmentation.GroundTests) ... ok
+test_height_limits_cover_unknown_patches_and_confirmed_plane_upper_bound (test_ground_segmentation.GroundTests) ... ok
+test_minimum_height_also_holds_against_measured_road_nearby (test_ground_segmentation.GroundTests) ... ok
+test_minimum_plane_height_drops_bend_crown_but_keeps_objects (test_ground_segmentation.GroundTests) ... ok
+test_missing_delayed_invalid_imu_uses_original_gate (test_ground_segmentation.GroundTests) ... ok
+test_mount_orientation_and_translation_and_yaw_preserved (test_ground_segmentation.GroundTests) ... ok
+test_noisy_banked_road_and_sparse_patch_fallback (test_ground_segmentation.GroundTests) ... ok
+test_runtime_tolerance_changes_filter_without_relaunch_and_rejects_oversize (test_ground_segmentation.GroundTests) ... ok
+test_slerp_and_quaternion_sign_and_stale (test_ground_segmentation.GroundTests) ... ok
+test_slope_and_continuous_grade_change (test_ground_segmentation.GroundTests) ... ok
+test_rectangle_marker_uses_detector_box (test_map_debug.MapDebugObstacleBoxTest) ... ok
+test_debug_uses_fixed_project_even_when_ros_parameter_requests_another_file (test_map_debug.MapDebugProjectTest) ... ok
+test_debug_vehicle_uses_controller_pose_from_same_message_as_priority (test_map_debug.MapDebugProjectTest) ... ok
+test_follower_priority_and_actual_lane_reach_panel_without_inference (test_map_debug.MapDebugProjectTest) ... ok
+test_ground_status_reaches_panel_and_expires_in_both_clocks (test_map_debug.MapDebugProjectTest) ... ok
+test_invalid_save_keeps_previous_display_and_retries (test_map_debug.MapDebugProjectTest) ... ok
+test_invalid_tracking_never_displays_old_priority (test_map_debug.MapDebugProjectTest) ... ok
+test_live_geometry_never_overrides_saved_paths_even_after_tuner_save (test_map_debug.MapDebugProjectTest) ... ok
+test_save_reloads_appended_points_and_republishes (test_map_debug.MapDebugProjectTest) ... ok
+test_startup_uses_exact_saved_json_and_publishes_entire_raceline3 (test_map_debug.MapDebugProjectTest) ... ok
+test_rejoin_route_local.test_gps_rejoin_accepts_nearby_route_aligned_fix ... ok
+test_rejoin_route_local.test_logged_tunnel_exit_rejoins_after_eight_metre_icp_drift ... ok
+test_rejoin_route_local.test_safe_gap_returns_toward_predicted_waypoints_after_pass ... ok
+test_rejoin_route_local.test_exit_waypoint_aims_toward_photo_coordinate ... ok
+test_rejoin_route_local.test_route_projection_lost_on_another_lane_is_reacquired ... ok
+test_rejoin_route_local.test_exit_guidance_is_disabled_outside_the_existing_exit_window ... ok
+test_rejoin_route_local.test_exit_direction_uses_sensor_heading_without_lateral_pose_correction ... ok
+test_rejoin_route_local.test_started_exit_guidance_stays_active_past_the_estimated_exit ... ok
+test_rejoin_route_local.test_exit_guidance_only_resets_after_gps_rejoin_is_accepted ... ok
+test_rejoin_route_local.test_latched_exit_guidance_does_not_bypass_sensor_fault_stop ... ok
+test_rejoin_route_local.test_latched_exit_guidance_does_not_extend_allowed_blackout_section ... ok
+test_scan_odometry_local.test_iterative_lidar_odometry_recovers_motion_with_odom_prior ... ok
+test_scan_odometry_local.test_sparse_cloud_cannot_authorize_blackout ... ok
+test_scan_odometry_local.test_gps_to_blackout_uses_lidar_match_then_returns_to_gps ... ok
+test_scan_odometry_local.test_tunnel_icp_yaw_bias_does_not_move_estimate_toward_wall ... ok
+test_scan_odometry_local.test_gps_return_waits_briefly_for_localization_pose ... ok
+test_scan_odometry_local.test_gps_rejoin_succeeds_after_exit_lidar_features_disappear ... ok
+test_scan_odometry_local.test_blackout_without_gps_anchor_holds ... ok
+test_scan_odometry_local.test_blackout_outside_tunnel_section_holds ... ok
+test_scan_odometry_local.test_failed_icp_scan_references_next_scan_without_authorizing_motion ... ok
+test_scan_odometry_local.test_stale_scan_holds_brake_state ... ok
+test_scan_odometry_local.test_gps_rejoin_mismatch_holds_until_route_corroborates ... ok
+test_scan_odometry_local.test_brief_disagreeing_gps_fix_inside_tunnel_keeps_blackout ... ok
+test_scan_odometry_local.test_route_corroborated_gps_rejoin_replaces_drifted_lidar_pose ... ok
+test_scan_odometry_local.test_rejoin_checks_pose_after_temporary_icp_hold ... ok
+test_scan_odometry_local.test_dead_reckoner_uses_speed_and_yaw_not_gps ... ok
+test_scan_odometry_local.test_tunnel_forward_motion_ignores_biased_wall_icp_translation ... ok
+test_scan_odometry_local.test_dead_reckoner_keeps_odom_frame_after_heading_gap ... ok
+test_scan_odometry_local.test_dead_reckoner_integrates_short_heading_delay ... ok
+test_scan_odometry_local.test_failed_icp_does_not_integrate_beyond_recovery_limit ... ok
+test_scan_odometry_local.test_invalid_nonzero_gps_never_enters_blackout ... ok
+test_scan_odometry_local.test_zero_gps_requires_safe_gap_and_fresh_zero_sample ... ok
+test_scan_odometry_local.test_obstacle_stop_keeps_blackout_pose_valid ... ok
+test_scan_odometry_local.test_missing_gps_stream_enters_blackout_after_debounce ... ok
+test_scan_odometry_local.test_nonzero_no_fix_holds_even_if_stream_later_stops ... ok
+test_scan_odometry_local.test_late_zero_sample_has_no_gap_before_missing_stream_trigger ... ok
+
+----------------------------------------------------------------------
+Ran 121 tests in 6.671s
+
+OK

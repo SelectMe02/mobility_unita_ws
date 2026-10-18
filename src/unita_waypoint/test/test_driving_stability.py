@@ -12,7 +12,8 @@ import rospy
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from ground_segmentation import segment_ground
 from local_avoidance_core import LocalAvoidancePlanner, Obstacle
-from lidar_obstacles import LidarObstacles
+from lidar_obstacles import LidarObstacles, road_surface_evidence, road_surface_in_box
+from lane_corridor import LaneCorridor
 from pedal_guard import CruiseBrake, PedalGuard
 from gps_waypoint_follower import GPSWaypointFollower, PIDController
 
@@ -24,6 +25,82 @@ def planner():
 
 
 class StabilityTests(unittest.TestCase):
+    def labelled_tracker(self, sector=11):
+        n = LidarObstacles.__new__(LidarObstacles)
+        n.tracks, n.next_id, n.dynamic_speed_threshold_mps = {}, 1, .8
+        n.lane_corridor = LaneCorridor(dict(frame_id='map', raceline_width=3.6,
+            loop=False, lanes=[dict(sector=sector, raceline=i,
+                points=[[-50., (i-1)*3.6], [100., (i-1)*3.6]]) for i in (1, 2, 3)]))
+        return n
+
+    def detection(self, x=20., y=3.6, width=1.9):
+        return (x, y, math.hypot(4.5, width)/2, 4.5, width, 0.)
+
+    def test_midpoint_lane_needs_distinct_observations_and_elapsed_time(self):
+        n = self.labelled_tracker()
+        for stamp in (1., 1.01, 1.02):
+            o = n._update_tracks([self.detection()], stamp)[0]
+            self.assertEqual(o['raceline'], 2)
+            self.assertFalse(o['lane_stable'])
+        o = n._update_tracks([self.detection()], 1.21)[0]
+        self.assertTrue(o['lane_stable'])
+        self.assertFalse(o['lane_boundary_crossing'])
+
+    def test_stable_neighbour_track_does_not_steal_another_lanes_detection(self):
+        n = self.labelled_tracker()
+        for stamp in (1., 1.1, 1.2):
+            previous = n._update_tracks([self.detection()], stamp)[0]
+        objects = n._update_tracks([self.detection(y=7.2)], 1.4)
+        current = next(o for o in objects if not o['predicted'])
+        self.assertNotEqual(current['id'], previous['id'])
+        self.assertEqual(current['raceline'], 3)
+        self.assertFalse(current['lane_stable'])
+
+    def test_ambiguous_midpoints_do_not_count_toward_stable_label(self):
+        n = self.labelled_tracker()
+        for stamp in (1., 1.1, 1.2):
+            o = n._update_tracks([self.detection(y=1.8)], stamp)[0]
+            self.assertFalse(o['lane_stable'])
+        o = n._update_tracks([self.detection(y=1.6)], 1.3)[0]
+        self.assertFalse(o['lane_stable'])
+        for stamp in (1.4, 1.5):
+            o = n._update_tracks([self.detection(y=1.6)], stamp)[0]
+        self.assertTrue(o['lane_stable'])
+        self.assertTrue(o['lane_boundary_crossing'])
+
+    def test_highway_occlusion_keeps_measured_width_and_longitudinal_uncertainty(self):
+        n = self.labelled_tracker()
+        for stamp in (1., 1.1, 1.2):
+            n._update_tracks([self.detection()], stamp)
+        o = n._update_tracks([], 1.5)[0]
+        self.assertTrue(o['predicted'])
+        self.assertTrue(o['lane_stable'])
+        self.assertAlmostEqual(o['width'], 1.9)
+        self.assertAlmostEqual(o['raw_width'], 2.2)
+        self.assertAlmostEqual(o['length'], 4.8)
+        self.assertEqual(n._update_tracks([], 1.61), [])
+        # A prediction moving toward the boundary loses the narrow-box rule.
+        crossing = self.labelled_tracker()
+        for stamp in (1., 1.1, 1.2):
+            o = crossing._update_tracks([self.detection()], stamp)[0]
+        crossing.tracks[o['id']].update(vy=4., velocity_reliable=True)
+        o = crossing._update_tracks([], 1.5)[0]
+        self.assertTrue(o['lane_boundary_crossing'])
+        self.assertAlmostEqual(o['width'], 2.2)
+        normal = self.labelled_tracker(sector=10)
+        for stamp in (1., 1.1, 1.2):
+            normal._update_tracks([self.detection()], stamp)
+        self.assertAlmostEqual(normal._update_tracks([], 1.5)[0]['width'], 2.2)
+
+    def test_actual_box_growth_and_boundary_intrusion_are_not_smoothed_away(self):
+        n = self.labelled_tracker()
+        for stamp in (1., 1.1, 1.2):
+            n._update_tracks([self.detection()], stamp)
+        o = n._update_tracks([self.detection(width=4.8)], 1.3)[0]
+        self.assertTrue(o['lane_boundary_crossing'])
+        self.assertEqual(o['width'], 4.8)
+        self.assertGreater(n._update_tracks([], 1.5)[0]['width'], 4.8)
+
     def test_shifted_road_is_confirmed_without_removing_low_object_or_roof(self):
         x, y = np.meshgrid(np.arange(5., 40., .4), np.arange(-2.5, 2.6, .4))
         road = np.column_stack((x.ravel(), y.ravel(), np.full(x.size, -.38)))
@@ -137,6 +214,57 @@ class StabilityTests(unittest.TestCase):
             n.current_speed_kmh = speed
             n.publish_control(0., 40.)
             self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake, expected)
+
+    def test_highway_merge_curvature_cap_is_not_raised_by_sector_floor_or_boost(self):
+        n = self.cruise_follower()
+        n.local_planner = SimpleNamespace(
+            lane_end_imminent=False, highway_active=True, min_speed_sectors=(11,),
+            sector_min_speed_kmh=40., lane_change_speed_boost_kmh=10.,
+            transition={'state': 'LANE_CHANGING'})
+        n.current_speed_kmh = 12.
+        n.target_speed_for_index = lambda index: 100.
+        n.last_decision.speed_cap_kmh = 13.
+        self.assertEqual(n.sector_speed_floor(13.), 13.)
+        n.last_decision.speed_cap_kmh = math.inf
+        self.assertEqual(n.sector_speed_floor(13.), 40.)
+
+    def test_highway_ordinary_following_brake_ramps_but_emergency_is_immediate(self):
+        n = self.cruise_follower()
+        n.sector11_cruise_brake = CruiseBrake(gain=.02, max_brake=.22, rise_rate=.3)
+        n.local_planner.highway_active = True
+        n.local_planner.highway_emergency = False
+        n.last_decision.obstacle_distance_m = 20.
+        n.last_decision.speed_cap_kmh = 40.
+        n.speed_pid.update = MagicMock(return_value=-1.)
+        n.publish_control(0., 40.)
+        self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake, .015)
+        n.local_planner.highway_emergency = True
+        n.publish_control(0., 10.)
+        self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
+
+    def test_road_ring_evidence_does_not_mark_low_obstacles_or_unknown_ground(self):
+        road = np.array([-.39, -.38, -.37])
+        self.assertTrue(road_surface_evidence(road, -.38, True))
+        # Logged S11 ground ring: retained for 0.4 s after a flat return at
+        # -0.441..-0.430 m, just below the calibrated -0.38 m road height.
+        self.assertTrue(road_surface_evidence([-.441, -.431, -.430], -.38, True))
+        self.assertFalse(road_surface_evidence(road, -.38, False))
+        self.assertFalse(road_surface_evidence(road+.1, -.38, True))
+        self.assertFalse(road_surface_evidence([-.38, -.3, -.2], -.38, True))
+        # A car face can have road-height and high returns at identical XY.
+        # XY voxelization must not hide its vertical surface from this gate.
+        xy = np.array([[10., -.2], [10., 0.], [10., .2], [10., 0.]])
+        box = (10., 0., .4, .2, .6, 0.)
+        self.assertFalse(road_surface_in_box(xy, np.array([-.38, -.38, -.38, .8]),
+                                              box, -.38, True))
+        n = LidarObstacles.__new__(LidarObstacles)
+        n.tracks, n.next_id, n.dynamic_speed_threshold_mps = {}, 1, .8
+        marked = n._update_tracks([(20., 0., .4, .3, .6, 0., True)], 1.)[0]
+        self.assertTrue(marked['road_surface'])
+        self.assertTrue(n._update_tracks([], 1.1)[0]['road_surface'])
+        # A new elevated detection on the same track must clear the flag.
+        elevated = n._update_tracks([(20., 0., .4, .3, .6, 0., False)], 1.2)[0]
+        self.assertFalse(elevated['road_surface'])
 
     def test_s11_hazards_and_other_sectors_bypass_cruise_brake(self):
         for condition in ('other_sector', 'obstacle', 'lane_end', 'finite_planner_cap',

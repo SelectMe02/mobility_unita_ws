@@ -72,7 +72,8 @@ class LocalAvoidancePlanner:
                  rear_extent=.790, min_rear_gap=8., rear_headway_s=2.,
                  preferred_lane_indices=None, finish_line=None,
                  min_turn_radius_m=3.575, arc_lane_change_max_kmh=15.,
-                 lane_change_lateral_accel_mps2=6.):
+                 lane_change_lateral_accel_mps2=6., r1_tracking_tolerance_m=.5,
+                 any_speed_lane_change_ranges=()):
         self.route = list(route)
         self.sectors = list(sectors)
         self.lanes = {int(k): list(v) for k, v in lanes.items()}
@@ -87,6 +88,14 @@ class LocalAvoidancePlanner:
         self.min_turn_radius_m = min_turn_radius_m
         self.arc_lane_change_max_kmh = arc_lane_change_max_kmh
         self.lane_change_lateral_accel_mps2 = lane_change_lateral_accel_mps2
+        # Pure Pursuit cuts curves by a few decimetres. Within this offset the
+        # car is still in R1 and the corrected R1 path brings it back; beyond
+        # it, R1 is re-entered with a lane change (gap and speed checks).
+        self.r1_tracking_tolerance_m = r1_tracking_tolerance_m
+        self.off_r1 = False
+        # Route index intervals where a lane change needs no pass speed.
+        self.any_speed_lane_change_ranges = [(int(lo), int(hi))
+                                             for lo, hi in any_speed_lane_change_ranges]
         self.obstacle_horizon_m = obstacle_horizon_m
         self.preferred_lane = int(preferred_lane)
         self.preferred_lane_indices = preferred_lane_indices
@@ -126,6 +135,13 @@ class LocalAvoidancePlanner:
                min_rear_gap, rear_headway_s, min_turn_radius_m,
                lane_change_lateral_accel_mps2) <= 0 or arc_lane_change_max_kmh < 0 or self.preferred_lane not in (1, 2, 3):
             raise ValueError('invalid avoidance geometry')
+        if not math.isfinite(r1_tracking_tolerance_m) or r1_tracking_tolerance_m < .35:
+            raise ValueError('invalid R1 tracking tolerance')
+        if any(lo > hi for lo, hi in self.any_speed_lane_change_ranges):
+            raise ValueError('invalid any-speed lane change interval')
+
+    def _any_speed_lane_change(self, index):
+        return any(lo <= index <= hi for lo, hi in self.any_speed_lane_change_ranges)
 
     def _forward(self, index, distance_m):
         result = [(index, self.route[index], 0.)]
@@ -484,7 +500,13 @@ class LocalAvoidancePlanner:
         current = self.current_lane
         # Off every saved lane (e.g. past the end of R2): R1 is the way back.
         r1_offset = self._r1_offset(index, ego_xy)
-        off_r1 = current == 1 and abs(r1_offset) > .5
+        # Hysteresis: an offset hovering at the tolerance must not toggle the
+        # return decision (and its speed cap) on every plan.
+        if current != 1 or abs(r1_offset) <= max(.35, self.r1_tracking_tolerance_m-.3):
+            self.off_r1 = False
+        elif abs(r1_offset) > self.r1_tracking_tolerance_m:
+            self.off_r1 = True
+        off_r1 = self.off_r1
         current_path = self._path(ahead, ego_xy, current, progress)
         threat = self._lead(current_path, ego_xy, obstacles)
         candidates = [preferred]
@@ -494,7 +516,8 @@ class LocalAvoidancePlanner:
             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
         candidates = list(dict.fromkeys(candidates))
         waiting = ''
-        slow_enough = speed_mps <= self.pass_speed_kmh/3.6+1.
+        slow_enough = (speed_mps <= self.pass_speed_kmh/3.6+1.
+                       or self._any_speed_lane_change(index))
         for lane in candidates:
             if lane not in available:
                 continue

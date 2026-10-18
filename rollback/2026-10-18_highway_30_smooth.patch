@@ -1,0 +1,616 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -62,6 +62,7 @@
+     length: float = 0.
+     width: float = 0.
+     yaw: float = 0.
++    road_surface: bool = False
+ 
+     def velocity(self):
+         return (self.vx, self.vy) if self.velocity_reliable else (0., 0.)
+@@ -101,8 +102,8 @@
+                  cancel_confirm_scans=3, cancel_max_progress=.6,
+                  sector_min_speed_kmh=45., lane_change_speed_boost_kmh=10.,
+                  min_speed_sectors=(11,), highway_sectors=(),
+-                 idm_time_gap_s=1.2, idm_min_gap_m=4., idm_accel_mps2=1.5,
+-                 idm_comfort_decel_mps2=2., idm_command_horizon_s=1.,
++                 idm_time_gap_s=.2, idm_min_gap_m=3., idm_accel_mps2=1.5,
++                 idm_comfort_decel_mps2=1.5, idm_command_horizon_s=.35,
+                  mobil_politeness=.2, mobil_threshold_mps2=.2, mobil_safe_decel_mps2=4.,
+                  highway_preferred_lane=3, highway_lane_bias_mps2=.6,
+                  highway_obstacle_horizon_m=55., highway_change_hold_m=30.,
+@@ -183,8 +184,8 @@
+         self.lane_change_speed_boost_kmh = lane_change_speed_boost_kmh
+         self.min_speed_sectors = tuple(min_speed_sectors)
+         self.lane_end_imminent = False
+-        # Highway sectors: IDM car following (Treiber 2000), MOBIL lane
+-        # selection (Kesting et al. 2007) with a bias toward the preferred
++        # Highway sectors: compact bumper-gap/closing-speed following,
++        # MOBIL-style lane selection with a bias toward the preferred
+         # lane, quintic lane changes whose length adapts to the free space
+         # instead of a speed precondition, and no planner standstill.
+         self.highway_sectors = tuple(int(s) for s in highway_sectors)
+@@ -202,6 +203,8 @@
+         self.highway_change_hold_m = highway_change_hold_m
+         self.highway_change_end = None
+         self.highway_active = False
++        self.highway_emergency = False
++        self.highway_road_returns_ignored = 0
+         # Tightest path the car can steer (wheelbase / tan(max steering)):
+         # the shortest, slow merge out of a lane that is about to end.
+         self.min_turn_radius_m = min_turn_radius_m
+@@ -414,6 +417,8 @@
+                 continue
+             clearance = max(0., s+min(longitudinal))
+             vx, vy = obstacle.velocity()
++            if self.highway_active and obstacle.confirmed and not obstacle.velocity_reliable:
++                vx, vy = obstacle.vx, obstacle.vy
+             velocity = max(0., vx*tangent[0]+vy*tangent[1])
+             found.append((clearance, obstacle, velocity))
+         return min(found, key=lambda item: item[0]) if found else None
+@@ -719,34 +724,53 @@
+         return self._decision(transition['state'], path, cap, threat, reason)
+ 
+     # ------------------------------------------------------------------
+-    # Highway sectors (highway_sectors): IDM + MOBIL, never a planner stop
++    # Highway sectors: compact following + MOBIL, collision stops take priority
+     # ------------------------------------------------------------------
++    def _relative_speed_limit(self, gap, lead_v, decel, clearance):
++        """Speed that can shed closing speed before the bumper clearance.
++
++        A same-speed leader does not require braking merely because its
++        absolute speed is high. A slow/stopped leader still requires early
++        braking when the closing speed consumes the remaining distance.
++        """
++        room = max(0., gap-clearance)
++        reaction = max(self.reaction_s, self.idm_time_gap_s)
++        closing = math.sqrt((decel*reaction)**2+2.*decel*room)-decel*reaction
++        return max(0., lead_v)+closing
++
++    def _highway_collision_speed(self, gap, lead_v):
++        if gap <= self.margin:
++            return 0.
++        return self._relative_speed_limit(gap, lead_v, 6., self.margin)
++
+     def _idm(self, v, v0, gap, lead_v):
+-        """IDM acceleration for a bumper gap and leader speed (None: free road)."""
+-        a = self.idm_accel_mps2
++        """Compact highway following: 3 m gap, closing-speed braking.
++
++        Keep the existing acceleration/incentive API, but do not impose
++        the former v*T headway on same-speed traffic.
++        """
+         v = max(0., v)
+-        free = 1.-(v/v0)**4 if math.isfinite(v0) and v0 > .1 else 1.
++        free = self.idm_accel_mps2*(1.-(v/v0)**4 if math.isfinite(v0) and v0 > .1 else 1.)
+         if lead_v is None:
+-            return a*free
+-        b = self.idm_comfort_decel_mps2
+-        s_star = self.idm_min_gap_m+max(0., v*self.idm_time_gap_s +
+-                                         v*(v-lead_v)/(2.*math.sqrt(a*b)))
+-        return a*(free-(s_star/max(gap, .1))**2)
+-
+-    def _idm_cap(self, v, v0, lead, room=0.):
+-        """Speed command reached with the IDM acceleration over the command
+-        horizon, bounded by the stopping envelope. room: extra standstill gap
+-        kept behind a static leader so a heading-limited change still fits."""
++            return free
++        limit = self._relative_speed_limit(gap, lead_v,
++                    self.idm_comfort_decel_mps2, self.idm_min_gap_m)
++        requested = (limit-v)/self.idm_command_horizon_s
++        return min(free, max(-self.idm_comfort_decel_mps2, requested))
++
++    def _idm_cap(self, v, v0, lead):
++        """Comfort following with a cruise floor, bounded by collision speed."""
+         if lead is None:
+             return float('inf')
+         gap = lead[0]-self.front_extent
+-        if room > 0. and gap-room > self.idm_min_gap_m:
+-            gap -= room
+-        # Planned braking stays within avoidance_decel; the stopping envelope
+-        # below is the hard limit for anything closer.
+-        a = max(-self.decel, self._idm(v, v0, gap, lead[2]))
+-        return min(max(0., v+a*self.idm_command_horizon_s)*3.6,
+-                   self._stop_cap(lead[0], lead[2]))
++        a = self._idm(v, v0, gap, lead[2])
++        desired = v0 if math.isfinite(v0) else max(v, self.sector_min_speed_kmh/3.6)
++        floor = min(self.sector_min_speed_kmh/3.6, desired)
++        target = max(floor, v+a*self.idm_command_horizon_s)
++        hard = self._highway_collision_speed(gap, lead[2])
++        if hard < floor or v > hard+.25:
++            self.highway_emergency = True
++        return min(target, hard)*3.6
+ 
+     def _highway_length(self, lateral, speed_mps):
+         """Quintic length within the lateral-acceleration and heading limits."""
+@@ -828,13 +852,17 @@
+                 None if lead_l is None or self._passes_through(v, lead_l) else lead_l)
+         a_current = accel(v, v0, lead_c)
+         a_lane = accel(v, v0, lead_l)
+-        gain_followers, safe = 0., a_lane >= -self.mobil_safe_decel_mps2
++        gain_followers = 0.
++        safe = (leaders[lane] is None or
++                (leaders[lane][0] >= self.lane_change_gap_m
++                 and v <= self._highway_collision_speed(*leaders[lane])))
+         new = followers.get(lane)
+         if new is not None:
+             desired = self._follower_desired(new[1], v, v0)
+             after = accel(new[1], desired, (new[0], v))
+             gain_followers += after-accel(new[1], desired, through(new, lead_l))
+-            safe = safe and after >= -self.mobil_safe_decel_mps2
++            safe = (safe and new[0] >= self.lane_change_gap_m
++                    and new[1] <= self._highway_collision_speed(new[0], v))
+         old = followers.get(current)
+         if old is not None:
+             desired = self._follower_desired(old[1], v, v0)
+@@ -845,6 +873,13 @@
+         bias = (self.highway_lane_bias_mps2 if toward else
+                 -self.highway_lane_bias_mps2 if abs(lane-pref) > abs(current-pref) else 0.)
+         incentive = a_lane-a_current+self.mobil_politeness*gain_followers+bias
++        # A slower car remains worth passing before the compact following
++        # controller has to brake. Do not lose the existing overtaking
++        # behavior merely because the shorter cruise gap is still open.
++        if lead_c is not None:
++            next_speed = v0 if lead_l is None else min(v0, lead_l[1])
++            incentive += min(self.idm_accel_mps2,
++                             .2*max(0., next_speed-lead_c[1]-self.slow_lead_margin_mps))
+         return incentive, safe, toward
+ 
+     def _passes_through(self, v, lead):
+@@ -860,7 +895,8 @@
+         path needs more than the safe deceleration. No speed precondition."""
+         lateral = distance(ego_xy, available[lane])
+         minimum = self._highway_length(lateral, 0.)
+-        length = min(self._highway_length(lateral, v), self._span(current, ahead),
++        planning_speed = max(v, min(v0, self.sector_min_speed_kmh/3.6))
++        length = min(self._highway_length(lateral, planning_speed), self._span(current, ahead),
+                      self._span(lane, ahead)-8.)
+         if length < minimum:
+             # The lane ends first: a short, slow merge within the steering limit.
+@@ -872,8 +908,8 @@
+             speed = self._length_speed(lateral, length)
+             if len(path) >= 2:
+                 lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
+-                if lead is None or self._idm(min(v, speed), v0, lead[0]-self.front_extent,
+-                                             lead[2]) >= -self.mobil_safe_decel_mps2:
++                if lead is None or min(v, speed) <= self._highway_collision_speed(
++                        lead[0]-self.front_extent, lead[2]):
+                     # A short merge planned from standstill must keep its
+                     # curvature speed limit as the controller accelerates.
+                     requested = max(v, v0) if math.isfinite(v0) else v
+@@ -891,9 +927,7 @@
+             return blocker
+         follower = self._follower(index, ego_xy, self._lateral_offset(index, ego_xy, available[lane]),
+                                   obstacles, assumed)
+-        if follower is not None and self._idm(
+-                follower[1], self._follower_desired(follower[1], v, v0),
+-                follower[0], v) < -self.mobil_safe_decel_mps2:
++        if follower is not None and follower[1] > self._highway_collision_speed(follower[0], v):
+             return None, -follower[0]-self.rear_extent-self.front_extent
+         return None
+ 
+@@ -918,8 +952,8 @@
+             # the safe deceleration: steering back is the way out at speed.
+             path = self._path(ahead, ego_xy, lane, progress, transition)
+             lead = self._lead(path, ego_xy, tracked, self.highway_obstacle_horizon_m)
+-            hazard = lead is not None and self._idm(
+-                v, v0, lead[0]-self.front_extent, lead[2]) < -self.mobil_safe_decel_mps2
++            hazard = lead is not None and v > self._highway_collision_speed(
++                lead[0]-self.front_extent, lead[2])+.25
+             self.cancel_votes = self.cancel_votes+1 if danger is not None or hazard else 0
+             fraction = (progress-transition['start'])/max(transition['length'], 1e-6)
+             source = transition['source']
+@@ -989,6 +1023,9 @@
+     def _plan_highway(self, index, ego_xy, speed_mps, obstacles, desired_speed_mps,
+                       ahead, progress, available):
+         v = max(0., speed_mps)
++        self.highway_emergency = False
++        self.highway_road_returns_ignored = sum(o.road_surface for o in obstacles)
++        obstacles = [o for o in obstacles if not o.road_surface]
+         v0 = float('inf') if desired_speed_mps is None else max(desired_speed_mps, .1)
+         base = self.route_lanes[index]
+         pref = self.highway_preferred_lane
+@@ -1047,6 +1084,13 @@
+                        and lane+step in leaders else None)
+             incentive, safe, toward = self._mobil(current, lane, v, v0, leaders, followers,
+                                                   through)
++            if (toward and self.departed_preferred and not ending
++                    and leaders[lane] is not None
++                    and leaders[lane][1] < v0-self.slow_lead_margin_mps):
++                # Complete the pass before taking the preferred lane back;
++                # a compact safe gap alone is not evidence we passed the car.
++                waiting = 'overtake_not_passed'
++                continue
+             if not toward and not ending and not self._slow(threat, v0):
+                 # IDM keeps a long gap behind a leader near the desired
+                 # speed; only a clearly slower one is worth passing.
+@@ -1095,18 +1139,14 @@
+                 cap = min(cap, transition['speed_cap_kmh'])
+             return self._decision(state, path, cap, lead or threat, 'mobil_gain')
+ 
+-        # Keep the lane and follow its leader (IDM). A static leader is
+-        # followed with room for a heading-limited change to a free lane.
++        # Keep the lane with compact following; collision and geometry
++        # envelopes can still override the ordinary cruise floor.
+         self.active_lane = current if current != base else None
+         if current == preferred:
+             self.departed_preferred = False
+         path = (current_path if len(current_path) >= 2 and
+                 (current != base or distance(ego_xy, available[base]) > .35) else [])
+-        room = 0.
+-        if threat is not None and threat[2] < .5:
+-            room = min((self._highway_length(abs(self._lateral_offset(index, ego_xy, available[n])), 0.)
+-                        for n in leaders if abs(n-current) == 1 and spans[n] > threat[0]), default=0.)
+-        cap = min(edge_cap, self._idm_cap(v, v0, threat, room))
++        cap = min(edge_cap, self._idm_cap(v, v0, threat))
+         if threat is not None:
+             return self._decision('TAILING', path, cap, threat, waiting or 'highway_idm')
+         state = 'LANE_WAIT' if waiting else 'OVERTAKING' if self.departed_preferred else 'RACELINE'
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -490,7 +490,7 @@
+                 highway_preferred_lane=int(rospy.get_param('~highway_preferred_lane', 3)),
+                 min_turn_radius_m=float(self.wheelbase)/math.tan(float(self.max_steering_rad)))
+             if self.local_planner.highway_sectors:
+-                rospy.loginfo('Highway IDM/MOBIL planner in sector(s) %s, preferred R%d',
++                rospy.loginfo('Highway compact following/MOBIL in sector(s) %s, preferred R%d',
+                               ','.join(map(str, self.local_planner.highway_sectors)),
+                               self.local_planner.highway_preferred_lane)
+             self.runtime_settings = RuntimeSettings('gps_waypoint_follower', self.local_planner)
+@@ -1151,7 +1151,7 @@
+     # ================================================================
+ 
+     def sector11_cruise_braking_allowed(self):
+-        """Use comfort braking only with no obstacle, lane-end or external cap."""
++        """Smooth highway following unless collision, lane-end or external gates win."""
+         sectors = getattr(self, 'route_sectors', [])
+         index = getattr(self, 'current_waypoint_index', -1)
+         planner = getattr(self, 'local_planner', None)
+@@ -1159,9 +1159,14 @@
+         if (not 0 <= index < len(sectors) or sectors[index] != 11
+                 or planner is None or decision is None
+                 or decision.state in ('BLOCKED', 'SENSOR_HOLD')
+-                or math.isfinite(decision.obstacle_distance_m)
+                 or planner.lane_end_imminent
+                 or getattr(self, 'drive_mode', '') in ('BLACKOUT', 'SIM_EXIT')):
++            return False
++        if (getattr(planner, 'highway_active', False)
++                and not getattr(planner, 'highway_emergency', False)):
++            return all(value is None or value == float('inf') for value in (
++                getattr(self, 'guard_speed_limit', None), getattr(self, 'avoidance_speed_kmh', None)))
++        if math.isfinite(decision.obstacle_distance_m):
+             return False
+         # A finite planner cap can encode lane-end braking even before the
+         # lane_end_imminent flag is set. Preserve that braking envelope too.
+@@ -1236,7 +1241,8 @@
+         planner = getattr(self, 'local_planner', None)
+         obstacles = [dict(x=o.x, y=o.y, vx=o.vx, vy=o.vy, radius=o.radius, kind=o.kind,
+                           length=o.length, width=o.width, yaw=o.yaw,
+-                          confirmed=o.confirmed, velocity_reliable=o.velocity_reliable)
++                          confirmed=o.confirmed, velocity_reliable=o.velocity_reliable,
++                          road_surface=o.road_surface)
+                      for o in getattr(self, 'obstacles', [])]
+         data = dict(stamp=rospy.Time.now().to_sec(), frame_id='map', reason=reason,
+             stop_reason=getattr(self, 'stop_reason', None), target_speed_kmh=target_speed,
+@@ -1252,6 +1258,8 @@
+             preferred_lane=getattr(planner, 'effective_preferred_lane', None),
+             preference_reason=getattr(planner, 'preference_reason', None),
+             lane_change_reason=getattr(self, 'lane_change_reason', None),
++            highway_emergency=getattr(planner, 'highway_emergency', False),
++            highway_road_returns_ignored=getattr(planner, 'highway_road_returns_ignored', 0),
+             transition=getattr(planner, 'transition', None), obstacles=obstacles,
+             gap_blocker=(dict(x=planner.gap_blocker[0].x, y=planner.gap_blocker[0].y,
+                               front_gap_m=planner.gap_blocker[1])
+@@ -1319,7 +1327,8 @@
+                 obstacles.append(Obstacle(*values, kind=item['kind'],
+                     confirmed=bool(item.get('confirmed', item['kind'] != 'unknown')),
+                     velocity_reliable=bool(item.get('velocity_reliable', item['kind'] != 'unknown')),
+-                    length=box[0], width=box[1], yaw=box[2]))
++                    length=box[0], width=box[1], yaw=box[2],
++                    road_surface=bool(item.get('road_surface', False))))
+             corridor = getattr(self, 'lane_corridor', None)
+             if corridor is None:
+                 return
+--- a/src/unita_waypoint/scripts/avoidance_runtime.py
++++ b/src/unita_waypoint/scripts/avoidance_runtime.py
+@@ -37,18 +37,18 @@
+     'avoidance_brake_limit': ('gps_waypoint_follower', .35, 'avoidance_brake_limit', '0..1', '먼 예상 충돌 감속 시 브레이크 상한 · 긴급 제동은 제한 없음'),
+     'avoidance_clear_hold_s': ('gps_waypoint_follower', .4, 'clear_hold_s', 's', '정지 해제 전 안전 판단 지속 시간 · 새 점군 3회도 필요'),
+     'restart_accel_rate_per_s': ('gps_waypoint_follower', .5, 'restart_accel_rate', '1/s', '액셀 증가율 제한 · 브레이크는 즉시 적용'),
+-    'sector11_min_speed_kmh': ('gps_waypoint_follower', 45., 'sector_min_speed_kmh', 'km/h', 'S11 최저 속도 · 바로 앞 장애물이 없으면 정지하지 않음 (파일 속도 이하)'),
++    'sector11_min_speed_kmh': ('gps_waypoint_follower', 30., 'sector_min_speed_kmh', 'km/h', 'S11 일반 추종 최저 목표 속도 · 충돌·차선 끝·곡률·센서 정지 우선'),
+     'lane_change_speed_boost_kmh': ('gps_waypoint_follower', 10., 'lane_change_speed_boost_kmh', 'km/h', 'S11 차선 변경 중 목표 속도 = 현재 속도 + 이 값 (파일 속도 이하)'),
+     'lane_change_cancel_scans': ('gps_waypoint_follower', 3., 'cancel_confirm_scans', '회', '차선 변경 취소에 필요한 연속 감지 횟수 (다가오는 3 m 내 차량)'),
+     'lane_change_cancel_max_progress': ('gps_waypoint_follower', .6, 'cancel_max_progress', '0..1', '이 진행률을 넘은 차선 변경은 취소하지 않고 완료'),
+-    'highway_idm_time_gap_s': ('gps_waypoint_follower', 1.2, 'idm_time_gap_s', 's', '고주로(S11) IDM 앞차 추종 시간 간격 T'),
+-    'highway_idm_min_gap_m': ('gps_waypoint_follower', 4., 'idm_min_gap_m', 'm', '고주로 IDM 정지 시 앞차 범퍼 간격 s0'),
++    'highway_idm_time_gap_s': ('gps_waypoint_follower', .2, 'idm_time_gap_s', 's', '고주로 접근 상대속도 대응 시간 · 기본 반응 시간보다 작으면 기본값 사용'),
++    'highway_idm_min_gap_m': ('gps_waypoint_follower', 3., 'idm_min_gap_m', 'm', '고주로 추종 범퍼 간격 · 상대속도가 크면 조기 감속'),
+     'highway_idm_accel_mps2': ('gps_waypoint_follower', 1.5, 'idm_accel_mps2', 'm/s²', '고주로 IDM 최대 가속도 a'),
+-    'highway_idm_comfort_decel_mps2': ('gps_waypoint_follower', 2., 'idm_comfort_decel_mps2', 'm/s²', '고주로 IDM 편안한 감속도 b'),
+-    'highway_idm_command_horizon_s': ('gps_waypoint_follower', 1., 'idm_command_horizon_s', 's', '고주로 속도 명령 = 현재 속도 + IDM 가속도 × 이 시간'),
++    'highway_idm_comfort_decel_mps2': ('gps_waypoint_follower', 1.5, 'idm_comfort_decel_mps2', 'm/s²', '고주로 일반 추종 감속도 · 긴급 제동은 별도'),
++    'highway_idm_command_horizon_s': ('gps_waypoint_follower', .35, 'idm_command_horizon_s', 's', '고주로 추종 목표 속도 보정 시간 · 짧을수록 목표 속도 변화가 작음'),
+     'highway_mobil_politeness': ('gps_waypoint_follower', .2, 'mobil_politeness', '0..1', '고주로 MOBIL 배려 계수 p · 클수록 뒤차 감속을 더 피함'),
+     'highway_mobil_threshold_mps2': ('gps_waypoint_follower', .2, 'mobil_threshold_mps2', 'm/s²', '고주로 MOBIL 차선 변경 최소 이득 (가속도)'),
+-    'highway_mobil_safe_decel_mps2': ('gps_waypoint_follower', 4., 'mobil_safe_decel_mps2', 'm/s²', '고주로 MOBIL 안전 조건 · 목표 차선 뒤차/자차 요구 감속 한계'),
++    'highway_mobil_safe_decel_mps2': ('gps_waypoint_follower', 4., 'mobil_safe_decel_mps2', 'm/s²', '고주로 MOBIL 차선 이득 평가의 감속 포화 기준 · 충돌 보호는 별도'),
+     'highway_r3_bias_mps2': ('gps_waypoint_follower', .6, 'highway_lane_bias_mps2', 'm/s²', '고주로 Raceline 3 우선 가중치 · 클수록 R3 유지·복귀 우선'),
+     'highway_obstacle_horizon_m': ('gps_waypoint_follower', 55., 'highway_obstacle_horizon_m', 'm', '고주로 앞차 판단 거리 (경로 따라)'),
+     'highway_change_hold_m': ('gps_waypoint_follower', 30., 'highway_change_hold_m', 'm', '고주로 차선 변경 완료 후 다음 추월 변경까지 최소 주행 거리 (R3 방향·차선 끝은 예외)'),
+--- a/src/unita_waypoint/config/avoidance_settings_gps_waypoint_follower.json
++++ b/src/unita_waypoint/config/avoidance_settings_gps_waypoint_follower.json
+@@ -8,5 +8,10 @@
+   "lane_change_lateral_accel_mps2": 1.5,
+   "lane_change_max_heading_deg": 10.0,
+   "obstacle_horizon_m": 45.0,
+-  "restart_accel_rate_per_s": 0.5
++  "restart_accel_rate_per_s": 0.5,
++  "sector11_min_speed_kmh": 30.0,
++  "highway_idm_time_gap_s": 0.2,
++  "highway_idm_min_gap_m": 3.0,
++  "highway_idm_comfort_decel_mps2": 1.5,
++  "highway_idm_command_horizon_s": 0.35
+ }
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -27,9 +27,9 @@
+   <arg name="waypoint_only_point_ids" default="3496-3572"/>
+   <!-- S11 cruising target floor; obstacle/lane-end stops and stale-input
+        braking still take priority. Saved Map Debug settings may override it. -->
+-  <arg name="sector11_min_speed_kmh" default="40.0"/>
+-  <!-- Highway (S11 = CP10-CP11) IDM following + MOBIL lane changes, Raceline 3
+-       preferred, no lane-change speed precondition, no planner stop.
++  <arg name="sector11_min_speed_kmh" default="30.0"/>
++  <!-- Highway (S11 = CP10-CP11) compact following + MOBIL lane changes, Raceline 3
++       preferred, no lane-change speed precondition; collision protection wins.
+        highway_sectors:="" restores the RoboRacer-style logic there. -->
+   <arg name="highway_sectors" default="11"/>
+   <!-- UDP steer = steering / max_steering_deg. 29 deg, not 40: in the
+@@ -99,11 +99,11 @@
+     <param name="sector11_min_speed_kmh" value="$(arg sector11_min_speed_kmh)"/>
+     <param name="highway_sectors" value="$(arg highway_sectors)" type="str"/>
+     <param name="highway_preferred_lane" value="3"/>
+-    <!-- S11 ordinary cruise braking only. Hazard/stop commands bypass this. -->
++    <!-- S11 cruise and ordinary following: smooth brake; imminent hazards bypass. -->
+     <param name="sector11_smooth_braking" value="true"/>
+-    <param name="sector11_brake_gain" value="0.025"/>
+-    <param name="sector11_max_cruise_brake" value="0.25"/>
+-    <param name="sector11_brake_rise_rate" value="0.5"/>
++    <param name="sector11_brake_gain" value="0.02"/>
++    <param name="sector11_max_cruise_brake" value="0.22"/>
++    <param name="sector11_brake_rise_rate" value="0.3"/>
+     <param name="sector11_brake_deadband_kmh" value="1.0"/>
+     <param name="rear_extent_m" value="0.790"/>
+     <param name="lane_change_gap_m" value="3.0"/>
+--- a/src/unita_waypoint/test/test_highway_planner.py
++++ b/src/unita_waypoint/test/test_highway_planner.py
+@@ -1,4 +1,4 @@
+-"""Sector 11 highway mode: IDM following, MOBIL lane changes, R3 priority."""
++"""Sector 11: compact following, MOBIL lane changes, R3 priority."""
+ import importlib.util
+ import math
+ from pathlib import Path
+@@ -249,6 +249,66 @@
+         with self.assertRaises(ValueError):
+             planner(idm_time_gap_s=0.)
+ 
++    def test_same_speed_leader_with_three_metre_gap_does_not_brake(self):
++        for speed in (30./3.6, 60./3.6, CRUISE):
++            p = planner(sector_min_speed_kmh=30.)
++            x = p.front_extent+2.25+3.1
++            decision = p.plan(0, (0., LANE_Y[3]), speed,
++                              [car(x, 3, speed), car(0., 2, speed)],
++                              desired_speed_mps=CRUISE)
++            self.assertGreaterEqual(decision.speed_cap_kmh+1e-8, speed*3.6)
++            self.assertFalse(p.highway_emergency)
++
++    def test_ordinary_following_has_thirty_kmh_floor(self):
++        p = planner(sector_min_speed_kmh=30.)
++        leader = car(p.front_extent+2.25+15., 3, 5.)
++        decision = p.plan(0, (0., LANE_Y[3]), 30./3.6,
++                          [leader, car(0., 2, 30./3.6)], desired_speed_mps=CRUISE)
++        self.assertGreaterEqual(decision.speed_cap_kmh, 30.)
++        self.assertFalse(p.highway_emergency)
++
++    def test_collision_envelope_overrides_floor_for_a_stopped_close_car(self):
++        p = planner(sector_min_speed_kmh=30.)
++        for gap in (1., .2):
++            obstacle = car(p.front_extent+2.25+gap, 3)
++            decision = p.plan(0, (0., LANE_Y[3]), 20.,
++                              [obstacle, car(0., 2, 20.)], desired_speed_mps=CRUISE)
++            self.assertLess(decision.speed_cap_kmh, 30.)
++            self.assertTrue(p.highway_emergency)
++        self.assertEqual(decision.speed_cap_kmh, 0.)
++
++    def test_target_lane_accepts_same_speed_cars_with_three_metre_bumper_gaps(self):
++        p = planner(sector_min_speed_kmh=30.)
++        front = car(p.front_extent+2.25+3.1, 2, 20.)
++        rear = car(-p.rear_extent-2.25-3.1, 2, 20.)
++        decision = p.plan(0, (0., 0.), 20., [front, rear], desired_speed_mps=CRUISE)
++        self.assertEqual(decision.state, 'LANE_CHANGING')
++        self.assertEqual(p.transition['target'], 2)
++
++    def test_target_lane_rejects_either_bumper_gap_below_three_metres(self):
++        for front_gap, rear_gap in ((2.9, 10.), (10., 2.9)):
++            p = planner(sector_min_speed_kmh=30.)
++            front = car(p.front_extent+2.25+front_gap, 2, 20.)
++            rear = car(-p.rear_extent-2.25-rear_gap, 2, 20.)
++            p.plan(0, (0., 0.), 20., [front, rear], desired_speed_mps=CRUISE)
++            self.assertIsNone(p.transition)
++
++    def test_confirmed_road_surface_evidence_is_used_only_on_highway(self):
++        road = core.Obstacle(4., 0., .4, confirmed=False, velocity_reliable=False,
++                             length=.3, width=.6, road_surface=True)
++        p = planner(sector_min_speed_kmh=30.)
++        decision = p.plan(0, (0., 0.), 20., [road], desired_speed_mps=CRUISE)
++        self.assertGreaterEqual(decision.speed_cap_kmh, 30.)
++        self.assertEqual(p.highway_road_returns_ignored, 1)
++        normal = planner(highway=False)
++        decision = normal.plan(0, (0., 0.), 20., [road], desired_speed_mps=CRUISE)
++        self.assertEqual(decision.speed_cap_kmh, 0.)
++
++    def test_low_speed_lane_change_is_planned_for_the_cruise_floor(self):
++        p = planner(sector_min_speed_kmh=30.)
++        decision = p.plan(0, (0., 0.), 2., [], desired_speed_mps=CRUISE)
++        self.assertGreaterEqual(decision.speed_cap_kmh, 30.)
++
+ 
+ if __name__ == '__main__':
+     unittest.main()
+--- a/src/unita_waypoint/test/test_driving_stability.py
++++ b/src/unita_waypoint/test/test_driving_stability.py
+@@ -12,7 +12,7 @@
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+ from ground_segmentation import segment_ground
+ from local_avoidance_core import LocalAvoidancePlanner, Obstacle
+-from lidar_obstacles import LidarObstacles
++from lidar_obstacles import LidarObstacles, road_surface_evidence, road_surface_in_box
+ from pedal_guard import CruiseBrake, PedalGuard
+ from gps_waypoint_follower import GPSWaypointFollower, PIDController
+ 
+@@ -151,6 +151,44 @@
+         n.last_decision.speed_cap_kmh = math.inf
+         self.assertEqual(n.sector_speed_floor(13.), 40.)
+ 
++    def test_highway_ordinary_following_brake_ramps_but_emergency_is_immediate(self):
++        n = self.cruise_follower()
++        n.sector11_cruise_brake = CruiseBrake(gain=.02, max_brake=.22, rise_rate=.3)
++        n.local_planner.highway_active = True
++        n.local_planner.highway_emergency = False
++        n.last_decision.obstacle_distance_m = 20.
++        n.last_decision.speed_cap_kmh = 40.
++        n.speed_pid.update = MagicMock(return_value=-1.)
++        n.publish_control(0., 40.)
++        self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake, .015)
++        n.local_planner.highway_emergency = True
++        n.publish_control(0., 10.)
++        self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
++
++    def test_road_ring_evidence_does_not_mark_low_obstacles_or_unknown_ground(self):
++        road = np.array([-.39, -.38, -.37])
++        self.assertTrue(road_surface_evidence(road, -.38, True))
++        # Logged S11 ground ring: retained for 0.4 s after a flat return at
++        # -0.441..-0.430 m, just below the calibrated -0.38 m road height.
++        self.assertTrue(road_surface_evidence([-.441, -.431, -.430], -.38, True))
++        self.assertFalse(road_surface_evidence(road, -.38, False))
++        self.assertFalse(road_surface_evidence(road+.1, -.38, True))
++        self.assertFalse(road_surface_evidence([-.38, -.3, -.2], -.38, True))
++        # A car face can have road-height and high returns at identical XY.
++        # XY voxelization must not hide its vertical surface from this gate.
++        xy = np.array([[10., -.2], [10., 0.], [10., .2], [10., 0.]])
++        box = (10., 0., .4, .2, .6, 0.)
++        self.assertFalse(road_surface_in_box(xy, np.array([-.38, -.38, -.38, .8]),
++                                              box, -.38, True))
++        n = LidarObstacles.__new__(LidarObstacles)
++        n.tracks, n.next_id, n.dynamic_speed_threshold_mps = {}, 1, .8
++        marked = n._update_tracks([(20., 0., .4, .3, .6, 0., True)], 1.)[0]
++        self.assertTrue(marked['road_surface'])
++        self.assertTrue(n._update_tracks([], 1.1)[0]['road_surface'])
++        # A new elevated detection on the same track must clear the flag.
++        elevated = n._update_tracks([(20., 0., .4, .3, .6, 0., False)], 1.2)[0]
++        self.assertFalse(elevated['road_surface'])
++
+     def test_s11_hazards_and_other_sectors_bypass_cruise_brake(self):
+         for condition in ('other_sector', 'obstacle', 'lane_end', 'finite_planner_cap',
+                           'guard_cap', 'external_cap', 'blackout'):
+--- a/src/unita_waypoint/scripts/lidar_obstacles.py
++++ b/src/unita_waypoint/scripts/lidar_obstacles.py
+@@ -118,6 +118,31 @@
+     radius = max(.15, .5*math.hypot(length, width))
+     return (float(center[0]), float(center[1]), radius, length, width,
+             math.atan2(tangent[1], tangent[0]))
++
++
++def road_surface_evidence(z, reference_z, ground_confirmed):
++    """Flat returns at the calibrated road height, not an elevated object.
++
++    Attach evidence to detections instead of globally removing them: only
++    the highway planner opts out of these road-ring false detections.
++    """
++    z = np.asarray(z, dtype=float)
++    return bool(ground_confirmed and len(z) >= 3 and np.isfinite(z).all()
++                and np.min(z) >= reference_z-.08
++                and np.max(z) <= reference_z+.05 and np.ptp(z) <= .06)
++
++
++def road_surface_in_box(world_xy, z, box, reference_z, ground_confirmed):
++    """Use ALL vertical returns in the footprint, including repeated XY.
++
++    Clustering keeps one XY sample per voxel. Its nearest point alone must
++    not certify road when a vehicle face has higher returns at the same XY.
++    """
++    dx, dy = world_xy[:, 0]-box[0], world_xy[:, 1]-box[1]
++    c, s = math.cos(box[5]), math.sin(box[5])
++    inside = ((np.abs(dx*c+dy*s) <= box[3]/2.+.003)
++              & (np.abs(-dx*s+dy*c) <= box[4]/2.+.003))
++    return road_surface_evidence(z[inside], reference_z, ground_confirmed)
+ 
+ 
+ class LidarObstacles:
+@@ -228,6 +253,7 @@
+             # Legacy circles become the square enclosing the circle.
+             length, width, yaw = (detection[3:6] if len(detection) >= 6
+                                   else (2.*radius, 2.*radius, 0.))
++            road_surface = bool(detection[6]) if len(detection) >= 7 else False
+             matches = [(math.hypot(x-t['x']-t['vx']*(stamp-t['stamp']),
+                                   y-t['y']-t['vy']*(stamp-t['stamp'])), key, t)
+                        for key, t in self.tracks.items() if key not in used
+@@ -257,12 +283,14 @@
+                                  and np.max(np.linalg.norm(np.asarray(velocities)-np.median(velocities, axis=0), axis=1)) <= 3.)
+             track = dict(x=x, y=y, radius=radius, vx=vx, vy=vy,
+                          length=length, width=width, yaw=yaw,
++                         road_surface=road_surface,
+                          hits=hits, stamp=stamp, first_stamp=first_stamp, velocities=velocities,
+                          confirmed=confirmed, velocity_reliable=bool(velocity_reliable))
+             self.tracks[key] = track
+             used.add(key)
+             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
+                                length=length, width=width, yaw=yaw,
++                               road_surface=road_surface,
+                                confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
+                                hits=hits, observed_s=observed_s, measurement_stamp=stamp,
+                                kind=('dynamic' if hits >= 3 and
+@@ -280,6 +308,7 @@
+                                    length=track.get('length', 2.*track['radius'])+dt,
+                                    width=track.get('width', 2.*track['radius'])+dt,
+                                    yaw=track.get('yaw', 0.),
++                                   road_surface=track.get('road_surface', False),
+                                    vx=track['vx'], vy=track['vy'], kind='unknown',
+                                    confirmed=track.get('confirmed', False), velocity_reliable=reliable,
+                                    hits=track['hits'], observed_s=track['stamp']-track.get('first_stamp', track['stamp']),
+@@ -429,15 +458,19 @@
+         status['cloud_age_s'] = age
+         status['filter_processing_s'] = time.monotonic()-filter_start
+         self.publish_filter_debug(points, ground, mask, pose, status, msg.header)
+-        xy = points[mask, :2]
++        selected = points[mask]
++        xy = selected[:, :2]
+         c, s = math.cos(pose[2]), math.sin(pose[2])
+         map_xy = np.column_stack((pose[0]+c*xy[:, 0]-s*xy[:, 1],
+                                   pose[1]+s*xy[:, 0]+c*xy[:, 1]))
+         # Drop roadside returns before clustering so a fence cannot enlarge
+         # or merge with a car that is actually inside a mapped lane.
+-        xy = xy[corridor.contains(map_xy)]
++        inside = corridor.contains(map_xy)
++        xy, selected = xy[inside], selected[inside]
++        support_xy, support_z = map_xy[inside], selected[:, 2]
+         if len(xy) > 10000:
+-            xy = xy[::int(math.ceil(len(xy)/10000.))]
++            stride = int(math.ceil(len(xy)/10000.))
++            xy = xy[::stride]
+         found = []
+         edge_band = getattr(self, 'lane_edge_band_m', 0.)
+         for group in clusters(xy):
+@@ -451,7 +484,10 @@
+             box = object_box(world, corridor.direction(world.mean(axis=0)),
+                              self.cluster_min_size_m, self.cluster_max_size_m)
+             if box is not None:
+-                found.append(box)
++                road_surface = road_surface_in_box(
++                    support_xy, support_z, box, getattr(self, 'ground_reference_z_m', 0.),
++                    status.get('imu_corrected', False) and status.get('planes', 0) > 0)
++                found.append((*box, road_surface))
+         mask = corridor.contains([o[:2] for o in found])
+         found = [o for o, inside in zip(found, mask) if inside]
+         with self.lock:

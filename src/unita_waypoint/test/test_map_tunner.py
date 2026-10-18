@@ -108,6 +108,19 @@ class MapTunnerTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 generate_racelines(self.original, width)
 
+    def test_raceline1_trimmed_at_its_lane_drop_opens_but_never_extends(self):
+        first = generate_racelines(self.original, 3.5)
+        trimmed = copy.deepcopy(first)
+        # Saved project since 2026-10-16: the last 139 R1 points before CP11 removed.
+        del trimmed['sectors'][10]['racelines']['1'][-139:]
+        self.assertEqual(generate_racelines(trimmed, 3.5), trimmed)
+        longer = copy.deepcopy(first)
+        extra = dict(longer['sectors'][10]['racelines']['1'][-1], id=longer['next_point_id'])
+        longer['next_point_id'] += 1
+        longer['sectors'][10]['racelines']['1'].append(extra)
+        with self.assertRaises(ValueError):
+            generate_racelines(longer, 3.5)
+
     def test_legacy_layout_is_restored_from_csv_without_losing_speed(self):
         legacy = generate_racelines(self.original, 3.2)
         legacy['generated_racelines']['settings']['start_raceline_offset'] = 0.2

@@ -120,6 +120,31 @@ def object_box(group, direction, minimum_size=.2, maximum_size=24.):
             math.atan2(tangent[1], tangent[0]))
 
 
+def road_surface_evidence(z, reference_z, ground_confirmed):
+    """Flat returns at the calibrated road height, not an elevated object.
+
+    Attach evidence to detections instead of globally removing them: only
+    the highway planner opts out of these road-ring false detections.
+    """
+    z = np.asarray(z, dtype=float)
+    return bool(ground_confirmed and len(z) >= 3 and np.isfinite(z).all()
+                and np.min(z) >= reference_z-.08
+                and np.max(z) <= reference_z+.05 and np.ptp(z) <= .06)
+
+
+def road_surface_in_box(world_xy, z, box, reference_z, ground_confirmed):
+    """Use ALL vertical returns in the footprint, including repeated XY.
+
+    Clustering keeps one XY sample per voxel. Its nearest point alone must
+    not certify road when a vehicle face has higher returns at the same XY.
+    """
+    dx, dy = world_xy[:, 0]-box[0], world_xy[:, 1]-box[1]
+    c, s = math.cos(box[5]), math.sin(box[5])
+    inside = ((np.abs(dx*c+dy*s) <= box[3]/2.+.003)
+              & (np.abs(-dx*s+dy*c) <= box[4]/2.+.003))
+    return road_surface_evidence(z[inside], reference_z, ground_confirmed)
+
+
 class LidarObstacles:
     def __init__(self):
         self.lidar_x = float(rospy.get_param('~lidar_to_rear_x_m', 1.4))
@@ -228,9 +253,19 @@ class LidarObstacles:
             # Legacy circles become the square enclosing the circle.
             length, width, yaw = (detection[3:6] if len(detection) >= 6
                                   else (2.*radius, 2.*radius, 0.))
+            road_surface = bool(detection[6]) if len(detection) >= 7 else False
+            corridor = getattr(self, 'lane_corridor', None)
+            measured_lane = (corridor.label_box(x, y, length, width, yaw)
+                             if corridor is not None else {})
             matches = [(math.hypot(x-t['x']-t['vx']*(stamp-t['stamp']),
                                   y-t['y']-t['vy']*(stamp-t['stamp'])), key, t)
                        for key, t in self.tracks.items() if key not in used
+                       and not (measured_lane.get('lane_sector') == 11
+                                and measured_lane.get('lane_label_confident', False)
+                                and not measured_lane.get('lane_boundary_crossing', True)
+                                and t.get('lane_stable', False)
+                                and t.get('lane_sector') == 11
+                                and t.get('raceline') != measured_lane.get('raceline'))
                        and max(radius, t['radius']) <= 3.*max(.15, min(radius, t['radius']))]
             matches.sort()
             # Allow a fast rear car's initial displacement before velocity
@@ -246,6 +281,7 @@ class LidarObstacles:
                 first_stamp = previous.get('first_stamp', previous['stamp']-(previous['hits']-1)*dt)
                 velocities = (previous.get('velocities', [])+[((x-previous['x'])/dt, (y-previous['y'])/dt)])[-3:]
             else:
+                previous = {}
                 key = self.next_id
                 self.next_id += 1
                 vx = vy = 0.
@@ -255,16 +291,22 @@ class LidarObstacles:
             confirmed = hits >= 3 and observed_s+1e-9 >= getattr(self, 'track_confirm_time_s', .2)
             velocity_reliable = (confirmed and len(velocities) >= 2
                                  and np.max(np.linalg.norm(np.asarray(velocities)-np.median(velocities, axis=0), axis=1)) <= 3.)
+            lane = self._track_lane(x, y, length, width, yaw, stamp, previous,
+                                    confirmed)
             track = dict(x=x, y=y, radius=radius, vx=vx, vy=vy,
                          length=length, width=width, yaw=yaw,
+                         road_surface=road_surface,
                          hits=hits, stamp=stamp, first_stamp=first_stamp, velocities=velocities,
-                         confirmed=confirmed, velocity_reliable=bool(velocity_reliable))
+                         confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
+                         **lane)
             self.tracks[key] = track
             used.add(key)
             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
                                length=length, width=width, yaw=yaw,
+                               road_surface=road_surface,
                                confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
                                hits=hits, observed_s=observed_s, measurement_stamp=stamp,
+                               raw_width=width, predicted=False, **lane,
                                kind=('dynamic' if hits >= 3 and
                                      math.hypot(vx, vy) > self.dynamic_speed_threshold_mps else
                                      'static' if hits >= 3 else 'unknown')))
@@ -274,17 +316,69 @@ class LidarObstacles:
             dt = stamp-track['stamp']
             if key not in used and 0. < dt <= .4:
                 reliable = track.get('velocity_reliable', False)
-                result.append(dict(id=key, x=track['x']+(track['vx']*dt if reliable else 0.),
-                                   y=track['y']+(track['vy']*dt if reliable else 0.),
-                                   radius=track['radius']+.5*dt,
-                                   length=track.get('length', 2.*track['radius'])+dt,
-                                   width=track.get('width', 2.*track['radius'])+dt,
+                x = track['x']+(track['vx']*dt if reliable else 0.)
+                y = track['y']+(track['vy']*dt if reliable else 0.)
+                length = track.get('length', 2.*track['radius'])+dt
+                raw_width = track.get('width', 2.*track['radius'])+dt
+                width = raw_width
+                # Stable S11 traffic keeps its observed lateral footprint
+                # during short occlusions; longitudinal uncertainty remains.
+                if (track.get('lane_stable', False) and track.get('lane_sector') == 11
+                        and not track.get('lane_boundary_crossing', True)):
+                    width = track['width']
+                lane = self._predicted_lane(track, x, y, length, width)
+                if width != raw_width and (not lane['lane_stable']
+                                           or lane['lane_boundary_crossing']):
+                    width = raw_width
+                    lane = self._predicted_lane(track, x, y, length, width)
+                result.append(dict(id=key, x=x, y=y,
+                                   radius=(max(.15, .5*math.hypot(length, width))
+                                           if width != raw_width else track['radius']+.5*dt),
+                                   length=length, width=width,
                                    yaw=track.get('yaw', 0.),
+                                   road_surface=track.get('road_surface', False),
                                    vx=track['vx'], vy=track['vy'], kind='unknown',
                                    confirmed=track.get('confirmed', False), velocity_reliable=reliable,
                                    hits=track['hits'], observed_s=track['stamp']-track.get('first_stamp', track['stamp']),
-                                   measurement_stamp=track['stamp']))
+                                   measurement_stamp=track['stamp'], raw_width=raw_width,
+                                   predicted=True, **lane))
         return result
+
+    def _track_lane(self, x, y, length, width, yaw, stamp, previous, confirmed):
+        corridor = getattr(self, 'lane_corridor', None)
+        if corridor is None:
+            return dict(raceline=0, lane_sector=0, lane_stable=False,
+                        lane_boundary_crossing=True)
+        lane = corridor.label_box(x, y, length, width, yaw)
+        candidate = (lane['lane_sector'], lane['raceline'])
+        same = (candidate == previous.get('lane_candidate')
+                and previous.get('lane_label_confident', False)
+                and lane['lane_label_confident'])
+        hits = (previous.get('lane_hits', 0)+1 if same else 1) if lane['lane_label_confident'] else 0
+        since = previous.get('lane_since', stamp) if same else stamp
+        label = (previous.get('lane_sector', 0), previous.get('raceline', 0))
+        stable = (candidate[1] != 0 and lane['lane_label_confident']
+                  and hits >= 3 and stamp-since+1e-9 >= .2 and confirmed)
+        if not label[1] or stable:
+            label = candidate
+        lane.update(lane_candidate=candidate, lane_hits=hits, lane_since=since,
+                    lane_stable=bool(stable and label == candidate))
+        if label != candidate:
+            lane.update(lane_sector=label[0], raceline=label[1],
+                        lane_boundary_crossing=True)
+        return lane
+
+    def _predicted_lane(self, track, x, y, length, width):
+        corridor = getattr(self, 'lane_corridor', None)
+        if corridor is None:
+            return dict(raceline=0, lane_sector=0, lane_stable=False,
+                        lane_boundary_crossing=True)
+        lane = corridor.label_box(x, y, length, width, track.get('yaw', 0.))
+        lane['lane_stable'] = bool(track.get('lane_stable', False)
+            and lane['lane_label_confident']
+            and (lane['lane_sector'], lane['raceline'])
+                == (track.get('lane_sector'), track.get('raceline')))
+        return lane
 
     def on_cloud(self, msg):
         with self.lock:
@@ -336,7 +430,8 @@ class LidarObstacles:
             ground, obstacle, detail = segment_ground(points, eligible,
                 self.ground_plane_tolerance_m, self.ground_max_slope_deg,
                 min_height=self.obstacle_min_height_m, max_height=self.obstacle_max_height_m,
-                reference_z=getattr(self, 'ground_reference_z_m', 0.))
+                reference_z=getattr(self, 'ground_reference_z_m', 0.),
+                min_plane_height=getattr(self, 'obstacle_min_plane_height_m', None))
             status.update(detail)
         else:
             ground = np.zeros(len(points), dtype=bool)
@@ -428,23 +523,36 @@ class LidarObstacles:
         status['cloud_age_s'] = age
         status['filter_processing_s'] = time.monotonic()-filter_start
         self.publish_filter_debug(points, ground, mask, pose, status, msg.header)
-        xy = points[mask, :2]
+        selected = points[mask]
+        xy = selected[:, :2]
         c, s = math.cos(pose[2]), math.sin(pose[2])
         map_xy = np.column_stack((pose[0]+c*xy[:, 0]-s*xy[:, 1],
                                   pose[1]+s*xy[:, 0]+c*xy[:, 1]))
         # Drop roadside returns before clustering so a fence cannot enlarge
         # or merge with a car that is actually inside a mapped lane.
-        xy = xy[corridor.contains(map_xy)]
+        inside = corridor.contains(map_xy)
+        xy, selected = xy[inside], selected[inside]
+        support_xy, support_z = map_xy[inside], selected[:, 2]
         if len(xy) > 10000:
-            xy = xy[::int(math.ceil(len(xy)/10000.))]
+            stride = int(math.ceil(len(xy)/10000.))
+            xy = xy[::stride]
         found = []
+        edge_band = getattr(self, 'lane_edge_band_m', 0.)
         for group in clusters(xy):
             world = np.column_stack((pose[0]+c*group[:, 0]-s*group[:, 1],
                                      pose[1]+s*group[:, 0]+c*group[:, 1]))
+            # A guardrail or kerb along the lane line reaches only the outer
+            # edge band. Anything there is beyond the ego footprint band, and
+            # as a lane-aligned box on a bend it would bulge into the lane.
+            if edge_band > 0. and np.max(corridor.depth(world)) < edge_band:
+                continue
             box = object_box(world, corridor.direction(world.mean(axis=0)),
                              self.cluster_min_size_m, self.cluster_max_size_m)
             if box is not None:
-                found.append(box)
+                road_surface = road_surface_in_box(
+                    support_xy, support_z, box, getattr(self, 'ground_reference_z_m', 0.),
+                    status.get('imu_corrected', False) and status.get('planes', 0) > 0)
+                found.append((*box, road_surface))
         mask = corridor.contains([o[:2] for o in found])
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:

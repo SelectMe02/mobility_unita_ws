@@ -300,8 +300,11 @@ def generate_racelines(project, raceline_width=3.5, waypoint_file=None):
     first, last = sector['source_indices']
     reference = csv_points[first:last + 1]
     current_r1 = sector['racelines']['1']
-    if len(reference) != len(current_r1):
+    # Raceline 1 may end early where its lane drops before CP11 (its tail
+    # trimmed in the project); it must never extend past the CSV.
+    if not 0 < len(current_r1) <= len(reference):
         raise ValueError('Sector 11 Raceline 1 point count differs from waypoints.csv')
+    reference = reference[:len(current_r1)]
     settings = {'raceline_width': width}
     existing = project.get('generated_racelines')
     if (existing and existing.get('settings') == settings

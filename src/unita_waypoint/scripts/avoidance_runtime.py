@@ -21,6 +21,8 @@ SETTINGS = {
     'obstacle_min_height_m': ('lidar_obstacles', .22, 'obstacle_min_height_m', 'm', '노면 미확인·IMU 누락 시 기준 노면 대비 높이 하한 (초과)'),
     'obstacle_max_height_m': ('lidar_obstacles', 2.6, 'obstacle_max_height_m', 'm', '장애물 높이 상한 (미만) · 노면 확인 시 해당 평면 기준'),
     'ground_plane_tolerance_m': ('lidar_obstacles', .04, 'ground_plane_tolerance_m', 'm', '확인된 노면 평면의 점 제거 허용오차 (초기값, 기록 후 조정)'),
+    'obstacle_min_plane_height_m': ('lidar_obstacles', .10, 'obstacle_min_plane_height_m', 'm', '확인된 노면 평면 위 장애물 높이 하한 · 커브 편경사 노면 반사 제외'),
+    'lane_edge_band_m': ('lidar_obstacles', .35, 'lane_edge_band_m', 'm', '차선 가장자리 띠 · 이 띠 안에만 있는 군집(가드레일 등)은 경계로 제외'),
     'imu_max_skew_s': ('lidar_obstacles', .05, 'imu_max_skew_s', 's', '점군 시각과 자세 보정용 IMU의 최대 시간 차이'),
     'ground_max_slope_deg': ('lidar_obstacles', 20., 'ground_max_slope_deg', '°', '노면으로 인정하는 최대 기울기'),
     'ground_reference_z_m': ('lidar_obstacles', 0., 'ground_reference_z_m', 'm', '보정 점군의 기준 노면 높이 · 음수 허용 · 장착 설정 확인 필요'),
@@ -35,10 +37,21 @@ SETTINGS = {
     'avoidance_brake_limit': ('gps_waypoint_follower', .35, 'avoidance_brake_limit', '0..1', '먼 예상 충돌 감속 시 브레이크 상한 · 긴급 제동은 제한 없음'),
     'avoidance_clear_hold_s': ('gps_waypoint_follower', .4, 'clear_hold_s', 's', '정지 해제 전 안전 판단 지속 시간 · 새 점군 3회도 필요'),
     'restart_accel_rate_per_s': ('gps_waypoint_follower', .5, 'restart_accel_rate', '1/s', '액셀 증가율 제한 · 브레이크는 즉시 적용'),
-    'sector11_min_speed_kmh': ('gps_waypoint_follower', 45., 'sector_min_speed_kmh', 'km/h', 'S11 최저 속도 · 바로 앞 장애물이 없으면 정지하지 않음 (파일 속도 이하)'),
+    'sector11_min_speed_kmh': ('gps_waypoint_follower', 30., 'sector_min_speed_kmh', 'km/h', 'S11 일반 추종 최저 목표 속도 · 충돌·차선 끝·곡률·센서 정지 우선'),
     'lane_change_speed_boost_kmh': ('gps_waypoint_follower', 10., 'lane_change_speed_boost_kmh', 'km/h', 'S11 차선 변경 중 목표 속도 = 현재 속도 + 이 값 (파일 속도 이하)'),
     'lane_change_cancel_scans': ('gps_waypoint_follower', 3., 'cancel_confirm_scans', '회', '차선 변경 취소에 필요한 연속 감지 횟수 (다가오는 3 m 내 차량)'),
     'lane_change_cancel_max_progress': ('gps_waypoint_follower', .6, 'cancel_max_progress', '0..1', '이 진행률을 넘은 차선 변경은 취소하지 않고 완료'),
+    'highway_idm_time_gap_s': ('gps_waypoint_follower', .2, 'idm_time_gap_s', 's', '고주로 접근 상대속도 대응 시간 · 기본 반응 시간보다 작으면 기본값 사용'),
+    'highway_idm_min_gap_m': ('gps_waypoint_follower', 3., 'idm_min_gap_m', 'm', '고주로 추종 범퍼 간격 · 상대속도가 크면 조기 감속'),
+    'highway_idm_accel_mps2': ('gps_waypoint_follower', 1.5, 'idm_accel_mps2', 'm/s²', '고주로 IDM 최대 가속도 a'),
+    'highway_idm_comfort_decel_mps2': ('gps_waypoint_follower', 1.5, 'idm_comfort_decel_mps2', 'm/s²', '고주로 일반 추종 감속도 · 긴급 제동은 별도'),
+    'highway_idm_command_horizon_s': ('gps_waypoint_follower', .35, 'idm_command_horizon_s', 's', '고주로 추종 목표 속도 보정 시간 · 짧을수록 목표 속도 변화가 작음'),
+    'highway_mobil_politeness': ('gps_waypoint_follower', .2, 'mobil_politeness', '0..1', '고주로 MOBIL 배려 계수 p · 클수록 뒤차 감속을 더 피함'),
+    'highway_mobil_threshold_mps2': ('gps_waypoint_follower', .2, 'mobil_threshold_mps2', 'm/s²', '고주로 MOBIL 차선 변경 최소 이득 (가속도)'),
+    'highway_mobil_safe_decel_mps2': ('gps_waypoint_follower', 4., 'mobil_safe_decel_mps2', 'm/s²', '고주로 MOBIL 차선 이득 평가의 감속 포화 기준 · 충돌 보호는 별도'),
+    'highway_r3_bias_mps2': ('gps_waypoint_follower', .6, 'highway_lane_bias_mps2', 'm/s²', '고주로 Raceline 3 우선 가중치 · 클수록 R3 유지·복귀 우선'),
+    'highway_obstacle_horizon_m': ('gps_waypoint_follower', 55., 'highway_obstacle_horizon_m', 'm', '고주로 앞차 판단 거리 (경로 따라)'),
+    'highway_change_hold_m': ('gps_waypoint_follower', 30., 'highway_change_hold_m', 'm', '고주로 차선 변경 완료 후 다음 추월 변경까지 최소 주행 거리 (R3 방향·차선 끝은 예외)'),
     'route_max_error_m': ('leo_signal_guard', 3.75, 'route_max_error_m', 'm', '신호 guard 경로 이탈 허용 거리 (터널 밖) · 넘으면 정지 후 자동 재arm 대기'),
     'blackout_route_max_error_m': ('leo_signal_guard', 7., 'blackout_route_max_error_m', 'm', '신호 guard 경로 이탈 허용 거리 (터널 GPS 음영 구간)'),
     'pass_speed_kmh': ('leo_waypoint_follower', 20., 'pass_speed_kmh', 'km/h', 'Leo 장애물 추월·차선 변경 중 속도 상한'),
@@ -71,8 +84,10 @@ def validated_value(name, value):
     elif not math.isfinite(number) or number <= 0.:
         raise ValueError('0보다 큰 유한한 값을 입력하세요.')
     limits = {'ground_plane_tolerance_m': .08, 'imu_max_skew_s': .2,
+              'obstacle_min_plane_height_m': .3, 'lane_edge_band_m': 1.,
               'ground_max_slope_deg': 30., 'avoidance_brake_limit': 1.,
-              'lane_change_max_heading_deg': 45., 'lane_change_cancel_max_progress': 1.}
+              'lane_change_max_heading_deg': 45., 'lane_change_cancel_max_progress': 1.,
+              'highway_mobil_politeness': 1.}
     if name in limits and number > limits[name]:
         raise ValueError('최대 {} {}까지 입력하세요.'.format(limits[name], SETTINGS[name][3]))
     return number

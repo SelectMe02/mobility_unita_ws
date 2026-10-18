@@ -26,6 +26,33 @@ def geometry(width=3.2, lanes=None):
 
 
 class LaneCorridorTests(unittest.TestCase):
+    def test_box_midpoint_labels_three_lanes_and_tracks_boundary_intrusion(self):
+        c = LaneCorridor(geometry(width=3.6, lanes=[dict(sector=11, raceline=n,
+             points=[[-50., (n-1)*3.6], [50., (n-1)*3.6]]) for n in (1, 2, 3)]))
+        for n in (1, 2, 3):
+            label = c.label_box(20., (n-1)*3.6, 4.5, 1.9, 0.)
+            self.assertEqual((label['lane_sector'], label['raceline']), (11, n))
+            self.assertTrue(label['lane_label_confident'])
+            self.assertFalse(label['lane_boundary_crossing'])
+        crossing = c.label_box(20., 1.2, 4.5, 1.9, 0.)
+        self.assertEqual(crossing['raceline'], 1)
+        self.assertTrue(crossing['lane_boundary_crossing'])
+        angled = c.label_box(20., 0., 4.5, 1.9, math.pi/4.)
+        self.assertTrue(angled['lane_boundary_crossing'])
+        edge = c.label_box(20., 1.8, 4.5, 1.9, 0.)
+        self.assertFalse(edge['lane_label_confident'])
+
+    def test_lane_label_never_extrapolates_finite_lane_or_accepts_roadside(self):
+        c = LaneCorridor(geometry(lanes=[
+            dict(sector=11, raceline=1, points=[[-50., 0.], [50., 0.]]),
+            dict(sector=11, raceline=2, points=[[-20., 3.2], [-10., 3.2]]),
+            dict(sector=12, raceline=2, points=[[10., 3.2], [20., 3.2]])]))
+        self.assertEqual(c.label_box(-15., 3.2, 4., 1.8, 0.)['raceline'], 2)
+        for x, y in ((0., 3.2), (60., 0.), (0., 10.), (float('nan'), 0.)):
+            label = c.label_box(x, y, 4., 1.8, 0.)
+            self.assertEqual(label['raceline'], 0)
+            self.assertFalse(label['lane_label_confident'])
+
     def test_boundary_is_half_full_width_and_interpolates_between_waypoints(self):
         c = LaneCorridor(geometry())
         self.assertEqual(c.contains([[0., 1.6], [0., -1.6], [0., 1.601],
@@ -34,6 +61,17 @@ class LaneCorridorTests(unittest.TestCase):
         wide = LaneCorridor(geometry(width=4.))
         self.assertTrue(wide.contains([[0., 1.9]])[0])
         self.assertFalse(c.contains([[0., 1.9]])[0])
+
+    def test_depth_is_distance_from_the_edge_and_constant_along_a_bend(self):
+        c = LaneCorridor(geometry(width=3.6))
+        np.testing.assert_allclose(c.depth([[0., 1.7], [0., 0.], [0., -1.5]]), [.1, 1.8, .3])
+        np.testing.assert_allclose(c.depth([[0., 1.9]]), [-.1])
+        self.assertEqual(c.depth([[60., 0.]]).tolist(), [-np.inf])
+        # R=50 m bend: a barrier 1.7 m outside the centre line is 0.1 m deep everywhere.
+        arc = [[50.*math.sin(a), 50.-50.*math.cos(a)] for a in np.linspace(0., 1., 60)]
+        bend = LaneCorridor(geometry(width=3.6, lanes=[dict(sector=1, raceline=1, points=arc)]))
+        rail = [[51.7*math.sin(a), 50.-51.7*math.cos(a)] for a in np.linspace(.1, .9, 40)]
+        np.testing.assert_allclose(bend.depth(rail), .1, atol=.01)
 
     def test_distance_is_perpendicular_for_rotated_lanes(self):
         lane = dict(sector=1, raceline=1, points=[[-20., -20.], [20., 20.]])
@@ -127,6 +165,32 @@ class LaneCorridorTests(unittest.TestCase):
         self.assertEqual(len(f.obstacles), 1)
         self.assertEqual(len(d.obstacle_snapshot[0]), 1)
         self.assertEqual(d.obstacle_snapshot[0][0][0], 1)
+
+    def test_lane_metadata_reaches_planner_and_visible_box_label(self):
+        corridor = LaneCorridor(geometry())
+        f = GPSWaypointFollower.__new__(GPSWaypointFollower)
+        f.lane_corridor = corridor
+        d = MapDebug.__new__(MapDebug)
+        d.lane_corridor, d.obstacle_snapshot = corridor, None
+        d.obstacle_marker_ids, d.obstacle_pub = set(), MagicMock()
+        item = dict(id=7, x=20., y=0., radius=2.5, length=4.5, width=1.9,
+                    yaw=0., vx=10., vy=0., kind='dynamic', raceline=1,
+                    lane_sector=11, lane_stable=True, lane_boundary_crossing=False,
+                    raw_width=2.2, predicted=True, measurement_stamp=99.8)
+        message = String(data=json.dumps(dict(stamp=100., frame_id='map', obstacles=[item])))
+        with patch('rospy.Time.now', return_value=rospy.Time(100)):
+            f.obstacles_callback(message)
+            d.on_obstacles(message)
+            d.publish_obstacles(d.obstacle_snapshot[1])
+        o = f.obstacles[0]
+        self.assertEqual((o.track_id, o.raceline, o.lane_sector), (7, 1, 11))
+        self.assertTrue(o.lane_stable)
+        self.assertFalse(o.lane_boundary_crossing)
+        self.assertTrue(o.predicted)
+        markers = d.obstacle_pub.publish.call_args.args[0].markers
+        label = next(m for m in markers if m.ns == 'obstacle_labels')
+        self.assertIn('R1', label.text)
+        self.assertNotIn('?', label.text)
 
     def test_width_update_reaches_perception_and_debug_and_clears_old_tracks(self):
         n = self.lidar_node(LaneCorridor(geometry()))
