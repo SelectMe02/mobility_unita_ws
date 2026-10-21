@@ -1,0 +1,23 @@
+{
+  "224300": {
+    "blackout_final_control_samples": 471,
+    "matched_recent_leo_raw_cmd": 471,
+    "matched_recent_raceline_cmd": 0,
+    "max_matched_leo_command_age_s": 0.05316019058227539,
+    "median_matched_leo_command_age_s": 0.04460263252258301
+  },
+  "224142": {
+    "blackout_final_control_samples": 404,
+    "matched_recent_leo_raw_cmd": 404,
+    "matched_recent_raceline_cmd": 0,
+    "max_matched_leo_command_age_s": 0.027488231658935547,
+    "median_matched_leo_command_age_s": 0.02152848243713379
+  },
+  "223335": {
+    "blackout_final_control_samples": 463,
+    "matched_recent_leo_raw_cmd": 463,
+    "matched_recent_raceline_cmd": 0,
+    "max_matched_leo_command_age_s": 0.037840843200683594,
+    "median_matched_leo_command_age_s": 0.03072214126586914
+  }
+}

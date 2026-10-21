@@ -1,0 +1,9 @@
+{
+  "commit": "9bef9d0f4d011063a3b1b4f9fa4f75d5b0ccfbb7",
+  "sha256": {
+    "src/leo_avoidance/src/leo_avoidance/ftg_local.py": "df87737277ee267a2baebfe6c8b5f77c7a7c52dbeda33a5ec1a536738efc237a",
+    "src/leo_avoidance/config/avoidance_local.yaml": "8c3d287fa1554e18e956740e3e61ac860c0b8a8caec80a0816580ab07f3f8b5e",
+    "src/leo_avoidance/scripts/driving_state_node_local.py": "c7ce7264c0d2f469ac1181e14fedf901b00df1e6f68a60b6967466dc0bb749f2",
+    "src/leo_avoidance/test/test_ftg_local.py": "3fb2d018263ede54b4f078be3f8d0d81ccad653809e6166a45a1f08fda19e8ea"
+  }
+}

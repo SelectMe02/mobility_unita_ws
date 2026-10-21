@@ -1,0 +1,410 @@
+{
+  "224300": {
+    "straight_wall_follow_samples": 238,
+    "wall_relative_heading_std_deg": 4.945699851985419,
+    "wall_relative_heading_range_deg": 15.978846317369989,
+    "imu_yaw_std_deg": 5.18779369544366,
+    "imu_yaw_range_deg": 16.353743932165003,
+    "world_wall_heading_std_deg": 1.0889063629799682,
+    "world_wall_heading_range_deg": 5.451062381783316,
+    "wall_heading_vs_imu_yaw_correlation": -0.9780353167772761,
+    "opposite_preference_examples": [
+      {
+        "time": "2026-10-21T22:43:21.792+09:00",
+        "relative_s": 21.3853,
+        "wall_clearance_m": 3.045923653546148,
+        "reconstructed_filtered_clearance_m": 3.0050460546651765,
+        "wall_heading_deg": -2.8994695280985705,
+        "reconstructed_unfiltered_preference_deg": -2.9717489369753,
+        "selected_target_deg": 4.999999999999995,
+        "recorded_steering_deg": 5.336057838837897,
+        "imu_yaw_rate_deg_s": 8.597459636618531,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:21.881+09:00",
+        "relative_s": 21.4744,
+        "wall_clearance_m": 3.1011524107929755,
+        "reconstructed_filtered_clearance_m": 3.0386832793099066,
+        "wall_heading_deg": -4.084659244982821,
+        "reconstructed_unfiltered_preference_deg": -4.638756405528668,
+        "selected_target_deg": 2.9999999999999916,
+        "recorded_steering_deg": 4.10896227849806,
+        "imu_yaw_rate_deg_s": 6.193854595988513,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:22.032+09:00",
+        "relative_s": 21.6251,
+        "wall_clearance_m": 3.195474742386552,
+        "reconstructed_filtered_clearance_m": 3.0935602913867326,
+        "wall_heading_deg": -5.117648077366047,
+        "reconstructed_unfiltered_preference_deg": -6.45780053398454,
+        "selected_target_deg": 0.9999999999999887,
+        "recorded_steering_deg": 2.4677804081317665,
+        "imu_yaw_rate_deg_s": 4.9111958693920705,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:24.135+09:00",
+        "relative_s": 23.7283,
+        "wall_clearance_m": 3.191302447766768,
+        "reconstructed_filtered_clearance_m": 3.2264475861624873,
+        "wall_heading_deg": 5.676376516968528,
+        "reconstructed_unfiltered_preference_deg": 2.432753774959631,
+        "selected_target_deg": -2.0000000000000027,
+        "recorded_steering_deg": -2.8785068819730935,
+        "imu_yaw_rate_deg_s": -6.876240439831093,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:26.331+09:00",
+        "relative_s": 25.9243,
+        "wall_clearance_m": 2.553733971406695,
+        "reconstructed_filtered_clearance_m": 2.52730912771036,
+        "wall_heading_deg": -4.977568836825836,
+        "reconstructed_unfiltered_preference_deg": -1.071559813341509,
+        "selected_target_deg": 0.9999999999999887,
+        "recorded_steering_deg": 1.2343983522328696,
+        "imu_yaw_rate_deg_s": 3.8438456228887627,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:28.593+09:00",
+        "relative_s": 28.1857,
+        "wall_clearance_m": 3.1061130673131085,
+        "reconstructed_filtered_clearance_m": 3.163316992825122,
+        "wall_heading_deg": 3.2577320661216995,
+        "reconstructed_unfiltered_preference_deg": 0.918388463209737,
+        "selected_target_deg": -1.5000000000000084,
+        "recorded_steering_deg": -2.0568285619082634,
+        "imu_yaw_rate_deg_s": -5.423351627889953,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:32.881+09:00",
+        "relative_s": 32.4745,
+        "wall_clearance_m": 3.1466865685756584,
+        "reconstructed_filtered_clearance_m": 3.221308631320808,
+        "wall_heading_deg": 4.395781752319202,
+        "reconstructed_unfiltered_preference_deg": 1.225769116194439,
+        "selected_target_deg": -3.000000000000017,
+        "recorded_steering_deg": -3.2889707312757532,
+        "imu_yaw_rate_deg_s": -11.193533431643983,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:33.032+09:00",
+        "relative_s": 32.6248,
+        "wall_clearance_m": 3.0470652358863424,
+        "reconstructed_filtered_clearance_m": 3.1603234429187452,
+        "wall_heading_deg": 5.724687311205432,
+        "reconstructed_unfiltered_preference_deg": 3.4282231521427646,
+        "selected_target_deg": -1.5000000000000084,
+        "recorded_steering_deg": -2.467780408131787,
+        "imu_yaw_rate_deg_s": -9.494587054853135,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:43:35.382+09:00",
+        "relative_s": 34.9748,
+        "wall_clearance_m": 2.5252665150379663,
+        "reconstructed_filtered_clearance_m": 2.4206640524393817,
+        "wall_heading_deg": -6.539309925917434,
+        "reconstructed_unfiltered_preference_deg": -1.1057227227125974,
+        "selected_target_deg": 0.9999999999999887,
+        "recorded_steering_deg": 1.2343983522328696,
+        "imu_yaw_rate_deg_s": 2.3657160603132525,
+        "front_points": 0,
+        "crossing_threats": 0
+      }
+    ],
+    "preexit_imu_yaw_maxima": [
+      {
+        "stamp": 1792590202.3822079,
+        "time": "2026-10-21T22:43:22.382+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -142.92345484069713,
+        "bearing_deg": -4.5,
+        "wall_clearance_m": 3.34871081359877
+      },
+      {
+        "stamp": 1792590206.882041,
+        "time": "2026-10-21T22:43:26.882+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -144.0143856880153,
+        "bearing_deg": -2.0000000000000027,
+        "wall_clearance_m": 2.826861957974426
+      },
+      {
+        "stamp": 1792590211.3930647,
+        "time": "2026-10-21T22:43:31.393+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -143.47577296121793,
+        "bearing_deg": -2.4999999999999973,
+        "wall_clearance_m": 2.9464750793808827
+      },
+      {
+        "stamp": 1792590215.7319047,
+        "time": "2026-10-21T22:43:35.731+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -142.5118566447704,
+        "bearing_deg": -2.0000000000000027,
+        "wall_clearance_m": 2.7764508533930927
+      }
+    ],
+    "preexit_imu_yaw_minima": [
+      {
+        "stamp": 1792590204.5822468,
+        "time": "2026-10-21T22:43:24.582+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -158.00798303372707,
+        "bearing_deg": 2.0000000000000027,
+        "wall_clearance_m": 2.9625310260265474
+      },
+      {
+        "stamp": 1792590209.1321099,
+        "time": "2026-10-21T22:43:29.132+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -155.81228267361797,
+        "bearing_deg": 2.9999999999999916,
+        "wall_clearance_m": 2.782750612041026
+      },
+      {
+        "stamp": 1792590213.3824685,
+        "time": "2026-10-21T22:43:33.382+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -158.8656005769354,
+        "bearing_deg": 1.4999999999999831,
+        "wall_clearance_m": 2.6681507011418484
+      }
+    ],
+    "maxima_periods_s": [
+      4.499833106994629,
+      4.511023759841919,
+      4.338840007781982
+    ],
+    "minima_periods_s": [
+      4.54986310005188,
+      4.250358581542969
+    ],
+    "limits": [
+      "World wall heading uses current recorded IMU and latest published plan; scan latency is not compensated.",
+      "Preference reconstruction uses distinct published plans, .65/.35 clearance update, and recorded gains; gap clipping, safety checks, and raw clouds are not replayed.",
+      "Oscillation periods include PASSING intervals and characterize the actual recorded motion; they are not exclusively obstacle-free closed-loop periods."
+    ]
+  },
+  "224142": {
+    "straight_wall_follow_samples": 225,
+    "wall_relative_heading_std_deg": 1.4174556435782053,
+    "wall_relative_heading_range_deg": 6.060291326868425,
+    "imu_yaw_std_deg": 1.26166989730845,
+    "imu_yaw_range_deg": 5.325048783506901,
+    "world_wall_heading_std_deg": 0.3714489395114872,
+    "world_wall_heading_range_deg": 2.2536554261820925,
+    "wall_heading_vs_imu_yaw_correlation": -0.9682096879403264,
+    "opposite_preference_examples": [],
+    "preexit_imu_yaw_maxima": [
+      {
+        "stamp": 1792590112.6392527,
+        "time": "2026-10-21T22:41:52.639+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -147.42594396069447,
+        "bearing_deg": -0.49999999999999434,
+        "wall_clearance_m": 2.7786630284244715
+      },
+      {
+        "stamp": 1792590117.088644,
+        "time": "2026-10-21T22:41:57.088+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -149.29936983701802,
+        "bearing_deg": -0.49999999999999434,
+        "wall_clearance_m": 2.8895809869123177
+      }
+    ],
+    "preexit_imu_yaw_minima": [
+      {
+        "stamp": 1792590110.2883797,
+        "time": "2026-10-21T22:41:50.288+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -152.75099274420137,
+        "bearing_deg": 0.9999999999999887,
+        "wall_clearance_m": 2.9797673267101388
+      },
+      {
+        "stamp": 1792590114.6882946,
+        "time": "2026-10-21T22:41:54.688+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -151.33571007751252,
+        "bearing_deg": 0.49999999999999434,
+        "wall_clearance_m": 2.872075236466374
+      },
+      {
+        "stamp": 1792590118.74229,
+        "time": "2026-10-21T22:41:58.742+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -151.18596566923375,
+        "bearing_deg": 0.0,
+        "wall_clearance_m": 2.8495906777661375
+      }
+    ],
+    "maxima_periods_s": [
+      4.4493913650512695
+    ],
+    "minima_periods_s": [
+      4.399914979934692,
+      4.053995370864868
+    ],
+    "limits": [
+      "World wall heading uses current recorded IMU and latest published plan; scan latency is not compensated.",
+      "Preference reconstruction uses distinct published plans, .65/.35 clearance update, and recorded gains; gap clipping, safety checks, and raw clouds are not replayed.",
+      "Oscillation periods include PASSING intervals and characterize the actual recorded motion; they are not exclusively obstacle-free closed-loop periods."
+    ]
+  },
+  "223335": {
+    "straight_wall_follow_samples": 219,
+    "wall_relative_heading_std_deg": 3.6952685420432574,
+    "wall_relative_heading_range_deg": 13.544479458224327,
+    "imu_yaw_std_deg": 3.8650434407396417,
+    "imu_yaw_range_deg": 13.572823569412577,
+    "world_wall_heading_std_deg": 0.7046188960459772,
+    "world_wall_heading_range_deg": 3.974479971651647,
+    "wall_heading_vs_imu_yaw_correlation": -0.9836279217037726,
+    "opposite_preference_examples": [
+      {
+        "time": "2026-10-21T22:38:33.268+09:00",
+        "relative_s": 297.611,
+        "wall_clearance_m": 3.114766438661568,
+        "reconstructed_filtered_clearance_m": 3.0676302005929648,
+        "wall_heading_deg": -3.345172472195636,
+        "reconstructed_unfiltered_preference_deg": -4.313903737595647,
+        "selected_target_deg": 2.4999999999999973,
+        "recorded_steering_deg": 4.518416261961754,
+        "imu_yaw_rate_deg_s": 7.917826785898289,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:38:35.468+09:00",
+        "relative_s": 299.8109,
+        "wall_clearance_m": 3.143801231976762,
+        "reconstructed_filtered_clearance_m": 3.22890775536663,
+        "wall_heading_deg": 4.772818319953863,
+        "reconstructed_unfiltered_preference_deg": 1.493956249873606,
+        "selected_target_deg": -3.000000000000017,
+        "recorded_steering_deg": -3.2889707312757532,
+        "imu_yaw_rate_deg_s": -7.073501425702938,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:38:35.619+09:00",
+        "relative_s": 299.9615,
+        "wall_clearance_m": 3.0802879417032685,
+        "reconstructed_filtered_clearance_m": 3.176890820584454,
+        "wall_heading_deg": 5.640656050693259,
+        "reconstructed_unfiltered_preference_deg": 3.106881687169489,
+        "selected_target_deg": -1.5000000000000084,
+        "recorded_steering_deg": -2.467780408131787,
+        "imu_yaw_rate_deg_s": -5.420102592279142,
+        "front_points": 0,
+        "crossing_threats": 0
+      },
+      {
+        "time": "2026-10-21T22:38:43.969+09:00",
+        "relative_s": 308.3113,
+        "wall_clearance_m": 3.054445973876879,
+        "reconstructed_filtered_clearance_m": 3.132607766291118,
+        "wall_heading_deg": 3.7046339400848423,
+        "reconstructed_unfiltered_preference_deg": 1.8051676053002819,
+        "selected_target_deg": -1.0000000000000142,
+        "recorded_steering_deg": -1.6456887177404025,
+        "imu_yaw_rate_deg_s": -7.64133902074888,
+        "front_points": 0,
+        "crossing_threats": 0
+      }
+    ],
+    "preexit_imu_yaw_maxima": [
+      {
+        "stamp": 1792589913.8189673,
+        "time": "2026-10-21T22:38:33.818+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -144.06615382615342,
+        "bearing_deg": -4.000000000000005,
+        "wall_clearance_m": 3.2505698437961223
+      },
+      {
+        "stamp": 1792589917.8310056,
+        "time": "2026-10-21T22:38:37.831+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -145.0810819244702,
+        "bearing_deg": 0.0,
+        "wall_clearance_m": 2.486590812294711
+      },
+      {
+        "stamp": 1792589922.5790884,
+        "time": "2026-10-21T22:38:42.579+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -146.7623755750648,
+        "bearing_deg": -1.0000000000000142,
+        "wall_clearance_m": 2.961174750194152
+      }
+    ],
+    "preexit_imu_yaw_minima": [
+      {
+        "stamp": 1792589912.9692483,
+        "time": "2026-10-21T22:38:32.969+09:00",
+        "phase": "PASSING",
+        "imu_yaw_deg": -146.4327403142933,
+        "bearing_deg": 9.0,
+        "wall_clearance_m": 3.0952812703165913
+      },
+      {
+        "stamp": 1792589916.018727,
+        "time": "2026-10-21T22:38:36.018+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -157.638977395566,
+        "bearing_deg": 2.9999999999999916,
+        "wall_clearance_m": 2.8440529701846398
+      },
+      {
+        "stamp": 1792589920.380051,
+        "time": "2026-10-21T22:38:40.380+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -152.19302018513966,
+        "bearing_deg": 0.9999999999999887,
+        "wall_clearance_m": 2.803813644803121
+      },
+      {
+        "stamp": 1792589924.4194825,
+        "time": "2026-10-21T22:38:44.419+09:00",
+        "phase": "WALL_FOLLOW",
+        "imu_yaw_deg": -156.3934917778878,
+        "bearing_deg": 2.4999999999999973,
+        "wall_clearance_m": 2.560519320454021
+      }
+    ],
+    "maxima_periods_s": [
+      4.012038230895996,
+      4.748082876205444
+    ],
+    "minima_periods_s": [
+      3.049478769302368,
+      4.361323833465576,
+      4.039431571960449
+    ],
+    "limits": [
+      "World wall heading uses current recorded IMU and latest published plan; scan latency is not compensated.",
+      "Preference reconstruction uses distinct published plans, .65/.35 clearance update, and recorded gains; gap clipping, safety checks, and raw clouds are not replayed.",
+      "Oscillation periods include PASSING intervals and characterize the actual recorded motion; they are not exclusively obstacle-free closed-loop periods."
+    ]
+  }
+}

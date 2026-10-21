@@ -486,6 +486,117 @@ def test_low_box_survives_road_plane_rejection():
     assert abs(plan.target_bearing_rad) > .1
 
 
+def calibrated_road(reference=-1.61, slope_x=0., slope_y=0.):
+    xs, ys = np.meshgrid(np.linspace(1., 12., 36), np.linspace(-3., 3., 17))
+    return np.column_stack((xs.ravel(), ys.ravel(),
+                            reference + slope_x * xs.ravel() + slope_y * ys.ravel()))
+
+
+def test_ground_reference_retains_low_box_without_turning_road_into_obstacles():
+    road = calibrated_road()
+    walls = tunnel_walls(4., 4.)
+    box = np.array([[7., y, -1.46] for y in np.linspace(-.6, .6, 13)])
+    cloud = np.vstack((road, walls, box))
+    original = FollowTheGap().plan(cloud, 0., wall_follow=True)
+    planner = FollowTheGap()
+    planner.debug_capture = True
+    corrected = planner.plan(cloud, 0., wall_follow=True,
+                             ground_reference_z_m=-1.61)
+    assert original.front_points == 0
+    assert corrected.front_points == len(box)
+    assert corrected.avoidance_phase == 'PASSING'
+    assert abs(corrected.target_bearing_rad) > .1
+    np.testing.assert_array_equal(planner.obstacle_candidates(
+        cloud, ground_reference_z_m=-1.61), box)
+    snapshot = planner.debug_snapshot
+    assert snapshot['ground_removed_points'] == len(road)
+    assert snapshot['collision_height_basis'] == 'measured_ground_plane'
+    np.testing.assert_allclose(snapshot['ground_plane'], [0., 0., -1.61], atol=1e-12)
+    assert math.isclose(snapshot['collision_min_z_at_origin_m'], -1.51)
+    assert math.isclose(snapshot['collision_min_height_above_ground_m'], .1)
+    clear = FollowTheGap().plan(np.vstack((road, walls)), 0., wall_follow=True,
+                                ground_reference_z_m=-1.61)
+    assert clear.front_points == 0 and clear.obstacle_points == 0
+    assert clear.speed_mps > 0.
+
+
+def test_calibrated_collision_floor_follows_pitch_and_cross_slope():
+    for slope_x, slope_y in ((-.08, 0.), (.08, 0.), (-.04, .04), (.04, -.04)):
+        road = calibrated_road(slope_x=slope_x, slope_y=slope_y)
+        box = np.array([[7., y, -1.61 + 7. * slope_x + y * slope_y + .14]
+                        for y in np.linspace(-.6, .6, 13)])
+        planner = FollowTheGap()
+        cloud = np.vstack((road, tunnel_walls(4., 4.), box))
+        planner.debug_capture = True
+        plan = planner.plan(cloud, 0., wall_follow=True, ground_reference_z_m=-1.61)
+        np.testing.assert_array_equal(planner.obstacle_candidates(
+            cloud, ground_reference_z_m=-1.61), box)
+        assert plan.front_points == len(box)
+        assert planner.debug_snapshot['ground_removed_points'] == len(road)
+        np.testing.assert_allclose(planner.debug_snapshot['ground_plane'],
+                                   [slope_x, slope_y, -1.61], atol=1e-12)
+        assert abs(plan.target_bearing_rad) > .1
+
+
+def test_calibrated_fallback_keeps_height_body_and_roof_guards():
+    # Too few samples for a measured plane: use reference + the old 10 cm.
+    sparse = np.array([[7., 0., -1.46], [8., 0., -1.52], [9., 0., -1.61],
+                       [10., 0., .81], [1., 0., -1.46], [-5., .1, -1.46]])
+    planner = FollowTheGap()
+    planner.debug_capture = True
+    planner.plan(sparse, 0., ground_reference_z_m=-1.61)
+    np.testing.assert_array_equal(planner.debug_snapshot['points'], sparse[[0, 5]])
+    assert planner.debug_snapshot['ground_plane'] is None
+    assert planner.debug_snapshot['collision_height_basis'] == 'ground_reference'
+    assert planner.debug_snapshot['height_removed_points'] == 3
+    assert planner.debug_snapshot['ego_removed_points'] == 1
+    np.testing.assert_array_equal(planner.obstacle_candidates(
+        sparse, ground_reference_z_m=-1.61), sparse[[0]])
+    np.testing.assert_array_equal(planner.rear_obstacle_candidates(
+        sparse, ground_reference_z_m=-1.61), sparse[[5]])
+    assert len(planner.obstacle_candidates(sparse)) == 0
+    assert len(planner.rear_obstacle_candidates(sparse)) == 0
+
+
+def test_ground_reference_is_per_scan_and_none_retains_original_filter():
+    walls = tunnel_walls(4., 4.)
+    box = np.array([[7., 0., -1.46]])
+    cloud = np.vstack((calibrated_road(), walls, box))
+    normal = FollowTheGap(clock=lambda: 1.)
+    explicit_none = FollowTheGap(clock=lambda: 1.)
+    normal.debug_capture = explicit_none.debug_capture = True
+    assert normal.plan(cloud, 0.) == explicit_none.plan(
+        cloud, 0., ground_reference_z_m=None)
+    np.testing.assert_array_equal(normal.debug_snapshot['points'], walls)
+    np.testing.assert_array_equal(normal.debug_snapshot['points'],
+                                   explicit_none.debug_snapshot['points'])
+    explicit_none.plan(cloud, 0., ground_reference_z_m=-1.61)
+    assert explicit_none.debug_snapshot['ground_reference_override']
+    explicit_none.plan(cloud, 0.)
+    np.testing.assert_array_equal(explicit_none.debug_snapshot['points'], walls)
+    assert not explicit_none.debug_snapshot['ground_reference_override']
+    assert explicit_none.debug_snapshot['collision_height_basis'] == 'fixed_lidar_z'
+    assert explicit_none.debug_snapshot['collision_min_z_at_origin_m'] == -1.13
+    assert explicit_none.config.expected_ground_z_m == -1.23
+
+
+def test_invalid_ground_reference_stops_and_helpers_reject_it():
+    for reference in (float('nan'), float('inf'), -float('inf'), 0., .2, 'bad'):
+        planner = FollowTheGap()
+        for cloud in (scan_points([]), np.empty((0, 3))):
+            plan = planner.plan(cloud, 0., ground_reference_z_m=reference)
+            assert plan.speed_mps == 0.
+            assert plan.reason == 'invalid ground reference'
+            for candidates in (planner.obstacle_candidates,
+                               planner.rear_obstacle_candidates):
+                try:
+                    candidates(cloud, ground_reference_z_m=reference)
+                except ValueError as exc:
+                    assert str(exc) == 'invalid ground reference'
+                else:
+                    raise AssertionError('invalid ground reference was accepted')
+
+
 def test_tunnel_wall_and_vehicle_selects_inflated_side_corridor():
     xs = np.linspace(1., 15., 100)
     walls = np.vstack((
@@ -704,7 +815,7 @@ def test_runtime_yaml_restores_spacing_and_expands_lidar_angle():
     assert cfg.right_wall_target_clearance_m == 2.9
     assert cfg.max_range_m == 30. and cfg.local_planning_range_m == 16.5
     assert cfg.front_fov_deg == 300. and cfg.scan_bins == 601
-    assert cfg.bubble_margin_m == .35 and cfg.side_margin_m == .4
+    assert cfg.bubble_margin_m == .4 and cfg.side_margin_m == .4
     walls = tunnel_walls(5., 5.)
     box = np.array([[16., y, 0.] for y in np.linspace(-.5, .5, 11)])
     planner = FollowTheGap(cfg)
@@ -867,6 +978,107 @@ def test_smoothed_preference_reduces_reversal_and_rechecks_collisions():
     third = planner.plan(obstacle_cloud, 0., -.25, wall_follow=True)
     assert third.speed_mps == 0. or planner._swept_body_collision(
         obstacle_cloud, third.target_bearing_rad) is None
+
+
+def turned_wall_scan(yaw_change):
+    """The same straight walls, observed after Ego rotates in place."""
+    cloud = tunnel_walls(3.846, 5.)
+    c, s = math.cos(yaw_change), math.sin(yaw_change)
+    cloud[:, :2] = cloud[:, :2] @ np.array([[c, -s], [s, c]])
+    return cloud
+
+
+def test_wall_follow_smoothing_removes_rotation_already_made_by_ego():
+    for yaw in (-.08, .08):
+        now = [0.]
+        planner = FollowTheGap(Config(max_range_m=30., bearing_smoothing_tau_s=.5),
+                               clock=lambda: now[0])
+        initial = planner.plan(turned_wall_scan(0.), 1., wall_follow=True,
+                               ego_pose=(0., 0., 0.), stamp=1.)
+        assert initial.avoidance_phase == 'WALL_FOLLOW'
+        now[0] = .1
+        cloud = turned_wall_scan(yaw)
+        turned = planner.plan(cloud, 1., wall_follow=True,
+                              ego_pose=(0., 0., yaw), stamp=1.1)
+        assert turned.avoidance_phase == 'WALL_FOLLOW'
+        assert abs(turned.target_bearing_rad + yaw) < math.radians(1.)
+        assert planner._swept_body_collision(cloud, turned.target_bearing_rad) is None
+
+
+def test_wall_follow_bearing_frame_wraps_across_pi():
+    now = [0.]
+    planner = FollowTheGap(Config(max_range_m=30., bearing_smoothing_tau_s=.5),
+                           clock=lambda: now[0])
+    planner.plan(turned_wall_scan(0.), 1., wall_follow=True,
+                 ego_pose=(0., 0., math.pi-.04), stamp=1.)
+    now[0] = .1
+    turned = planner.plan(turned_wall_scan(.1), 1., wall_follow=True,
+                          ego_pose=(0., 0., -math.pi+.06), stamp=1.1)
+    assert abs(turned.target_bearing_rad + .1) < math.radians(1.)
+
+
+def test_wall_follow_missing_or_invalid_capture_pose_keeps_old_smoothing():
+    for pose in (None, (0., 0., float('nan')), (float('inf'), 0., .1), (0., .1)):
+        now = [0.]
+        cfg = Config(max_range_m=30., bearing_smoothing_tau_s=.5)
+        planner = FollowTheGap(cfg, clock=lambda: now[0])
+        baseline = FollowTheGap(cfg, clock=lambda: now[0])
+        for p in (planner, baseline):
+            p.plan(turned_wall_scan(0.), 1., wall_follow=True,
+                   ego_pose=(0., 0., 0.), stamp=1.)
+        now[0] = .1
+        plan = planner.plan(turned_wall_scan(.1), 1., wall_follow=True,
+                            ego_pose=pose, stamp=1.1)
+        old = baseline.plan(turned_wall_scan(.1), 1., wall_follow=True,
+                            ego_pose=None, stamp=1.1)
+        assert plan == old
+        assert abs(plan.target_bearing_rad) < .04
+        # A target selected without a valid frame must not reuse an older yaw.
+        assert planner._previous_bearing_yaw is None
+
+
+def test_bearing_frame_compensation_does_not_change_passing_route_or_exit():
+    for mode in ('passing', 'route', 'exit'):
+        now = [0.]
+        cfg = Config(max_range_m=30., bearing_smoothing_tau_s=.5)
+        planner = FollowTheGap(cfg, clock=lambda: now[0])
+        unchanged = FollowTheGap(cfg, clock=lambda: now[0])
+        for p in (planner, unchanged):
+            p.plan(turned_wall_scan(0.), 1., wall_follow=True,
+                   ego_pose=(0., 0., 0.), stamp=1.)
+        # The fallback reference is exactly the previous implementation's
+        # body-frame bearing. These modes must never use frame compensation.
+        unchanged._previous_bearing_yaw = None
+        cloud = turned_wall_scan(.1)
+        if mode == 'passing':
+            cloud = np.vstack((cloud, [[7., y, 0.] for y in np.linspace(-.6, .6, 11)]))
+        kwargs = dict(wall_follow=mode != 'route', ego_pose=(0., 0., .1), stamp=1.1)
+        if mode == 'exit':
+            kwargs.update(exit_heading_error_rad=.05, wall_follow_weight=.5)
+        now[0] = .1
+        plan = planner.plan(cloud, 1., .15, **kwargs)
+        old = unchanged.plan(cloud, 1., .15, **kwargs)
+        assert plan == old
+        if mode == 'passing':
+            assert plan.avoidance_phase == 'PASSING'
+
+
+def test_stopped_scan_keeps_frame_of_last_selected_bearing():
+    now = [0.]
+    planner = FollowTheGap(Config(max_range_m=30., bearing_smoothing_tau_s=.5),
+                           clock=lambda: now[0])
+    planner.plan(turned_wall_scan(0.), 1., wall_follow=True,
+                 ego_pose=(0., 0., 0.), stamp=1.)
+    now[0] = .1
+    stop = planner.plan(np.empty((0, 3)), 1., wall_follow=True,
+                        ego_pose=(0., 0., .05), stamp=1.1)
+    assert stop.speed_mps == 0.
+    assert planner._previous_bearing_yaw == 0.
+    now[0] = .2
+    resumed = planner.plan(turned_wall_scan(.1), 1., wall_follow=True,
+                           ego_pose=(0., 0., .1), stamp=1.2)
+    assert abs(resumed.target_bearing_rad + .1) < math.radians(1.)
+    assert planner._previous_bearing_yaw == .1
 
 
 def test_blocks_left_behind_or_far_ahead_allow_return_to_wall_spacing():

@@ -1,0 +1,65 @@
+# TODO: Verify these values against the actual MORAI vehicle and LiDAR mount.
+lidar_frame: lidar
+lidar_to_rear_x_m: 1.4
+vehicle_half_width_m: 0.946
+side_margin_m: 0.4  # obstacle and wall clearance beyond the vehicle half width
+bubble_margin_m: 0.40  # angular candidate inflation; match side_margin_m so chosen targets never enter the front-stop corridor
+gap_target_inset_m: 0.80  # prefer targets further inside each free gap, away from the obstacle edge
+bearing_smoothing_tau_s: 0.5  # smooth target preference before collision checks
+front_bumper_from_rear_m: 3.845
+ego_self_filter_inset_m: 0.15  # ignore returns strictly inside Ego body, retain edge obstacles
+max_range_m: 30.0
+local_planning_range_m: 16.5  # steer using nearby returns; full range still limits speed
+front_fov_deg: 300.0  # -150 to +150 degrees; wall spacing requires no obstacle within +/-135 deg
+scan_bins: 601  # retain 0.5-degree angular resolution
+disparity_m: 0.5
+max_target_bearing_rad: 0.6108652382  # 35 degrees to either side
+passing_gap_width_weight: 0.35  # prefer a wider verified gap when first choosing a passing side
+swept_path_horizon_m: 4.0  # reject steering directions that clip a rear corner
+swept_side_margin_m: 0.3  # body clearance for the swept-path check only; gap selection keeps side_margin_m
+# max_speed_mps: every scan uses the Map Tuner point speed at the route index.
+# no_return_speed_mps and the other FTG speed caps: RViz map_debug panel.
+min_no_return_evidence_points: 10
+target_distance_from_lidar_m: 4.0
+route_lookahead_m: 5.0
+obstacle_speed_hold_s: 1.0  # retain lowest obstacle speed cap after last observation
+target_accel_mps2: 0.8  # maximum target-speed rise; braking remains immediate
+reaction_s: 0.4
+brake_mps2: 4.0  # planning decel; MORAI Ego measured about 8 m/s^2 at full brake
+wall_slow_clearance_m: 0.5
+wall_fast_clearance_m: 1.4
+expected_ground_z_m: -1.23  # ground plane at LiDAR origin; check mount in simulator
+ground_height_tolerance_m: 0.25
+collision_min_z_m: -1.13  # 10 cm above the nominal road plane
+collision_max_z_m: 0.8  # about 2.0 m above road; omit tunnel roof
+right_wall_target_clearance_m: 2.9  # vehicle side to right tunnel wall
+right_wall_clearance_tolerance_m: 0.1  # 2.8-3.0 m band without offset correction
+wall_point_tolerance_m: 0.35  # coherent wall returns become track boundaries
+exit_wall_trigger_inset_m: 0.8  # exit window only: wall-attached returns do not trigger PASSING; collision checks retain them
+wall_corridor_horizon_m: 6.0  # check selected path inside boundaries this far ahead
+right_wall_min_clearance_m: 0.9
+rear_detection_half_angle_deg: 15.0  # RViz/log diagnostic only; never controls pass completion
+rear_detection_max_range_m: 12.0
+rear_detection_max_lateral_m: 2.8  # exclude tunnel walls
+right_wall_offset_gain_rad_per_m: 0.25
+right_wall_heading_gain: 1.0
+right_wall_max_correction_rad: 0.22
+right_wall_route_disagreement_rad: 0.2617993878  # 15 deg: distrust route direction if it conflicts with the wall
+right_wall_drift_weight: 0.9  # preserve wall guidance until GPS rejoin
+unwalled_route_bearing_limit_rad: 0.1221730476  # 7 deg if the wall vanishes before GPS returns
+speed_timeout_s: 0.6
+# Dynamic obstacles: clusters tracked in the odometry frame across scans.
+track_gate_m: 1.5  # max predicted-to-observed centre distance for association
+track_history_s: 0.6  # velocity is a least-squares slope over this window
+track_min_span_s: 0.2  # no velocity estimate before this much history
+track_lost_s: 0.5  # drop a track (or all, after a scan gap) when unseen this long
+dynamic_min_speed_mps: 0.8  # moving above this for dynamic_confirm_scans
+dynamic_release_speed_mps: 0.4  # static again below this for dynamic_confirm_scans
+dynamic_confirm_scans: 2
+crossing_min_lateral_speed_mps: 0.5  # only lateral movers can cross the lane
+crossing_horizon_s: 3.0  # yield if it enters the lane within this time
+crossing_lookahead_m: 20.0  # ignore predicted lane entries beyond this range
+crossing_margin_m: 0.5  # lane half width = vehicle half width + this + obstacle half size
+crossing_confirm_scans: 3  # same-direction lateral motion needed before yielding
+track_max_size_jump_m: 0.5  # a visible-extent change this large is not motion evidence
+emergency_brake_mps2: 6.0  # hard stop only if this decel cannot stop in time; caps use brake_mps2

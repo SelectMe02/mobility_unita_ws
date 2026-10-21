@@ -1,0 +1,406 @@
+{
+  "baseline_commit": "9bef9d0f4d011063a3b1b4f9fa4f75d5b0ccfbb7",
+  "source": "src/leo_avoidance/src/leo_avoidance/ftg_local.py",
+  "source_sha256": "e39a90a3e4e2f892e844d4a240ee267f7b0e3da4739e7a695b851a85d6d46c96",
+  "change_scope": "Only WALL_FOLLOW with a measured wall, a valid capture pose, and no exit-heading rejoin: rotate the previously selected target bearing into the current capture vehicle frame before the existing smoothing and collision checks.",
+  "protected_logic": [
+    "PASSING gap selection",
+    "ROUTE",
+    "exit heading handover",
+    "collision checks",
+    "braking and speed limits",
+    "existing tuning parameters"
+  ],
+  "tests": {
+    "ftg_local": 84,
+    "related_regression": 91,
+    "total_passed": 175,
+    "related_suites": [
+      "test_ftg.py",
+      "test_blackout_watchdog_local.py",
+      "test_scan_odometry_local.py",
+      "test_rejoin_route_local.py",
+      "test_obstacle_tracker.py"
+    ]
+  },
+  "fixed_state_safety_comparison": {
+    "phases": {
+      "WALL_FOLLOW": 24,
+      "PASSING": 48,
+      "ROUTE": 8
+    },
+    "compared": 80,
+    "differences": 4,
+    "protected_cases": 72,
+    "protected_differences": []
+  },
+  "kinematic_cases": [
+    {
+      "baseline": {
+        "speed_mps": 5.0,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6,
+        "max_abs_heading_deg": 6.174352612129234,
+        "tail_offset_rms_m": 0.11283893909101042,
+        "tail_heading_rms_deg": 0.7312496571364403,
+        "final_offset_m": -0.07597024333519098,
+        "final_heading_deg": -0.9440142348959326,
+        "settling_time_s": 17.75,
+        "max_steer_step_deg": 1.23281816423269,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 5.0,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6,
+        "max_abs_heading_deg": 4.887869343074247,
+        "tail_offset_rms_m": 0.11686960285782774,
+        "tail_heading_rms_deg": 0.7029904588659449,
+        "final_offset_m": 0.15978281105484418,
+        "final_heading_deg": 0.42777381711361784,
+        "settling_time_s": null,
+        "max_steer_step_deg": 0.8226936938421012,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    },
+    {
+      "baseline": {
+        "speed_mps": 5.0,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.21115437941116877,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.11317151162501267,
+        "tail_heading_rms_deg": 0.7636354930249303,
+        "final_offset_m": 0.03699969844457145,
+        "final_heading_deg": -0.9457251484834095,
+        "settling_time_s": null,
+        "max_steer_step_deg": 0.4115163527820207,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 5.0,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.26208405068731216,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.11156655438866743,
+        "tail_heading_rms_deg": 0.6034785326444958,
+        "final_offset_m": 0.015511864729477248,
+        "final_heading_deg": 0.7694026006316439,
+        "settling_time_s": 18.25,
+        "max_steer_step_deg": 0.8184979522522369,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    },
+    {
+      "baseline": {
+        "speed_mps": 6.5,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6,
+        "max_abs_heading_deg": 6.800434274309279,
+        "tail_offset_rms_m": 0.12178639647748822,
+        "tail_heading_rms_deg": 0.833932148015884,
+        "final_offset_m": 0.1359126294601632,
+        "final_heading_deg": 0.8909301458302386,
+        "settling_time_s": null,
+        "max_steer_step_deg": 1.2345113766803015,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 6.5,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6,
+        "max_abs_heading_deg": 5.016480804949911,
+        "tail_offset_rms_m": 0.11145919046410382,
+        "tail_heading_rms_deg": 0.6201252186839733,
+        "final_offset_m": -0.13433176008099307,
+        "final_heading_deg": -0.6696159833450308,
+        "settling_time_s": null,
+        "max_steer_step_deg": 1.2294455306860224,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    },
+    {
+      "baseline": {
+        "speed_mps": 6.5,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.2024546422328696,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.12007209437223135,
+        "tail_heading_rms_deg": 0.7918276955856451,
+        "final_offset_m": 0.1298578478494732,
+        "final_heading_deg": 0.6486538915845199,
+        "settling_time_s": null,
+        "max_steer_step_deg": 0.8226936938421012,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 6.5,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.25463670922159426,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.127018244318415,
+        "tail_heading_rms_deg": 0.658316689601637,
+        "final_offset_m": 0.1321528611621683,
+        "final_heading_deg": -0.9110293876490404,
+        "settling_time_s": null,
+        "max_steer_step_deg": 0.8199915472223074,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    },
+    {
+      "baseline": {
+        "speed_mps": 8.0,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6,
+        "max_abs_heading_deg": 7.272064431977208,
+        "tail_offset_rms_m": 0.1370070800503841,
+        "tail_heading_rms_deg": 0.8481493489557927,
+        "final_offset_m": -0.07413494437882184,
+        "final_heading_deg": 1.0967388163640064,
+        "settling_time_s": null,
+        "max_steer_step_deg": 1.6459900477965825,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 8.0,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6,
+        "max_abs_heading_deg": 5.076546908209322,
+        "tail_offset_rms_m": 0.10901013433935182,
+        "tail_heading_rms_deg": 0.5823132949201005,
+        "final_offset_m": -0.16669615295016244,
+        "final_heading_deg": -0.13810513018857104,
+        "settling_time_s": null,
+        "max_steer_step_deg": 1.635210700098912,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    },
+    {
+      "baseline": {
+        "speed_mps": 8.0,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.2094296094382302,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.12185400648376593,
+        "tail_heading_rms_deg": 0.7435677835474604,
+        "final_offset_m": 0.05492396185651485,
+        "final_heading_deg": 0.6487509215835395,
+        "settling_time_s": 18.25,
+        "max_steer_step_deg": 0.8229950238983017,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 8.0,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.27234106047265044,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.11910113662141035,
+        "tail_heading_rms_deg": 0.6423077654023529,
+        "final_offset_m": -0.046543704442119437,
+        "final_heading_deg": -0.859539061691108,
+        "settling_time_s": 18.75,
+        "max_steer_step_deg": 1.2283253846435995,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    },
+    {
+      "baseline": {
+        "speed_mps": 10.0,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6983466380290648,
+        "max_abs_heading_deg": 8.232650643747725,
+        "tail_offset_rms_m": 0.3628103304237885,
+        "tail_heading_rms_deg": 4.46643758058622,
+        "final_offset_m": 0.05536824139381222,
+        "final_heading_deg": 1.8863673027536532,
+        "settling_time_s": null,
+        "max_steer_step_deg": 1.6459900477965825,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 10.0,
+        "initial_offset_m": 0.6,
+        "initial_heading_deg": 0.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.6,
+        "max_abs_heading_deg": 5.145226190820276,
+        "tail_offset_rms_m": 0.1263892537677498,
+        "tail_heading_rms_deg": 0.7602227838175499,
+        "final_offset_m": -0.16158763241964844,
+        "final_heading_deg": -0.6868907060976311,
+        "settling_time_s": null,
+        "max_steer_step_deg": 2.0450381324902747,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    },
+    {
+      "baseline": {
+        "speed_mps": 10.0,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.26331086322933744,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.12116243721082498,
+        "tail_heading_rms_deg": 0.7337731001151971,
+        "final_offset_m": -0.1956278613971327,
+        "final_heading_deg": -0.17434110709989717,
+        "settling_time_s": null,
+        "max_steer_step_deg": 0.8229950238983017,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      },
+      "candidate": {
+        "speed_mps": 10.0,
+        "initial_offset_m": 0.0,
+        "initial_heading_deg": 6.0,
+        "scan_period_s": 0.125,
+        "completed_s": 20.0,
+        "max_abs_offset_m": 0.2703049861527859,
+        "max_abs_heading_deg": 6.000000000000001,
+        "tail_offset_rms_m": 0.12436646446128714,
+        "tail_heading_rms_deg": 0.6314310652799008,
+        "final_offset_m": -0.1612593945379363,
+        "final_heading_deg": -0.6881019087902721,
+        "settling_time_s": null,
+        "max_steer_step_deg": 1.6384894994745443,
+        "phases": {
+          "WALL_FOLLOW": 160
+        },
+        "stop_samples": 0
+      }
+    }
+  ],
+  "unchanged_files_sha256": {
+    "src/leo_avoidance/config/avoidance_local.yaml": true,
+    "src/leo_avoidance/scripts/driving_state_node_local.py": true
+  },
+  "baseline_test_note": "Before the change, one test still expected bubble_margin_m=0.35 although the committed YAML already used 0.40. Updated only the assertion to 0.40; parameter file unchanged.",
+  "limitations": [
+    "No live ROS nodes or vehicle commands were started. Real driving validation is still required.",
+    "Kinematic comparison uses ideal walls, constant speed, and no tyre/actuator model; it is not a rerun of the recorded vehicle trajectory.",
+    "Kinematic heading RMS improved, but initial-heading cases increased maximum lateral offset by about 5 cm at 5 and 6.5 m/s; not every metric improved.",
+    "Same-state branch comparisons do not guarantee identical future vehicle trajectories after a different preceding wall-follow target."
+  ],
+  "recorded_cloud_comparison": {
+    "limitations": [
+      "Raw LiDAR is original. Pose and selected cloud are reconstructed from published driving status.",
+      "Exact odometry and preferred-bearing/worker inputs are absent from these bags.",
+      "Capture yaw is approximated with recorded map-pose yaw; original phase agreement is reported.",
+      "Fixed-state comparisons test branch preservation, not closed-loop driving performance."
+    ],
+    "runs": [
+      {
+        "run": "224142",
+        "compared": 150,
+        "phases": {
+          "PASSING": 24,
+          "WALL_FOLLOW": 126
+        },
+        "original_phase_agreement": 132,
+        "protected_cases": 68,
+        "protected_differences": [],
+        "stop_flag_differences": [],
+        "match_error_p95_s": 0.0029268145561218216
+      },
+      {
+        "run": "224300",
+        "compared": 183,
+        "phases": {
+          "PASSING": 59,
+          "WALL_FOLLOW": 124
+        },
+        "original_phase_agreement": 165,
+        "protected_cases": 89,
+        "protected_differences": [],
+        "stop_flag_differences": [],
+        "match_error_p95_s": 0.0035284757614135764
+      }
+    ]
+  }
+}

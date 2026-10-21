@@ -1,0 +1,14 @@
+{
+  "commit": "9bef9d0f4d011063a3b1b4f9fa4f75d5b0ccfbb7",
+  "sha256": {
+    "src/leo_avoidance/src/leo_avoidance/ftg_local.py": "e39a90a3e4e2f892e844d4a240ee267f7b0e3da4739e7a695b851a85d6d46c96",
+    "src/leo_avoidance/scripts/driving_state_node_local.py": "c7ce7264c0d2f469ac1181e14fedf901b00df1e6f68a60b6967466dc0bb749f2",
+    "src/leo_avoidance/config/avoidance_local.yaml": "8c3d287fa1554e18e956740e3e61ac860c0b8a8caec80a0816580ab07f3f8b5e",
+    "src/leo_avoidance/test/test_ftg_local.py": "7f06498baee3bc098bde69e3c7ea7b7e5454347a7290ca7c88534056b7bdb841",
+    "src/leo_avoidance/test/test_rejoin_route_local.py": "cf2c7aacabfc10a5b73bfaeb3e3f119f64bd18b2dcab90b858c32d7a47dd56b5",
+    "src/leo_avoidance/scripts/route_avoidance_node.py": "6d0d7ed791ccca6a97c60bf4650ede0f9d48c1b81246401abe426ad319270692",
+    "src/unita_waypoint/scripts/lane_corridor.py": "5bf80830483c386e9d54ec82ebb59056ced57ec3ec81b987b9ca68a90ba4896c",
+    "src/unita_waypoint/config/map_tunner_project.json": "afd1b82e6b6e6cd36dd97c5b497bc00a6bbd24fe644409052810a3fdfd0767bf"
+  },
+  "baseline_includes_uncommitted_heading_fix": true
+}

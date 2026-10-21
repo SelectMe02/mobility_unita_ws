@@ -19,6 +19,38 @@ node = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(node)
 
 
+def test_s14_ground_profile_uses_exact_shared_checkpoint_boundaries_only():
+    import json
+    project_file = Path(__file__).parents[2] / 'unita_waypoint/config/map_tunner_project.json'
+    project = json.loads(project_file.read_text())
+    route = RouteProgress(node.load_route_points(project_file), max_error=7.)
+    state = node.DrivingStateNode.__new__(node.DrivingStateNode)
+    state.s14_ground_bounds = node.s14_ground_interval(project_file, route)
+    state.s14_ground_reference_z_m = -1.61
+    start, end = state.s14_ground_bounds
+    line = project['sectors'][13]['racelines']['1']
+    for point, expected in ((line[0], start), (line[-1], end)):
+        index = np.argmin(np.linalg.norm(route.points - (point['x'], point['y']), axis=1))
+        assert abs(route.s[index] - expected) < 1e-8
+    assert state.ground_reference_for_progress(start - 1e-6) is None
+    assert state.ground_reference_for_progress(start) == -1.61
+    assert state.ground_reference_for_progress(end - 1e-6) == -1.61
+    assert state.ground_reference_for_progress(end) is None
+    # Check every saved segment, including the rest of S15's GPS-denied window.
+    for progress in (route.s[:-1] + route.s[1:]) / 2.:
+        reference = state.ground_reference_for_progress(float(progress))
+        assert reference == (-1.61 if start <= progress < end else None)
+    assert state.ground_reference_for_progress(float('nan')) is None
+
+
+def test_csv_without_sector_metadata_keeps_original_ground_filter():
+    state = node.DrivingStateNode.__new__(node.DrivingStateNode)
+    route = RouteProgress(np.array([[0., 0.], [1., 0.], [2., 0.]]))
+    state.s14_ground_bounds = node.s14_ground_interval('route.csv', route)
+    assert state.s14_ground_bounds is None
+    assert state.ground_reference_for_progress(1.) is None
+
+
 def test_gps_rejoin_accepts_nearby_route_aligned_fix():
     state = node.DrivingStateNode.__new__(node.DrivingStateNode)
     points = np.column_stack((np.arange(0., 101., .5), np.zeros(202)))

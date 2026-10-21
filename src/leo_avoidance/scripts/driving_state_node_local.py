@@ -23,7 +23,8 @@ from leo_avoidance.driving_state_local import DrivingState
 from leo_avoidance.ftg_local import Config, FollowTheGap, Plan
 from leo_avoidance.scan_odometry import ScanOdometry
 from leo_guard.traffic_local import RouteProgress
-from leo_guard.route_file import anchor_on_route, load_route_points, load_route_speeds
+from leo_guard.route_file import (anchor_on_route, checkpoint_indices,
+                                  load_route_points, load_route_speeds)
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from avoidance_runtime import FrozenConfigTarget, RuntimeSettings  # noqa: E402
@@ -43,6 +44,22 @@ def locate_or_reacquire(route, x, y, yaw):
             raise
         route.index = None
         return route.locate(x, y, yaw)
+
+
+def s14_ground_interval(waypoint_file, route):
+    """Exact CP13-to-CP14 interval, including the shared boundary vertex.
+
+    Route point sector labels lose the duplicated first S14 point. Checkpoint
+    indices retain its true location and keep this profile out of S13/S15.
+    CSV routes have no sector metadata and retain the original filter.
+    """
+    if Path(waypoint_file).suffix.lower() != '.json':
+        return None
+    checkpoints = checkpoint_indices(waypoint_file)
+    start, end = (float(route.s[checkpoints[name]]) for name in ('13', '14'))
+    if not 0. <= start < end <= route.total:
+        raise ValueError('invalid S14 ground-filter interval')
+    return start, end
 
 
 class DrivingStateNode:
@@ -72,15 +89,22 @@ class DrivingStateNode:
                                 for key, default in vars(Config()).items()})
         self.planner = FollowTheGap(self.config)
         self.runtime = RuntimeSettings('leo_driving_state', FrozenConfigTarget(self.planner))
-        route_points = load_route_points(rospy.get_param('~waypoint_file'))
+        waypoint_file = rospy.get_param('~waypoint_file')
+        route_points = load_route_points(waypoint_file)
         # FTG top speed = Map Tuner point speed at the current route index.
-        self.route_speeds_kmh = load_route_speeds(rospy.get_param('~waypoint_file'))
+        self.route_speeds_kmh = load_route_speeds(waypoint_file)
         # A safe pass can leave the mapped centerline by several metres.
         # Keep route projection available so the preferred bearing pulls
         # back toward the same waypoint path after the obstacle clears.
         route_max_error_m = float(rospy.get_param('~route_max_error_m', 7.))
         self.route = RouteProgress(route_points, max_error=route_max_error_m,
                                    backward_window=30)
+        self.s14_ground_bounds = s14_ground_interval(waypoint_file, self.route)
+        self.s14_ground_reference_z_m = float(rospy.get_param(
+            '~s14_ground_reference_z_m', -1.61))
+        if (not math.isfinite(self.s14_ground_reference_z_m)
+                or not -2.5 < self.s14_ground_reference_z_m < -.3):
+            raise ValueError('invalid S14 ground reference in LiDAR frame')
         self.blackout_route = RouteProgress(route_points, max_error=route_max_error_m,
                                             backward_window=30)
         self.rejoin_route = RouteProgress(route_points, max_error=2.0)
@@ -246,6 +270,12 @@ class DrivingStateNode:
             raise ValueError('route target is behind vehicle')
         return math.atan2(local_y, local_x)
 
+    def ground_reference_for_progress(self, progress):
+        bounds = getattr(self, 's14_ground_bounds', None)
+        if bounds is not None and bounds[0] <= progress < bounds[1]:
+            return self.s14_ground_reference_z_m
+        return None
+
     def exit_rejoin_guidance(self, heading_yaw):
         """Exit-only direction from saved route geometry and captured heading.
 
@@ -339,6 +369,7 @@ class DrivingStateNode:
             message, received = item
             points = None
             speed = None
+            ground_reference = None
             self.runtime.poll()
             try:
                 with self.lock:
@@ -373,6 +404,7 @@ class DrivingStateNode:
                         or speed[0] < 0):
                     raise ValueError('Ego speed missing/stale at LiDAR scan')
                 preferred_bearing = self.route_bearing(pose)
+                ground_reference = self.ground_reference_for_progress(self.route_progress_m)
                 if self.route_speeds_kmh is not None:
                     self.planner.config = replace(
                         self.planner.config, max_speed_mps=float(
@@ -397,7 +429,8 @@ class DrivingStateNode:
                                          route_rejoin_remaining_m=remaining,
                                          exit_heading_error_rad=exit_heading,
                                          ego_pose=odom_sample[0],
-                                         stamp=scan_stamp)
+                                         stamp=scan_stamp,
+                                         ground_reference_z_m=ground_reference)
                 if time.monotonic() - received > self.machine.input_timeout_s:
                     raise ValueError('LiDAR planning exceeded input age limit')
             except Exception as error:
@@ -461,7 +494,8 @@ class DrivingStateNode:
                     json.dumps(plan.swept_rejection, sort_keys=True))
             if (plan.reason == 'front obstacle inside stopping distance'
                     and points is not None):
-                candidates = self.planner.obstacle_candidates(points)
+                candidates = self.planner.obstacle_candidates(
+                    points, ground_reference_z_m=ground_reference)
                 front = candidates[(candidates[:, 0] > 0.)
                                    & (np.abs(candidates[:, 1]) <=
                                       self.config.vehicle_half_width_m

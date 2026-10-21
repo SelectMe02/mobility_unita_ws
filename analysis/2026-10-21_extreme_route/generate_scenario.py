@@ -11,12 +11,14 @@ import math
 from pathlib import Path
 
 import numpy as np
+from highway_traffic import make_highway_traffic
 
 OUT = Path(__file__).resolve().parent
 WS = OUT.parents[1]
 SOURCE = Path('/home/unita/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025')
 PROJECT = WS / 'src/unita_waypoint/config/map_tunner_project.json'
 NAME = 'UNITA_EXTREME_ROUTE_20261021'
+REMOVED_ACTOR_IDS = {1002, 1006, 1008, 1012, 1014}
 
 
 def read(path):
@@ -106,8 +108,9 @@ manifest = dict(name=NAME, route=str(PROJECT), route_sha256=hashlib.sha256(PROJE
                     'Signal phases are the official snapshot; no unverified timed/yellow event schema is invented.',
                     'S5-end obstruction is temporary crossing. Compact static blockers use surveyed passing windows.',
                     'S12/S13 tollgate waypoint-only corridor is left clear.',
-                    'Object moveSpeed uses existing TUN convention (m/s); pedestrian speed uses existing SIG convention (km/h).',
-                    'NPC custom target speeds and spawn periods are requested settings; simulator execution is not verified.',
+                    'Object moveSpeed and pedestrian speed are km/h. Installed ObstacleObject.SetMoveSpeed divides by 3.6 internally.',
+                    'Bounded load: 13 scripted actors, including 3 proximity-triggered S11 lane-changing cars; no NPC spawners.',
+                    'Moving cars outside S11 are set to 20 km/h; static objects and pedestrians retain their roles.',
                     'Asset mesh footprints and sensor mounting are not inferred from scale factors.',
                     'Native scenario loading, exact NPC timing and drivability still require a simulator run.'])
 uid = 1000
@@ -130,7 +133,7 @@ def add_object(label, sector, points, yaw=None, speed=0., active=0., model=40100
     scene['objectList'].append(obj)
     scene['waypointDataList'].append(dict(pathName='ObstaclePath - %d' % uid, waypointData=path))
     manifest['actors'].append(dict(id=uid, label=label, sector=sector, kind='moving_object' if moving else 'static',
-                                   model=model, speed_mps=float(speed), active_distance_m=float(active),
+                                   model=model, speed_kmh=float(speed), active_distance_m=float(active),
                                    start=list(map(float, points[0])), end=list(map(float, points[-1])),
                                    path_points=len(path)))
 
@@ -167,8 +170,8 @@ pedestrian('C077 신호 통과 직후 횡단', 3, 39., 3.5, -6., 7.5, 15.)
 # C091 static-obstacle zone: adjacent parked vehicle + slow departing lead vehicle.
 static_at('C091 인접 차로 주차 장애물', 4, 2, -142., model=40100012, scale=(1., 1., 1.))
 line = lanes[4, 1]
-add_object('C091 저속 출발 선행차', 4,
-           line.follow([(38., 0.), (78., 0.), (94., 0.), (109., 7.)]), speed=3.2, active=32.)
+add_object('C091 20km/h 선행차', 4,
+           line.follow([(38., 0.), (78., 0.), (94., 0.), (109., 7.)]), speed=20., active=32.)
 # S5/S6 static objects leave the adjacent same-direction lane unobstructed.
 static_at('S5 점선 구간 차로 중앙 적재물', 5, 1, -65.)
 pedestrian('S5 끝 1차 횡단', 5, lanes[5, 1].station_y(-19.), 3.5, -6., 7., 13.5)
@@ -188,7 +191,7 @@ circle = links['A2256W000134']['points']+links['A2256W000135']['points'][1:]
 circle += links['A2256W000102']['points'][1:]
 circle_exit = Line(links['A2256W000848']['points'])
 circle += circle_exit.follow([(0., 0.), (4., 0.), (24., -6.), (28., -6.)])[1:]
-add_object('회전교차로 진입 시 순환 차량', 9, circle, speed=5.6, active=30.)
+add_object('회전교차로 20km/h 순환 차량', 9, circle, speed=20., active=30.)
 # Three staggered highway obstructions; no station blocks every lane.
 static_at('S11 R3 정차 차량', 11, 3, 85., model=40100020, scale=(1., 1., 1.))
 static_at('S11 R2 연속 정차 차량', 11, 2, 25., model=40100013, scale=(1., 1., 1.))
@@ -197,20 +200,22 @@ static_at('S11 R1 후속 정차 차량', 11, 1, -35., model=40100018, scale=(1.,
 line = lanes[14, 1]
 p, yaw = line.at(59., 3.5)
 add_object('GPS 음영 터널 인접 차로 정차 차량', 14, [p], yaw=yaw, model=40100012)
-add_object('GPS 음영 진입 저속 끼어들기 후 차로 이탈', 14,
+add_object('GPS 음영 진입 20km/h 끼어들기 후 차로 이탈', 14,
            line.follow([(24., 3.5), (43., 0.), (95., 0.), (118., 3.5)]),
-           speed=3.8, active=30.)
+           speed=20., active=30.)
 
-# Native map-connected traffic runs throughout the lap; proximity actors ensure late arrivals still meet hazards.
-for spawner, period, speed in zip(reference['spawnPointList'], (4.1, 5.3, 6.7, 3.9), (68., 32., 48., 18.)):
-    spawner = copy.deepcopy(spawner)
-    spawner.update(isSpawning=True, spawnedVehiclesCount=0, waitSpawnTime=0.,
-                   minSpawnPeriod=period, maxSpawnPeriod=period,
-                   MinDesiredVelocity_Custom=speed, MaxDesiredVelocity_Custom=speed)
-    scene['spawnPointList'].append(spawner)
-    manifest['spawners'].append(dict(id=spawner['UNIQUEID'], period_s=period,
-        requested_speed_kmh=speed, maximum_spawn_vehicle=spawner['maximumSpawnVehicle'],
-        start=spawner['startLinkInfo'], end=spawner['endLinkInfo']))
+# Retain the original IDs and geometry while thinning the same scenario.
+for key in ('objectList', 'pedestrianList'):
+    scene[key] = [a for a in scene[key] if a['UNIQUEID'] not in REMOVED_ACTOR_IDS]
+scene['waypointDataList'] = [p for p in scene['waypointDataList']
+                             if int(p['pathName'].rsplit(' - ', 1)[1]) not in REMOVED_ACTOR_IDS]
+manifest['actors'] = [a for a in manifest['actors'] if a['id'] not in REMOVED_ACTOR_IDS]
+
+# Proximity cars remain available until Ego reaches S11, with a fixed actor count.
+highway_objects, highway_paths, highway_actors = make_highway_traffic(project)
+scene['objectList'].extend(highway_objects)
+scene['waypointDataList'].extend(highway_paths)
+manifest['actors'].extend(highway_actors)
 
 # Current semi UDP ports. This saved template differs from latest test_scenario
 # only by disabling unused publishers/services; sensors are a separate saved profile.

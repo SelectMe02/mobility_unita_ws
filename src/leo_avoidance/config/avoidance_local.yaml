@@ -29,6 +29,7 @@ brake_mps2: 4.0  # planning decel; MORAI Ego measured about 8 m/s^2 at full brak
 wall_slow_clearance_m: 0.5
 wall_fast_clearance_m: 1.4
 expected_ground_z_m: -1.23  # ground plane at LiDAR origin; check mount in simulator
+s14_ground_reference_z_m: -1.61  # S14 only: measured raw LiDAR road level; other sectors keep the existing filter
 ground_height_tolerance_m: 0.25
 collision_min_z_m: -1.13  # 10 cm above the nominal road plane
 collision_max_z_m: 0.8  # about 2.0 m above road; omit tunnel roof

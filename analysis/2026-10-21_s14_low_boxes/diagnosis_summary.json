@@ -1,0 +1,515 @@
+{
+  "source_bags": [
+    "/home/unita/unita_ws/src/unita_waypoint/log/semi_leo_2026-10-21-23-00-42.bag",
+    "/home/unita/unita_ws/src/unita_waypoint/log/run_20261021_230042/sensors_2026-10-21-23-00-42_0.bag"
+  ],
+  "control_owner": {
+    "blackout_ctrl_samples": 597,
+    "matched_recent_leo_raw": 597,
+    "matched_recent_raceline": 0
+  },
+  "ground_reference_stats": {
+    "14": {
+      "scans": 221,
+      "old_ground_fit_removes_points_scans": 0,
+      "new_reference_ground_fit_removes_points_scans": 221,
+      "diagnostic_plane_intercept_min_median_max_m": [
+        -1.6475762775986282,
+        -1.6173384363113645,
+        -1.5676484597251694
+      ]
+    },
+    "15": {
+      "scans": 29,
+      "old_ground_fit_removes_points_scans": 0,
+      "new_reference_ground_fit_removes_points_scans": 29,
+      "diagnostic_plane_intercept_min_median_max_m": [
+        -1.6677582894377065,
+        -1.6125358875124038,
+        -1.553380521699455
+      ]
+    }
+  },
+  "candidate_examples": [
+    {
+      "kind": "entry_left_candidate",
+      "stamp": 1792591269.5435898,
+      "relative_s": 27.05189847946167,
+      "sector": 14,
+      "ego": [
+        7.688584145172222,
+        -501.0402818926051,
+        -2.6048512601659732
+      ],
+      "plane": [
+        0.001242883867801498,
+        -0.010511505270654142,
+        -1.603897542480028
+      ],
+      "candidates": [
+        {
+          "raw_points": 66,
+          "lidar_median_xyz": [
+            6.88973593711853,
+            3.298407554626465,
+            -1.258828341960907
+          ],
+          "lidar_min_xyz": [
+            6.680666446685791,
+            3.0181591510772705,
+            -1.5321964025497437
+          ],
+          "lidar_max_xyz": [
+            7.304502487182617,
+            3.9645276069641113,
+            -1.199852466583252
+          ],
+          "height_above_fitted_road_percentiles": [
+            0.10285692187367212,
+            0.3741246456971238,
+            0.4318729818514224
+          ],
+          "approx_map_xy": [
+            2.2511573071043864,
+            -508.1137254446688
+          ],
+          "original_stage_roi_counts": [
+            69,
+            69,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lowered_reference_stage_roi_counts": [
+            69,
+            66,
+            59,
+            59,
+            59,
+            59
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "exit_candidate_seen_in_s14",
+      "stamp": 1792591287.531341,
+      "relative_s": 45.03964972496033,
+      "sector": 14,
+      "ego": [
+        -68.48710024549756,
+        -545.0021182291302,
+        -2.5389826328842333
+      ],
+      "plane": [
+        0.0028936322542737545,
+        0.005811035127406994,
+        -1.6177362946635165
+      ],
+      "candidates": [
+        {
+          "raw_points": 13,
+          "lidar_median_xyz": [
+            16.32711410522461,
+            -1.5376166105270386,
+            -1.4347577095031738
+          ],
+          "lidar_min_xyz": [
+            16.270292282104492,
+            -1.8867429494857788,
+            -1.44068443775177
+          ],
+          "lidar_max_xyz": [
+            16.365116119384766,
+            -1.18910551071167,
+            -1.4272624254226685
+          ],
+          "height_above_fitted_road_percentiles": [
+            0.14033059578470075,
+            0.144669065302514,
+            0.15030356059982797
+          ],
+          "approx_map_xy": [
+            -83.9632570388734,
+            -553.7829729852158
+          ],
+          "original_stage_roi_counts": [
+            13,
+            13,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lowered_reference_stage_roi_counts": [
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "exit_candidate_seen_in_s14",
+      "stamp": 1792591288.4674098,
+      "relative_s": 45.97571849822998,
+      "sector": 14,
+      "ego": [
+        -73.07470922375285,
+        -547.6532687008472,
+        -2.6948986377028215
+      ],
+      "plane": [
+        0.003336938306977079,
+        0.0029035837884374693,
+        -1.6152160747440858
+      ],
+      "candidates": [
+        {
+          "raw_points": 20,
+          "lidar_median_xyz": [
+            11.628835678100586,
+            0.7166578471660614,
+            -1.4302586913108826
+          ],
+          "lidar_min_xyz": [
+            11.516655921936035,
+            0.3332626223564148,
+            -1.4663320779800415
+          ],
+          "lidar_max_xyz": [
+            11.888725280761719,
+            1.130094289779663,
+            -1.4195342063903809
+          ],
+          "height_above_fitted_road_percentiles": [
+            0.10593073049433377,
+            0.14418804993661571,
+            0.15430827808222358
+          ],
+          "approx_map_xy": [
+            -84.51557136507208,
+            -553.9278867019832
+          ],
+          "original_stage_roi_counts": [
+            20,
+            20,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lowered_reference_stage_roi_counts": [
+            20,
+            20,
+            20,
+            20,
+            20,
+            20
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "exit_candidate_in_s15",
+      "stamp": 1792591289.4864168,
+      "relative_s": 46.994725465774536,
+      "sector": 15,
+      "ego": [
+        -77.2920663470822,
+        -549.6107803649518,
+        -2.686962862379206
+      ],
+      "plane": [
+        0.003873392017788478,
+        -0.0003658790620184593,
+        -1.6125358875124038
+      ],
+      "candidates": [
+        {
+          "raw_points": 62,
+          "lidar_median_xyz": [
+            6.358025789260864,
+            0.7988508343696594,
+            -1.2539967894554138
+          ],
+          "lidar_min_xyz": [
+            6.256679534912109,
+            0.39082446694374084,
+            -1.4878263473510742
+          ],
+          "lidar_max_xyz": [
+            6.967414855957031,
+            1.2875627279281616,
+            -1.2337709665298462
+          ],
+          "height_above_fitted_road_percentiles": [
+            0.10003859795987347,
+            0.3337601708028979,
+            0.35491912671065684
+          ],
+          "approx_map_xy": [
+            -83.9112611077749,
+            -553.7352666993245
+          ],
+          "original_stage_roi_counts": [
+            69,
+            69,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lowered_reference_stage_roi_counts": [
+            69,
+            62,
+            62,
+            62,
+            62,
+            62
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "exit_candidate_in_s15",
+      "stamp": 1792591289.9604383,
+      "relative_s": 47.46874690055847,
+      "sector": 15,
+      "ego": [
+        -78.93044774385585,
+        -550.4406660261019,
+        -2.652867363596538
+      ],
+      "plane": [
+        0.005947938089927386,
+        -0.002657568283352063,
+        -1.633148504460318
+      ],
+      "candidates": [
+        {
+          "raw_points": 5,
+          "lidar_median_xyz": [
+            4.958546161651611,
+            0.9162823557853699,
+            -1.1634470224380493
+          ],
+          "lidar_min_xyz": [
+            4.950231552124023,
+            0.882019579410553,
+            -1.1674959659576416
+          ],
+          "lidar_max_xyz": [
+            4.966079235076904,
+            0.9545199871063232,
+            -1.1629970073699951
+          ],
+          "height_above_fitted_road_percentiles": [
+            0.4386513087063244,
+            0.4425983940269489,
+            0.44318884319506324
+          ],
+          "approx_map_xy": [
+            -84.11441667359594,
+            -554.2350235185988
+          ],
+          "original_stage_roi_counts": [
+            5,
+            5,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lowered_reference_stage_roi_counts": [
+            5,
+            5,
+            5,
+            5,
+            5,
+            5
+          ]
+        },
+        {
+          "raw_points": 32,
+          "lidar_median_xyz": [
+            5.381160259246826,
+            0.6395579874515533,
+            -1.2507280111312866
+          ],
+          "lidar_min_xyz": [
+            5.33715295791626,
+            0.3479679822921753,
+            -1.253427267074585
+          ],
+          "lidar_max_xyz": [
+            5.410216808319092,
+            0.9295622110366821,
+            -1.2484784126281738
+          ],
+          "height_above_fitted_road_percentiles": [
+            0.3497870348665324,
+            0.35236462609414,
+            0.35445828774497556
+          ],
+          "approx_map_xy": [
+            -84.61747851534763,
+            -554.1891123555839
+          ],
+          "original_stage_roi_counts": [
+            32,
+            32,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lowered_reference_stage_roi_counts": [
+            32,
+            32,
+            32,
+            32,
+            32,
+            32
+          ]
+        },
+        {
+          "raw_points": 5,
+          "lidar_median_xyz": [
+            5.0350236892700195,
+            0.2708772122859955,
+            -1.1638967990875244
+          ],
+          "lidar_min_xyz": [
+            5.033930778503418,
+            0.23563481867313385,
+            -1.1665962934494019
+          ],
+          "lidar_max_xyz": [
+            5.043766021728516,
+            0.3067226707935333,
+            -1.1634470224380493
+          ],
+          "height_above_fitted_road_percentiles": [
+            0.4373673394152815,
+            0.43997686333243324,
+            0.4403861890233096
+          ],
+          "approx_map_xy": [
+            -84.48495935726537,
+            -553.7010808895972
+          ],
+          "original_stage_roi_counts": [
+            5,
+            5,
+            0,
+            0,
+            0,
+            0
+          ],
+          "lowered_reference_stage_roi_counts": [
+            5,
+            5,
+            5,
+            5,
+            5,
+            5
+          ]
+        }
+      ]
+    }
+  ],
+  "exit_impulse_events": [
+    {
+      "stamp": 1792591290.413944,
+      "time": "2026-10-21T23:01:30.413+09:00",
+      "relative_s": 47.9222526550293,
+      "sector": 15,
+      "waypoint_index": 3890,
+      "map_pose": [
+        -80.98880534378368,
+        -551.5852559638553,
+        -2.6121438248000537
+      ],
+      "drive_mode": "BLACKOUT",
+      "acceleration_xyz_mps2": [
+        -7.297331809997559,
+        2.7246150970458984,
+        16.077844619750977
+      ],
+      "pitch_deg": -1.408101700850704,
+      "pitch_rate_rad_s": -0.42534539103507996
+    },
+    {
+      "stamp": 1792591290.41457,
+      "time": "2026-10-21T23:01:30.414+09:00",
+      "relative_s": 47.92287874221802,
+      "sector": 15,
+      "waypoint_index": 3890,
+      "map_pose": [
+        -80.98880534378368,
+        -551.5852559638553,
+        -2.6121438248000537
+      ],
+      "drive_mode": "BLACKOUT",
+      "acceleration_xyz_mps2": [
+        -7.297331809997559,
+        2.7246150970458984,
+        16.077844619750977
+      ],
+      "pitch_deg": -1.408101700850704,
+      "pitch_rate_rad_s": -0.42534539103507996
+    },
+    {
+      "stamp": 1792591290.4382231,
+      "time": "2026-10-21T23:01:30.438+09:00",
+      "relative_s": 47.946531772613525,
+      "sector": 15,
+      "waypoint_index": 3890,
+      "map_pose": [
+        -81.76134221541562,
+        -552.0406239969693,
+        -2.5924918005843303
+      ],
+      "drive_mode": "BLACKOUT",
+      "acceleration_xyz_mps2": [
+        -0.3471388816833496,
+        3.471257448196411,
+        13.646944046020508
+      ],
+      "pitch_deg": -2.045358363189808,
+      "pitch_rate_rad_s": -0.05879303812980652
+    },
+    {
+      "stamp": 1792591290.5434346,
+      "time": "2026-10-21T23:01:30.543+09:00",
+      "relative_s": 48.051743268966675,
+      "sector": 15,
+      "waypoint_index": 3892,
+      "map_pose": [
+        -82.10379182244559,
+        -552.2440177315959,
+        -2.5877144474089198
+      ],
+      "drive_mode": "BLACKOUT",
+      "acceleration_xyz_mps2": [
+        0.3425408601760864,
+        -0.20125457644462585,
+        6.621596813201904
+      ],
+      "pitch_deg": -1.73007679737271,
+      "pitch_rate_rad_s": 0.05394823104143143
+    }
+  ],
+  "conclusion": "Recorded low-box candidate points survive the old ground stage but are discarded by absolute height threshold -1.13 m. Measured S14 road intercept median is -1.617 m; expected ground -1.23 m rejects every observed S14 plane. The in-memory -1.61/-1.51 reference profile retains entry/exit candidate points with the existing 0.1 m road-plane threshold.",
+  "scope": "Exit impact candidate at +47.922 s is in S15, though the same stationary low return cluster is already visible from S14 at +45.040 s. S15 code changes require user scope authorization.",
+  "limits": [
+    "Box labels are inferred from compact low-return geometry and user report; no simulator object labels or collision event topic were recorded.",
+    "IMU impulse supports contact but does not independently identify the contacted object.",
+    "Reference-profile comparison is point-level offline diagnosis, not closed-loop safety proof; no production code edits were made."
+  ]
+}

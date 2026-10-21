@@ -221,6 +221,7 @@ class FollowTheGap:
                                   self.config.scan_bins)
         self.angle_step_rad = self.angles[1] - self.angles[0]
         self.previous_bearing_rad = 0.0
+        self._previous_bearing_yaw = None
         self.right_wall_target_clearance_m = None
         self.right_wall_filtered_clearance_m = None
         self.avoidance_active = False
@@ -252,6 +253,26 @@ class FollowTheGap:
         self._scan_stamp = None
         self.debug_capture = False
         self.debug_snapshot = None
+
+    def _capture_yaw(self):
+        pose = self._ego_pose
+        if (pose is None or len(pose) != 3
+                or not all(math.isfinite(value) for value in pose)):
+            return None
+        return pose[2]
+
+    def _remember_bearing(self, bearing_rad):
+        self.previous_bearing_rad = bearing_rad
+        # Stops retain the last selected target, so its frame must also stay
+        # at the capture that produced that target, not at the stopped scan.
+        self._previous_bearing_yaw = self._capture_yaw()
+
+    def _bearing_in_current_frame(self):
+        yaw = self._capture_yaw()
+        if yaw is None or self._previous_bearing_yaw is None:
+            return self.previous_bearing_rad
+        angle = self.previous_bearing_rad + self._previous_bearing_yaw - yaw
+        return math.atan2(math.sin(angle), math.cos(angle))
 
     def reset_wall_target(self):
         self.right_wall_target_clearance_m = None
@@ -509,18 +530,25 @@ class FollowTheGap:
         edges = np.flatnonzero(np.diff(np.r_[False, mask, False].astype(np.int8)))
         return list(zip(edges[::2], edges[1::2] - 1))
 
-    def _remove_ground(self, points):
-        """Discard a measured road plane while keeping returns at any height.
+    @staticmethod
+    def _validated_ground_reference(ground_reference_z_m):
+        if ground_reference_z_m is None:
+            return None
+        try:
+            reference = float(ground_reference_z_m)
+        except (TypeError, ValueError):
+            raise ValueError('invalid ground reference')
+        if not math.isfinite(reference) or reference >= 0.:
+            raise ValueError('invalid ground reference')
+        return reference
 
-        Accept a plane only when low returns cover a broad part of the scan.
-        Sparse low boxes cannot define their own ground; uncertain scans keep
-        all returns and retain the existing stop behavior.
-        """
+    def _ground_plane(self, points, reference_z_m):
+        """Fit the existing broadly supported road model at its calibrated height."""
         sample = points[(points[:, 0] >= 1.) & (points[:, 0] <= 12.)
                         & (np.abs(points[:, 1]) <= 5.)
                         & (points[:, 2] >= -2.5) & (points[:, 2] <= -.3)]
         if len(sample) < 60:
-            return points
+            return None
         low_limit = np.percentile(sample[:, 2], 40.)
         low = sample[sample[:, 2] <= low_limit]
         bins = np.floor(low[:, 2] / .1).astype(np.int32)
@@ -529,21 +557,37 @@ class FollowTheGap:
         seed = sample[np.abs(sample[:, 2] - center_z) <= .18]
         if (len(seed) < 30 or np.ptp(seed[:, 0]) < 2.
                 or np.ptp(seed[:, 1]) < 2.):
-            return points
+            return None
         for _ in range(2):
             design = np.column_stack((seed[:, :2], np.ones(len(seed))))
             plane = np.linalg.lstsq(design, seed[:, 2], rcond=None)[0]
             if (abs(plane[0]) > .12 or abs(plane[1]) > .12
-                    or abs(plane[2] - self.config.expected_ground_z_m)
+                    or abs(plane[2] - reference_z_m)
                     > self.config.ground_height_tolerance_m):
-                return points
+                return None
             residual = sample[:, 2] - (sample[:, :2] @ plane[:2] + plane[2])
             seed = sample[np.abs(residual) <= .1]
             if (len(seed) < 30 or np.ptp(seed[:, 0]) < 2.
                     or np.ptp(seed[:, 1]) < 2.):
-                return points
+                return None
+        return plane
+
+    def _ground_filter(self, points, ground_reference_z_m=None):
+        reference = self._validated_ground_reference(ground_reference_z_m)
+        plane = self._ground_plane(points, self.config.expected_ground_z_m
+                                   if reference is None else reference)
+        if plane is None:
+            return points, None
         residual = points[:, 2] - (points[:, :2] @ plane[:2] + plane[2])
-        return points[np.abs(residual) > .1]
+        return points[np.abs(residual) > .1], plane
+
+    def _remove_ground(self, points, ground_reference_z_m=None):
+        """Discard measured road; keep the original ten-centimetre tolerance.
+
+        A per-call reference changes only the road-height anchor. Uncertain
+        fits keep all points for the subsequent collision-height check.
+        """
+        return self._ground_filter(points, ground_reference_z_m)[0]
 
     @staticmethod
     def _safe_speed_for_clearance(clearance_m, reaction_s, brake_mps2):
@@ -559,10 +603,17 @@ class FollowTheGap:
         return points[(radii <= self.config.max_range_m)
                       & (np.abs(bearings) <= self.half_fov_rad)]
 
-    def _in_collision_height(self, points):
+    def _in_collision_height(self, points, ground_reference_z_m=None, ground_plane=None):
         # Tunnel ceilings and the road surface are visible to LiDAR but do
         # not occupy the Ego vehicle's vertical collision envelope.
-        return points[(points[:, 2] >= self.config.collision_min_z_m)
+        reference = self._validated_ground_reference(ground_reference_z_m)
+        lower = self.config.collision_min_z_m
+        if reference is not None:
+            road_height = (reference if ground_plane is None else
+                           points[:, :2] @ ground_plane[:2] + ground_plane[2])
+            lower = road_height + (self.config.collision_min_z_m
+                                   - self.config.expected_ground_z_m)
+        return points[(points[:, 2] >= lower)
                       & (points[:, 2] <= self.config.collision_max_z_m)]
 
     def _remove_ego_returns(self, points):
@@ -575,30 +626,34 @@ class FollowTheGap:
                   & (np.abs(points[:, 1]) < cfg.vehicle_half_width_m - inset))
         return points[~inside]
 
-    def obstacle_candidates(self, points_lidar_m):
+    def obstacle_candidates(self, points_lidar_m, ground_reference_z_m=None):
         """Exactly the cloud returns FTG considers as obstacle hits."""
         points = np.asarray(points_lidar_m, dtype=float)
         if points.ndim != 2 or points.shape[1] != 3:
             raise ValueError('cloud must contain XYZ points')
+        reference = self._validated_ground_reference(ground_reference_z_m)
         points = points[np.isfinite(points).all(axis=1)]
         if len(points) == 0:
             return points
+        points, plane = self._ground_filter(points, reference)
         candidates = self._in_avoidance_sector(
             self._remove_ego_returns(
-                self._in_collision_height(self._remove_ground(points))))
+                self._in_collision_height(points, reference, plane)))
         return self._track_obstacles(candidates)[0]
 
-    def rear_obstacle_candidates(self, points_lidar_m):
+    def rear_obstacle_candidates(self, points_lidar_m, ground_reference_z_m=None):
         """Filtered returns that can confirm completion of an active pass."""
         points = np.asarray(points_lidar_m, dtype=float)
         if points.ndim != 2 or points.shape[1] != 3:
             raise ValueError('cloud must contain XYZ points')
+        reference = self._validated_ground_reference(ground_reference_z_m)
         points = points[np.isfinite(points).all(axis=1)]
         if len(points) == 0:
             return points
+        points, plane = self._ground_filter(points, reference)
         return self._rear_obstacle_points(
             self._remove_ego_returns(
-                self._in_collision_height(self._remove_ground(points))))
+                self._in_collision_height(points, reference, plane)))
 
     def _crossing_threats(self, tracked):
         """Moving obstacles predicted inside the Ego lane within the horizon.
@@ -640,7 +695,8 @@ class FollowTheGap:
 
     def plan(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
              wall_follow=False, wall_follow_weight=1., route_rejoin_remaining_m=None,
-             ego_pose=None, stamp=None, route_trusted=False, exit_heading_error_rad=None):
+             ego_pose=None, stamp=None, route_trusted=False, exit_heading_error_rad=None,
+             ground_reference_z_m=None):
         """Plan one scan. ego_pose is the odometry rear-axle pose (x, y, yaw)
         at the scan stamp; without it obstacles are not tracked over time.
 
@@ -652,6 +708,11 @@ class FollowTheGap:
         heading sensor yaw, supplied only within the configured exit window.
         It replaces the wall heading gradually via wall_follow_weight while
         retaining the measured wall-spacing correction and all collision checks.
+
+        ground_reference_z_m is an optional per-scan road-height calibration.
+        When present, the lower collision envelope follows the measured plane
+        (or this reference when no plane is supported), keeping its old height
+        above road. It is never saved for a subsequent scan.
         """
         now = self._clock()
         # Optional observation of this exact pass through the filters. The
@@ -665,7 +726,8 @@ class FollowTheGap:
         plan = self._plan_geometry(points_lidar_m, ego_speed_mps,
                                    preferred_bearing_rad, wall_follow,
                                    wall_follow_weight, route_rejoin_remaining_m,
-                                   route_trusted, exit_heading_error_rad)
+                                   route_trusted, exit_heading_error_rad,
+                                   ground_reference_z_m)
         cap = self._current_obstacle_cap
         if math.isfinite(cap):
             cap = min(cap, plan.speed_mps)
@@ -694,7 +756,7 @@ class FollowTheGap:
     def _plan_geometry(self, points_lidar_m, ego_speed_mps, preferred_bearing_rad=0.,
              wall_follow=False, wall_follow_weight=1.,
              route_rejoin_remaining_m=None, route_trusted=False,
-             exit_heading_error_rad=None):
+             exit_heading_error_rad=None, ground_reference_z_m=None):
         """Return a bounded low-speed plan or a full-stop plan.
 
         The cloud must be fresh before calling this function. Empty or
@@ -737,6 +799,10 @@ class FollowTheGap:
             return stop('invalid Ego speed')
         if not math.isfinite(preferred_bearing_rad):
             return stop('invalid route bearing')
+        try:
+            reference = self._validated_ground_reference(ground_reference_z_m)
+        except ValueError:
+            return stop('invalid ground reference')
         if exit_heading_error_rad is not None and not math.isfinite(exit_heading_error_rad):
             return stop('invalid exit heading')
         exit_rejoin = wall_follow and exit_heading_error_rad is not None
@@ -751,16 +817,29 @@ class FollowTheGap:
         if len(points) == 0:
             return stop('no finite points')
         before_ground = len(points)
-        points = self._remove_ground(points)
+        points, plane = self._ground_filter(points, reference)
         after_ground = len(points)
-        points = self._in_collision_height(points)
+        points = self._in_collision_height(points, reference, plane)
         after_height = len(points)
         points = self._remove_ego_returns(points)
         if getattr(self, 'debug_capture', False):
             self.debug_snapshot = dict(
                 points=points, ground_removed_points=before_ground-after_ground,
                 height_removed_points=after_ground-after_height,
-                ego_removed_points=after_height-len(points))
+                ego_removed_points=after_height-len(points),
+                ground_reference_z_m=(self.config.expected_ground_z_m
+                                      if reference is None else reference),
+                ground_reference_override=reference is not None,
+                ground_plane=None if plane is None else plane.tolist(),
+                collision_height_basis=('fixed_lidar_z' if reference is None else
+                                        'measured_ground_plane' if plane is not None else
+                                        'ground_reference'),
+                collision_min_height_above_ground_m=(self.config.collision_min_z_m
+                                                     - self.config.expected_ground_z_m),
+                collision_min_z_at_origin_m=(self.config.collision_min_z_m
+                    if reference is None else (reference if plane is None else plane[2])
+                    + self.config.collision_min_z_m - self.config.expected_ground_z_m),
+                collision_max_z_m=self.config.collision_max_z_m)
         if len(points) == 0:
             return stop('no points at collision height')
         rear_scan_points = int(np.count_nonzero(
@@ -790,7 +869,7 @@ class FollowTheGap:
                            float(np.clip(preferred_bearing_rad,
                            -cfg.max_target_bearing_rad,
                            cfg.max_target_bearing_rad)))
-            self.previous_bearing_rad = bearing_rad
+            self._remember_bearing(bearing_rad)
             return Plan(min(cfg.max_speed_mps, cfg.no_return_speed_mps),
                         bearing_rad, 'no forward returns; cautious travel',
                         0.0, 0.0, obstacle_points,
@@ -1038,7 +1117,14 @@ class FollowTheGap:
             dt = getattr(self, '_bearing_dt', None)
             if cfg.bearing_smoothing_tau_s > 0. and dt is not None:
                 alpha = 1. - math.exp(-dt / cfg.bearing_smoothing_tau_s)
-                desired = self.previous_bearing_rad + alpha * (desired - self.previous_bearing_rad)
+                previous = self.previous_bearing_rad
+                if avoidance_phase == 'WALL_FOLLOW' and wall is not None and not exit_rejoin:
+                    # A turn already made by Ego is not wall-measurement
+                    # noise. Move the old target into this scan's vehicle
+                    # frame before smoothing it; keep passing/exit guidance
+                    # and the subsequent collision checks unchanged.
+                    previous = self._bearing_in_current_frame()
+                desired = previous + alpha * (desired - previous)
             preferred_index = int(round((desired + self.half_fov_rad) /
                                         self.angle_step_rad))
             step_bins = max(1, int(round(math.radians(2.) / self.angle_step_rad)))
@@ -1099,7 +1185,7 @@ class FollowTheGap:
                 bearing_rad = float(np.clip(
                     wall_bearing, -cfg.unwalled_route_bearing_limit_rad,
                     cfg.unwalled_route_bearing_limit_rad))
-                self.previous_bearing_rad = bearing_rad
+                self._remember_bearing(bearing_rad)
                 crawl_speed = min(cfg.no_return_speed_mps,
                                   self._safe_speed_for_clearance(
                                       front_clearance_m - cfg.side_margin_m,
@@ -1123,7 +1209,7 @@ class FollowTheGap:
                         obstacle=True)
         _, angle_rad, gap_width_m = max(gap_options, key=lambda item: item[0])
         bearing_rad = angle_rad
-        self.previous_bearing_rad = bearing_rad
+        self._remember_bearing(bearing_rad)
         # Extend the selected curvature to braking distance, beyond the
         # short candidate feasibility check. Use the full cloud, including walls.
         speed_horizon = min(cfg.max_range_m, max(cfg.swept_path_horizon_m,

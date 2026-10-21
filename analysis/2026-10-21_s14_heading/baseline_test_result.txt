@@ -1,0 +1,94 @@
+Baseline sources/config/tests: /home/unita/unita_ws/rollback/2026-10-21_s14_heading_before/src/leo_avoidance
+unittest.case.FunctionTestCase (test_270_degree_mode_gate_and_300_degree_obstacle_detection) ... ok
+unittest.case.FunctionTestCase (test_anchored_route_is_not_clamped_when_the_portal_wall_ends) ... ok
+unittest.case.FunctionTestCase (test_anchored_route_overrides_wall_heading_at_tunnel_exit_bend)
+Logged exit: the road bends right while the wall runs straight. ... ok
+unittest.case.FunctionTestCase (test_anchored_route_skips_wall_disagreement_guard) ... ok
+unittest.case.FunctionTestCase (test_blackout_right_wall_spacing_steers_away_and_then_back) ... ok
+unittest.case.FunctionTestCase (test_blackout_scan_uses_only_minus_135_to_plus_135_degrees) ... ok
+unittest.case.FunctionTestCase (test_blackout_wall_spacing_overrides_drifted_route_until_exit) ... ok
+unittest.case.FunctionTestCase (test_blocked_route_bearing_chooses_matching_side) ... ok
+unittest.case.FunctionTestCase (test_blocks_left_behind_or_far_ahead_allow_return_to_wall_spacing) ... ok
+unittest.case.FunctionTestCase (test_center_obstacle_selects_side_gap) ... ok
+unittest.case.FunctionTestCase (test_clear_long_range_scan_allows_thirty_kmh) ... ok
+unittest.case.FunctionTestCase (test_close_obstacle_stops_at_current_speed) ... ok
+unittest.case.FunctionTestCase (test_connected_side_wall_survives_sparse_strip_sampling) ... ok
+unittest.case.FunctionTestCase (test_curved_path_speed_check_sees_obstacle_outside_front_strip) ... ok
+unittest.case.FunctionTestCase (test_curved_tunnel_wall_is_boundary_but_inner_box_remains_obstacle) ... ok
+unittest.case.FunctionTestCase (test_debug_capture_is_actual_filter_output_and_does_not_change_plan) ... ok
+unittest.case.FunctionTestCase (test_dense_tunnel_road_is_not_a_front_obstacle) ... ok
+unittest.case.FunctionTestCase (test_distant_tunnel_end_returns_do_not_block_local_gap_with_braking_room) ... ok
+unittest.case.FunctionTestCase (test_ego_body_reflection_does_not_block_distant_gap) ... ok
+unittest.case.FunctionTestCase (test_empty_cloud_stops) ... ok
+unittest.case.FunctionTestCase (test_exit_direction_keeps_wall_spacing_and_rejects_position_drift) ... ok
+unittest.case.FunctionTestCase (test_exit_fades_wall_spacing_and_limits_speed_for_route_alignment) ... ok
+unittest.case.FunctionTestCase (test_exit_heading_handover_is_gradual_and_invalid_heading_stops) ... ok
+unittest.case.FunctionTestCase (test_exit_interior_obstacles_still_trigger_avoidance_on_both_sides) ... ok
+unittest.case.FunctionTestCase (test_exit_wall_structure_changes_only_phase_trigger_not_collision_cloud) ... ok
+unittest.case.FunctionTestCase (test_far_box_waits_for_local_window_without_losing_speed_limit) ... ok
+unittest.case.FunctionTestCase (test_first_pass_chooses_wider_left_gap_over_tight_right_gap) ... ok
+unittest.case.FunctionTestCase (test_gap_interior_preference_gives_obstacle_more_room_on_either_side) ... ok
+unittest.case.FunctionTestCase (test_invalid_scan_brakes_and_returning_scan_cannot_jump_target_speed) ... ok
+unittest.case.FunctionTestCase (test_local_search_ignores_distant_wall_but_keeps_near_blocker) ... ok
+unittest.case.FunctionTestCase (test_local_search_keeps_distant_box_for_speed) ... ok
+unittest.case.FunctionTestCase (test_low_box_is_kept_while_road_return_is_excluded) ... ok
+unittest.case.FunctionTestCase (test_low_box_remains_in_vehicle_collision_height) ... ok
+unittest.case.FunctionTestCase (test_low_box_survives_road_plane_rejection) ... ok
+unittest.case.FunctionTestCase (test_missing_exit_wall_limits_uncorroborated_route_turn) ... ok
+unittest.case.FunctionTestCase (test_no_vehicle_width_gap_stops) ... ok
+unittest.case.FunctionTestCase (test_objects_beyond_wall_end_do_not_block_return_to_wall_spacing) ... ok
+unittest.case.FunctionTestCase (test_obstacle_clearance_increase_expands_the_blocked_angle) ... ok
+unittest.case.FunctionTestCase (test_open_corridor_follows_route_bearing) ... ok
+unittest.case.FunctionTestCase (test_open_corridor_keeps_forward_heading) ... ok
+unittest.case.FunctionTestCase (test_panelled_wall_profile_survives_global_fit_failure) ... ok
+unittest.case.FunctionTestCase (test_passable_tunnel_box_uses_local_gap_instead_of_far_wall_ray) ... ok
+unittest.case.FunctionTestCase (test_pose_diagnostic_uses_current_vehicle_heading) ... ok
+unittest.case.FunctionTestCase (test_rear_obstacle_does_not_gate_spacing_but_still_blocks_body_collision) ... ok
+unittest.case.FunctionTestCase (test_rear_points_before_a_front_pass_do_not_change_wall_following) ... ok
+unittest.case.FunctionTestCase (test_rear_quadrant_returns_cannot_authorize_no_forward_crawl) ... ok
+unittest.case.FunctionTestCase (test_relaxed_bubble_keeps_physical_swept_clearance) ... ok
+unittest.case.FunctionTestCase (test_right_rear_corner_rejects_turn_toward_flank_obstacle) ... ok
+unittest.case.FunctionTestCase (test_right_wall_nearby_slows_and_steers_left) ... ok
+unittest.case.FunctionTestCase (test_right_wall_spacing_band_has_no_offset_correction) ... ok
+unittest.case.FunctionTestCase (test_right_wall_target_resets_after_blackout) ... ok
+unittest.case.FunctionTestCase (test_road_below_vehicle_collision_height_is_excluded) ... ok
+unittest.case.FunctionTestCase (test_runtime_yaml_restores_spacing_and_expands_lidar_angle) ... FAIL
+unittest.case.FunctionTestCase (test_sector_avoidance_can_change_steering_side_on_next_scan) ... ok
+unittest.case.FunctionTestCase (test_sector_mode_returns_to_spacing_without_rear_confirmation) ... ok
+unittest.case.FunctionTestCase (test_short_observed_range_does_not_allow_thirty_kmh) ... ok
+unittest.case.FunctionTestCase (test_short_right_object_cannot_replace_long_wall_measurement) ... ok
+unittest.case.FunctionTestCase (test_short_side_object_is_not_classified_as_tunnel_wall) ... ok
+unittest.case.FunctionTestCase (test_short_tunnel_road_patch_is_removed_without_hiding_low_box) ... ok
+unittest.case.FunctionTestCase (test_side_obstacle_keeps_target_near_curved_route) ... ok
+unittest.case.FunctionTestCase (test_side_returns_allow_cautious_exit_when_forward_sector_has_no_hits) ... ok
+unittest.case.FunctionTestCase (test_smoothed_preference_reduces_reversal_and_rechecks_collisions) ... ok
+unittest.case.FunctionTestCase (test_sparse_side_returns_still_stop) ... ok
+unittest.case.FunctionTestCase (test_speed_cap_survives_front_dropout_then_ramps_with_elapsed_time) ... ok
+unittest.case.FunctionTestCase (test_steering_speed_cap_changes_continuously) ... ok
+unittest.case.FunctionTestCase (test_swept_rejection_identifies_point_and_candidate_angle) ... ok
+unittest.case.FunctionTestCase (test_thick_tunnel_panels_do_not_make_giant_obstacle_boxes) ... ok
+unittest.case.FunctionTestCase (test_track_boundary_limits_route_bearing_without_wall_bubbles) ... ok
+unittest.case.FunctionTestCase (test_tunnel_arch_retains_walls_but_not_overhead_returns) ... ok
+unittest.case.FunctionTestCase (test_tunnel_gap_narrower_than_inflated_vehicle_still_stops) ... ok
+unittest.case.FunctionTestCase (test_tunnel_roof_above_vehicle_height_does_not_block_route) ... ok
+unittest.case.FunctionTestCase (test_tunnel_wall_and_vehicle_selects_inflated_side_corridor) ... ok
+unittest.case.FunctionTestCase (test_tunnel_walls_are_track_boundaries_but_box_remains_obstacle) ... ok
+unittest.case.FunctionTestCase (test_unreachable_side_gap_does_not_clip_into_blocked_heading) ... ok
+unittest.case.FunctionTestCase (test_visualization_boxes_keep_all_ftg_hits_including_single_point) ... ok
+unittest.case.FunctionTestCase (test_visualization_compact_obstacle_stays_box) ... ok
+unittest.case.FunctionTestCase (test_visualization_oriented_box_fits_slanted_returns_tightly) ... ok
+unittest.case.FunctionTestCase (test_wall_attached_exit_return_still_causes_collision_stop) ... ok
+unittest.case.FunctionTestCase (test_wide_flat_low_obstacle_cannot_define_its_own_ground_plane) ... ok
+
+======================================================================
+FAIL: unittest.case.FunctionTestCase (test_runtime_yaml_restores_spacing_and_expands_lidar_angle)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/unita/unita_ws/rollback/2026-10-21_s14_heading_before/src/leo_avoidance/test/test_ftg_local.py", line 707, in test_runtime_yaml_restores_spacing_and_expands_lidar_angle
+    assert cfg.bubble_margin_m == .35 and cfg.side_margin_m == .4
+AssertionError
+
+----------------------------------------------------------------------
+Ran 79 tests in 1.840s
+
+FAILED (failures=1)

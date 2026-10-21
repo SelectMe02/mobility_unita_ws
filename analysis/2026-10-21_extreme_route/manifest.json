@@ -30,32 +30,11 @@
       "path_points": 31
     },
     {
-      "id": 1002,
-      "label": "C091 인접 차로 주차 장애물",
-      "sector": 4,
-      "kind": "static",
-      "model": 40100012,
-      "speed_mps": 0.0,
-      "active_distance_m": 0.0,
-      "start": [
-        -56.65540056236453,
-        -142.0,
-        28.368193810357237
-      ],
-      "end": [
-        -56.65540056236453,
-        -142.0,
-        28.368193810357237
-      ],
-      "path_points": 0
-    },
-    {
       "id": 1003,
-      "label": "C091 저속 출발 선행차",
+      "label": "C091 20km/h 선행차",
       "sector": 4,
       "kind": "moving_object",
       "model": 40100020,
-      "speed_mps": 3.2,
       "active_distance_m": 32.0,
       "start": [
         -65.46075809536877,
@@ -67,7 +46,8 @@
         -124.88830352194299,
         28.381421456284063
       ],
-      "path_points": 72
+      "path_points": 72,
+      "speed_kmh": 20.0
     },
     {
       "id": 1004,
@@ -75,7 +55,6 @@
       "sector": 5,
       "kind": "static",
       "model": 40100001,
-      "speed_mps": 0.0,
       "active_distance_m": 0.0,
       "start": [
         -59.99360703389286,
@@ -87,7 +66,8 @@
         -65.0,
         28.384479160052198
       ],
-      "path_points": 0
+      "path_points": 0,
+      "speed_kmh": 0.0
     },
     {
       "id": 1005,
@@ -109,31 +89,11 @@
       "path_points": 31
     },
     {
-      "id": 1006,
-      "label": "S5 끝 반대쪽 후속 횡단",
-      "sector": 5,
-      "kind": "pedestrian",
-      "speed_kmh": 5.0,
-      "active_distance_m": 18.0,
-      "start": [
-        -56.293735673590405,
-        -9.977539825850359,
-        28.410782975725485
-      ],
-      "end": [
-        -66.29357802877817,
-        -10.033690261224466,
-        28.410782975725485
-      ],
-      "path_points": 31
-    },
-    {
       "id": 1007,
       "label": "S6 교차로 뒤 연속 정적 장애물",
       "sector": 6,
       "kind": "static",
       "model": 40100001,
-      "speed_mps": 0.0,
       "active_distance_m": 0.0,
       "start": [
         -60.4751887679281,
@@ -145,27 +105,8 @@
         25.0,
         28.39546053752068
       ],
-      "path_points": 0
-    },
-    {
-      "id": 1008,
-      "label": "S6 회피 차로 저속 이륜차",
-      "sector": 6,
-      "kind": "moving_object",
-      "model": 40200014,
-      "speed_mps": 2.2,
-      "active_distance_m": 45.0,
-      "start": [
-        -57.44517429068236,
-        46.81566405621038,
-        28.368594704319342
-      ],
-      "end": [
-        -52.35680399387441,
-        82.94621336223004,
-        28.36098569612755
-      ],
-      "path_points": 40
+      "path_points": 0,
+      "speed_kmh": 0.0
     },
     {
       "id": 1009,
@@ -188,11 +129,10 @@
     },
     {
       "id": 1010,
-      "label": "회전교차로 진입 시 순환 차량",
+      "label": "회전교차로 20km/h 순환 차량",
       "sector": 9,
       "kind": "moving_object",
       "model": 40100020,
-      "speed_mps": 5.6,
       "active_distance_m": 30.0,
       "start": [
         -114.10679894697387,
@@ -204,7 +144,8 @@
         392.9385443431942,
         28.321667674368694
       ],
-      "path_points": 167
+      "path_points": 167,
+      "speed_kmh": 20.0
     },
     {
       "id": 1011,
@@ -212,7 +153,6 @@
       "sector": 11,
       "kind": "static",
       "model": 40100020,
-      "speed_mps": 0.0,
       "active_distance_m": 0.0,
       "start": [
         74.12744999379866,
@@ -224,27 +164,8 @@
         85.0,
         28.292967107924053
       ],
-      "path_points": 0
-    },
-    {
-      "id": 1012,
-      "label": "S11 R2 연속 정차 차량",
-      "sector": 11,
-      "kind": "static",
-      "model": 40100013,
-      "speed_mps": 0.0,
-      "active_distance_m": 0.0,
-      "start": [
-        70.87638836248782,
-        24.999999999999993,
-        28.346279166736217
-      ],
-      "end": [
-        70.87638836248782,
-        24.999999999999993,
-        28.346279166736217
-      ],
-      "path_points": 0
+      "path_points": 0,
+      "speed_kmh": 0.0
     },
     {
       "id": 1013,
@@ -252,7 +173,6 @@
       "sector": 11,
       "kind": "static",
       "model": 40100018,
-      "speed_mps": 0.0,
       "active_distance_m": 0.0,
       "start": [
         67.42478791070114,
@@ -264,35 +184,15 @@
         -35.00000000000002,
         28.335532381692502
       ],
-      "path_points": 0
-    },
-    {
-      "id": 1014,
-      "label": "GPS 음영 터널 인접 차로 정차 차량",
-      "sector": 14,
-      "kind": "static",
-      "model": 40100012,
-      "speed_mps": 0.0,
-      "active_distance_m": 0.0,
-      "start": [
-        -4.335202563005993,
-        -510.8415648837242,
-        28.41806081414806
-      ],
-      "end": [
-        -4.335202563005993,
-        -510.8415648837242,
-        28.41806081414806
-      ],
-      "path_points": 0
+      "path_points": 0,
+      "speed_kmh": 0.0
     },
     {
       "id": 1015,
-      "label": "GPS 음영 진입 저속 끼어들기 후 차로 이탈",
+      "label": "GPS 음영 진입 20km/h 끼어들기 후 차로 이탈",
       "sector": 14,
       "kind": "moving_object",
       "model": 40100020,
-      "speed_mps": 3.8,
       "active_distance_m": 30.0,
       "start": [
         26.53630328174997,
@@ -304,75 +204,18 @@
         -538.7678758532138,
         28.437011279167557
       ],
-      "path_points": 95
+      "path_points": 95,
+      "speed_kmh": 20.0
     }
   ],
-  "spawners": [
-    {
-      "id": 10,
-      "period_s": 4.1,
-      "requested_speed_kmh": 68.0,
-      "maximum_spawn_vehicle": 50,
-      "start": {
-        "linkIdx": "A2256W000029",
-        "pointIdx": 167
-      },
-      "end": {
-        "linkIdx": "A2256W000432",
-        "pointIdx": 246
-      }
-    },
-    {
-      "id": 6,
-      "period_s": 5.3,
-      "requested_speed_kmh": 32.0,
-      "maximum_spawn_vehicle": 50,
-      "start": {
-        "linkIdx": "A2256W000406",
-        "pointIdx": 78
-      },
-      "end": {
-        "linkIdx": "A2256W001105",
-        "pointIdx": 83
-      }
-    },
-    {
-      "id": 8,
-      "period_s": 6.7,
-      "requested_speed_kmh": 48.0,
-      "maximum_spawn_vehicle": 50,
-      "start": {
-        "linkIdx": "A2256W000175",
-        "pointIdx": 78
-      },
-      "end": {
-        "linkIdx": "A2256W000422",
-        "pointIdx": 59
-      }
-    },
-    {
-      "id": 4,
-      "period_s": 3.9,
-      "requested_speed_kmh": 18.0,
-      "maximum_spawn_vehicle": 50,
-      "start": {
-        "linkIdx": "A2256W000144",
-        "pointIdx": 26
-      },
-      "end": {
-        "linkIdx": "A2256W000102",
-        "pointIdx": 9
-      }
-    }
-  ],
+  "spawners": [],
   "notes": [
     "Full lap from the current saved start. Road Z is taken from the current saved route.",
     "Scripted proximity actors use existing native object/pedestrian waypoint schemas.",
     "Signal phases are the official snapshot; no unverified timed/yellow event schema is invented.",
     "S5-end obstruction is temporary crossing. Compact static blockers use surveyed passing windows.",
     "S12/S13 tollgate waypoint-only corridor is left clear.",
-    "Object moveSpeed uses existing TUN convention (m/s); pedestrian speed uses existing SIG convention (km/h).",
-    "NPC custom target speeds and spawn periods are requested settings; simulator execution is not verified.",
+    "Object moveSpeed and pedestrian speed are km/h. Installed ObstacleObject.SetMoveSpeed divides by 3.6 internally.",
     "Asset mesh footprints and sensor mounting are not inferred from scale factors.",
     "Native scenario loading, exact NPC timing and drivability still require a simulator run."
   ],
@@ -380,9 +223,9 @@
   "sensor_profile": "/home/unita/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Sensor/25.S4.MolitComp03/SensorInfo_2023_Hyundai_Ioniq5.json",
   "network_note": "Existing semi-compatible command UDP9093, vehicle-status UDP9096. Not a certification of competition protocol compliance.",
   "counts": {
-    "objectList": 11,
-    "pedestrianList": 4,
-    "spawnPointList": 4,
+    "objectList": 7,
+    "pedestrianList": 3,
+    "spawnPointList": 0,
     "tlList": 16,
     "shadedAreaList": 1
   },
@@ -397,5 +240,28 @@
     "tollgate_clear": true,
     "paired_udp_ports": true,
     "native_load_tested": false
+  },
+  "adjustment": {
+    "removed_actor_ids": [
+      1002,
+      1006,
+      1008,
+      1012,
+      1014
+    ],
+    "removed_spawner_ids": [
+      10,
+      6,
+      8,
+      4
+    ],
+    "moving_car_speed_kmh": {
+      "1003": 20.0,
+      "1010": 20.0,
+      "1015": 20.0
+    },
+    "max_live_npc_total": 0,
+    "speed_unit_confirmed_from": "Simulator_v.S4.251001.MolitComp03_Linux/Simulator_Data/Managed/Assembly-CSharp.dll",
+    "runtime_fps_measured": false
   }
 }

@@ -1,0 +1,296 @@
+{
+  "name": "UNITA_EXTREME_ROUTE_20261021",
+  "route": "/home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json",
+  "route_sha256": "afd1b82e6b6e6cd36dd97c5b497bc00a6bbd24fe644409052810a3fdfd0767bf",
+  "map": {
+    "mapName": "R_KR_PR_K-city_2025",
+    "eastOffset": 302595.0,
+    "northOffset": 4124145.0,
+    "globalCoordinateSystem": "UTM52N",
+    "scenarioCoordinateSystem": "ENU"
+  },
+  "actors": [
+    {
+      "id": 1001,
+      "label": "C077 신호 통과 직후 횡단",
+      "sector": 3,
+      "kind": "pedestrian",
+      "speed_kmh": 7.5,
+      "active_distance_m": 15.0,
+      "start": [
+        -88.8986819016268,
+        -239.32797131569154,
+        28.446687653379673
+      ],
+      "end": [
+        -80.58197077126047,
+        -243.91951963559856,
+        28.446687653379673
+      ],
+      "path_points": 31
+    },
+    {
+      "id": 1003,
+      "label": "C091 35km/h 선행차",
+      "sector": 4,
+      "kind": "moving_object",
+      "model": 40100020,
+      "active_distance_m": 32.0,
+      "start": [
+        -65.46075809536877,
+        -195.3823721265273,
+        28.419207496877217
+      ],
+      "end": [
+        -66.884120962364,
+        -124.88830352194299,
+        28.381421456284063
+      ],
+      "path_points": 72,
+      "speed_kmh": 35.0
+    },
+    {
+      "id": 1004,
+      "label": "S5 점선 구간 차로 중앙 적재물",
+      "sector": 5,
+      "kind": "static",
+      "model": 40100001,
+      "active_distance_m": 0.0,
+      "start": [
+        -59.99360703389286,
+        -65.0,
+        28.384479160052198
+      ],
+      "end": [
+        -59.99360703389286,
+        -65.0,
+        28.384479160052198
+      ],
+      "path_points": 0,
+      "speed_kmh": 0.0
+    },
+    {
+      "id": 1005,
+      "label": "S5 끝 1차 횡단",
+      "sector": 5,
+      "kind": "pedestrian",
+      "speed_kmh": 7.0,
+      "active_distance_m": 13.5,
+      "start": [
+        -63.74308123899745,
+        -19.019652663245797,
+        28.433617601774017
+      ],
+      "end": [
+        -54.24323100173466,
+        -18.966309720150043,
+        28.433617601774017
+      ],
+      "path_points": 31
+    },
+    {
+      "id": 1007,
+      "label": "S6 교차로 뒤 연속 정적 장애물",
+      "sector": 6,
+      "kind": "static",
+      "model": 40100001,
+      "active_distance_m": 0.0,
+      "start": [
+        -60.4751887679281,
+        25.0,
+        28.39546053752068
+      ],
+      "end": [
+        -60.4751887679281,
+        25.0,
+        28.39546053752068
+      ],
+      "path_points": 0,
+      "speed_kmh": 0.0
+    },
+    {
+      "id": 1009,
+      "label": "C052 좌회전 중 추가 횡단",
+      "sector": 7,
+      "kind": "pedestrian",
+      "speed_kmh": 6.0,
+      "active_distance_m": 15.0,
+      "start": [
+        4.902442460341904,
+        106.46068883912675,
+        28.420047860744447
+      ],
+      "end": [
+        -3.8151487253856198,
+        110.23608337725462,
+        28.420047860744447
+      ],
+      "path_points": 31
+    },
+    {
+      "id": 1010,
+      "label": "회전교차로 30km/h 순환 차량",
+      "sector": 9,
+      "kind": "moving_object",
+      "model": 40100020,
+      "active_distance_m": 30.0,
+      "start": [
+        -114.10679894697387,
+        330.5414558178745,
+        28.378119476582153
+      ],
+      "end": [
+        -94.5499936986213,
+        392.9385443431942,
+        28.321667674368694
+      ],
+      "path_points": 167,
+      "speed_kmh": 30.0
+    },
+    {
+      "id": 1011,
+      "label": "S11 R3 정차 차량",
+      "sector": 11,
+      "kind": "static",
+      "model": 40100020,
+      "active_distance_m": 0.0,
+      "start": [
+        74.12744999379866,
+        85.0,
+        28.292967107924053
+      ],
+      "end": [
+        74.12744999379866,
+        85.0,
+        28.292967107924053
+      ],
+      "path_points": 0,
+      "speed_kmh": 0.0
+    },
+    {
+      "id": 1013,
+      "label": "S11 R1 후속 정차 차량",
+      "sector": 11,
+      "kind": "static",
+      "model": 40100018,
+      "active_distance_m": 0.0,
+      "start": [
+        67.42478791070114,
+        -35.00000000000002,
+        28.335532381692502
+      ],
+      "end": [
+        67.42478791070114,
+        -35.00000000000002,
+        28.335532381692502
+      ],
+      "path_points": 0,
+      "speed_kmh": 0.0
+    },
+    {
+      "id": 1015,
+      "label": "GPS 음영 진입 40km/h 끼어들기 후 차로 이탈",
+      "sector": 14,
+      "kind": "moving_object",
+      "model": 40100020,
+      "active_distance_m": 30.0,
+      "start": [
+        26.53630328174997,
+        -493.84230207655366,
+        28.301762354972823
+      ],
+      "end": [
+        -56.331888211143095,
+        -538.7678758532138,
+        28.437011279167557
+      ],
+      "path_points": 95,
+      "speed_kmh": 40.0
+    }
+  ],
+  "spawners": [
+    {
+      "id": 10,
+      "period_s": 12.0,
+      "requested_speed_kmh": 35.0,
+      "maximum_spawn_vehicle": 4,
+      "start": {
+        "linkIdx": "A2256W000029",
+        "pointIdx": 167
+      },
+      "end": {
+        "linkIdx": "A2256W000432",
+        "pointIdx": 246
+      }
+    },
+    {
+      "id": 6,
+      "period_s": 16.0,
+      "requested_speed_kmh": 40.0,
+      "maximum_spawn_vehicle": 4,
+      "start": {
+        "linkIdx": "A2256W000406",
+        "pointIdx": 78
+      },
+      "end": {
+        "linkIdx": "A2256W001105",
+        "pointIdx": 83
+      }
+    }
+  ],
+  "notes": [
+    "Full lap from the current saved start. Road Z is taken from the current saved route.",
+    "Scripted proximity actors use existing native object/pedestrian waypoint schemas.",
+    "Signal phases are the official snapshot; no unverified timed/yellow event schema is invented.",
+    "S5-end obstruction is temporary crossing. Compact static blockers use surveyed passing windows.",
+    "S12/S13 tollgate waypoint-only corridor is left clear.",
+    "Object moveSpeed and pedestrian speed are km/h. Installed ObstacleObject.SetMoveSpeed divides by 3.6 internally.",
+    "NPC custom target speeds and spawn periods are requested settings; simulator execution is not verified.",
+    "Asset mesh footprints and sensor mounting are not inferred from scale factors.",
+    "Native scenario loading, exact NPC timing and drivability still require a simulator run.",
+    "Lightened in place: 10 scripted actors and 2 NPC spawners with a live cap of 4 vehicles each."
+  ],
+  "network_template": "/home/unita/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/EgoNetwork/UNITA_raceline_dynamic_traffic_MN.json",
+  "sensor_profile": "/home/unita/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Sensor/25.S4.MolitComp03/SensorInfo_2023_Hyundai_Ioniq5.json",
+  "network_note": "Existing semi-compatible command UDP9093, vehicle-status UDP9096. Not a certification of competition protocol compliance.",
+  "counts": {
+    "objectList": 7,
+    "pedestrianList": 3,
+    "spawnPointList": 2,
+    "tlList": 16,
+    "shadedAreaList": 1
+  },
+  "checks": {
+    "unique_ids": true,
+    "waypoint_references": true,
+    "coordinate_conversion": true,
+    "road_heights": true,
+    "no_activation_at_ego_spawn": true,
+    "spawn_graph_links": true,
+    "gps_only_denial": true,
+    "tollgate_clear": true,
+    "paired_udp_ports": true,
+    "native_load_tested": false
+  },
+  "adjustment": {
+    "removed_actor_ids": [
+      1002,
+      1006,
+      1008,
+      1012,
+      1014
+    ],
+    "removed_spawner_ids": [
+      8,
+      4
+    ],
+    "moving_car_speed_kmh": {
+      "1003": 35.0,
+      "1010": 30.0,
+      "1015": 40.0
+    },
+    "max_live_npc_total": 8,
+    "speed_unit_confirmed_from": "Simulator_v.S4.251001.MolitComp03_Linux/Simulator_Data/Managed/Assembly-CSharp.dll",
+    "runtime_fps_measured": false
+  }
+}
