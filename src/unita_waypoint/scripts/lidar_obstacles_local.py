@@ -18,6 +18,8 @@ from std_msgs.msg import String
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from lane_corridor import LaneCorridor
+from obstacle_motion import box_bounds, update_motion
+from perception_debug import PerceptionDebug
 
 
 def road_obstacle_mask(points, front_range=55., rear_range=55., side_range=12.,
@@ -60,7 +62,7 @@ def clusters(xy, radius=0.65, minimum=3):
     return groups
 
 
-def object_circles(group):
+def object_circles(group, pose=None):
     """Cover observed vehicle returns; split a long truck into bounded pieces."""
     size = np.ptp(group, axis=0)
     if np.max(size) > 24. or np.max(size) < .2:
@@ -78,7 +80,15 @@ def object_circles(group):
         center = (low+high)*.5
         radius = max(.15, .5*math.hypot(*(high-low)))
         if radius <= 6.:
-            result.append((center[0], center[1], radius))
+            if pose is None:
+                result.append((center[0], center[1], radius))
+            else:
+                c, s = math.cos(pose[2]), math.sin(pose[2])
+                world = np.column_stack((pose[0]+c*part[:, 0]-s*part[:, 1],
+                                         pose[1]+s*part[:, 0]+c*part[:, 1]))
+                bounds = (*world.min(axis=0), *world.max(axis=0))
+                result.append((pose[0]+c*center[0]-s*center[1],
+                               pose[1]+s*center[0]+c*center[1], radius, bounds))
     return result
 
 
@@ -88,6 +98,7 @@ class LidarObstacles:
         self.lidar_y = float(rospy.get_param('~lidar_to_rear_y_m', 0.))
         self.lidar_z = float(rospy.get_param('~lidar_to_rear_z_m', 1.23))
         self.max_pose_age = float(rospy.get_param('~max_pose_age_s', .15))
+        self.dynamic_speed_threshold_mps = float(rospy.get_param('~dynamic_speed_threshold_mps', .8))
         self.front_range = float(rospy.get_param('~front_range_m', 55.))
         self.rear_range = float(rospy.get_param('~rear_range_m', 55.))
         self.side_range = float(rospy.get_param('~side_range_m', 12.))
@@ -104,6 +115,7 @@ class LidarObstacles:
         self.next_id = 1
         self.lane_corridor = None
         self.pub = rospy.Publisher('/waypoint_debug/obstacles', String, queue_size=1)
+        self.debug = PerceptionDebug('/leo/waypoint_debug', 'ground_status')
         rospy.Subscriber('/waypoint_debug/lane_geometry', String,
                          self.on_lane_geometry, queue_size=1, buff_size=2**22)
         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
@@ -167,7 +179,9 @@ class LidarObstacles:
                        if stamp - track['stamp'] < .8}
         result = []
         used = set()
-        for x, y, radius in detections:
+        for detection in detections:
+            x, y, radius = detection[:3]
+            bounds = detection[3] if len(detection) > 3 else box_bounds(x, y, 2.*radius, 2.*radius, 0.)
             matches = [(math.hypot(x-t['x']-t['vx']*(stamp-t['stamp']),
                                   y-t['y']-t['vy']*(stamp-t['stamp'])), key, t)
                        for key, t in self.tracks.items() if key not in used]
@@ -179,31 +193,34 @@ class LidarObstacles:
                 dt = stamp - previous['stamp']
                 if dt <= 0:
                     continue
-                vx = .65*previous['vx'] + .35*(x-previous['x'])/dt
-                vy = .65*previous['vy'] + .35*(y-previous['y'])/dt
                 hits = min(20, previous['hits']+1)
             else:
+                previous = {}
                 key = self.next_id
                 self.next_id += 1
-                vx = vy = 0.
                 hits = 1
-            track = dict(x=x, y=y, radius=radius, vx=vx, vy=vy,
+            motion = update_motion(previous, stamp, bounds,
+                                   getattr(self, 'dynamic_speed_threshold_mps', .8))
+            vx, vy = motion['vx'], motion['vy']
+            track = dict(x=x, y=y, radius=radius, **motion,
                          hits=hits, stamp=stamp)
             self.tracks[key] = track
             used.add(key)
             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
-                               kind=('dynamic' if hits >= 3 and
-                                     math.hypot(vx, vy) > .8 else
-                                     'static' if hits >= 3 else 'unknown')))
+                               velocity_reliable=motion['velocity_reliable'],
+                               motion_bounds=list(bounds), predicted=False,
+                               kind=motion['motion_kind']))
         # Preserve a briefly occluded rear/side car instead of treating its
         # lane as clear immediately. Do not extend a stale measurement forever.
         for key, track in self.tracks.items():
             dt = stamp-track['stamp']
             if key not in used and 0. < dt <= .4:
-                result.append(dict(id=key, x=track['x']+track['vx']*dt,
-                                   y=track['y']+track['vy']*dt,
+                reliable = track.get('velocity_reliable', False)
+                result.append(dict(id=key, x=track['x']+(track['vx']*dt if reliable else 0.),
+                                   y=track['y']+(track['vy']*dt if reliable else 0.),
                                    radius=track['radius']+.5*dt,
-                                   vx=track['vx'], vy=track['vy'], kind='unknown'))
+                                   vx=track['vx'], vy=track['vy'], kind='unknown',
+                                   velocity_reliable=reliable, predicted=True))
         return result
 
     def on_cloud(self, msg):
@@ -211,23 +228,33 @@ class LidarObstacles:
             self.pending = msg
 
     def process_pending(self, _event):
+        debug = getattr(self, 'debug', None)
         with self.lock:
             msg = self.pending
             corridor = self.lane_corridor
         if msg is None:
+            if debug is not None:
+                debug.clear_if_stale()
             return
         if corridor is None:
+            if debug is not None:
+                debug.clear('waiting_lane_geometry', msg.header)
             rospy.logwarn_throttle(5., 'Waiting for raceline lane geometry')
             return
         stamp = msg.header.stamp.to_sec()
         age = rospy.Time.now().to_sec() - stamp
         if msg.header.frame_id != 'lidar' or not -.05 <= age <= .35:
+            if debug is not None:
+                debug.clear('wrong_cloud_frame' if msg.header.frame_id != 'lidar'
+                            else 'cloud_time_mismatch', msg.header)
             with self.lock:
                 if self.pending is msg:
                     self.pending = None
             return
         pose = self.pose_at(stamp)
         if pose is None:
+            if debug is not None:
+                debug.clear('waiting_pose', msg.header)
             return
         with self.lock:
             if self.pending is msg:
@@ -247,14 +274,19 @@ class LidarObstacles:
                                   pose[1]+s*xy[:, 0]+c*xy[:, 1]))
         # Drop roadside returns before clustering so a fence cannot enlarge
         # or merge with a car that is actually inside a mapped lane.
-        xy = xy[corridor.contains(map_xy)]
+        inside = corridor.contains(map_xy)
+        capture_debug = debug is not None and debug.active()
+        debug_selected = points[mask][inside] if capture_debug else None
+        debug_counts = dict(candidate_points=int(mask.sum()),
+                           lane_removed_points=int((~inside).sum()),
+                           other_removed_points=int((~mask).sum()))
+        xy = xy[inside]
         if len(xy) > 10000:
             xy = xy[::int(math.ceil(len(xy)/10000.))]
         found = []
         for group in clusters(xy):
-            for x, y, radius in object_circles(group):
-                found.append((pose[0]+c*x-s*y, pose[1]+s*x+c*y, radius))
-        mask = corridor.contains([(x, y) for x, y, _ in found])
+            found.extend(object_circles(group, pose))
+        mask = corridor.contains([o[:2] for o in found])
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:
             if self.lane_corridor is not corridor:
@@ -265,6 +297,15 @@ class LidarObstacles:
             # from tracking as well as from the published obstacle stream.
             keep = {o['id'] for o in tracked}
             self.tracks = {key: value for key, value in self.tracks.items() if key in keep}
+        if debug is not None:
+            if capture_debug:
+                debug.publish(points, debug_selected, msg.header, pose,
+                              mode='local_filtered',
+                              debug_point_stage='lane_filtered_input',
+                              filter_summary='고정 높이·자차·거리 → 저장 차선 → 군집·추적 (IMU 노면 평면 없음)',
+                              imu_corrected=False, obstacle_min_height_m=.22,
+                              obstacle_max_height_m=2.6, detected_obstacles=len(found),
+                              tracked_obstacles=len(tracked), **debug_counts)
         self.pub.publish(String(data=json.dumps(dict(
             stamp=stamp, frame_id='map', obstacles=tracked))))
 

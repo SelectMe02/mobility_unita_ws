@@ -5,13 +5,17 @@ import json
 import math
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import map_debug
+from perception_debug import PerceptionDebug, xyz_cloud
 from map_tunner_core import load_project, save_project, ProjectEditor
 
 
@@ -158,20 +162,127 @@ class MapDebugProjectTest(unittest.TestCase):
         self.assertEqual((status['x'], status['y']), (73., 89.3))
         self.assertEqual(status['preferred_raceline'], 3)
 
+    def test_guard_selects_actual_controller_and_hold_clears_source(self):
+        self.assertEqual(self.debug.select_source(100.), 'raceline')
+        self.debug.guard_snapshot = (dict(state='passthrough'), 100.)
+        self.assertEqual(self.debug.select_source(100.1), 'raceline')
+        self.debug.guard_snapshot = (dict(state='clearing'), 100.)
+        self.assertEqual(self.debug.select_source(100.1), 'leo')
+        self.debug.guard_snapshot = (dict(state='hold'), 100.)
+        self.assertIsNone(self.debug.select_source(100.1))
+        self.debug.guard_snapshot = (dict(state='passthrough'), 100.)
+        self.assertIsNone(self.debug.select_source(100.6))
+
+    def test_stopped_decision_stays_visible_without_usable_tracking(self):
+        status = self.status(dict(valid=False, sector=11, raceline=3,
+            planner_mode='highway', planner_state='BLOCKED', planner_reason='no_safe_gap'))
+        self.assertEqual(status['decision']['planner_reason'], 'no_safe_gap')
+        self.assertIsNone(status['current_raceline'])
+
+    def test_route_collision_and_tunnel_perception_follow_executed_branch(self):
+        self.debug.active_source = 'leo'
+        state = dict(valid=True, sector=4, raceline=1,
+                     planner_mode='route_and_local_avoidance', local_path_source='route_avoidance')
+        self.debug.source_snapshots['leo']['tracking'] = (state, 100.)
+        with patch.object(map_debug.time, 'monotonic', return_value=100.1):
+            self.assertEqual(self.debug.perception_source(), 'route')
+            self.debug.on_perception_view(map_debug.String(data='collision'))
+            self.assertEqual(self.debug.perception_source(), 'leo')
+            state['planner_mode'] = 'external_blackout_target'
+            self.assertEqual(self.debug.perception_source(), 'ftg')
+
+    def test_actual_path_elevation_and_expiry_and_stop_clear(self):
+        self.debug.local_path_pub = MagicMock()
+        self.debug.map_local_path_pub = MagicMock()
+        self.debug.local_path_marker_pub = MagicMock()
+        self.debug.map_path_marker_pub = MagicMock()
+        path = map_debug.NavPath()
+        path.header = map_debug.Header(stamp=map_debug.rospy.Time(100), frame_id='map')
+        pose = map_debug.PoseStamped()
+        pose.pose.position.x, pose.pose.position.y = 2., 3.
+        next_pose = copy.deepcopy(pose)
+        next_pose.pose.position.x = 4.
+        path.poses = [pose, next_pose]
+        self.debug.tracking = (dict(valid=True, sector=11, raceline=1), 100.)
+        with patch.object(map_debug.time, 'monotonic', return_value=100.1), \
+                patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(100.1)):
+            self.debug.on_local_path(path)
+            self.debug.publish_local_path(100.1)
+            result = self.debug.local_path_pub.publish.call_args.args[0]
+            self.assertEqual((result.poses[0].pose.position.x, result.poses[0].pose.position.y), (2., 3.))
+            self.assertAlmostEqual(result.poses[0].pose.position.z, -.31)
+            map_result = self.debug.map_local_path_pub.publish.call_args.args[0]
+            self.assertEqual((map_result.poses[0].pose.position.x, map_result.poses[0].pose.position.y), (2., 3.))
+            self.assertEqual(map_result.poses[0].pose.position.z, 1.4)
+            self.assertEqual(self.debug.map_path_marker_pub.publish.call_args.args[0].action,
+                             map_debug.Marker.ADD)
+            self.assertEqual(path.poses[0].pose.position.z, 0.)
+            self.debug.tracking[0]['valid'] = False
+            self.debug.publish_local_path(100.2)
+            self.assertEqual(self.debug.local_path_pub.publish.call_args.args[0].poses, [])
+            self.assertEqual(self.debug.local_path_marker_pub.publish.call_args.args[0].action,
+                             map_debug.Marker.DELETE)
+
+    def test_selected_cloud_source_never_reuses_stale_points(self):
+        self.debug.used_points_pub = MagicMock()
+        self.debug.discarded_points_pub = MagicMock()
+        cloud = map_debug.point_cloud2.create_cloud_xyz32(
+            map_debug.Header(stamp=map_debug.rospy.Time(100), frame_id='map'), [(1., 2., 3.)])
+        self.debug.source_snapshots['raceline']['used'] = (cloud, 100.)
+        with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(100.1)):
+            self.debug.publish_debug_clouds(100.1)
+            self.assertEqual(self.debug.used_points_pub.publish.call_args.args[0], cloud)
+            self.debug.publish_debug_clouds(100.7)
+            self.assertEqual(self.debug.used_points_pub.publish.call_args.args[0].width, 0)
+
+    def test_vehicle_box_uses_user_dimensions_and_rear_axle_origin(self):
+        from map_debug_geometry import vehicle_box_corners
+        corners = vehicle_box_corners((10., 20., math.pi*.5), 3.845, .79, .946, -.38, 2.434)
+        self.assertAlmostEqual(max(p[0] for p in corners)-min(p[0] for p in corners), 1.892)
+        self.assertAlmostEqual(max(p[1] for p in corners)-min(p[1] for p in corners), 4.635)
+        self.assertAlmostEqual(max(p[2] for p in corners)-min(p[2] for p in corners), 2.434)
+        self.assertAlmostEqual(max(p[1] for p in corners), 23.845)
+
+    def test_old_source_stamp_rejected_despite_fresh_delivery(self):
+        state = dict(valid=True, sector=11, raceline=1, stamp=98.)
+        with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(100)):
+            self.debug.on_tracking_state(map_debug.String(data=json.dumps(state)))
+            self.assertIsNone(self.debug.tracking)
+            pose = map_debug.PoseStamped()
+            pose.header = map_debug.Header(stamp=map_debug.rospy.Time(98), frame_id='map')
+            pose.pose.orientation.w = 1.
+            self.debug.on_pose(pose)
+            self.assertIsNone(self.debug.pose)
+
 
 class MapDebugObstacleBoxTest(unittest.TestCase):
-    def test_rectangle_marker_uses_detector_box(self):
+    def make_debug(self, source='raceline'):
         debug = map_debug.MapDebug.__new__(map_debug.MapDebug)
         debug.obstacle_pub = MagicMock()
         debug.obstacle_marker_ids = set()
+        debug.ground_z = -.38
+        debug.lidar_obstacle_pub = MagicMock()
         debug.lane_corridor = MagicMock()
         debug.lane_corridor.contains = lambda points: [True]*len(points)
+        debug.saved_lane_corridor = debug.lane_corridor
+        debug.source_snapshots = {key: {} for key in ('raceline', 'leo', 'route', 'ftg')}
+        debug.active_source = source
+        debug.perception_source = lambda: source
+        return debug
+
+    def show_obstacle(self, debug, item, source='raceline', received=10., now=10.):
+        with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(10)), \
+                patch.object(map_debug.time, 'monotonic', return_value=received):
+            debug.on_obstacles(map_debug.String(data=json.dumps(dict(
+                stamp=10., frame_id='map', obstacles=[item]))), source)
+            debug.publish_obstacles(now)
+        return {m.ns: m for m in debug.lidar_obstacle_pub.publish.call_args.args[0].markers}
+
+    def test_rectangle_marker_uses_detector_box(self):
+        debug = self.make_debug()
         item = dict(id=4, x=1., y=2., radius=2.49, vx=0., vy=0., kind='dynamic',
                     length=4.6, width=1.9, yaw=1.)
-        with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(10)):
-            debug.on_obstacles(MagicMock(data=json.dumps(dict(
-                stamp=10., frame_id='map', obstacles=[item]))))
-            debug.publish_obstacles(debug.obstacle_snapshot[1])
+        self.show_obstacle(debug, item)
         markers = debug.obstacle_pub.publish.call_args.args[0].markers
         box = next(m for m in markers if m.ns == 'obstacle_boxes')
         self.assertAlmostEqual(box.scale.x, 4.6)
@@ -180,6 +291,97 @@ class MapDebugObstacleBoxTest(unittest.TestCase):
         edges = next(m for m in markers if m.ns == 'obstacle_edges')
         corner = edges.points[0]
         self.assertAlmostEqual(math.hypot(corner.x-1., corner.y-2.), math.hypot(2.3, .95))
+
+    def test_measured_cube_edges_and_label_share_z_without_repeated_corner_shift(self):
+        for kind in ('static', 'dynamic', 'unknown'):
+            with self.subTest(kind=kind):
+                debug = self.make_debug()
+                item = dict(id=4, x=1., y=2., radius=2.49, vx=0., vy=0., kind=kind,
+                            length=4.6, width=1.9, yaw=1., z_min=.23, z_max=2.23)
+                markers = self.show_obstacle(debug, item)
+                box = markers['obstacle_boxes']
+                self.assertEqual(box.action, map_debug.Marker.ADD)
+                self.assertAlmostEqual(box.pose.position.z-box.scale.z*.5, .23)
+                self.assertAlmostEqual(box.pose.position.z+box.scale.z*.5, 2.23)
+                edges = markers['obstacle_edges'].points
+                self.assertEqual(len(edges), 24)
+                self.assertTrue(all(min(abs(p.z-.23), abs(p.z-2.23)) < 1e-9 for p in edges))
+                self.assertAlmostEqual(markers['obstacle_labels'].pose.position.z, 2.53)
+                aerial = {m.ns: m for m in debug.obstacle_pub.publish.call_args.args[0].markers}
+                self.assertEqual(aerial['obstacle_boxes'].pose.position.z, 3.75)
+                self.assertEqual({p.z for p in aerial['obstacle_edges'].points}, {3., 4.5})
+
+    def test_every_source_uses_its_matching_scan_and_rotated_footprint(self):
+        item = dict(id=4, x=1., y=2., radius=2.49, vx=0., vy=0., kind='static',
+                    length=4.6, width=1.0, yaw=math.pi*.5)
+        cloud = xyz_cloud(map_debug.Header(stamp=map_debug.rospy.Time(10), frame_id='map'),
+                          [[1., 0., .7], [1.4, 4., 2.8], [2., 2., 99.]])
+        for source in ('raceline', 'leo', 'route', 'ftg'):
+            with self.subTest(source=source):
+                debug = self.make_debug(source)
+                with patch.object(map_debug.time, 'monotonic', return_value=10.):
+                    debug.on_debug_cloud(cloud, (source, 'used'))
+                    # A newer cloud must not replace the obstacle's scan.
+                    newer = xyz_cloud(map_debug.Header(stamp=map_debug.rospy.Time(10.1),
+                                                       frame_id='map'), [[1., 2., 90.]])
+                    debug.on_debug_cloud(newer, (source, 'used'))
+                markers = self.show_obstacle(debug, item, source)
+                box = markers['obstacle_boxes']
+                self.assertEqual(box.action, map_debug.Marker.ADD)
+                self.assertAlmostEqual(box.pose.position.z-box.scale.z*.5, .7, places=6)
+                self.assertAlmostEqual(box.pose.position.z+box.scale.z*.5, 2.8, places=6)
+
+    def test_missing_wrong_source_wrong_stamp_and_stale_heights_only_draw_footprint(self):
+        item = dict(id=4, x=1., y=2., radius=2., vx=0., vy=0., kind='static',
+                    z_min=float('nan'), z_max=5.)
+        for source, stamp, received in (('leo', 10., 10.), ('raceline', 10.1, 10.),
+                                        ('raceline', 10., 9.)):
+            with self.subTest(source=source, stamp=stamp, received=received):
+                debug = self.make_debug()
+                cloud = xyz_cloud(map_debug.Header(stamp=map_debug.rospy.Time(stamp),
+                                                   frame_id='map'), [[1., 2., 99.]])
+                with patch.object(map_debug.time, 'monotonic', return_value=received):
+                    debug.on_debug_cloud(cloud, (source, 'used'))
+                markers = self.show_obstacle(debug, item)
+                self.assertEqual(markers['obstacle_boxes'].action, map_debug.Marker.DELETE)
+                for point in markers['obstacle_edges'].points:
+                    self.assertAlmostEqual(point.z, debug.ground_z+.03)
+
+    def test_single_observed_height_remains_flat_at_measured_z(self):
+        debug = self.make_debug()
+        item = dict(id=4, x=1., y=2., radius=2., vx=0., vy=0., kind='static',
+                    z_min=.8, z_max=.8)
+        markers = self.show_obstacle(debug, item)
+        self.assertEqual(markers['obstacle_boxes'].action, map_debug.Marker.DELETE)
+        self.assertEqual({p.z for p in markers['obstacle_edges'].points}, {.8})
+        self.assertAlmostEqual(markers['obstacle_labels'].pose.position.z, 1.1)
+
+    def test_debug_bounds_apply_mount_offset_once_before_display_decimation(self):
+        publishers = [MagicMock() for _ in range(3)]
+        for publisher in publishers:
+            publisher.get_num_connections.return_value = 1
+        with patch('perception_debug.rospy.Publisher', side_effect=publishers), \
+                patch('perception_debug.rospy.on_shutdown'), \
+                patch('perception_debug.rospy.get_param', side_effect=lambda name, default: default):
+            debug = PerceptionDebug('/test/perception_debug')
+        self.addCleanup(debug.close)
+        debug.max_points = 1
+        completed = threading.Event()
+        debug.status_pub.publish.side_effect = lambda _: completed.set()
+        points = np.array([[10., 0., -1.], [10.5, .1, 1.], [50., 5., 99.]])
+        original = points.copy()
+        obstacle = dict(id=4, x=100., y=31.65, length=2., width=.5, yaw=math.pi*.5)
+        debug.publish(points, points, map_debug.Header(stamp=map_debug.rospy.Time(10)),
+                      (100., 20., math.pi*.5), offset=(1.4, 0., 1.23), obstacles=[obstacle])
+        self.assertTrue(completed.wait(2.))
+        state = json.loads(debug.status_pub.publish.call_args.args[0].data)
+        self.assertAlmostEqual(state['obstacles'][0]['z_min'], .23)
+        self.assertAlmostEqual(state['obstacles'][0]['z_max'], 2.23)
+        self.assertEqual(debug.used_pub.publish.call_args.args[0].width, 1)
+        self.assertEqual(state['debug_clouds']['used']['total'], 3)
+        self.assertEqual(state['cloud_stamp'], 10.)
+        self.assertNotIn('z_min', obstacle)
+        np.testing.assert_array_equal(points, original)
 
 
 if __name__ == '__main__':

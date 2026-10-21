@@ -1,0 +1,58 @@
+{
+  "scope": "Latest bag, S5 end, user confirms repeated acceleration and braking rather than lateral steering.",
+  "observed_lane_change": false,
+  "lane_change_evidence": {
+    "route_offset_m": 0,
+    "local_path_messages_matching_route_path_exactly": 74,
+    "ego_x_range_m": [
+      -60.154,
+      -60.006
+    ]
+  },
+  "direct_pedal_chatter_causes": [
+    {
+      "time_kst": "00:27:53.355",
+      "event": "One-scan flat obstacle groups109/110; WAIT_SOLID_LINE cap17.37; next route update53.472 FOLLOW no cap",
+      "raw_evidence": "37points each, vertical thickness approx7mm/12mm; absent both adjacent scans",
+      "interpretation": "Transient flat returns treated as static blocks; road-return false detection likely, exact material not established"
+    },
+    {
+      "time_kst": "00:27:55.212",
+      "event": "Two nearly fixed point groups merge and split; track96 swaps spatial component with99; estimated lateral velocity1.48m/s causes crossing YIELD cap0;55.330 FOLLOW",
+      "raw_cluster_counts": [
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        2
+      ],
+      "control": "Full brake for two raw control samples, then acceleration resumes",
+      "interpretation": "False crossing prediction supported by nearly fixed raw spatial cores and track association changes"
+    }
+  ],
+  "why_no_lane_change": {
+    "saved_R2_gap_m": 37.1661543897317,
+    "y_endpoints_m": [
+      -45.51190231231228,
+      -8.346333504739025
+    ],
+    "missing_route_WP": [
+      857,
+      931
+    ],
+    "S5_TAILING_samples_without_R2": 52,
+    "route_passing_permission": "No interval covers the full maneuver; WAIT_SOLID_LINE",
+    "caveat": "Missing/disabled passing coverage explains absence of lane change, not every braking event; physical lane marking correctness is not established."
+  },
+  "control_amplification": "Leo route planner recomputes cap each scan and drops restriction immediately when the threat no longer qualifies. Leo PID directly commands pedals, without the CP7-11 PedalGuard release confirmation/throttle ramp.",
+  "separate_later_event": "ID100 at00:27:56..58 is a physically moving crossing cluster; keep this distinct from false track96 crossing.",
+  "artifacts": [
+    "static_id96_raw_evidence.json",
+    "static_single_scan_109_110.json",
+    "lane_availability.json",
+    "static_wait_corridors.json",
+    "static_obstacle_chatter.png"
+  ]
+}

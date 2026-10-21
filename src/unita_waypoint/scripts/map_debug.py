@@ -2,6 +2,7 @@
 """K-City map, saved route, vehicle state and detected obstacle boxes."""
 
 import json
+import copy
 import math
 import sys
 import tempfile
@@ -12,8 +13,9 @@ from pathlib import Path
 import numpy as np
 import rospkg
 import rospy
+import tf
 from geometry_msgs.msg import Point, PoseStamped
-from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import OccupancyGrid, Path as NavPath
 from std_msgs.msg import Bool, Float64, String, Header
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs import point_cloud2
@@ -27,6 +29,8 @@ from map_tunner_core import (CHECKPOINT_ORDER, load_checkpoints, load_csv,
 from map_tunner_map import AerialMap
 from lane_corridor import LaneCorridor, project_lane_geometry
 from avoidance_runtime import SETTINGS, validated_value
+from map_debug_geometry import (nearby_lane_edges, vehicle_box_corners, BOX_EDGE_PAIRS,
+                                obstacle_z_bounds)
 
 
 def marker(namespace, identifier, kind):
@@ -80,6 +84,28 @@ class MapDebug:
         self.parameter_error = ''
         self.horizon_snapshot = None
         self.ground_snapshot = None
+        self.source_snapshots = {key: {} for key in ('raceline', 'leo', 'route', 'ftg')}
+        self.guard_snapshot = None
+        self.active_source = 'raceline'
+        self.perception_view = 'auto'
+        self.perception_subscription_source = None
+        self.perception_subscribers = []
+        self.local_path_snapshot = None
+        self.local_path_visible = False
+        self.lidar_scene_visible = False
+        self.vehicle_geometry = {
+            'front': float(rospy.get_param('~vehicle_front_m', 3.845)),
+            'rear': float(rospy.get_param('~vehicle_rear_m', .790)),
+            'half_width': float(rospy.get_param('~vehicle_half_width_m', .946)),
+        }
+        height = rospy.get_param('~vehicle_height_m', 2.434)
+        self.vehicle_height = float(height) if height != '' else None
+        if (any(not math.isfinite(v) or v <= 0. for v in self.vehicle_geometry.values())
+                or self.vehicle_height is not None and
+                (not math.isfinite(self.vehicle_height) or self.vehicle_height <= 0.)):
+            raise ValueError('invalid debug vehicle dimensions')
+        self.ground_z = float(rospy.get_param('~ground_z_m', -.38))
+        self.tf_broadcaster = tf.TransformBroadcaster()
         self.photo_pub = rospy.Publisher('/map_debug/photo', Marker, queue_size=1, latch=True)
         self.map_pub = rospy.Publisher('/map_debug/map', OccupancyGrid, queue_size=1, latch=True)
         self.marker_pub = rospy.Publisher('/map_debug/markers', MarkerArray, queue_size=1, latch=True)
@@ -88,6 +114,14 @@ class MapDebug:
         self.status_pub = rospy.Publisher('/map_debug/status', String, queue_size=1, latch=True)
         self.horizon_pub = rospy.Publisher('/map_debug/obstacle_horizon', MarkerArray, queue_size=1)
         self.ground_display_pub = rospy.Publisher('/map_debug/ground_points', PointCloud2, queue_size=1)
+        self.lidar_scene_pub = rospy.Publisher('/map_debug/lidar_scene', MarkerArray, queue_size=1)
+        self.lidar_obstacle_pub = rospy.Publisher('/map_debug/lidar_obstacles', MarkerArray, queue_size=1)
+        self.local_path_pub = rospy.Publisher('/map_debug/local_path', NavPath, queue_size=1)
+        self.map_local_path_pub = rospy.Publisher('/map_debug/map_local_path', NavPath, queue_size=1)
+        self.local_path_marker_pub = rospy.Publisher('/map_debug/local_path_markers', Marker, queue_size=1)
+        self.map_path_marker_pub = rospy.Publisher('/map_debug/map_local_path_markers', Marker, queue_size=1)
+        self.used_points_pub = rospy.Publisher('/map_debug/used_points', PointCloud2, queue_size=1)
+        self.discarded_points_pub = rospy.Publisher('/map_debug/discarded_points', PointCloud2, queue_size=1)
         self.publish_static()
         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
                          PoseStamped, self.on_pose, queue_size=1)
@@ -108,10 +142,19 @@ class MapDebug:
                          self.on_parameter_edit, queue_size=10)
         rospy.Subscriber('/waypoint_debug/obstacle_horizon', String,
                          self.on_horizon, queue_size=1)
-        rospy.Subscriber('/waypoint_debug/ground_status', String,
-                         self.on_ground_status, queue_size=1)
-        rospy.Subscriber('/waypoint_debug/ground_points', PointCloud2,
-                         self.on_ground_points, queue_size=1, buff_size=2**22)
+        rospy.Subscriber('/waypoint_debug/local_path', NavPath,
+                         self.on_local_path, queue_size=1)
+        rospy.Subscriber('/leo/signal_status', String, self.on_guard_status, queue_size=1)
+        rospy.Subscriber('/map_debug/perception_view', String, self.on_perception_view, queue_size=1)
+        rospy.Subscriber('/leo/avoidance_status', String, self.on_ftg_status, queue_size=1)
+        for suffix, kind, callback in (
+                ('tracking_state', String, self.on_tracking_state),
+                ('local_path', NavPath, self.on_local_path),
+                ('obstacles', String, self.on_obstacles),
+                ('lane_geometry', String, self.on_lane_geometry)):
+            rospy.Subscriber('/leo/waypoint_debug/'+suffix, kind, callback,
+                             callback_args='leo', queue_size=1)
+        self.update_perception_subscriptions('raceline')
         rospy.Timer(rospy.Duration(0.1), self.refresh)
         self.log_project_counts()
 
@@ -214,7 +257,8 @@ class MapDebug:
 
     def on_pose(self, message):
         p, q = message.pose.position, message.pose.orientation
-        if message.header.frame_id != 'map' or not all(math.isfinite(v) for v in
+        age = rospy.Time.now().to_sec()-message.header.stamp.to_sec()
+        if not -.1 <= age <= .5 or message.header.frame_id != 'map' or not all(math.isfinite(v) for v in
                 (p.x, p.y, q.x, q.y, q.z, q.w)):
             return
         norm = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w
@@ -232,7 +276,7 @@ class MapDebug:
             self.speed = message.data
             self.speed_time = time.monotonic()
 
-    def on_tracking_state(self, message):
+    def on_tracking_state(self, message, source='raceline'):
         try:
             state = json.loads(message.data)
             if (type(state['valid']) is not bool or
@@ -240,17 +284,27 @@ class MapDebug:
                     (state['sector'] is not None and
                      (type(state['sector']) is not int or not 1 <= state['sector'] <= 15))):
                 return
+            if 'stamp' in state and (not math.isfinite(float(state['stamp'])) or
+                    not -.1 <= rospy.Time.now().to_sec()-state['stamp'] <= .5):
+                return
         except (ValueError, KeyError, TypeError):
             return
-        self.tracking = (state, time.monotonic())
+        snapshot = (state, time.monotonic())
+        self.source_snapshots[source]['tracking'] = snapshot
+        if source == 'raceline':
+            self.tracking = snapshot
 
-    def current_tracking(self, now):
-        tracking = self.tracking
-        if tracking is None or now - tracking[1] >= 1.0 or not tracking[0]['valid']:
+    def current_tracking(self, now, require_valid=True):
+        tracking = (self.tracking if self.active_source == 'raceline' else
+                    self.source_snapshots.get(self.active_source, {}).get('tracking'))
+        if (tracking is None or now - tracking[1] >= .5
+                or require_valid and not tracking[0]['valid']
+                or 'stamp' in tracking[0] and
+                not -.1 <= rospy.Time.now().to_sec()-tracking[0]['stamp'] <= .5):
             return None
         return tracking[0]
 
-    def on_obstacles(self, message):
+    def on_obstacles(self, message, source='raceline'):
         try:
             data = json.loads(message.data)
             stamp = float(data['stamp'])
@@ -264,7 +318,9 @@ class MapDebug:
                 kind = item['kind']
                 if (type(identifier) is not int or not 0 <= identifier < 2**31 or
                         identifier in identifiers or not all(math.isfinite(v) for v in values) or
-                        not .1 <= values[2] <= 6. or kind not in ('dynamic', 'static', 'unknown')):
+                        not .1 <= values[2] <= (100. if source in ('route', 'ftg')
+                                               else 15. if source == 'raceline' else 6.)
+                        or kind not in ('dynamic', 'static', 'unknown')):
                     return
                 # Detector rectangle; older streams carry only the circle.
                 box = [float(item.get(key, 0.)) for key in ('length', 'width', 'yaw')]
@@ -276,26 +332,43 @@ class MapDebug:
                 lane = (int(item.get('raceline', 0)),
                         bool(item.get('lane_stable', False)),
                         bool(item.get('lane_boundary_crossing', True)))
-                obstacles.append((identifier, *values, kind, *box, *lane))
+                # Optional diagnostic bounds already use the cloud's map Z.
+                bounds = None
+                try:
+                    lower, upper = float(item['z_min']), float(item['z_max'])
+                    if math.isfinite(lower) and math.isfinite(upper) and lower <= upper:
+                        bounds = lower, upper
+                except (KeyError, ValueError, TypeError, OverflowError):
+                    pass
+                obstacles.append((identifier, *values, kind, *box, *lane, bounds))
         except (ValueError, KeyError, TypeError, OverflowError):
             return
-        corridor = self.lane_corridor
+        corridor = (self.lane_corridor if source == 'raceline' else
+                    self.source_snapshots[source].get('corridor', self.saved_lane_corridor))
         if corridor is None:
             return
-        mask = corridor.contains([(o[1], o[2]) for o in obstacles])
-        obstacles = [o for o, inside in zip(obstacles, mask) if inside]
-        self.obstacle_snapshot = (obstacles, time.monotonic(), stamp)
+        if source not in ('route', 'ftg'):
+            mask = corridor.contains([(o[1], o[2]) for o in obstacles])
+            obstacles = [o for o, inside in zip(obstacles, mask) if inside]
+        snapshot = (obstacles, time.monotonic(), stamp)
+        if hasattr(self, 'source_snapshots'):
+            self.source_snapshots[source]['obstacles'] = snapshot
+        if source == 'raceline':
+            self.obstacle_snapshot = snapshot
 
-    def on_lane_geometry(self, message):
+    def on_lane_geometry(self, message, source='raceline'):
         try:
             geometry = json.loads(message.data)
             corridor = LaneCorridor(geometry)
         except (ValueError, KeyError, TypeError, OverflowError) as error:
             rospy.logwarn_throttle(5., 'Invalid debug lane geometry: %s', error)
             return
-        self.live_lane_geometry = geometry
-        self.lane_corridor = corridor
-        self.obstacle_snapshot = None
+        self.source_snapshots[source]['corridor'] = corridor
+        self.source_snapshots[source]['obstacles'] = None
+        if source == 'raceline':
+            self.live_lane_geometry = geometry
+            self.lane_corridor = corridor
+            self.obstacle_snapshot = None
         # Live geometry is only for matching the detector's obstacle filter.
         # Visible map paths always come from DEBUG_PROJECT_FILE.
 
@@ -409,25 +482,33 @@ class MapDebug:
         self.horizon_pub.publish(MarkerArray(markers=[area, border, label]))
 
     def publish_obstacles(self, now):
-        snapshot = self.obstacle_snapshot
+        source = self.perception_source() if hasattr(self, 'active_source') else 'raceline'
+        snapshot = (self.obstacle_snapshot if source == 'raceline' else
+                    self.source_snapshots.get(source, {}).get('obstacles'))
         visible = (snapshot is not None and now-snapshot[1] <= .5 and
                    -.1 <= rospy.Time.now().to_sec()-snapshot[2] <= .5)
         obstacles = snapshot[0] if visible else []
-        corridor = self.lane_corridor
+        corridor = (self.lane_corridor if source == 'raceline' else
+                    self.source_snapshots.get(source, {}).get('corridor', self.saved_lane_corridor))
         if corridor is None:
             obstacles = []
-        elif obstacles:
+        elif obstacles and source not in ('route', 'ftg'):
             mask = corridor.contains([(o[1], o[2]) for o in obstacles])
             obstacles = [o for o, inside in zip(obstacles, mask) if inside]
         identifiers = {o[0] for o in obstacles}
         markers = []
+        vertical_bounds = {}
+        scan_points = self.obstacle_scan_points(source, snapshot[2], now) if obstacles else None
         namespaces = ('obstacle_boxes', 'obstacle_edges', 'obstacle_labels')
         for identifier in self.obstacle_marker_ids-identifiers:
             for namespace in namespaces:
                 deleted = marker(namespace, identifier, Marker.CUBE)
                 deleted.action = Marker.DELETE
                 markers.append(deleted)
-        for identifier, x, y, radius, vx, vy, kind, length, width, yaw, lane, stable, crossing in obstacles:
+        for identifier, x, y, radius, vx, vy, kind, length, width, yaw, lane, stable, crossing, bounds in obstacles:
+            if bounds is None and scan_points is not None:
+                bounds = obstacle_z_bounds(scan_points, x, y, length, width, yaw)
+            vertical_bounds[identifier] = bounds
             rgb = ((1., .15, .1) if kind == 'dynamic' else
                    (.1, .65, 1.) if kind == 'static' else (1., .85, .1))
             # The detector's lane-aligned rectangle; height is for visibility.
@@ -469,7 +550,149 @@ class MapDebug:
             markers.append(label)
         if markers:
             self.obstacle_pub.publish(MarkerArray(markers=markers))
+            # Preserve the aerial overlay. The 3D view uses only observed Z
+            # from this source and scan; no measured height means a footprint.
+            lidar_markers = copy.deepcopy(markers)
+            for original, item in zip(markers, lidar_markers):
+                if item.action == Marker.DELETE:
+                    continue
+                bounds = vertical_bounds[item.id]
+                lower, upper = bounds if bounds is not None else (self.ground_z+.03,)*2
+                if item.type == Marker.LINE_LIST:
+                    item.pose.position.z = 0.
+                    item.scale.x = .06
+                    # Each corner occurs three times in the line list. Assign
+                    # fresh points: shifting aliased corners in place sinks
+                    # them three times while the cube moves only once.
+                    item.points = [Point(p.x, p.y, lower+(p.z-3.)/1.5*(upper-lower))
+                                   for p in original.points]
+                elif item.type == Marker.TEXT_VIEW_FACING:
+                    item.pose.position.z = upper+.3
+                    item.scale.z = .65
+                elif item.type == Marker.CUBE:
+                    item.pose.position.z = (lower+upper)*.5
+                    item.scale.z = upper-lower
+                    item.color.a = .18
+                    if bounds is None or upper <= lower:
+                        item.action = Marker.DELETE
+            self.lidar_obstacle_pub.publish(MarkerArray(markers=lidar_markers))
         self.obstacle_marker_ids = identifiers
+
+    def obstacle_scan_points(self, source, stamp, now):
+        """Match height to the obstacle scan, never a different source/scan."""
+        snapshots = getattr(self, 'source_snapshots', {}).get(source, {})
+        for cloud, received, points in reversed(snapshots.get('used_history', [])):
+            if now-received <= .5 and abs(cloud.header.stamp.to_sec()-stamp) < 1e-6:
+                return points
+        return None
+
+    def on_local_path(self, message, source='raceline'):
+        age = rospy.Time.now().to_sec()-message.header.stamp.to_sec()
+        if (message.header.frame_id != 'map' or not -.1 <= age <= .5
+                or any(p.header.frame_id not in ('', 'map') or
+                       not all(math.isfinite(v) for v in
+                               (p.pose.position.x, p.pose.position.y, p.pose.position.z))
+                       for p in message.poses)):
+            return
+        snapshot = (copy.deepcopy(message), time.monotonic())
+        self.source_snapshots[source]['path'] = snapshot
+        if source == 'raceline':
+            self.local_path_snapshot = snapshot
+
+    def publish_local_path(self, now):
+        snapshot = (self.local_path_snapshot if self.active_source == 'raceline' else
+                    self.source_snapshots.get(self.active_source, {}).get('path'))
+        fresh = (snapshot is not None and now-snapshot[1] <= .5 and
+                 self.current_tracking(now) is not None and
+                 -.1 <= rospy.Time.now().to_sec()-snapshot[0].header.stamp.to_sec() <= .5)
+        if fresh:
+            path = copy.deepcopy(snapshot[0])
+            # Same actual XY path in both views. The aerial map's saved paths
+            # sit above the road, so raise only its display copy above them.
+            for pose in path.poses:
+                pose.pose.position.z = self.ground_z+.07
+            self.local_path_pub.publish(path)
+            map_path = copy.deepcopy(path)
+            for pose in map_path.poses:
+                pose.pose.position.z = 1.4
+            self.map_local_path_pub.publish(map_path)
+            self.publish_path_markers(path, map_path)
+            self.local_path_visible = bool(path.poses)
+        elif self.local_path_visible:
+            path = NavPath(header=Header(stamp=rospy.Time.now(), frame_id='map'))
+            self.local_path_pub.publish(path)
+            self.map_local_path_pub.publish(path)
+            self.publish_path_markers(path, path)
+            self.local_path_visible = False
+
+    def publish_path_markers(self, lidar_path, map_path):
+        # Explicit marker deletion avoids asking RViz's billboard Path
+        # display to allocate a zero-element Ogre index buffer on stops.
+        for path, publisher, width in ((lidar_path, self.local_path_marker_pub, .15),
+                                       (map_path, self.map_path_marker_pub, .6)):
+            line = marker('actual_local_path', 0, Marker.LINE_STRIP)
+            line.header = path.header
+            if len(path.poses) < 2:
+                line.action = Marker.DELETE
+            else:
+                line.scale.x = width
+                line.color.r, line.color.g, line.color.b, line.color.a = 1., .78, 0., 1.
+                line.points = [copy.deepcopy(p.pose.position) for p in path.poses]
+                line.lifetime = rospy.Duration(.5)
+            publisher.publish(line)
+
+    def publish_lidar_scene(self, pose):
+        if pose is None:
+            if self.lidar_scene_visible:
+                clear = marker('lidar_scene', 0, Marker.CUBE)
+                clear.action = Marker.DELETEALL
+                self.lidar_scene_pub.publish(MarkerArray(markers=[clear]))
+                self.lidar_scene_visible = False
+            return
+        x, y, yaw = pose
+        self.tf_broadcaster.sendTransform((x, y, self.ground_z),
+            (0., 0., math.sin(yaw*.5), math.cos(yaw*.5)), rospy.Time.now(),
+            'map_debug_vehicle', 'map')
+        corridor = (self.lane_corridor if self.active_source == 'raceline' else
+                    self.source_snapshots.get(self.active_source, {}).get('corridor', self.saved_lane_corridor))
+        edges, centers = nearby_lane_edges(corridor, pose)
+        markers = []
+        for namespace, points, rgb, width in (
+                ('lane_boundaries', edges, (1., .85, .15), .07),
+                ('lane_centers', centers, (.2, .65, 1.), .045)):
+            line = marker(namespace, 0, Marker.LINE_LIST)
+            line.scale.x = width
+            line.color.r, line.color.g, line.color.b, line.color.a = (*rgb, .85)
+            line.points = [Point(float(p[0]), float(p[1]), self.ground_z+.03) for p in points]
+            markers.append(line)
+        geometry = self.vehicle_geometry
+        corners = vehicle_box_corners(pose, geometry['front'], geometry['rear'],
+            geometry['half_width'], self.ground_z, self.vehicle_height or 0.)
+        box = marker('vehicle_dimensions', 0, Marker.LINE_LIST)
+        box.scale.x = .09
+        box.color.r, box.color.g, box.color.b, box.color.a = 1., .75, .1, 1.
+        box.points = [Point(*corners[i]) for pair in BOX_EDGE_PAIRS for i in pair]
+        markers.append(box)
+        nose = marker('vehicle_forward', 0, Marker.ARROW)
+        nose.scale.x, nose.scale.y, nose.scale.z = .15, .35, .35
+        nose.color = box.color
+        nose.points = [Point(x, y, self.ground_z+.15),
+                       Point(x+2.*math.cos(yaw), y+2.*math.sin(yaw), self.ground_z+.15)]
+        markers.append(nose)
+        tracking = self.current_tracking(time.monotonic()) or {}
+        target = tracking.get('pursuit_target')
+        if isinstance(target, dict) and all(type(target.get(k)) in (int, float)
+                and math.isfinite(target[k]) for k in ('x', 'y')):
+            sphere = marker('pursuit_target', 0, Marker.SPHERE)
+            sphere.pose.position.x, sphere.pose.position.y = target['x'], target['y']
+            sphere.pose.position.z = .4
+            sphere.scale.x = sphere.scale.y = sphere.scale.z = .6
+            sphere.color.r, sphere.color.g, sphere.color.b, sphere.color.a = 1., 1., 0., 1.
+            markers.append(sphere)
+        for item in markers:
+            item.lifetime = rospy.Duration(.5)
+        self.lidar_scene_pub.publish(MarkerArray(markers=markers))
+        self.lidar_scene_visible = True
 
     def on_ground_points(self, message):
         if message.header.frame_id != 'map':
@@ -481,12 +704,14 @@ class MapDebug:
         self.ground_display_pub.publish(point_cloud2.create_cloud_xyz32(
             Header(stamp=message.header.stamp, frame_id='map'), points))
 
-    def on_ground_status(self, message):
+    def on_ground_status(self, message, source='raceline'):
         try:
             data = json.loads(message.data)
             if (data.get('frame_id') != 'map' or not math.isfinite(float(data['stamp'])) or
-                    data.get('mode') not in ('ground_filtered', 'ground_unconfirmed', 'imu_missing_or_stale',
-                        'waiting_cloud', 'waiting_lane_geometry', 'wrong_cloud_frame', 'cloud_time_mismatch', 'waiting_pose')):
+                    (data.get('mode') not in ('ground_filtered', 'ground_unconfirmed', 'imu_missing_or_stale',
+                        'waiting_cloud', 'waiting_lane_geometry', 'wrong_cloud_frame', 'cloud_time_mismatch', 'waiting_pose',
+                        'local_filtered', 'route_filtered', 'ftg_filtered')
+                     and data.get('debug_valid') is not False)):
                 return
             for key in ('pitch_deg', 'roll_deg', 'imu_skew_s', 'residual_p95_m'):
                 if data.get(key) is not None and not math.isfinite(float(data[key])):
@@ -494,24 +719,140 @@ class MapDebug:
         except (ValueError, TypeError, KeyError, AttributeError):
             return
         with self.config_lock:
-            self.ground_snapshot = (data, time.monotonic())
+            snapshot = (data, time.monotonic())
+            self.source_snapshots[source]['ground'] = snapshot
+            if source == 'raceline':
+                self.ground_snapshot = snapshot
+        if source in ('route', 'ftg'):
+            self.on_obstacles(String(data=json.dumps(dict(
+                stamp=data['stamp'], frame_id='map', obstacles=data.get('obstacles', [])))), source)
 
     def ground_status(self, now):
         with self.config_lock:
-            snapshot = self.ground_snapshot
+            source = self.perception_source()
+            snapshot = (self.ground_snapshot if source == 'raceline' else
+                        self.source_snapshots.get(source, {}).get('ground'))
         if snapshot is None or now-snapshot[1] > .5:
             return None
         age = rospy.Time.now().to_sec()-snapshot[0]['stamp']
         return snapshot[0] if -.1 <= age <= .5 else None
 
+    def on_guard_status(self, message):
+        try:
+            data = json.loads(message.data)
+            if not isinstance(data.get('state'), str):
+                return
+        except (ValueError, TypeError, AttributeError):
+            return
+        self.guard_snapshot = (data, time.monotonic())
+
+    def on_ftg_status(self, message):
+        try:
+            data = json.loads(message.data)
+            if type(data.get('valid')) is not bool:
+                return
+        except (ValueError, TypeError, AttributeError):
+            return
+        self.source_snapshots['ftg']['decision'] = (data, time.monotonic())
+
+    def on_perception_view(self, message):
+        if message.data in ('auto', 'collision'):
+            self.perception_view = message.data
+
+    def select_source(self, now):
+        if self.guard_snapshot is None:
+            return 'raceline'
+        if now-self.guard_snapshot[1] > .5:
+            return None
+        if self.guard_snapshot[0]['state'] == 'hold':
+            return None
+        return 'raceline' if self.guard_snapshot[0]['state'] == 'passthrough' else 'leo'
+
+    def perception_source(self):
+        if self.active_source != 'leo':
+            return self.active_source
+        tracking = self.current_tracking(time.monotonic(), require_valid=False) or {}
+        if (self.perception_view == 'collision' and
+                tracking.get('planner_mode') == 'route_and_local_avoidance'):
+            return 'leo'
+        if tracking.get('planner_mode') == 'external_blackout_target':
+            return 'ftg'
+        if tracking.get('local_path_source') == 'route_avoidance':
+            return 'route'
+        return 'leo'
+
+    def on_debug_cloud(self, message, source_kind):
+        if message.header.frame_id != 'map':
+            return
+        source, kind = source_kind
+        received = time.monotonic()
+        self.source_snapshots[source][kind] = (message, received)
+        if kind == 'used':
+            if (message.point_step == 12 and message.row_step == 12*message.width
+                    and [(f.name, f.offset, f.datatype, f.count) for f in message.fields]
+                    == [(name, i*4, 7, 1) for i, name in enumerate(('x', 'y', 'z'))]):
+                dtype = '>f4' if message.is_bigendian else '<f4'
+                points = np.frombuffer(message.data, dtype=dtype).reshape(-1, 3)
+            else:
+                points = np.asarray(list(point_cloud2.read_points(
+                    message, field_names=('x', 'y', 'z'), skip_nans=True))).reshape(-1, 3)
+            # Cloud and obstacle callbacks can arrive in either order. Keep a
+            # short bounded history to pair the original scan at render time.
+            history = self.source_snapshots[source].get('used_history', [])
+            self.source_snapshots[source]['used_history'] = (
+                history+[(message, received, points)])[-4:]
+
+    def update_perception_subscriptions(self, source):
+        if source == self.perception_subscription_source:
+            return
+        for subscriber in self.perception_subscribers:
+            subscriber.unregister()
+        self.perception_subscribers = []
+        self.perception_subscription_source = source
+        if source is None:
+            return
+        prefix, status_name = {
+            'raceline': ('/waypoint_debug/', 'ground_status'),
+            'leo': ('/leo/waypoint_debug/', 'ground_status'),
+            'route': ('/leo/route_debug/', 'status'),
+            'ftg': ('/leo/ftg_debug/', 'status')}[source]
+        # Only the displayed pipeline needs to build diagnostic clouds. This
+        # keeps inactive perception workers out of the rendering workload.
+        for kind, suffix in (('used', 'obstacle_points'), ('discarded', 'discarded_points')):
+            self.perception_subscribers.append(rospy.Subscriber(prefix+suffix, PointCloud2,
+                self.on_debug_cloud, callback_args=(source, kind), queue_size=1, buff_size=2**24))
+        self.perception_subscribers.append(rospy.Subscriber(prefix+status_name, String,
+            self.on_ground_status, callback_args=source, queue_size=1))
+
+    def publish_debug_clouds(self, now):
+        source = self.perception_source()
+        for kind, publisher in (('used', self.used_points_pub), ('discarded', self.discarded_points_pub)):
+            snapshot = self.source_snapshots.get(source, {}).get(kind)
+            if (snapshot is not None and now-snapshot[1] <= .5 and
+                    -.1 <= rospy.Time.now().to_sec()-snapshot[0].header.stamp.to_sec() <= .5):
+                publisher.publish(snapshot[0])
+            else:
+                publisher.publish(point_cloud2.create_cloud_xyz32(
+                    Header(stamp=rospy.Time.now(), frame_id='map'), []))
+
     def refresh(self, _event):
         self.reload_project_if_changed()
         now = time.monotonic()
+        self.active_source = self.select_source(now)
+        self.update_perception_subscriptions(self.perception_source())
+        self.publish_debug_clouds(now)
         self.publish_obstacles(now)
-        self.publish_horizon(now)
+        self.publish_local_path(now)
         parameters, parameter_error = self.parameter_status(now)
         tracking = self.current_tracking(now)
         recent_state = tracking
+        decision = dict(self.current_tracking(now, require_valid=False) or {})
+        ftg = self.source_snapshots['ftg'].get('decision')
+        if (decision.get('planner_mode') == 'external_blackout_target' and
+                ftg is not None and now-ftg[1] <= .5):
+            decision['ftg'] = ftg[0]
+            decision['planner_reason'] = ftg[0].get('reason', '')
+            decision['planner_state'] = ftg[0].get('avoidance_phase', '')
         raceline = None
         available = (self.valid and self.pose is not None and
                      now - self.pose_time < 1.0)
@@ -549,6 +890,7 @@ class MapDebug:
                 deleted.action = Marker.DELETEALL
                 self.vehicle_pub.publish(MarkerArray(markers=[deleted]))
                 self.last_vehicle_visible = False
+        self.publish_lidar_scene(pose if available else None)
         self.status_pub.publish(String(data=json.dumps({
             'available': available, 'speed_kmh': speed, 'x': x, 'y': y,
             'heading_deg': math.degrees(yaw) if yaw is not None else None,
@@ -565,6 +907,11 @@ class MapDebug:
             'raceline_width': self.saved_lane_corridor.width,
             'avoidance_parameters': parameters, 'parameter_error': parameter_error,
             'ground_filter': self.ground_status(now),
+            'decision': decision,
+            'controller_source': self.active_source,
+            'perception_source': self.perception_source(),
+            'guard': self.guard_snapshot[0] if self.guard_snapshot and now-self.guard_snapshot[1] <= .5 else {},
+            'vehicle_dimensions': dict(self.vehicle_geometry, height=self.vehicle_height),
             'lane_change_reason': recent_state.get('lane_change_reason', '') if recent_state else ''})))
 
 

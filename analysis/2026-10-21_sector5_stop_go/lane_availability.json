@@ -1,0 +1,826 @@
+{
+  "snapshot": "src/unita_waypoint/log/run_20261019_002529/config/map_tunner_project.json",
+  "sector_lane_count": 2,
+  "saved_r1_count": 258,
+  "saved_r2_count": 134,
+  "r2_gaps": [
+    {
+      "before": {
+        "id": 6103,
+        "x": -56.49426937168486,
+        "y": -45.51190231231228,
+        "z": 28.391036272513507,
+        "speed_kmh": 30,
+        "source_id": 870
+      },
+      "after": {
+        "id": 6104,
+        "x": -56.702901418387654,
+        "y": -8.346333504739025,
+        "z": 28.404813058827386,
+        "speed_kmh": 30,
+        "source_id": 948
+      },
+      "source_id_difference": 78,
+      "endpoint_distance_m": 37.1661543897317
+    },
+    {
+      "before": {
+        "id": 6104,
+        "x": -56.702901418387654,
+        "y": -8.346333504739025,
+        "z": 28.404813058827386,
+        "speed_kmh": 30,
+        "source_id": 948
+      },
+      "after": {
+        "id": 6105,
+        "x": -56.70570893263975,
+        "y": -7.846343167385984,
+        "z": 28.403477239489593,
+        "speed_kmh": 30,
+        "source_id": 950
+      },
+      "source_id_difference": 2,
+      "endpoint_distance_m": 0.4999982195795136
+    }
+  ],
+  "missing_r2_route_indices": [
+    857,
+    931
+  ],
+  "missing_r2_map_source_id_bounds": [
+    871,
+    947
+  ],
+  "note": "Map point IDs and zero-based deduplicated route waypoint indices are different.",
+  "projected_route_lane_permissions": [
+    {
+      "side": "right",
+      "offset_m": -3.742,
+      "start_s": 383.2799696772027,
+      "end_s": 427.8500069706279
+    },
+    {
+      "side": "right",
+      "offset_m": -3.743,
+      "start_s": 471.08998865801124,
+      "end_s": 550.6200212922208
+    }
+  ],
+  "planner_rows": [
+    {
+      "route_wp_index": 800,
+      "map_point_id": 814,
+      "route_s_m": 397.7757174898904,
+      "x": -59.931470055080545,
+      "y": -73.53131734051671,
+      "available_lanes": [
+        1,
+        2
+      ],
+      "r2_point": [
+        -56.331543238353085,
+        -73.50836272863802
+      ],
+      "r2_contiguous_span_m": 27.999992033917856,
+      "required_span_for_change_at_20kmh_m": 18.812136446678256,
+      "route_permission_for_next_20m": [
+        -3.742
+      ]
+    },
+    {
+      "route_wp_index": 846,
+      "map_point_id": 860,
+      "route_s_m": 420.77571090179765,
+      "x": -60.07142293500274,
+      "y": -50.531808114470145,
+      "available_lanes": [
+        1,
+        2
+      ],
+      "r2_point": [
+        -56.47143998532676,
+        -50.52072831112033
+      ],
+      "r2_contiguous_span_m": 4.999998622010089,
+      "required_span_for_change_at_20kmh_m": 18.81213644667826,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 856,
+      "map_point_id": 870,
+      "route_s_m": 425.77570952380756,
+      "x": -60.09421402230573,
+      "y": -45.53186508932857,
+      "available_lanes": [
+        1,
+        2
+      ],
+      "r2_point": [
+        -56.49426937168486,
+        -45.51190231231228
+      ],
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": 18.81213644667826,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 857,
+      "map_point_id": 871,
+      "route_s_m": 426.2757093701451,
+      "x": -60.096986629372566,
+      "y": -45.03187293040244,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 864,
+      "map_point_id": 879,
+      "route_s_m": 429.35184228294,
+      "x": -60.11423656559348,
+      "y": -41.955788384036595,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 870,
+      "map_point_id": 885,
+      "route_s_m": 432.3518395926175,
+      "x": -60.1310816897764,
+      "y": -38.95583836780898,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 877,
+      "map_point_id": 892,
+      "route_s_m": 435.8518185704977,
+      "x": -60.15073423305315,
+      "y": -35.4559145653318,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 881,
+      "map_point_id": 897,
+      "route_s_m": 437.7975595564922,
+      "x": -60.16165965874359,
+      "y": -33.51020425296447,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 903,
+      "map_point_id": 919,
+      "route_s_m": 448.79754486036796,
+      "x": -60.22342508739384,
+      "y": -22.51039235833119,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "route_s_m": 452.79754316435327,
+      "x": -60.24588526422443,
+      "y": -18.510457112312455,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 924,
+      "map_point_id": 940,
+      "route_s_m": 459.29752079818445,
+      "x": -60.282382932519795,
+      "y": -12.010581947317608,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 931,
+      "map_point_id": 947,
+      "route_s_m": 462.7974974236132,
+      "x": -60.3020354536515,
+      "y": -8.510660497204459,
+      "available_lanes": [
+        1
+      ],
+      "r2_point": null,
+      "r2_contiguous_span_m": 0.0,
+      "required_span_for_change_at_20kmh_m": null,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 932,
+      "map_point_id": 948,
+      "route_s_m": 462.9416125173797,
+      "x": -60.30284466617741,
+      "y": -8.366547675337642,
+      "available_lanes": [
+        1,
+        2
+      ],
+      "r2_point": [
+        -56.702901418387654,
+        -8.346333504739025
+      ],
+      "r2_contiguous_span_m": 59.87752779963865,
+      "required_span_for_change_at_20kmh_m": 18.81213644667826,
+      "route_permission_for_next_20m": []
+    },
+    {
+      "route_wp_index": 949,
+      "map_point_id": 966,
+      "route_s_m": 471.09159934040446,
+      "x": -60.34860723745078,
+      "y": -0.21668933285400271,
+      "available_lanes": [
+        1,
+        2
+      ],
+      "r2_point": [
+        -56.748663989651895,
+        -0.1964751638815138
+      ],
+      "r2_contiguous_span_m": 55.22754051832839,
+      "required_span_for_change_at_20kmh_m": 18.81213644667826,
+      "route_permission_for_next_20m": [
+        -3.743
+      ]
+    }
+  ],
+  "actual_tailing_observations": [
+    {
+      "t": 1792337273.1515362,
+      "route_wp_index": 870,
+      "map_point_id": 885,
+      "y": -38.982005221769214,
+      "kind": "unknown",
+      "distance": 14.756491310142037,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.2004848,
+      "route_wp_index": 870,
+      "map_point_id": 885,
+      "y": -38.79707121150568,
+      "kind": "unknown",
+      "distance": 14.57168473358324,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.253578,
+      "route_wp_index": 871,
+      "map_point_id": 886,
+      "y": -38.42720318818465,
+      "kind": "unknown",
+      "distance": 14.287566696769597,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.301492,
+      "route_wp_index": 871,
+      "map_point_id": 886,
+      "y": -38.24226917838678,
+      "kind": "unknown",
+      "distance": 14.102782339807497,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.351979,
+      "route_wp_index": 872,
+      "map_point_id": 887,
+      "y": -38.05733516579494,
+      "kind": "unknown",
+      "distance": 13.917917954621881,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.4017951,
+      "route_wp_index": 872,
+      "map_point_id": 887,
+      "y": -38.05733516579494,
+      "kind": "unknown",
+      "distance": 18.35894722710888,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.4558077,
+      "route_wp_index": 873,
+      "map_point_id": 888,
+      "y": -37.687467142008245,
+      "kind": "unknown",
+      "distance": 17.98930863927554,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.5023441,
+      "route_wp_index": 873,
+      "map_point_id": 888,
+      "y": -37.502533132210374,
+      "kind": "unknown",
+      "distance": 32.73427149498202,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.5515814,
+      "route_wp_index": 874,
+      "map_point_id": 889,
+      "y": -37.13266510842368,
+      "kind": "unknown",
+      "distance": 32.36465323751451,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.6027749,
+      "route_wp_index": 874,
+      "map_point_id": 889,
+      "y": -37.13266510842368,
+      "kind": "unknown",
+      "distance": 32.36465323751451,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.6507761,
+      "route_wp_index": 874,
+      "map_point_id": 889,
+      "y": -36.762797084636986,
+      "kind": "unknown",
+      "distance": 31.769679411989873,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.7020946,
+      "route_wp_index": 875,
+      "map_point_id": 890,
+      "y": -36.577863074839115,
+      "kind": "unknown",
+      "distance": 31.584803905531242,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.7508242,
+      "route_wp_index": 875,
+      "map_point_id": 890,
+      "y": -36.2079950501211,
+      "kind": "unknown",
+      "distance": 30.98257469516561,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.801117,
+      "route_wp_index": 876,
+      "map_point_id": 891,
+      "y": -35.83812702773139,
+      "kind": "unknown",
+      "distance": 30.613006635661357,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337273.8510473,
+      "route_wp_index": 877,
+      "map_point_id": 892,
+      "y": -35.65319301560521,
+      "kind": "unknown",
+      "distance": 30.428118474799366,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.001489,
+      "route_wp_index": 903,
+      "map_point_id": 919,
+      "y": -22.327508610207587,
+      "kind": "dynamic",
+      "distance": 10.29675397893767,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.0492647,
+      "route_wp_index": 904,
+      "map_point_id": 920,
+      "y": -21.957640580367297,
+      "kind": "dynamic",
+      "distance": 9.927139871330354,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.100617,
+      "route_wp_index": 905,
+      "map_point_id": 921,
+      "y": -21.587772549595684,
+      "kind": "dynamic",
+      "distance": 9.557534732911561,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.1504982,
+      "route_wp_index": 905,
+      "map_point_id": 921,
+      "y": -21.587772549595684,
+      "kind": "dynamic",
+      "distance": 9.407434430761946,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.2016346,
+      "route_wp_index": 906,
+      "map_point_id": 922,
+      "y": -21.217904517892748,
+      "kind": "dynamic",
+      "distance": 9.037837733975916,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.2496374,
+      "route_wp_index": 906,
+      "map_point_id": 922,
+      "y": -20.848036487586796,
+      "kind": "dynamic",
+      "distance": 8.808227313572578,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.2998803,
+      "route_wp_index": 907,
+      "map_point_id": 923,
+      "y": -20.478168456815183,
+      "kind": "dynamic",
+      "distance": 8.438660556564201,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.3499658,
+      "route_wp_index": 908,
+      "map_point_id": 924,
+      "y": -20.108300424180925,
+      "kind": "dynamic",
+      "distance": 8.069100822332729,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.400587,
+      "route_wp_index": 908,
+      "map_point_id": 924,
+      "y": -20.108300424180925,
+      "kind": "dynamic",
+      "distance": 8.234165828665999,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.4545767,
+      "route_wp_index": 909,
+      "map_point_id": 925,
+      "y": -19.73843239247799,
+      "kind": "dynamic",
+      "distance": 7.86461271459482,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.4999604,
+      "route_wp_index": 909,
+      "map_point_id": 925,
+      "y": -19.553498378023505,
+      "kind": "dynamic",
+      "distance": 7.679971423181534,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.5507455,
+      "route_wp_index": 909,
+      "map_point_id": 925,
+      "y": -19.553498378023505,
+      "kind": "dynamic",
+      "distance": 8.033737984297963,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.6008608,
+      "route_wp_index": 909,
+      "map_point_id": 925,
+      "y": -19.368564361706376,
+      "kind": "dynamic",
+      "distance": 7.849117441175576,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.6535845,
+      "route_wp_index": 910,
+      "map_point_id": 926,
+      "y": -18.99869632953778,
+      "kind": "dynamic",
+      "distance": 7.281836129583195,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.7049947,
+      "route_wp_index": 910,
+      "map_point_id": 926,
+      "y": -18.81376231368631,
+      "kind": "dynamic",
+      "distance": 7.09716725183005,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.75157,
+      "route_wp_index": 910,
+      "map_point_id": 926,
+      "y": -18.81376231368631,
+      "kind": "dynamic",
+      "distance": 7.09716725183005,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.8005347,
+      "route_wp_index": 910,
+      "map_point_id": 926,
+      "y": -18.81376231368631,
+      "kind": "dynamic",
+      "distance": 6.995859082059871,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.8531566,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.62534981360659,
+      "kind": "dynamic",
+      "distance": 6.802993050024249,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.9010766,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.62534981360659,
+      "kind": "dynamic",
+      "distance": 6.802993050024249,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337276.950415,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.516589705843656,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.0020893,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.516589705843656,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.05151,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.516589705843656,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.1019957,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.383727228450359,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.1507823,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.383727228450359,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.2009633,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.383727228450359,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.2506478,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.383727228450359,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.3023577,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.240093773529678,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.350338,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.240093773529678,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.4013608,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.240093773529678,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.4016235,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.240093773529678,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.450748,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.151040459841611,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.4999518,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.151040459841611,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.5529087,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.151040459841611,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337277.5531769,
+      "route_wp_index": 911,
+      "map_point_id": 927,
+      "y": -18.440415795892477,
+      "kind": "dynamic",
+      "distance": 6.151040459841611,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337564.2004356,
+      "route_wp_index": 864,
+      "map_point_id": 879,
+      "y": -41.94442785996944,
+      "kind": "unknown",
+      "distance": 18.464209493903656,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337564.2501223,
+      "route_wp_index": 865,
+      "map_point_id": 880,
+      "y": -41.574559839908034,
+      "kind": "unknown",
+      "distance": 18.09461359021546,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    },
+    {
+      "t": 1792337564.299635,
+      "route_wp_index": 866,
+      "map_point_id": 881,
+      "y": -41.20469181891531,
+      "kind": "unknown",
+      "distance": 17.725025711723227,
+      "r2_available": false,
+      "r2_contiguous_span_m": 0.0
+    }
+  ],
+  "source_references": {
+    "loader": "gps_waypoint_follower_local.py HEAD:c3cc13f lines 630-650; constructor 478-480",
+    "mapping": "map_tunner_core.py:253-285, S5 maps exact source_id; only S11 interpolates",
+    "lookup": "local_avoidance_core_local.py:159-164 returns mapping.get(index)",
+    "availability": "local_avoidance_core_local.py:444-446 removes missing lane points",
+    "span": "local_avoidance_core_local.py:215-221 stops at first missing mapped point",
+    "change_rejection": "local_avoidance_core_local.py:534-536 requires merge length plus 8m",
+    "route_permission": "route_avoidance.py:254-267 requires entire pass in allowed intervals",
+    "route_wait": "route_avoidance.py:330-376 returns WAIT_SOLID_LINE when offsets empty",
+    "local_fallback": "local_avoidance_core_local.py:600-609 returns TAILING for lead obstacle"
+  }
+}

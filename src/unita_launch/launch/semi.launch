@@ -171,6 +171,10 @@
     <!-- Pure Pursuit curve cutting within the lane (3.6 m lane - 1.892 m car)/2
          is tracking error, not a lane departure needing a return lane change. -->
     <param name="r1_tracking_tolerance_m" value="0.85"/>
+    <!-- Prepare R1 while raceline owns the car; retain R1 through the handoff
+         until the guard confirms Leo ownership and the car has rejoined R1. -->
+    <param name="r1_handoff_checkpoints" value="$(arg raceline_checkpoints)" type="str"/>
+    <param name="handoff_guard_status_topic" value="/leo/signal_status"/>
     <param name="lane_change_any_speed_checkpoints" value="$(arg any_speed_lane_change_checkpoints)" type="str"/>
     <param name="waypoint_only_point_ids" value="$(arg waypoint_only_point_ids)" type="str"/>
     <param name="vehicle_half_width_m" value="0.946"/>

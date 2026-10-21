@@ -63,6 +63,7 @@ class LoopTrackingTests(unittest.TestCase):
         obj.gps_received = obj.imu_received = time.monotonic()
         with patch.object(module.rospy, "loginfo"), \
                 patch.object(module.rospy, "loginfo_throttle"), \
+                patch.object(module.rospy.Time, "now", return_value=module.rospy.Time.from_sec(100.)), \
                 patch.object(module.rospy, "logwarn_throttle"):
             obj.control_loop(None)
 

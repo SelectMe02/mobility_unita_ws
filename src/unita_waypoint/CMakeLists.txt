@@ -239,12 +239,16 @@ catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(DIRECTORY config launch scenarios DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(FILES scripts/map_tunner_core.py scripts/map_tunner_map.py
+  scripts/map_debug_geometry.py
+  scripts/perception_debug.py
+  scripts/tracking_debug.py
   scripts/local_avoidance_core.py
   scripts/local_avoidance_core_local.py
   scripts/avoidance_runtime.py
   scripts/ground_segmentation.py
   scripts/pedal_guard.py
   scripts/lane_corridor.py
+  scripts/obstacle_motion.py
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts)
 install(TARGETS map_tunner_panel LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 install(FILES plugin_description.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
@@ -253,9 +257,11 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_loop_tracking.py)
   catkin_add_nosetests(test/test_loop_tracking_local.py)
   catkin_add_nosetests(test/test_local_avoidance_local.py)
+  catkin_add_nosetests(test/test_cp11_handoff_local.py)
   catkin_add_nosetests(test/test_extract_stoplines.py)
   catkin_add_nosetests(test/test_map_tunner.py)
   catkin_add_nosetests(test/test_map_debug.py)
+  catkin_add_nosetests(test/test_tracking_debug.py)
   catkin_add_nosetests(test/test_raceline_selection.py)
   catkin_add_nosetests(test/test_local_avoidance.py)
   catkin_add_nosetests(test/test_highway_planner.py)
@@ -263,5 +269,6 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_lane_corridor.py)
   catkin_add_nosetests(test/test_ground_segmentation.py)
   catkin_add_nosetests(test/test_driving_stability.py)
+  catkin_add_nosetests(test/test_obstacle_motion.py)
   catkin_add_nosetests(test/test_driving_log.py)
 endif()

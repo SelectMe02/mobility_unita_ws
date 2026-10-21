@@ -241,8 +241,12 @@ class LiveAvoidanceTest(unittest.TestCase):
         detector = LidarObstacles.__new__(LidarObstacles)
         detector.front_range = detector.rear_range = 55.
         detector.side_range, detector.dynamic_speed_threshold_mps = 12., .8
-        detector.tracks = {1: dict(x=20., y=0., radius=.8, vx=1., vy=0., hits=3, stamp=99.)}
-        detector.next_id = 2
+        detector.tracks = {}
+        detector.next_id = 1
+        # Classification now needs observed motion history, not an injected
+        # instantaneous velocity. Warm the same 1 m/s track before the edit.
+        for i in range(9):
+            detector._update_tracks([(19.2+i*.1, 0., .8)], 98.2+i*.1)
         debug, params = self.debug(), {}
         def get_param(name, default=None):
             return params.copy() if name == '~' else params.get(name.lstrip('~'), default)
@@ -281,10 +285,11 @@ class LiveAvoidanceTest(unittest.TestCase):
             with self.subTest(vx=vx, vy=vy, hits=hits):
                 detector = LidarObstacles.__new__(LidarObstacles)
                 detector.dynamic_speed_threshold_mps = 1.5
-                detector.tracks = {1: dict(x=20., y=0., radius=.8,
-                                          vx=vx, vy=vy, hits=hits, stamp=99.)}
-                detector.next_id = 2
-                actual = detector._update_tracks([(20.+vx*.5, vy*.5, .8)], 99.5)[0]
+                detector.tracks = {}
+                detector.next_id = 1
+                for i in range(9 if hits >= 3 else 1):
+                    actual = detector._update_tracks(
+                        [(20.+vx*i*.1, vy*i*.1, .8)], 99.+i*.1)[0]
                 self.assertEqual(actual['kind'], expected)
 
     def test_invalid_rosparam_preserves_last_good_planner_value(self):

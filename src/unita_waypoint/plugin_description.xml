@@ -2,7 +2,7 @@
   <class name="unita_waypoint/MapDebugPanel"
          type="unita_waypoint::MapDebugPanel"
          base_class_type="rviz::Panel">
-    <description>Read-only K-City vehicle speed, position, heading and sector.</description>
+    <description>Waypoint settings, vehicle-following 3D LiDAR, perception and planner diagnostics beside the K-City map.</description>
   </class>
   <class name="unita_waypoint/MapTunnerPanel"
          type="unita_waypoint::MapTunnerPanel"

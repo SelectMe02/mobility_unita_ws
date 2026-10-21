@@ -1,0 +1,653 @@
+{
+  "run": "run_20261021_203214",
+  "semi_bag": "semi_leo_2026-10-21-20-32-13.bag",
+  "time_origin_ros": 1792582334.1144853,
+  "time_origin_kst": "2026-10-21T20:32:14.114485+09:00",
+  "duration_s": 19.1791205,
+  "scope": {
+    "target_center_map_xy": [
+      -60.9,
+      -142.2
+    ],
+    "radius_m": 2.0,
+    "after_s": 7.0
+  },
+  "streams": {
+    "main": {
+      "frames": 115,
+      "target_label_counts": {
+        "unknown": 34,
+        "measured_unknown": 17,
+        "static": 57,
+        "measured_static": 57,
+        "dynamic": 16,
+        "measured_dynamic": 16
+      },
+      "key_track_id": 3,
+      "key_track_transitions": [
+        {
+          "scan_s": 7.300745010375977,
+          "arrival_s": 7.342311382293701,
+          "kind": "unknown",
+          "x": -61.20012445934587,
+          "y": -141.965375830418,
+          "radius": 0.4114048701570559,
+          "vx": 0.0,
+          "vy": 0.0,
+          "predicted": false
+        },
+        {
+          "scan_s": 7.591480016708374,
+          "arrival_s": 7.641103744506836,
+          "kind": "static",
+          "x": -61.11661073340298,
+          "y": -142.09635393417466,
+          "radius": 0.5237237743756596,
+          "vx": 0.06333487877440738,
+          "vy": -0.32677599542824914,
+          "predicted": false
+        },
+        {
+          "scan_s": 10.001008033752441,
+          "arrival_s": 10.035019874572754,
+          "kind": "dynamic",
+          "x": -60.85738891974584,
+          "y": -141.60800202278963,
+          "radius": 1.0478559844724185,
+          "vx": 0.29127452018581557,
+          "vy": 1.5817306680335728,
+          "predicted": false
+        },
+        {
+          "scan_s": 10.58177661895752,
+          "arrival_s": 10.64168381690979,
+          "kind": "static",
+          "x": -60.91813598019486,
+          "y": -142.4745997434421,
+          "radius": 0.6322722191197548,
+          "vx": -0.025103732673921686,
+          "vy": -0.7968109470686685,
+          "predicted": false
+        },
+        {
+          "scan_s": 10.74830150604248,
+          "arrival_s": 10.78491497039795,
+          "kind": "dynamic",
+          "x": -60.85216550981062,
+          "y": -141.67175256598907,
+          "radius": 1.0330081347680986,
+          "vx": 0.12233851305530669,
+          "vy": 1.1694874026040583,
+          "predicted": false
+        },
+        {
+          "scan_s": 11.485654354095459,
+          "arrival_s": 11.542750835418701,
+          "kind": "static",
+          "x": -60.43501072794474,
+          "y": -142.72894305889335,
+          "radius": 1.14291566452841,
+          "vx": 0.12390972289943303,
+          "vy": -0.7789008905320299,
+          "predicted": false
+        },
+        {
+          "scan_s": 11.77116060256958,
+          "arrival_s": 11.843963384628296,
+          "kind": "unknown",
+          "x": -60.399633727810254,
+          "y": -142.9513241300823,
+          "radius": 1.2856687887654705,
+          "vx": 0.12390972289943303,
+          "vy": -0.7789008905320299,
+          "predicted": true
+        }
+      ],
+      "initial_flicker_samples": [
+        {
+          "x": -60.98495583058015,
+          "y": -142.1322141723646,
+          "radius": 0.6665615700985231,
+          "vx": -0.2373742274458221,
+          "vy": 0.1387364749096897,
+          "kind": "static",
+          "length": 0.2,
+          "width": 1.318035396690405,
+          "scan_s": 9.736360549926758
+        },
+        {
+          "x": -61.02753696125003,
+          "y": -142.2250957262193,
+          "radius": 0.6308911932093269,
+          "vx": -0.2638990109104963,
+          "vy": -0.14890262675665683,
+          "kind": "static",
+          "length": 0.2,
+          "width": 1.245830963925826,
+          "scan_s": 9.872333288192749
+        },
+        {
+          "x": -60.85738891974584,
+          "y": -141.60800202278963,
+          "radius": 1.0478559844724185,
+          "vx": 0.29127452018581557,
+          "vy": 1.5817306680335728,
+          "kind": "dynamic",
+          "length": 1.4827992802974848,
+          "width": 1.4809844533714411,
+          "scan_s": 10.001008033752441
+        },
+        {
+          "x": -60.91260189202067,
+          "y": -141.63647794294303,
+          "radius": 1.032243601891567,
+          "vx": 0.049377515545098616,
+          "vy": 0.9559456775641236,
+          "kind": "dynamic",
+          "length": 1.5125644663089304,
+          "width": 1.405082257322995,
+          "scan_s": 10.139088869094849
+        },
+        {
+          "x": -60.89119291257523,
+          "y": -142.29940996652064,
+          "radius": 0.6157723080830343,
+          "vx": 0.0893385824293911,
+          "vy": -1.1511788694235543,
+          "kind": "dynamic",
+          "length": 0.2,
+          "width": 1.215196338707301,
+          "scan_s": 10.269989013671875
+        },
+        {
+          "x": -60.86712014168503,
+          "y": -142.4158733162937,
+          "radius": 0.7002729390397688,
+          "vx": 0.11922965486731238,
+          "vy": -1.044154476653349,
+          "kind": "dynamic",
+          "length": 0.20788629295606142,
+          "width": 1.3850314241224169,
+          "scan_s": 10.407751083374023
+        },
+        {
+          "x": -60.91813598019486,
+          "y": -142.4745997434421,
+          "radius": 0.6322722191197548,
+          "vx": -0.025103732673921686,
+          "vy": -0.7968109470686685,
+          "kind": "static",
+          "length": 0.21293991432065695,
+          "width": 1.2464867545110891,
+          "scan_s": 10.58177661895752
+        },
+        {
+          "x": -60.85216550981062,
+          "y": -141.67175256598907,
+          "radius": 1.0330081347680986,
+          "vx": 0.12233851305530669,
+          "vy": 1.1694874026040583,
+          "kind": "dynamic",
+          "length": 1.4513034700770788,
+          "width": 1.4704222059430734,
+          "scan_s": 10.74830150604248
+        }
+      ]
+    },
+    "local": {
+      "frames": 117,
+      "target_label_counts": {
+        "static": 54,
+        "measured_static": 54,
+        "unknown": 34,
+        "measured_unknown": 16,
+        "dynamic": 20,
+        "measured_dynamic": 20
+      },
+      "key_track_id": 8,
+      "key_track_transitions": [
+        {
+          "scan_s": 9.198217153549194,
+          "arrival_s": 9.213303565979004,
+          "kind": "unknown",
+          "x": -60.9888705966044,
+          "y": -142.13178624042595,
+          "radius": 0.6495441110866624,
+          "vx": 0.0,
+          "vy": 0.0,
+          "predicted": false
+        },
+        {
+          "scan_s": 9.461150407791138,
+          "arrival_s": 9.511595487594604,
+          "kind": "static",
+          "x": -60.859863297909385,
+          "y": -142.14707802227804,
+          "radius": 0.6495644075894241,
+          "vx": 0.2620566839771076,
+          "vy": 0.05265105109201795,
+          "predicted": false
+        },
+        {
+          "scan_s": 10.001008033752441,
+          "arrival_s": 10.012914657592773,
+          "kind": "dynamic",
+          "x": -60.851745338940894,
+          "y": -141.61671605510102,
+          "radius": 1.0599756658408255,
+          "vx": 0.3005244470510989,
+          "vy": 1.5437349329154433,
+          "predicted": false
+        },
+        {
+          "scan_s": 11.77116060256958,
+          "arrival_s": 11.814655065536499,
+          "kind": "static",
+          "x": -60.88714605389772,
+          "y": -142.40089003389613,
+          "radius": 1.21705066961865,
+          "vx": -0.48210153549582,
+          "vy": -0.0906188337155171,
+          "predicted": false
+        },
+        {
+          "scan_s": 12.1890709400177,
+          "arrival_s": 12.214634418487549,
+          "kind": "dynamic",
+          "x": -60.72518709933133,
+          "y": -142.90263058294659,
+          "radius": 0.7203393613187482,
+          "vx": -0.03128750604471337,
+          "vy": -0.9898277320040021,
+          "predicted": false
+        },
+        {
+          "scan_s": 12.397795677185059,
+          "arrival_s": 12.413401126861572,
+          "kind": "static",
+          "x": -60.60018610286872,
+          "y": -142.5258539508469,
+          "radius": 1.0920064238637186,
+          "vx": 0.18927099676242146,
+          "vy": -0.011590266588511255,
+          "predicted": false
+        },
+        {
+          "scan_s": 16.094950914382935,
+          "arrival_s": 16.11427927017212,
+          "kind": "dynamic",
+          "x": -60.56212222169769,
+          "y": -142.12645084098946,
+          "radius": 0.9884100454984032,
+          "vx": -0.660959273234014,
+          "vy": -0.738571506992402,
+          "predicted": false
+        },
+        {
+          "scan_s": 16.391464233398438,
+          "arrival_s": 16.413930654525757,
+          "kind": "static",
+          "x": -60.59066898625689,
+          "y": -141.9917639341235,
+          "radius": 1.0132035709323985,
+          "vx": -0.17160635713704686,
+          "vy": -0.026357854746111298,
+          "predicted": false
+        },
+        {
+          "scan_s": 16.768595218658447,
+          "arrival_s": 16.811293601989746,
+          "kind": "dynamic",
+          "x": -59.75680150519235,
+          "y": -142.39314912295836,
+          "radius": 0.2505312274211444,
+          "vx": 2.0282604779055027,
+          "vy": -1.0277001189520079,
+          "predicted": false
+        },
+        {
+          "scan_s": 16.999948740005493,
+          "arrival_s": 17.01254940032959,
+          "kind": "unknown",
+          "x": -59.72116598515334,
+          "y": -142.33692697788666,
+          "radius": 0.40850235185020056,
+          "vx": 1.065641165638291,
+          "vy": -0.3750512828601036,
+          "predicted": true
+        }
+      ],
+      "initial_flicker_samples": [
+        {
+          "x": -60.97929604582445,
+          "y": -142.1289540018405,
+          "radius": 0.6660672091251504,
+          "vx": -0.21668457852496822,
+          "vy": 0.12080331793494596,
+          "kind": "static",
+          "scan_s": 9.736360549926758
+        },
+        {
+          "x": -61.022405041484646,
+          "y": -142.22389045849943,
+          "radius": 0.6294638092428072,
+          "vx": -0.25180948755642524,
+          "vy": -0.16584859187883638,
+          "kind": "static",
+          "scan_s": 9.872333288192749
+        },
+        {
+          "x": -60.851745338940894,
+          "y": -141.61671605510102,
+          "radius": 1.0599756658408255,
+          "vx": 0.3005244470510989,
+          "vy": 1.5437349329154433,
+          "kind": "dynamic",
+          "scan_s": 10.001008033752441
+        },
+        {
+          "x": -60.911413500838,
+          "y": -141.64325065638693,
+          "radius": 1.0429158214984104,
+          "vx": 0.04409718893409906,
+          "vy": 0.936169202149781,
+          "kind": "dynamic",
+          "scan_s": 10.139088869094849
+        },
+        {
+          "x": -60.88881271260873,
+          "y": -142.28656918098312,
+          "radius": 0.6157312201149752,
+          "vx": 0.08909302111485291,
+          "vy": -1.1115911257192632,
+          "kind": "dynamic",
+          "scan_s": 10.269989013671875
+        },
+        {
+          "x": -60.86929012639702,
+          "y": -142.41808982102387,
+          "radius": 0.700354660868641,
+          "vx": 0.10750978514072465,
+          "vy": -1.0566771791470033,
+          "kind": "dynamic",
+          "scan_s": 10.407751083374023
+        },
+        {
+          "x": -60.91838310405441,
+          "y": -142.4844436670985,
+          "radius": 0.6272069995095552,
+          "vx": -0.028854391986348607,
+          "vy": -0.8202909617455283,
+          "kind": "dynamic",
+          "scan_s": 10.58177661895752
+        },
+        {
+          "x": -60.85225107009792,
+          "y": -141.67853755653988,
+          "radius": 1.0303241185865175,
+          "vx": 0.12024015687052152,
+          "vy": 1.160654621785996,
+          "kind": "dynamic",
+          "scan_s": 10.74830150604248
+        }
+      ]
+    }
+  },
+  "route_target_id": 12,
+  "route_target_transitions": [
+    {
+      "arrival_s": 6.893479347229004,
+      "scan_s": 6.87011194229126,
+      "s": 328.9,
+      "d": 1.52,
+      "r": 0.8,
+      "l": 0.28,
+      "v_s": 0.0,
+      "v_d": -0.0,
+      "moving": false,
+      "id": 12
+    },
+    {
+      "arrival_s": 10.610843420028687,
+      "scan_s": 10.58177661895752,
+      "s": 328.6,
+      "d": 0.91,
+      "r": 0.82,
+      "l": 0.21,
+      "v_s": -1.36,
+      "v_d": -0.31,
+      "moving": true,
+      "id": 12
+    },
+    {
+      "arrival_s": 10.931545734405518,
+      "scan_s": 10.909194469451904,
+      "s": 328.6,
+      "d": 0.83,
+      "r": 0.81,
+      "l": 0.2,
+      "v_s": 0.21,
+      "v_d": -0.15,
+      "moving": false,
+      "id": 12
+    },
+    {
+      "arrival_s": 11.107970237731934,
+      "scan_s": 11.082167625427246,
+      "s": 328.6,
+      "d": 0.75,
+      "r": 0.82,
+      "l": 0.23,
+      "v_s": -0.46,
+      "v_d": -0.33,
+      "moving": true,
+      "id": 12
+    },
+    {
+      "arrival_s": 11.50943660736084,
+      "scan_s": 11.485654354095459,
+      "s": 328.6,
+      "d": 0.95,
+      "r": 1.26,
+      "l": 0.95,
+      "v_s": -0.12,
+      "v_d": 0.29,
+      "moving": false,
+      "id": 12
+    },
+    {
+      "arrival_s": 11.789745569229126,
+      "scan_s": 11.77116060256958,
+      "s": 328.7,
+      "d": 1.15,
+      "r": 1.03,
+      "l": 0.97,
+      "v_s": 0.76,
+      "v_d": 0.39,
+      "moving": true,
+      "id": 12
+    },
+    {
+      "arrival_s": 12.009655237197876,
+      "scan_s": 11.986320734024048,
+      "s": 328.8,
+      "d": 1.08,
+      "r": 0.98,
+      "l": 1.0,
+      "v_s": 0.4,
+      "v_d": 0.27,
+      "moving": false,
+      "id": 12
+    },
+    {
+      "arrival_s": 12.209573745727539,
+      "scan_s": 12.1890709400177,
+      "s": 328.8,
+      "d": 0.8,
+      "r": 0.77,
+      "l": 1.01,
+      "v_s": 0.22,
+      "v_d": -0.83,
+      "moving": true,
+      "id": 12
+    },
+    {
+      "arrival_s": 13.074345827102661,
+      "scan_s": 12.92891550064087,
+      "s": 329.0,
+      "d": 0.52,
+      "r": 0.75,
+      "l": 1.07,
+      "v_s": 0.18,
+      "v_d": -0.41,
+      "moving": false,
+      "id": 12
+    }
+  ],
+  "controller_events": [
+    {
+      "arrival_s": 0.6285066604614258,
+      "state": "hold",
+      "reason": "automatic start waiting for inputs"
+    },
+    {
+      "arrival_s": 1.4795188903808594,
+      "state": "approach",
+      "reason": "reviewed camera signal"
+    },
+    {
+      "arrival_s": 9.827838659286499,
+      "state": "clearing",
+      "reason": "front already crossed on permitted signal"
+    }
+  ],
+  "source_events": [
+    {
+      "arrival_s": 7.00142765045166,
+      "sector": 4,
+      "path_source": "route_avoidance",
+      "planner_state": "TAILING",
+      "planner_reason": "",
+      "route_state": "WAIT_SOLID_LINE"
+    },
+    {
+      "arrival_s": 9.000792026519775,
+      "sector": 4,
+      "path_source": "route_avoidance",
+      "planner_state": "RACELINE",
+      "planner_reason": "",
+      "route_state": "WAIT_SOLID_LINE"
+    },
+    {
+      "arrival_s": 9.250228643417358,
+      "sector": 4,
+      "path_source": "route_avoidance",
+      "planner_state": "TAILING",
+      "planner_reason": "",
+      "route_state": "WAIT_SOLID_LINE"
+    },
+    {
+      "arrival_s": 10.402182817459106,
+      "sector": 4,
+      "path_source": "local_planner",
+      "planner_state": "OVERTAKING",
+      "planner_reason": "",
+      "route_state": "WAIT_SOLID_LINE"
+    },
+    {
+      "arrival_s": 11.149777889251709,
+      "sector": 4,
+      "path_source": "none",
+      "planner_state": "BLOCKED",
+      "planner_reason": "transition_obstructed",
+      "route_state": "YIELD"
+    },
+    {
+      "arrival_s": 11.300559043884277,
+      "sector": 4,
+      "path_source": "local_planner",
+      "planner_state": "OVERTAKING",
+      "planner_reason": "",
+      "route_state": "YIELD"
+    },
+    {
+      "arrival_s": 11.400107622146606,
+      "sector": 4,
+      "path_source": "none",
+      "planner_state": "BLOCKED",
+      "planner_reason": "transition_obstructed",
+      "route_state": "YIELD"
+    },
+    {
+      "arrival_s": 11.80024003982544,
+      "sector": 4,
+      "path_source": "local_planner",
+      "planner_state": "OVERTAKING",
+      "planner_reason": "",
+      "route_state": "FOLLOW_LEAD"
+    },
+    {
+      "arrival_s": 12.050230741500854,
+      "sector": 4,
+      "path_source": "none",
+      "planner_state": "BLOCKED",
+      "planner_reason": "transition_obstructed",
+      "route_state": "WAIT_SOLID_LINE"
+    },
+    {
+      "arrival_s": 12.450413703918457,
+      "sector": 4,
+      "path_source": "local_planner",
+      "planner_state": "OVERTAKING",
+      "planner_reason": "",
+      "route_state": "YIELD"
+    },
+    {
+      "arrival_s": 12.64999270439148,
+      "sector": 4,
+      "path_source": "none",
+      "planner_state": "BLOCKED",
+      "planner_reason": "transition_obstructed",
+      "route_state": "YIELD"
+    },
+    {
+      "arrival_s": 13.299896240234375,
+      "sector": 4,
+      "path_source": "local_planner",
+      "planner_state": "OVERTAKING",
+      "planner_reason": "",
+      "route_state": "WAIT_SOLID_LINE"
+    },
+    {
+      "arrival_s": 15.550737619400024,
+      "sector": 4,
+      "path_source": "none",
+      "planner_state": "RETURNING",
+      "planner_reason": "",
+      "route_state": "WAIT_SOLID_LINE"
+    },
+    {
+      "arrival_s": 15.600359678268433,
+      "sector": 4,
+      "path_source": "route_avoidance",
+      "planner_state": "RETURNING",
+      "planner_reason": "",
+      "route_state": "FOLLOW"
+    },
+    {
+      "arrival_s": 18.35119867324829,
+      "sector": 4,
+      "path_source": "route_avoidance",
+      "planner_state": "RACELINE",
+      "planner_reason": "",
+      "route_state": "FOLLOW"
+    }
+  ],
+  "interpretation": {
+    "active_controller": "leo (hold / approach / clearing, no passthrough)",
+    "ui_source": "route while route_avoidance path; leo when local_planner or none. Both trackers independently flip labels.",
+    "observed_failure": "target cluster visible extent alternates from roughly 0.2m to1.5m length; center jumps +0.61m over0.129s then reverses; per-scan EMA crosses0.8m/s in bothdirections.",
+    "raw_reconstruction_validation": "116 local scans,145 measured detections matched rawcloud cluster circles; median center-plus-radius difference0.0058m,max0.0182m. Oneinitialcloud not inbag.",
+    "before_replay_validation": "main115frames all originalkind,xy,vx,vy exactly reproduced. local117frames3 initialbag-boundary differences, all +7s target counts reproduced."
+  }
+}

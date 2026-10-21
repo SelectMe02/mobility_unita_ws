@@ -1,0 +1,71 @@
+{
+  "claim": "S5 acceleration/brake flicker includes transient static candidates and ID association artifacts; no actual lane-change maneuver recorded.",
+  "first_lap_route_offsets": {
+    "n": 154,
+    "all_m": 0.0
+  },
+  "second_lap_route_offsets": {
+    "n": 129,
+    "all_m": 0.0
+  },
+  "raw_cluster_sequence": [
+    {
+      "stamp": 1792337274.7113404,
+      "cluster_count": 2,
+      "state": "FOLLOW",
+      "speed_cap_kmh": null
+    },
+    {
+      "stamp": 1792337274.829504,
+      "cluster_count": 1,
+      "state": "FOLLOW",
+      "speed_cap_kmh": null
+    },
+    {
+      "stamp": 1792337274.9530163,
+      "cluster_count": 1,
+      "state": "FOLLOW",
+      "speed_cap_kmh": null
+    },
+    {
+      "stamp": 1792337275.0582125,
+      "cluster_count": 1,
+      "state": "FOLLOW",
+      "speed_cap_kmh": null
+    },
+    {
+      "stamp": 1792337275.1867805,
+      "cluster_count": 2,
+      "state": "YIELD",
+      "speed_cap_kmh": 0.0
+    },
+    {
+      "stamp": 1792337275.2975008,
+      "cluster_count": 1,
+      "state": "FOLLOW",
+      "speed_cap_kmh": null
+    },
+    {
+      "stamp": 1792337275.4245894,
+      "cluster_count": 2,
+      "state": "FOLLOW",
+      "speed_cap_kmh": null
+    },
+    {
+      "stamp": 1792337275.5682716,
+      "cluster_count": 2,
+      "state": "FOLLOW",
+      "speed_cap_kmh": null
+    }
+  ],
+  "id96_command_pulse": {
+    "full_brake_times": [
+      1792337275.2874546,
+      1792337275.3352828
+    ],
+    "resume_accel_time": 1792337275.384948,
+    "resume_accel": 0.2393648420333865
+  },
+  "independent_raw_method": "Raw cloud stamps match route decision cloud stamps within 1ms. Localization poses interpolated at cloud time; local ground filtering and original cluster_boxes reproduced. Boundary filtering omitted; selected groups match published dimensions exactly. Fixed spatial core median check uses Z>1.2m and fixed map ROIs.",
+  "distinction": "ID100 later real crossing independently verified. ID96/99 static/association artifact pulse is separate. Single-frame candidates109/110 are flat 7mm/12mm tall same-ring returns; road reflection is a supported inference, not semantic ground truth."
+}

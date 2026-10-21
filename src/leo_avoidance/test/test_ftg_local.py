@@ -32,6 +32,30 @@ def tunnel_walls(right_distance_m, left_distance_m=3.):
                          np.zeros(len(x))))))
 
 
+def test_debug_capture_is_actual_filter_output_and_does_not_change_plan():
+    x, y = np.meshgrid(np.arange(1., 12., .4), np.arange(-4., 4., .4))
+    ground = np.column_stack((x.ravel(), y.ravel(), np.full(x.size, -1.23)))
+    walls = tunnel_walls(4., 4.)
+    box = np.array([[7., y, 0.] for y in np.linspace(-.6, .6, 11)])
+    cloud = np.vstack((ground, walls, box, [[8., 0., 1.5], [1., 0., 0.]]))
+    ordinary = FollowTheGap(clock=lambda: 10.)
+    observed = FollowTheGap(clock=lambda: 10.)
+    observed.debug_capture = True
+    before = ordinary.plan(cloud, 1., wall_follow=True, ego_pose=(0., 0., 0.), stamp=10.)
+    after = observed.plan(cloud, 1., wall_follow=True, ego_pose=(0., 0., 0.), stamp=10.)
+    assert before == after
+    snapshot = observed.debug_snapshot
+    np.testing.assert_array_equal(snapshot['points'], np.vstack((walls, box)))
+    assert snapshot['ground_removed_points'] == len(ground)
+    assert snapshot['height_removed_points'] == 1
+    assert snapshot['ego_removed_points'] == 1
+    # Wall returns remain real perception evidence despite not being tracks.
+    assert snapshot['wall_evidence_points'] > 0
+    assert len(snapshot['tracked']) == len(after.tracked_obstacles)
+    observed.plan(np.zeros((0, 3)), 1.)
+    assert observed.debug_snapshot is None
+
+
 def test_tunnel_walls_are_track_boundaries_but_box_remains_obstacle():
     walls = tunnel_walls(3.846, 3.846)
     box = np.array([[7., y, 0.] for y in np.linspace(-.6, .6, 11)])

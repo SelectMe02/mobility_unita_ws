@@ -1,0 +1,46 @@
+{
+  "bag": "semi_leo_2026-10-21-20-32-13.bag",
+  "static_target_xy": [
+    -60.9,
+    -142.2
+  ],
+  "sample_selection": "Measured target centers within 2 m after bag+7s; predicted-only outputs excluded",
+  "sources": {
+    "main": {
+      "frames": 115,
+      "before_measured": {
+        "unknown": 17,
+        "static": 57,
+        "dynamic": 16
+      },
+      "after_measured": {
+        "unknown": 25,
+        "static": 65
+      },
+      "measured_geometry_unchanged": true
+    },
+    "leo_local": {
+      "frames": 116,
+      "before_measured": {
+        "static": 54,
+        "unknown": 16,
+        "dynamic": 20
+      },
+      "after_measured": {
+        "static": 59,
+        "unknown": 31
+      },
+      "measured_geometry_unchanged": true
+    }
+  },
+  "validation": {
+    "waypoint_targeted_tests_passed": 101,
+    "leo_targeted_tests_passed": 85,
+    "real_drive_tested": false,
+    "preexisting_failures": {
+      "legacy_lane_planner_expectations": 8,
+      "runtime_cancel_max_progress_limit": 1,
+      "ftg_bubble_margin_yaml_expectation": 1
+    }
+  }
+}

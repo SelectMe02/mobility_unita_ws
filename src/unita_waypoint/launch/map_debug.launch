@@ -12,6 +12,11 @@
   <arg name="valid_topic" default="/localization/valid"/>
   <arg name="speed_topic" default="/competition/ego_speed_kmh"/>
   <arg name="obstacles_topic" default="/waypoint_debug/obstacles"/>
+  <!-- User supplied body dimensions, with the rear axle as the pose origin. -->
+  <arg name="vehicle_front_m" default="3.845"/>
+  <arg name="vehicle_rear_m" default="0.790"/>
+  <arg name="vehicle_half_width_m" default="0.946"/>
+  <arg name="vehicle_height_m" default="2.434"/>
   <node pkg="unita_waypoint" type="map_debug.py" name="map_debug" output="screen">
     <param name="raceline_config" value="$(arg raceline_config)"/>
     <param if="$(eval arg('raceline_width') != '')" name="raceline_width" value="$(arg raceline_width)" type="double"/>
@@ -24,6 +29,10 @@
     <param name="valid_topic" value="$(arg valid_topic)"/>
     <param name="speed_topic" value="$(arg speed_topic)"/>
     <param name="obstacles_topic" value="$(arg obstacles_topic)"/>
+    <param name="vehicle_front_m" value="$(arg vehicle_front_m)"/>
+    <param name="vehicle_rear_m" value="$(arg vehicle_rear_m)"/>
+    <param name="vehicle_half_width_m" value="$(arg vehicle_half_width_m)"/>
+    <param name="vehicle_height_m" value="$(arg vehicle_height_m)" type="str"/>
   </node>
   <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="map_debug_rviz"
         args="-d $(find unita_waypoint)/config/map_debug.rviz" output="screen">

@@ -250,6 +250,8 @@ class FollowTheGap:
             max_size_jump_m=cfg.track_max_size_jump_m)
         self._ego_pose = None
         self._scan_stamp = None
+        self.debug_capture = False
+        self.debug_snapshot = None
 
     def reset_wall_target(self):
         self.right_wall_target_clearance_m = None
@@ -652,6 +654,9 @@ class FollowTheGap:
         retaining the measured wall-spacing correction and all collision checks.
         """
         now = self._clock()
+        # Optional observation of this exact pass through the filters. The
+        # ROS adapter enables it only while debug consumers are connected.
+        self.debug_snapshot = None
         self._ego_pose = ego_pose
         self._scan_stamp = now if stamp is None else stamp
         self._bearing_dt = (None if self._last_speed_time is None else
@@ -745,9 +750,17 @@ class FollowTheGap:
         points = points[np.isfinite(points).all(axis=1)]
         if len(points) == 0:
             return stop('no finite points')
+        before_ground = len(points)
         points = self._remove_ground(points)
+        after_ground = len(points)
         points = self._in_collision_height(points)
+        after_height = len(points)
         points = self._remove_ego_returns(points)
+        if getattr(self, 'debug_capture', False):
+            self.debug_snapshot = dict(
+                points=points, ground_removed_points=before_ground-after_ground,
+                height_removed_points=after_ground-after_height,
+                ego_removed_points=after_height-len(points))
         if len(points) == 0:
             return stop('no points at collision height')
         rear_scan_points = int(np.count_nonzero(
@@ -760,6 +773,8 @@ class FollowTheGap:
         body_scan_points = points
 
         candidates = self._in_avoidance_sector(points)
+        if self.debug_snapshot is not None:
+            self.debug_snapshot['forward_sector_points'] = len(candidates)
         if not len(candidates):
             # A healthy scan can contain side-wall returns but no hits in
             # the forward sector as the car leaves the tunnel. The caller
@@ -785,9 +800,14 @@ class FollowTheGap:
                         avoidance_phase=avoidance_phase)
         points = candidates
         obstacles, wall_fits = self._track_obstacles(points)
+        if self.debug_snapshot is not None:
+            self.debug_snapshot['tracker_input_points'] = len(obstacles)
+            self.debug_snapshot['wall_evidence_points'] = len(points)-len(obstacles)
         obstacle_points = len(obstacles)
         tracked = self.tracker.update(obstacles, self._ego_pose,
                                       self._scan_stamp)
+        if self.debug_snapshot is not None:
+            self.debug_snapshot['tracked'] = tracked
         tracks_summary = tuple(
             (t.track_id, round(t.x_m, 2), round(t.y_m, 2), round(t.vx_mps, 2),
              round(t.vy_mps, 2), t.dynamic, t.lateral_scans) for t in tracked)

@@ -27,6 +27,7 @@ from scipy.spatial import cKDTree
 
 from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
 from avoidance_runtime import RuntimeSettings
+from tracking_debug import local_plan_trace, saved_route_window, tracking_debug_fields
 from lane_corridor import LaneCorridor, project_lane_geometry
 
 
@@ -318,6 +319,11 @@ class GPSWaypointFollower:
         self.route_avoidance_topic = rospy.get_param('~route_avoidance_topic', '')
         self.route_avoidance = None
         self.route_avoidance_received = None
+        self.r1_handoff_ranges = []
+        self.r1_handoff_pending = False
+        self.r1_handoff_end_index = None
+        self.handoff_guard_status = None
+        self.handoff_guard_received = None
 
         # ============================================================
         # State
@@ -500,6 +506,17 @@ class GPSWaypointFollower:
                     rospy.get_param('~lane_change_any_speed_checkpoints', '')))
             # Situational speed caps, editable from the map_debug panel.
             self.runtime_settings = RuntimeSettings('leo_waypoint_follower', self.local_planner)
+
+        # Prepare R1 before the guard switches from the other follower to us.
+        # Empty by default: standalone Leo launches keep their usual policy.
+        self.r1_handoff_ranges = self.checkpoint_ranges(
+            rospy.get_param('~r1_handoff_checkpoints', ''))
+        if self.r1_handoff_ranges:
+            if self.local_planner is None:
+                raise ValueError('R1 handoff requires local avoidance')
+            rospy.Subscriber(rospy.get_param('~handoff_guard_status_topic',
+                             '/leo/signal_status'), String,
+                             self.handoff_guard_callback, queue_size=1)
 
         rospy.loginfo("======================================")
         rospy.loginfo(" GPS Waypoint Follower started")
@@ -1176,7 +1193,10 @@ class GPSWaypointFollower:
         planner = getattr(self, 'local_planner', None)
         selected_lane = planner.active_lane if planner is not None else None
         publisher.publish(String(data=json.dumps({
+            **tracking_debug_fields(self),
             'valid': valid, 'sector': sector,
+            'stamp': rospy.Time.now().to_sec(),
+            'stop_reason': getattr(self, 'stop_reason', None),
             'frame_id': 'map',
             'x': getattr(self, 'current_x', None),
             'y': getattr(self, 'current_y', None),
@@ -1225,6 +1245,53 @@ class GPSWaypointFollower:
         except (ValueError, KeyError, TypeError):
             return
 
+    def handoff_guard_callback(self, message):
+        try:
+            status = json.loads(message.data)
+            if (not isinstance(status, dict) or not isinstance(status.get('state'), str)
+                    or (status['state'] != 'hold' and type(status.get('route_index')) is not int)
+                    or type(status.get('armed')) is not bool):
+                return
+            self.handoff_guard_status = status
+            self.handoff_guard_received = time.monotonic()
+        except (ValueError, TypeError):
+            return
+
+    def fresh_handoff_guard(self, now):
+        received = getattr(self, 'handoff_guard_received', None)
+        if received is None or now - received > .5:
+            return None
+        return self.handoff_guard_status
+
+    def prepare_r1_handoff(self, now):
+        ranges = getattr(self, 'r1_handoff_ranges', ())
+        if not ranges:
+            return False
+        index = self.current_waypoint_index
+        guard = self.fresh_handoff_guard(now)
+        for lo, hi in ranges:
+            if (lo <= index <= hi or (guard and guard['state'] == 'passthrough'
+                                     and lo <= guard['route_index'] <= hi)):
+                # The two trackers can cross CP11 on different ticks. Keep
+                # preparing until both agree that the other follower left.
+                self.local_planner.reset_for_r1_handoff()
+                self.r1_handoff_pending = True
+                self.r1_handoff_end_index = hi
+                break
+        return self.r1_handoff_pending
+
+    def complete_r1_handoff(self, now, decision):
+        if not getattr(self, 'r1_handoff_pending', False):
+            return
+        guard = self.fresh_handoff_guard(now)
+        end = self.r1_handoff_end_index
+        planner = self.local_planner
+        if (guard and guard['armed'] and guard['state'] not in ('hold', 'passthrough')
+                and guard['route_index'] > end and self.current_waypoint_index > end
+                and planner.current_lane == 1 and not planner.off_r1
+                and planner.transition is None and decision.state != 'BLOCKED'):
+            self.r1_handoff_pending = False
+
     def local_planner_owns_steering(self):
         """A saved-lane change or drive on R2/R3, not an R1 offset hold/return."""
         planner = self.local_planner
@@ -1242,7 +1309,14 @@ class GPSWaypointFollower:
                 return self.current_waypoint_index, local_x, local_y, ld
         return None
 
-    def publish_local_path(self, points):
+    def publish_local_path(self, points, source='local_planner'):
+        if not hasattr(self, 'debug_trace'):
+            self.debug_trace = {}
+        self.debug_trace['local_path_source'] = source if points else 'none'
+        self.debug_trace['local_path_point_count'] = len(points)
+        publisher = getattr(self, 'local_path_pub', None)
+        if publisher is None:
+            return
         msg = Path()
         msg.header.frame_id = 'map'
         msg.header.stamp = rospy.Time.now()
@@ -1252,9 +1326,10 @@ class GPSWaypointFollower:
             pose.pose.position.x, pose.pose.position.y = x, y
             pose.pose.orientation.w = 1.
             msg.poses.append(pose)
-        self.local_path_pub.publish(msg)
+        publisher.publish(msg)
 
     def publish_full_stop(self):
+        self.publish_local_path([])
         self.publish_tracking_state(valid=False)
         cmd = CtrlCmd()
         cmd.longlCmdType = 1
@@ -1275,6 +1350,8 @@ class GPSWaypointFollower:
 
     def control_loop(self, event):
         now = time.monotonic()
+        self.debug_trace = dict(planner_mode='waiting', local_path_source='none')
+        self.stop_reason = None
         runtime = getattr(self, 'runtime_settings', None)
         if runtime is not None:
             runtime.poll()
@@ -1285,21 +1362,27 @@ class GPSWaypointFollower:
             if (any(t is None or now-t > self.pose_sensor_timeout for t in stamps)
                     or not self.drive_pose_ready or not self.drive_valid
                     or self.drive_mode not in ('GPS', 'BLACKOUT')):
+                self.stop_reason = 'driving_pose_unavailable'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Driving pose state unavailable: holding brake')
                 return
         else:
             if any(t is None or now-t > self.pose_sensor_timeout
                    for t in (self.gps_received, self.imu_received)):
+                self.stop_reason = 'gps_or_heading_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'GPS/heading missing or stale: holding brake; blackout localization is not implemented')
                 return
             if not self.gps_ready or not self.imu_ready:
+                self.stop_reason = 'gps_or_imu_invalid'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Waiting for valid GPS/IMU')
                 return
 
         if not self.path_ready:
+            self.stop_reason = 'waypoint_path_unavailable'
+            self.publish_local_path([])
+            self.publish_tracking_state(valid=False)
             rospy.logwarn_throttle(
                 2.0,
                 "Waiting for waypoint path..."
@@ -1308,6 +1391,7 @@ class GPSWaypointFollower:
 
         if (self.longitudinal_control_mode == "pid"
                 and not self.speed_feedback_is_fresh()):
+            self.stop_reason = 'speed_feedback_stale'
             self.publish_full_stop()
             rospy.logwarn_throttle(
                 1.0,
@@ -1326,12 +1410,20 @@ class GPSWaypointFollower:
             # SIM initialization/teleport invalidates the local index window.
             self.current_waypoint_index = 0
             self.first_nearest_search = True
+            if getattr(self, 'r1_handoff_ranges', ()):
+                self.local_planner.reset_for_r1_handoff()
+                self.r1_handoff_pending = False
+                self.r1_handoff_end_index = None
+                self.handoff_guard_status = None
+                self.handoff_guard_received = None
             rospy.loginfo("Position reset detected; searching the full waypoint path")
         self.last_tracking_position = position
 
         self.current_waypoint_index = \
             self.find_nearest_waypoint()
 
+        force_r1 = self.prepare_r1_handoff(now)
+        self.debug_trace['r1_handoff_active'] = force_r1
         self.update_dynamic_lookahead()
 
         # ------------------------------------------------------------
@@ -1352,6 +1444,7 @@ class GPSWaypointFollower:
             and goal_distance
             <= self.goal_tolerance
         ):
+            self.stop_reason = 'goal_reached'
             self.publish_full_stop()
 
             rospy.loginfo_throttle(
@@ -1371,20 +1464,28 @@ class GPSWaypointFollower:
         avoid = (self.drive_mode != 'BLACKOUT'
                  and not self.in_waypoint_only_zone(self.current_waypoint_index))
         route_avoidance = getattr(self, 'route_avoidance_topic', '') and avoid
+        self.debug_trace['planner_mode'] = ('external_blackout_target'
+            if self.drive_mode == 'BLACKOUT' else 'waypoint_only'
+            if not avoid else 'saved_route')
         if route_avoidance:
             plan = self.route_avoidance
             if (plan is None or self.route_avoidance_received is None
                     or now - self.route_avoidance_received > .5):
+                self.stop_reason = 'route_avoidance_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Route avoidance output missing/stale')
                 return
             local_speed_cap = plan['speed_cap_kmh']
             self.avoidance_state = plan['state']
             self.lane_change_reason = plan['reason']
-            if plan['path']:
-                self.publish_local_path(plan['path'])
+            self.debug_trace.update(planner_mode='route_avoidance',
+                route_state=plan['state'], route_reason=plan['reason'],
+                route_speed_cap_kmh=(local_speed_cap if math.isfinite(local_speed_cap) else None))
+            if plan['path'] and not force_r1:
+                self.publish_local_path(plan['path'], source='route_avoidance')
                 target = self.local_target(plan['path'])
                 if target is None:
+                    self.stop_reason = 'route_path_no_forward_target'
                     self.publish_full_stop()
                     rospy.logwarn_throttle(2., 'Route avoidance path has no lookahead point')
                     return
@@ -1394,12 +1495,18 @@ class GPSWaypointFollower:
                     rospy.Time.now().to_sec()-self.obstacle_stamp > .5):
                 self.avoidance_state = 'SENSOR_HOLD'
                 self.lane_change_reason = ''
+                self.stop_reason = 'obstacle_perception_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'Obstacle perception missing/stale')
                 return
+            planning_obstacles = self.obstacles
             decision = self.local_planner.plan(
                 self.current_waypoint_index, position,
-                (self.current_speed_kmh or 0.)/3.6, self.obstacles, ego_yaw=self.current_yaw)
+                (self.current_speed_kmh or 0.)/3.6, planning_obstacles,
+                ego_yaw=self.current_yaw, force_r1=force_r1)
+            self.debug_trace.update(local_plan_trace(self.local_planner, decision, planning_obstacles))
+            if route_avoidance:
+                self.debug_trace['planner_mode'] = 'route_and_local_avoidance'
             preference = (self.local_planner.effective_preferred_lane,
                           self.local_planner.preference_reason)
             if preference != getattr(self, 'last_logged_lane_preference', None):
@@ -1414,24 +1521,28 @@ class GPSWaypointFollower:
                                        if math.isfinite(decision.obstacle_distance_m) else None)
             route_speed_cap = local_speed_cap
             local_speed_cap = decision.speed_cap_kmh
-            # One steering source per manoeuvre: the route avoidance path,
-            # unless the local planner is driving its own saved R2/R3 change.
+            # During handoff, only the R1 path may steer. Otherwise keep the
+            # existing route/local saved-lane steering ownership.
             local_steers = bool(decision.path) and (
-                not (route_avoidance and plan['path'])
+                force_r1 or not (route_avoidance and plan['path'])
                 or self.local_planner_owns_steering())
-            if not local_steers:
-                # No saved Raceline 2/3 manoeuvre: the route avoidance path is
-                # followed, so its pass/wait speed applies as well.
+            if force_r1 or not local_steers:
+                # Route perception can still slow/stop an R1 handoff even
+                # though its lateral offset path is not selected.
                 local_speed_cap = min(local_speed_cap, route_speed_cap)
             if local_steers or not (route_avoidance and plan['path']):
-                self.publish_local_path(decision.path)
+                if decision.path:
+                    self.publish_local_path(decision.path)
             if decision.state == 'BLOCKED':
+                self.stop_reason = 'planner_blocked:' + decision.reason
                 self.publish_full_stop()
                 rospy.logwarn_throttle(1., 'Local avoidance BLOCKED: %s', decision.reason)
                 return
+            self.complete_r1_handoff(now, decision)
             if local_steers:
                 target = self.local_target(decision.path)
                 if target is None:
+                    self.stop_reason = 'local_path_no_forward_target:' + decision.reason
                     self.publish_full_stop()
                     rospy.logwarn_throttle(1., 'Local avoidance %s path shorter than lookahead',
                                            decision.state)
@@ -1441,7 +1552,6 @@ class GPSWaypointFollower:
             self.lane_change_reason = ''
             self.avoidance_kind = ''
             self.avoidance_distance = None
-        self.publish_tracking_state()
         blackout = using_drive_pose and self.drive_mode == 'BLACKOUT'
         if blackout:
             if (self.avoidance_target is None or self.avoidance_speed_kmh is None
@@ -1449,6 +1559,7 @@ class GPSWaypointFollower:
                     or self.avoidance_speed_received is None
                     or now - self.avoidance_target_received > .35
                     or now - self.avoidance_speed_received > .35):
+                self.stop_reason = 'blackout_target_or_speed_stale'
                 self.publish_full_stop()
                 rospy.logwarn_throttle(2., 'LiDAR avoidance target missing/stale')
                 return
@@ -1457,6 +1568,7 @@ class GPSWaypointFollower:
                       math.hypot(local_x, local_y))
 
         if target is None:
+            self.stop_reason = 'no_forward_waypoint'
             self.publish_full_stop()
 
             rospy.logwarn_throttle(
@@ -1467,6 +1579,18 @@ class GPSWaypointFollower:
             return
 
         target_idx, local_x, local_y, ld = target
+        c, s = math.cos(self.current_yaw), math.sin(self.current_yaw)
+        self.debug_trace['pursuit_target'] = dict(
+            x=self.current_x+c*local_x-s*local_y,
+            y=self.current_y+s*local_x+c*local_y)
+        if blackout:
+            # FTG supplies a target, not a sampled local path.
+            self.publish_local_path([])
+        elif self.debug_trace.get('local_path_source') == 'none':
+            self.publish_local_path(saved_route_window(self.waypoints,
+                self.current_waypoint_index, self.loop_path,
+                max(60., self.lookahead_distance*2.)), source='saved_route')
+        self.publish_tracking_state()
 
         # ------------------------------------------------------------
         # Pure Pursuit steering
@@ -1496,6 +1620,10 @@ class GPSWaypointFollower:
             else:
                 target_speed_kmh = min(target_speed_kmh, self.guard_speed_limit)
         if target_speed_kmh <= .01:
+            self.stop_reason = ('guard_speed_zero_or_stale' if self.guard_limit_topic
+                and (self.guard_limit_received is None
+                     or now-self.guard_limit_received > .35 or self.guard_speed_limit <= .01)
+                else 'planned_speed_zero')
             self.publish_full_stop()
             return
         self.publish_control(steering, target_speed_kmh)

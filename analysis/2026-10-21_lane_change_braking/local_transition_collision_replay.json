@@ -1,0 +1,432 @@
+{
+  "source_bag": "/home/unita/unita_ws/src/unita_waypoint/log/semi_leo_2026-10-21-21-16-00.bag",
+  "method": "Rebuild local path from recorded transition and current source; use latest preceding speed and obstacle message, with the same lane-corridor filter.",
+  "limitation": "Recorded subscriber receipt order can differ by milliseconds; obstacle counts agree in all compared samples. Static velocity zero is a diagnostic counterfactual, not a proposed blanket change to moving-obstacle safety.",
+  "blocked_samples": 9,
+  "same_input_collision_count": 9,
+  "zero_static_velocity_clear_count": 9,
+  "collision_replay": [
+    {
+      "elapsed_s": 86.70355129241943,
+      "index": 641,
+      "speed_kmh": 15.567610740661623,
+      "obstacle_age_s": 0.00696873664855957,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 43,
+      "path_span_m": 21.033769830179104,
+      "horizon_s": 3.9294811382192982,
+      "transition": {
+        "source": 1,
+        "target": 2,
+        "start": 315.73556977159865,
+        "length": 9.938940048266458,
+        "state": "OVERTAKING",
+        "shape": "smooth",
+        "lateral": 3.0420027837213577
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 1.2481768669189188,
+          "vy": 0.729180060047486,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 86.75092554092407,
+      "index": 642,
+      "speed_kmh": 15.567610740661623,
+      "obstacle_age_s": 0.05434298515319824,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 42,
+      "path_span_m": 20.66602321368869,
+      "horizon_s": 3.8439529041454517,
+      "transition": {
+        "source": 1,
+        "target": 2,
+        "start": 315.73556977159865,
+        "length": 9.938940048266458,
+        "state": "OVERTAKING",
+        "shape": "smooth",
+        "lateral": 3.0420027837213577
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 1.2481768669189188,
+          "vy": 0.729180060047486,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 86.80035400390625,
+      "index": 642,
+      "speed_kmh": 15.663516998291016,
+      "obstacle_age_s": 0.10377144813537598,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 42,
+      "path_span_m": 20.66602321368869,
+      "horizon_s": 3.8351117148234883,
+      "transition": {
+        "source": 1,
+        "target": 2,
+        "start": 315.73556977159865,
+        "length": 9.938940048266458,
+        "state": "OVERTAKING",
+        "shape": "smooth",
+        "lateral": 3.0420027837213577
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 1.2481768669189188,
+          "vy": 0.729180060047486,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.3008382320404,
+      "index": 659,
+      "speed_kmh": 14.565982818603516,
+      "obstacle_age_s": 0.0046579837799072266,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 122,
+      "path_span_m": 60.16761290920323,
+      "horizon_s": 4.12914348490502,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.3658774185896845,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.35086297988892,
+      "index": 659,
+      "speed_kmh": 13.849443435668945,
+      "obstacle_age_s": 0.05468273162841797,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 122,
+      "path_span_m": 59.98319449615397,
+      "horizon_s": 4.170536070722283,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.3658774185896845,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.4010865688324,
+      "index": 659,
+      "speed_kmh": 13.80160903930664,
+      "obstacle_age_s": 0.10490632057189941,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 122,
+      "path_span_m": 59.98319449615397,
+      "horizon_s": 4.176672494666731,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.3658774185896845,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.45046043395996,
+      "index": 660,
+      "speed_kmh": 13.80160903930664,
+      "obstacle_age_s": 0.02698826789855957,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 122,
+      "path_span_m": 60.113817453096495,
+      "horizon_s": 4.080200390649676,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.4783045345091057,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.50142359733582,
+      "index": 660,
+      "speed_kmh": 13.784250259399414,
+      "obstacle_age_s": 0.07795143127441406,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 122,
+      "path_span_m": 59.929403909358165,
+      "horizon_s": 4.034019503598455,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.4783045345091057,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.55064511299133,
+      "index": 660,
+      "speed_kmh": 12.358552932739258,
+      "obstacle_age_s": 0.12717294692993164,
+      "obstacle_count": 1,
+      "recorded_obstacle_count": 1,
+      "path_points": 122,
+      "path_span_m": 59.744993901242786,
+      "horizon_s": 4.168653559784451,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      },
+      "actual_clear": false,
+      "zero_static_velocity_clear": true,
+      "obstacles": [
+        {
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.4783045345091057,
+          "kind": "static"
+        }
+      ]
+    }
+  ],
+  "motion_replay": [
+    {
+      "elapsed_s": 86.69658255577087,
+      "track_id": 3,
+      "recorded": {
+        "kind": "static",
+        "vx": 1.2481768669189188,
+        "vy": 0.729180060047486,
+        "velocity_reliable": true
+      },
+      "replay": {
+        "motion_kind": "static",
+        "vx": 1.2481768669189188,
+        "vy": 0.729180060047486,
+        "velocity_reliable": true,
+        "moving_scans": 1,
+        "still_scans": 0
+      }
+    },
+    {
+      "elapsed_s": 86.84659314155579,
+      "track_id": 3,
+      "recorded": {
+        "kind": "static",
+        "vx": 0.0,
+        "vy": 0.5147575752427,
+        "velocity_reliable": true
+      },
+      "replay": {
+        "motion_kind": "static",
+        "vx": 0.0,
+        "vy": 0.5147575752427,
+        "velocity_reliable": true,
+        "moving_scans": 0,
+        "still_scans": 0
+      }
+    },
+    {
+      "elapsed_s": 90.14560866355896,
+      "track_id": 3,
+      "recorded": {
+        "kind": "static",
+        "vx": 0.0,
+        "vy": 0.0,
+        "velocity_reliable": true
+      },
+      "replay": {
+        "motion_kind": "static",
+        "vx": 0.0,
+        "vy": 0.0,
+        "velocity_reliable": true,
+        "moving_scans": 0,
+        "still_scans": 9
+      }
+    },
+    {
+      "elapsed_s": 90.2961802482605,
+      "track_id": 3,
+      "recorded": {
+        "kind": "static",
+        "vx": 0.0,
+        "vy": 0.3658774185896845,
+        "velocity_reliable": true
+      },
+      "replay": {
+        "motion_kind": "static",
+        "vx": 0.0,
+        "vy": 0.3658774185896845,
+        "velocity_reliable": true,
+        "moving_scans": 0,
+        "still_scans": 10
+      }
+    },
+    {
+      "elapsed_s": 90.4234721660614,
+      "track_id": 3,
+      "recorded": {
+        "kind": "static",
+        "vx": 0.0,
+        "vy": 0.4783045345091057,
+        "velocity_reliable": true
+      },
+      "replay": {
+        "motion_kind": "static",
+        "vx": 0.0,
+        "vy": 0.4783045345091057,
+        "velocity_reliable": true,
+        "moving_scans": 0,
+        "still_scans": 0
+      }
+    },
+    {
+      "elapsed_s": 90.59786200523376,
+      "track_id": 18,
+      "recorded": {
+        "kind": "unknown",
+        "vx": 0.0,
+        "vy": 0.0,
+        "velocity_reliable": false
+      },
+      "replay": {
+        "motion_kind": "unknown",
+        "vx": 0.0,
+        "vy": 0.0,
+        "velocity_reliable": false,
+        "moving_scans": 0,
+        "still_scans": 0
+      }
+    },
+    {
+      "elapsed_s": 90.59786200523376,
+      "track_id": 3,
+      "recorded": {
+        "kind": "static",
+        "vx": 0.0,
+        "vy": 0.0,
+        "velocity_reliable": true
+      },
+      "replay": {
+        "motion_kind": "static",
+        "vx": 0.0,
+        "vy": 0.0,
+        "velocity_reliable": true,
+        "moving_scans": 0,
+        "still_scans": 1
+      }
+    }
+  ]
+}

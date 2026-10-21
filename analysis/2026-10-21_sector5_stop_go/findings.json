@@ -1,0 +1,64 @@
+{
+  "bag": "src/unita_waypoint/log/semi_leo_2026-10-19-00-25-29.bag",
+  "raw_cloud_bag": "src/unita_waypoint/log/run_20261019_002529/sensors_2026-10-19-00-25-30_0.bag",
+  "timezone": "Asia/Seoul",
+  "date": "2026-10-19",
+  "events": [
+    {
+      "time_kst": "00:27:52.588",
+      "cause": "Signal detection dropout; green -> unknown after configured 0.8s missed-signal hold",
+      "signal_id": "C1256W000016",
+      "empty_valid_detection_frames": [
+        698,
+        699,
+        700,
+        701,
+        702,
+        703
+      ],
+      "guard_input": {
+        "accel": 0.19562362670898467,
+        "brake": 0.0
+      },
+      "guard_output": {
+        "accel": 0.0,
+        "brake": 1.0
+      },
+      "speed_kmh": 28.054704666137695,
+      "signal_cap_kmh": 9.38251096074665,
+      "green_recovered_kst": "00:27:52.985"
+    },
+    {
+      "time_kst": "00:27:55.211",
+      "cause": "One-scan predicted crossing; route speed cap 0",
+      "route_object_id": 96,
+      "clear_kst": "00:27:55.330",
+      "inference": "Likely cluster merge/split and track association instability; not conclusively proven"
+    },
+    {
+      "time_kst": "00:27:55.850",
+      "cause": "Laterally moving cluster approaches and crosses planned path",
+      "route_object_id": 100,
+      "route_cap_zero_kst": [
+        "00:27:56.791",
+        "00:27:57.808"
+      ],
+      "ego_below_0_5_kmh_kst": [
+        "00:27:57.124",
+        "00:27:58.095"
+      ],
+      "ego_xy_m": [
+        -60.15,
+        -18.44
+      ],
+      "guard_during_stop": "clearing, no speed cap; same upstream and downstream command in all 60 samples over 00:27:55.178..58.178",
+      "raw_cloud_evidence": "1.951m lateral displacement in 0.778s while ego and reference clusters stationary",
+      "clear_reason": "Object leaves path; remains tracked after release"
+    }
+  ],
+  "limits": [
+    "No camera images or object semantic truth in the recorded bags; cannot identify moving cluster as a person or equate it with the user-described third-lane static object.",
+    "Source code was not modified for diagnosis. Logged decisions, synchronous guard input/output and raw LiDAR used to establish actual causes."
+  ],
+  "second_sector5_pass": "00:32:32..49; minimum speed about21.85km/h; no complete stop"
+}

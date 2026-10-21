@@ -143,6 +143,14 @@ class LocalAvoidancePlanner:
     def _any_speed_lane_change(self, index):
         return any(lo <= index <= hi for lo, hi in self.any_speed_lane_change_ranges)
 
+    def reset_for_r1_handoff(self):
+        """Discard manoeuvres planned while another follower drove the car."""
+        self.transition = None
+        self.active_lane = None
+        self.departed_preferred = False
+        self.off_r1 = False
+        self.previous_preferred_lane = None
+
     def _forward(self, index, distance_m):
         result = [(index, self.route[index], 0.)]
         count = len(self.route)
@@ -434,7 +442,9 @@ class LocalAvoidancePlanner:
         return Decision(state, path, cap, threat[1].kind if threat else '',
                         threat[0] if threat else float('inf'), reason)
 
-    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None):
+    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, force_r1=False):
+        if force_r1 and self.transition is not None and self.transition['target'] != 1:
+            self.reset_for_r1_handoff()
         # See lane endings early enough to decelerate before merging back.
         horizon = max(self.lookahead_m, speed_mps**2/(2.*self.decel)+40.)
         ahead = self._forward(index, horizon)
@@ -447,6 +457,10 @@ class LocalAvoidancePlanner:
         self.current_lane = min(available, key=lambda n: distance(ego_xy, available[n]))
         requested = self._requested_lane(index, ego_xy, ego_yaw)
         self.preference_reason = 'priority_interval' if requested != self.preferred_lane else 'default_lane'
+        if force_r1:
+            requested = 1
+            self.finish_priority_active = False
+            self.preference_reason = 'r1_handoff'
         preferred = requested if requested in available else 1
         if requested not in available:
             self.preference_reason = 'saved_lane_unavailable'
@@ -510,9 +524,9 @@ class LocalAvoidancePlanner:
         current_path = self._path(ahead, ego_xy, current, progress)
         threat = self._lead(current_path, ego_xy, obstacles)
         candidates = [preferred]
-        if current != preferred:
+        if current != preferred and not force_r1:
             candidates.append(current)
-        if threat:
+        if threat and not force_r1:
             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
         candidates = list(dict.fromkeys(candidates))
         waiting = ''

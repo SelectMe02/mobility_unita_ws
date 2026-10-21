@@ -19,7 +19,9 @@ from std_msgs.msg import String, Header
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from lane_corridor import LaneCorridor
+from obstacle_motion import box_bounds, update_motion
 from avoidance_runtime import RuntimeSettings
+from perception_debug import xyz_cloud
 from ground_segmentation import (rotation_rpy, normalized_quaternion, quaternion_at,
                                  level_rotation, segment_ground)
 
@@ -179,11 +181,13 @@ class LidarObstacles:
         self.tracks = {}
         self.next_id = 1
         self.lane_corridor = None
+        self.debug_max_points = max(0, int(rospy.get_param('~debug_max_points', 0)))
         self.runtime_settings = RuntimeSettings('lidar_obstacles', self)
         self.pub = rospy.Publisher('/waypoint_debug/obstacles', String, queue_size=1)
         self.ground_status_pub = rospy.Publisher('/waypoint_debug/ground_status', String, queue_size=1)
         self.ground_points_pub = rospy.Publisher('/waypoint_debug/ground_points', PointCloud2, queue_size=1)
         self.obstacle_points_pub = rospy.Publisher('/waypoint_debug/obstacle_points', PointCloud2, queue_size=1)
+        self.discarded_points_pub = rospy.Publisher('/waypoint_debug/discarded_points', PointCloud2, queue_size=1)
         rospy.Subscriber('/waypoint_debug/lane_geometry', String,
                          self.on_lane_geometry, queue_size=1, buff_size=2**22)
         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
@@ -275,29 +279,28 @@ class LidarObstacles:
                 dt = stamp - previous['stamp']
                 if dt <= 0:
                     continue
-                vx = .65*previous['vx'] + .35*(x-previous['x'])/dt
-                vy = .65*previous['vy'] + .35*(y-previous['y'])/dt
                 hits = min(20, previous['hits']+1)
                 first_stamp = previous.get('first_stamp', previous['stamp']-(previous['hits']-1)*dt)
-                velocities = (previous.get('velocities', [])+[((x-previous['x'])/dt, (y-previous['y'])/dt)])[-3:]
             else:
                 previous = {}
                 key = self.next_id
                 self.next_id += 1
-                vx = vy = 0.
                 hits = 1
-                first_stamp, velocities = stamp, []
+                first_stamp = stamp
             observed_s = stamp-first_stamp
             confirmed = hits >= 3 and observed_s+1e-9 >= getattr(self, 'track_confirm_time_s', .2)
-            velocity_reliable = (confirmed and len(velocities) >= 2
-                                 and np.max(np.linalg.norm(np.asarray(velocities)-np.median(velocities, axis=0), axis=1)) <= 3.)
+            motion = update_motion(previous, stamp, box_bounds(x, y, length, width, yaw),
+                                   self.dynamic_speed_threshold_mps)
+            vx, vy = motion['vx'], motion['vy']
+            velocity_reliable = confirmed and motion['velocity_reliable']
+            motion['velocity_reliable'] = bool(velocity_reliable)
             lane = self._track_lane(x, y, length, width, yaw, stamp, previous,
                                     confirmed)
-            track = dict(x=x, y=y, radius=radius, vx=vx, vy=vy,
+            track = dict(x=x, y=y, radius=radius, **motion,
                          length=length, width=width, yaw=yaw,
                          road_surface=road_surface,
-                         hits=hits, stamp=stamp, first_stamp=first_stamp, velocities=velocities,
-                         confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
+                         hits=hits, stamp=stamp, first_stamp=first_stamp,
+                         confirmed=confirmed,
                          **lane)
             self.tracks[key] = track
             used.add(key)
@@ -307,9 +310,7 @@ class LidarObstacles:
                                confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
                                hits=hits, observed_s=observed_s, measurement_stamp=stamp,
                                raw_width=width, predicted=False, **lane,
-                               kind=('dynamic' if hits >= 3 and
-                                     math.hypot(vx, vy) > self.dynamic_speed_threshold_mps else
-                                     'static' if hits >= 3 else 'unknown')))
+                               kind=motion['motion_kind'] if confirmed else 'unknown'))
         # Preserve a briefly occluded rear/side car instead of treating its
         # lane as clear immediately. Do not extend a stale measurement forever.
         for key, track in self.tracks.items():
@@ -459,6 +460,7 @@ class LidarObstacles:
             imus = list(getattr(self, 'imus', []))
         cloud_stamp = msg.header.stamp.to_sec() if msg is not None else None
         data = dict(stamp=ros_now, frame_id='map', mode=mode, imu_corrected=False,
+                    debug_valid=False,
                     cloud_stamp=cloud_stamp, cloud_frame=msg.header.frame_id if msg is not None else None,
                     cloud_age_s=ros_now-cloud_stamp if cloud_stamp is not None else None,
                     pose_samples=len(poses), imu_samples=len(imus),
@@ -469,18 +471,46 @@ class LidarObstacles:
                     imu_rejection=getattr(self, 'imu_rejection', None),
                     imu_frame=getattr(self, 'last_imu_frame', None))
         self.ground_status_pub.publish(String(data=json.dumps(data)))
+        # A stopped sensor, invalid frame, or unsynchronised pose must not
+        # leave an old red cloud looking like current perception evidence.
+        empty = xyz_cloud(
+            Header(stamp=rospy.Time.from_sec(ros_now), frame_id='map'), [])
+        for name in ('ground_points_pub', 'obstacle_points_pub', 'discarded_points_pub'):
+            publisher = getattr(self, name, None)
+            if publisher is not None and publisher.get_num_connections():
+                publisher.publish(empty)
 
-    def publish_filter_debug(self, points, ground, obstacle, pose, status, header):
-        self.ground_status_pub.publish(String(data=json.dumps(status)))
+    def publish_filter_debug(self, points, ground, obstacle, pose, status, header,
+                             discarded=None):
+        """Publish the actual lane-filtered perception input at cloud time.
+
+        Red points are the input to clustering and road-surface evidence,
+        not a claim that every point became an accepted tracked obstacle.
+        All valid points are displayed by default. An optional configured
+        limit only reduces visualisation traffic, never detector input.
+        """
         c, s = math.cos(pose[2]), math.sin(pose[2])
-        for mask, publisher in ((ground, self.ground_points_pub), (obstacle, self.obstacle_points_pub)):
-            if not publisher.get_num_connections():
+        clouds = [(ground, self.ground_points_pub, 'ground'),
+                  (obstacle, self.obstacle_points_pub, 'used')]
+        if discarded is not None:
+            clouds.append((discarded, getattr(self, 'discarded_points_pub', None), 'discarded'))
+        displayed = {}
+        for mask, publisher, name in clouds:
+            count = int(mask.sum())
+            maximum = getattr(self, 'debug_max_points', 0)
+            stride = max(1, int(math.ceil(count/maximum))) if maximum else 1
+            displayed[name] = dict(total=count, displayed=int(math.ceil(count/stride)),
+                                   stride=stride)
+            if publisher is None or not publisher.get_num_connections():
                 continue
-            selected = points[mask][::max(1, int(math.ceil(mask.sum()/15000.)))]
+            selected = points[mask][::stride]
             xyz = np.column_stack((pose[0]+c*selected[:, 0]-s*selected[:, 1],
                                    pose[1]+s*selected[:, 0]+c*selected[:, 1], selected[:, 2]))
-            publisher.publish(point_cloud2.create_cloud_xyz32(
+            publisher.publish(xyz_cloud(
                 Header(stamp=header.stamp, frame_id='map'), xyz))
+        status.update(debug_valid=True, debug_point_stage='lane_filtered_input',
+                      debug_clouds=displayed)
+        self.ground_status_pub.publish(String(data=json.dumps(status)))
 
     def process_pending(self, _event):
         runtime = getattr(self, 'runtime_settings', None)
@@ -522,7 +552,6 @@ class LidarObstacles:
         self.last_filter_wall = time.monotonic()
         status['cloud_age_s'] = age
         status['filter_processing_s'] = time.monotonic()-filter_start
-        self.publish_filter_debug(points, ground, mask, pose, status, msg.header)
         selected = points[mask]
         xy = selected[:, :2]
         c, s = math.cos(pose[2]), math.sin(pose[2])
@@ -531,6 +560,18 @@ class LidarObstacles:
         # Drop roadside returns before clustering so a fence cannot enlarge
         # or merge with a car that is actually inside a mapped lane.
         inside = corridor.contains(map_xy)
+        # Keep indices into the full corrected scan for faithful debug
+        # colours. The detector below still receives exactly its old arrays.
+        used = np.zeros(len(points), dtype=bool)
+        used[np.flatnonzero(mask)[inside]] = True
+        finite = np.isfinite(points).all(axis=1)
+        discarded = finite & ~used
+        status.update(candidate_points=int(mask.sum()), used_points=int(used.sum()),
+                      ground_removed_points=int(ground.sum()),
+                      lane_removed_points=int((~inside).sum()),
+                      other_removed_points=int((finite & ~ground & ~mask).sum()),
+                      discarded_points=int(discarded.sum()),
+                      invalid_points=int((~finite).sum()))
         xy, selected = xy[inside], selected[inside]
         support_xy, support_z = map_xy[inside], selected[:, 2]
         if len(xy) > 10000:
@@ -538,13 +579,17 @@ class LidarObstacles:
             xy = xy[::stride]
         found = []
         edge_band = getattr(self, 'lane_edge_band_m', 0.)
+        status.update(cluster_input_points=len(xy), clusters=0,
+                      edge_rejected_clusters=0, size_rejected_clusters=0)
         for group in clusters(xy):
+            status['clusters'] += 1
             world = np.column_stack((pose[0]+c*group[:, 0]-s*group[:, 1],
                                      pose[1]+s*group[:, 0]+c*group[:, 1]))
             # A guardrail or kerb along the lane line reaches only the outer
             # edge band. Anything there is beyond the ego footprint band, and
             # as a lane-aligned box on a bend it would bulge into the lane.
             if edge_band > 0. and np.max(corridor.depth(world)) < edge_band:
+                status['edge_rejected_clusters'] += 1
                 continue
             box = object_box(world, corridor.direction(world.mean(axis=0)),
                              self.cluster_min_size_m, self.cluster_max_size_m)
@@ -553,7 +598,10 @@ class LidarObstacles:
                     support_xy, support_z, box, getattr(self, 'ground_reference_z_m', 0.),
                     status.get('imu_corrected', False) and status.get('planes', 0) > 0)
                 found.append((*box, road_surface))
+            else:
+                status['size_rejected_clusters'] += 1
         mask = corridor.contains([o[:2] for o in found])
+        status['center_rejected_detections'] = int((~mask).sum())
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:
             if self.lane_corridor is not corridor:
@@ -564,6 +612,9 @@ class LidarObstacles:
             # from tracking as well as from the published obstacle stream.
             keep = {o['id'] for o in tracked}
             self.tracks = {key: value for key, value in self.tracks.items() if key in keep}
+        status.update(detected_obstacles=len(found), tracked_obstacles=len(tracked),
+                      predicted_obstacles=sum(bool(o.get('predicted', False)) for o in tracked))
+        self.publish_filter_debug(points, ground, used, pose, status, msg.header, discarded)
         self.pub.publish(String(data=json.dumps(dict(
             stamp=stamp, frame_id='map', obstacles=tracked))))
 

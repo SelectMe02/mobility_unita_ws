@@ -1,0 +1,60 @@
+{
+  "note": "Reconstructed using rounded route obstacle data; endpoints approximate to published rounding.",
+  "rows": [
+    {
+      "t": 1792337268.7914073,
+      "ego_y": -68.778,
+      "ego_s": 402.5292026987287,
+      "first_block_id": 89,
+      "first_block_s": 438.0,
+      "candidate_start_s": 417.905,
+      "candidate_end_s": 455.04,
+      "legal_offsets": [],
+      "observed_speed_cap": 41.2
+    },
+    {
+      "t": 1792337270.1477578,
+      "ego_y": -58.045,
+      "ego_s": 413.26238206493,
+      "first_block_id": 95,
+      "first_block_s": 447.8,
+      "candidate_start_s": 427.755,
+      "candidate_end_s": 464.79,
+      "legal_offsets": [],
+      "observed_speed_cap": 40.38
+    },
+    {
+      "t": 1792337273.3550534,
+      "ego_y": -38.058,
+      "ego_s": 433.24969142299614,
+      "first_block_id": 109,
+      "first_block_s": 448.1,
+      "candidate_start_s": 433.24969142299614,
+      "candidate_end_s": 471.01000000000005,
+      "legal_offsets": [],
+      "observed_speed_cap": 17.37
+    },
+    {
+      "t": 1792337560.1675694,
+      "ego_y": -69.703,
+      "ego_s": 401.6041832591771,
+      "first_block_id": 1527,
+      "first_block_s": 437.9,
+      "candidate_start_s": 417.79499999999996,
+      "candidate_end_s": 454.95,
+      "legal_offsets": [],
+      "observed_speed_cap": 41.9
+    },
+    {
+      "t": 1792337561.4264848,
+      "ego_y": -61.007,
+      "ego_s": 410.30031462755824,
+      "first_block_id": 1532,
+      "first_block_s": 447.3,
+      "candidate_start_s": 427.22499999999997,
+      "candidate_end_s": 464.32000000000005,
+      "legal_offsets": [],
+      "observed_speed_cap": 42.46
+    }
+  ]
+}

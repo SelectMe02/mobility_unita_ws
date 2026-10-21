@@ -1,6 +1,7 @@
 """Route checks used to recover GPS after LiDAR drift at a tunnel exit."""
 import importlib.util
 from pathlib import Path
+from collections import deque
 import threading
 from unittest.mock import Mock, patch
 
@@ -245,3 +246,42 @@ def test_latched_exit_guidance_does_not_extend_allowed_blackout_section():
     assert state.valid_pub.publish.call_args[0][0].data is False
     assert state.speed_pub.publish.call_args[0][0].data == 0.
     state.target_pub.publish.assert_not_called()
+
+
+def test_gps_output_preserves_selected_sample_stamp_across_new_callback():
+    state = exit_tick_state()
+    state.machine.had_blackout = False
+    state.machine.update_raw_gps(37., 127., 10.)
+    state.machine.update_gps_valid(True, 10.)
+    state.gps_pose_max_age_s = 1.
+    state.gps_history = deque(maxlen=100)
+    sample = node.PoseStamped()
+    sample.header.frame_id = 'map'
+    sample.header.stamp = node.rospy.Time.from_sec(9.85)
+    sample.pose.position.x, sample.pose.position.y = state.machine.map_pose[:2]
+    sample.pose.orientation.w = 1.
+    with patch.object(node.time, 'monotonic', return_value=10.), \
+            patch.object(node.rospy.Time, 'now', return_value=node.rospy.Time(10.)):
+        state.on_gps_pose(sample)
+    first_pose = state.machine.gps_pose[0]
+    # Publish callbacks run after the lock is released. Simulate a newer GPS
+    # arriving then: the selected coordinates must retain their old stamp.
+    newer = node.PoseStamped()
+    newer.header.frame_id = 'map'
+    newer.header.stamp = node.rospy.Time.from_sec(9.95)
+    newer.pose.position.x, newer.pose.position.y = first_pose[0] + .1, first_pose[1]
+    newer.pose.orientation.w = 1.
+    state.mode_pub.publish.side_effect = lambda _: state.on_gps_pose(newer)
+    tick_at_capture(state)
+    message = state.pose_pub.publish.call_args[0][0]
+    assert abs(message.header.stamp.to_sec() - 9.85) < 1e-8
+    assert message.pose.position.x == first_pose[0]
+    assert abs(state.gps_stamp - 9.95) < 1e-8
+
+
+def test_blackout_output_keeps_existing_time_convention():
+    state = exit_tick_state()
+    state.gps_stamp = 3.
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.BLACKOUT
+    assert state.pose_pub.publish.call_args[0][0].header.stamp.to_sec() == 10.

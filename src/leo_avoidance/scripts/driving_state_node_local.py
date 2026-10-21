@@ -27,6 +27,7 @@ from leo_guard.route_file import anchor_on_route, load_route_points, load_route_
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from avoidance_runtime import FrozenConfigTarget, RuntimeSettings  # noqa: E402
+from perception_debug import PerceptionDebug, tracked_obstacles_map  # noqa: E402
 
 
 def locate_or_reacquire(route, x, y, yaw):
@@ -142,6 +143,8 @@ class DrivingStateNode:
         self.target_pub = rospy.Publisher('/leo/avoidance_target', PointStamped, queue_size=1)
         self.speed_pub = rospy.Publisher('/leo/avoidance_speed_limit_kmh', Float64, queue_size=1)
         self.avoidance_status_pub = rospy.Publisher('/leo/avoidance_status', String, queue_size=1)
+        self.debug = PerceptionDebug('/leo/ftg_debug')
+        self.debug_lidar_z = float(rospy.get_param('~lidar_to_rear_z_m', 1.23))
         self.subs = [
             rospy.Subscriber('/gps', GPSMessage, self.on_raw_gps, queue_size=1),
             rospy.Subscriber('/localization/pose', PoseStamped, self.on_gps_pose, queue_size=1),
@@ -169,6 +172,8 @@ class DrivingStateNode:
             return
         p = message.pose.position
         pose = (p.x, p.y, self.yaw(message.pose.orientation))
+        if not all(math.isfinite(value) for value in pose):
+            return
         with self.lock:
             self.gps_stamp = message.header.stamp.to_sec()
             received = time.monotonic()
@@ -328,6 +333,7 @@ class DrivingStateNode:
             with self.lock:
                 item, self.pending = self.pending, None
             if item is None:
+                self.debug.clear_if_stale()
                 time.sleep(.01)
                 continue
             message, received = item
@@ -384,6 +390,7 @@ class DrivingStateNode:
                     exit_heading, wall_weight, remaining = (
                         self.exit_rejoin_guidance(odom_sample[0][2]) if wall_follow
                         else (None, 1., None))
+                self.planner.debug_capture = self.debug.active()
                 plan = self.planner.plan(points, speed[0], preferred_bearing,
                                          wall_follow=wall_follow,
                                          wall_follow_weight=wall_weight,
@@ -394,12 +401,32 @@ class DrivingStateNode:
                 if time.monotonic() - received > self.machine.input_timeout_s:
                     raise ValueError('LiDAR planning exceeded input age limit')
             except Exception as error:
+                self.debug.clear('invalid_perception_input', message.header)
                 plan = Plan(0., 0., str(error), 0., 0.)
                 with self.lock:
                     if not self.machine.scan_valid or 'LiDAR/odometry frame' in str(error):
                         self.machine.scan_valid = False
                         self.machine.scan_fault_reason = str(error)
                     self.machine.reason = str(error)
+            else:
+                snapshot = self.planner.debug_snapshot
+                if snapshot is not None:
+                    details = {key: value for key, value in snapshot.items()
+                               if key not in ('points', 'tracked')}
+                    self.debug.publish(points, snapshot['points'], message.header, pose,
+                                       offset=(self.planner.config.lidar_to_rear_x_m,
+                                               0., self.debug_lidar_z),
+                                       mode='ftg_filtered', debug_point_stage='ftg_collision_input',
+                                       filter_summary='측정 노면 평면 → 충돌 높이·자차 → 전후방·차체·벽·빈 공간 판단',
+                                       pose_sync='scan_capture', imu_corrected=False,
+                                       tracked_obstacles=len(plan.tracked_obstacles),
+                                       obstacles=tracked_obstacles_map(
+                                           snapshot.get('tracked', []), pose,
+                                           self.planner.config.lidar_to_rear_x_m),
+                                       planner_state=plan.avoidance_phase, planner_reason=plan.reason,
+                                       **details)
+                elif self.debug.active():
+                    self.debug.clear('no_perception_evidence', message.header)
             with self.lock:
                 self.latest_plan = (plan, received)
                 self.last_plan_completed_wall = time.monotonic()
@@ -472,6 +499,10 @@ class DrivingStateNode:
                                  blackout_index))
             mode, pose, reason = self.machine.select(
                 now, blackout_allowed, gps_rejoin_ok)
+            # Snapshot the source stamp under the same lock as select(). A
+            # newer GPS callback must not retimestamp this selected pose.
+            output_pose_stamp = (getattr(self, 'gps_stamp', None)
+                                 if mode == DrivingState.GPS else None)
             if mode == DrivingState.GPS:
                 self.exit_rejoin_active = False
             previous_output_pose = self.previous_output_pose
@@ -605,7 +636,8 @@ class DrivingStateNode:
         if pose is None:
             return
         message = PoseStamped()
-        message.header.stamp = rospy.Time.now()
+        message.header.stamp = (rospy.Time.from_sec(output_pose_stamp)
+                                if output_pose_stamp is not None else rospy.Time.now())
         message.header.frame_id = 'map'
         message.pose.position.x, message.pose.position.y = pose[:2]
         message.pose.orientation.z = math.sin(pose[2] / 2.)

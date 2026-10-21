@@ -19,8 +19,10 @@ from tf.transformations import quaternion_from_euler
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from ground_segmentation import quaternion_at, level_rotation, rotation_rpy, segment_ground
 from lidar_obstacles import LidarObstacles, road_obstacle_mask
+from lidar_obstacles_local import LidarObstacles as LocalLidarObstacles
 from lane_corridor import LaneCorridor
 from avoidance_runtime import RuntimeSettings, validated_value
+from perception_debug import PerceptionDebug, retained_mask, xyz_cloud
 
 
 def scene(slope=0.):
@@ -45,6 +47,145 @@ def node():
 
 
 class GroundTests(unittest.TestCase):
+    def debug_publisher(self):
+        publishers = [MagicMock() for _ in range(3)]
+        for publisher in publishers:
+            publisher.get_num_connections.return_value = 1
+        with patch('perception_debug.rospy.Publisher', side_effect=publishers), \
+                patch('perception_debug.rospy.on_shutdown'), \
+                patch('perception_debug.rospy.get_param', side_effect=lambda name, default: default):
+            debug = PerceptionDebug('/test/perception_debug')
+        self.addCleanup(debug.close)
+        completed = threading.Event()
+        debug.status_pub.publish.side_effect = lambda _: completed.set()
+        return debug, completed
+
+    def test_local_detector_debug_observes_actual_height_and_lane_input(self):
+        n = LocalLidarObstacles.__new__(LocalLidarObstacles)
+        n.__dict__.update(node().__dict__)
+        n.lidar_x = n.lidar_y = n.lidar_z = 0.
+        n.tracks, n.next_id = {}, 1
+        n.pub, n.debug = MagicMock(), MagicMock()
+        n.debug.active.return_value = True
+        n.pose_at = lambda _: (0., 0., 0.)
+        n.lane_corridor = LaneCorridor(dict(frame_id='map', raceline_width=3.6, loop=False,
+                                           lanes=[dict(sector=11, raceline=1,
+                                                       points=[[-50., 0.], [50., 0.]])]))
+        raw = np.array([[20., 0., 1.], [20.4, .3, 1.], [20.8, 0., 1.],
+                        [20., 5., 1.], [20., 0., 0.], [0., 0., 1.]])
+        n.pending = point_cloud2.create_cloud_xyz32(
+            Header(stamp=rospy.Time(10.), frame_id='lidar'), raw)
+        with patch('lidar_obstacles_local.rospy.Time.now', return_value=rospy.Time(10.)):
+            n.process_pending(None)
+        args, status = n.debug.publish.call_args
+        np.testing.assert_allclose(args[1], raw[:3], atol=2e-6)
+        self.assertEqual(status['mode'], 'local_filtered')
+        self.assertEqual((status['lane_removed_points'], status['other_removed_points']), (1, 2))
+        self.assertEqual(len(json.loads(n.pub.publish.call_args.args[0].data)['obstacles']), 1)
+
+    def test_debug_subset_matching_preserves_duplicate_multiplicity(self):
+        points = np.array([[5., 0., .7], [5., 0., .7], [6., 1., .9], [7., 0., .5]])
+        selected = points[[1, 2]]
+        mask = retained_mask(points, selected)
+        self.assertEqual(mask.sum(), len(selected))
+        np.testing.assert_array_equal(points[mask], selected)
+        self.assertEqual(retained_mask(points, np.zeros((0, 3))).sum(), 0)
+
+    def test_vectorized_xyz_cloud_matches_ros_xyz32_layout(self):
+        points = np.array([[1.2, -4.5, .7], [100., .1, -1.23]])
+        header = Header(stamp=rospy.Time(10.), frame_id='map')
+        self.assertEqual(xyz_cloud(header, points), point_cloud2.create_cloud_xyz32(header, points))
+        self.assertEqual(xyz_cloud(header, []), point_cloud2.create_cloud_xyz32(header, []))
+
+    def test_debug_displays_every_point_by_default_and_reports_optional_cap(self):
+        debug, completed = self.debug_publisher()
+        points = np.column_stack((np.arange(20001.), np.zeros(20001), np.ones(20001)))
+        header = Header(stamp=rospy.Time(10.), frame_id='map')
+        debug.publish(points, points, header, (0., 0., 0.))
+        self.assertTrue(completed.wait(2.))
+        self.assertEqual(debug.used_pub.publish.call_args.args[0].width, len(points))
+        status = json.loads(debug.status_pub.publish.call_args.args[0].data)
+        self.assertEqual(status['debug_clouds']['used']['stride'], 1)
+        completed.clear()
+        debug.max_points = 10000
+        debug.publish(points, points, header, (0., 0., 0.))
+        self.assertTrue(completed.wait(2.))
+        status = json.loads(debug.status_pub.publish.call_args.args[0].data)
+        self.assertEqual(status['debug_clouds']['used'], dict(total=20001, displayed=6667, stride=3))
+
+    def test_shared_debug_publisher_keeps_stamp_height_and_subset_counts(self):
+        debug, completed = self.debug_publisher()
+        raw = np.array([[5., 0., -.5], [5., 0., -.5], [5., 3., -1.23]])
+        header = Header(stamp=rospy.Time(10.), frame_id='lidar')
+        debug.publish(raw, raw[:1], header, (10., 20., math.pi/2.),
+                      offset=(1.4, 0., 1.23), mode='route_filtered')
+        self.assertTrue(completed.wait(2.))
+        cloud = debug.used_pub.publish.call_args.args[0]
+        self.assertEqual(cloud.header.stamp, header.stamp)
+        self.assertEqual(cloud.header.frame_id, 'map')
+        np.testing.assert_allclose(list(point_cloud2.read_points(cloud)), [[10., 26.4, .73]], atol=1e-5)
+        self.assertEqual(debug.discarded_pub.publish.call_args.args[0].width, 2)
+        status = json.loads(debug.status_pub.publish.call_args.args[0].data)
+        self.assertEqual((status['input_points'], status['used_points'], status['discarded_points']), (3, 1, 2))
+
+    def test_debug_worker_keeps_only_latest_scan_and_copies_caller_arrays(self):
+        debug, completed = self.debug_publisher()
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        def blocked_match(points, selected):
+            entered.set()
+            self.assertTrue(release.wait(2.))
+            return retained_mask(points, selected)
+        with patch('perception_debug.retained_mask', side_effect=blocked_match):
+            points = np.array([[1., 0., 0.]])
+            debug.publish(points, points, Header(stamp=rospy.Time(1.)), (0., 0., 0.))
+            self.assertTrue(entered.wait(2.))
+            for stamp in (2., 3.):
+                points = np.array([[stamp, 0., 0.]])
+                debug.publish(points, points, Header(stamp=rospy.Time(stamp)), (0., 0., 0.))
+            points[:] = 99.  # The worker owns a separate immutable snapshot.
+            release.set()
+            self.assertTrue(completed.wait(2.))
+        self.assertEqual(debug.status_pub.publish.call_count, 1)
+        cloud = debug.used_pub.publish.call_args.args[0]
+        self.assertEqual(cloud.header.stamp, rospy.Time(3.))
+        self.assertEqual(list(point_cloud2.read_points(cloud)), [(3., 0., 0.)])
+        debug.close()
+        self.assertFalse(debug._thread.is_alive())
+
+    def test_clear_invalidates_inflight_debug_scan(self):
+        debug, completed = self.debug_publisher()
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        def blocked_match(points, selected):
+            entered.set()
+            self.assertTrue(release.wait(2.))
+            return retained_mask(points, selected)
+        with patch('perception_debug.retained_mask', side_effect=blocked_match):
+            points = np.array([[1., 0., 0.]])
+            header = Header(stamp=rospy.Time(10.))
+            debug.publish(points, points, header, (0., 0., 0.))
+            self.assertTrue(entered.wait(2.))
+            debug.clear('waiting_pose', header)
+            debug.clear('waiting_pose', header)  # A throttled clear preserves the queued clear.
+            release.set()
+            self.assertTrue(completed.wait(2.))
+        self.assertEqual(debug.status_pub.publish.call_count, 1)
+        self.assertFalse(json.loads(debug.status_pub.publish.call_args.args[0].data)['debug_valid'])
+        self.assertEqual(debug.used_pub.publish.call_args.args[0].width, 0)
+
+    def test_debug_worker_recovers_after_diagnostic_error(self):
+        debug, completed = self.debug_publisher()
+        failed = threading.Event()
+        with patch('perception_debug.retained_mask', side_effect=ValueError('debug failure')), \
+                patch('perception_debug.rospy.logwarn_throttle', side_effect=lambda *args: failed.set()):
+            points = np.array([[1., 0., 0.]])
+            debug.publish(points, points, Header(stamp=rospy.Time(1.)), (0., 0., 0.))
+            self.assertTrue(failed.wait(2.))
+        debug.publish(points, points, Header(stamp=rospy.Time(2.)), (0., 0., 0.))
+        self.assertTrue(completed.wait(2.))
+        self.assertEqual(debug.used_pub.publish.call_args.args[0].header.stamp, rospy.Time(2.))
+
     def test_height_limits_cover_unknown_patches_and_confirmed_plane_upper_bound(self):
         objects = np.array([[20., 0., .15], [20., 0., .8], [20., 0., 1.1]])
         _, mask, status = segment_ground(objects, np.ones(len(objects), dtype=bool),
@@ -259,6 +400,61 @@ class GroundTests(unittest.TestCase):
             published = json.loads(n.pub.publish.call_args.args[0].data)['obstacles']
             self.assertEqual(len(published), expected)
         self.assertAlmostEqual(published[0]['y'], -.2, 1)
+
+    def test_debug_clouds_separate_lane_input_from_ground_and_roadside_at_scan_pose(self):
+        n = node()
+        n.lane_corridor = LaneCorridor(dict(frame_id='map', raceline_width=3.6, loop=False,
+                                           lanes=[dict(sector=1, raceline=1,
+                                                       points=[[12., -59.], [12., 41.]])]))
+        n.tracks, n.next_id = {}, 1
+        n.pub, n.ground_status_pub = MagicMock(), MagicMock()
+        n.ground_points_pub, n.obstacle_points_pub, n.discarded_points_pub = [MagicMock() for _ in range(3)]
+        for publisher in (n.ground_points_pub, n.obstacle_points_pub, n.discarded_points_pub):
+            publisher.get_num_connections.return_value = 1
+        n.pose_at = lambda _: (12., -9., math.pi/2.)
+        n.imus = [(10., quaternion_from_euler(0., 0., 0.))]
+        in_lane = [[15.+dx, dy, .7] for dx in (-.4, 0., .4) for dy in (-.4, 0., .4)]
+        roadside = [[20.+dx, 5.+dy, .7] for dx in (-.4, 0., .4) for dy in (-.4, 0., .4)]
+        local = np.vstack((scene(), in_lane, roadside, [[25., 0., 4.], [.5, 0., .7]]))
+        n.pending = point_cloud2.create_cloud_xyz32(
+            Header(stamp=rospy.Time(10.), frame_id='lidar'), local-[1.4, 0., 1.23])
+        with patch('lidar_obstacles.rospy.Time.now', return_value=rospy.Time(10.)):
+            n.process_pending(None)
+        used = n.obstacle_points_pub.publish.call_args.args[0]
+        discarded = n.discarded_points_pub.publish.call_args.args[0]
+        for cloud in (used, discarded):
+            self.assertEqual(cloud.header.frame_id, 'map')
+            self.assertEqual(cloud.header.stamp, rospy.Time(10.))
+        used_xyz = np.asarray(list(point_cloud2.read_points(used)))
+        discarded_xyz = np.asarray(list(point_cloud2.read_points(discarded)))
+        expected = np.asarray([[12.-y, -9.+x, z] for x, y, z in in_lane])
+        np.testing.assert_allclose(used_xyz, expected, atol=2e-6)
+        for x, y, z in roadside+[[25., 0., 4.], [.5, 0., .7]]:
+            self.assertTrue(np.any(np.linalg.norm(discarded_xyz-[12.-y, -9.+x, z], axis=1) < 2e-6))
+        data = json.loads(n.ground_status_pub.publish.call_args.args[0].data)
+        self.assertEqual(data['used_points'], len(in_lane))
+        self.assertEqual(data['lane_removed_points'], len(roadside))
+        self.assertEqual(data['input_points'], data['used_points']+data['discarded_points'])
+        self.assertEqual(data['discarded_points'], data['ground_removed_points']+
+                         data['lane_removed_points']+data['other_removed_points'])
+        self.assertEqual(data['detected_obstacles'], 1)
+        self.assertEqual(data['debug_point_stage'], 'lane_filtered_input')
+        self.assertEqual(data['debug_clouds']['used']['displayed'], len(in_lane))
+        self.assertTrue(data['debug_valid'])
+
+    def test_missing_sensor_clears_previous_debug_clouds(self):
+        n = node()
+        n.ground_status_pub = MagicMock()
+        n.ground_points_pub, n.obstacle_points_pub, n.discarded_points_pub = [MagicMock() for _ in range(3)]
+        for publisher in (n.ground_points_pub, n.obstacle_points_pub, n.discarded_points_pub):
+            publisher.get_num_connections.return_value = 1
+        with patch('lidar_obstacles.rospy.Time.now', return_value=rospy.Time(11.)):
+            n.publish_wait_status('waiting_cloud')
+        for publisher in (n.ground_points_pub, n.obstacle_points_pub, n.discarded_points_pub):
+            cloud = publisher.publish.call_args.args[0]
+            self.assertEqual(cloud.header.frame_id, 'map')
+            self.assertEqual(list(point_cloud2.read_points(cloud)), [])
+        self.assertFalse(json.loads(n.ground_status_pub.publish.call_args.args[0].data)['debug_valid'])
 
 
 if __name__ == '__main__':

@@ -1,0 +1,1168 @@
+{
+  "scope": "Read-only bag diagnosis; no production code changes",
+  "runs": [
+    {
+      "bag": "src/unita_waypoint/log/semi_leo_2026-10-21-20-32-13.bag",
+      "camera_counts": {
+        "up": 32,
+        "front": 47
+      },
+      "valid_count": 78,
+      "invalid_count": 1,
+      "adjacent_valid_then_invalid_count": 1,
+      "adjacent_pair_delay_median_ms": 110.53037643432617,
+      "green_detection_count": 10,
+      "guard_counts": [
+        {
+          "camera": null,
+          "state": "hold",
+          "signal": null,
+          "decision": null,
+          "count": 17
+        },
+        {
+          "camera": "up",
+          "state": "approach",
+          "signal": "unknown",
+          "decision": "stop",
+          "count": 130
+        },
+        {
+          "camera": "up",
+          "state": "approach",
+          "signal": "green",
+          "decision": "go",
+          "count": 37
+        },
+        {
+          "camera": "up",
+          "state": "clearing",
+          "signal": "green",
+          "decision": "go",
+          "count": 1
+        },
+        {
+          "camera": null,
+          "state": "clearing",
+          "signal": null,
+          "decision": null,
+          "count": 187
+        }
+      ],
+      "warnings": [],
+      "first_green": {
+        "time_kst": "2026-10-21T20:32:22.068+09:00",
+        "detection": {
+          "stamp": 1792582341.9066732,
+          "camera": "up",
+          "frame": 24,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.7147005200386047,
+              "bbox_normalized": [
+                0.4392570495605469,
+                0.6446449915568034,
+                0.467119026184082,
+                0.6629289627075196
+              ]
+            }
+          ]
+        },
+        "state": {
+          "/competition/ego_speed_kmh": 21.399673461914062,
+          "/leo/waypoint_debug/tracking_state": {
+            "planner_mode": "route_and_local_avoidance",
+            "local_path_source": "route_avoidance",
+            "r1_handoff_active": false,
+            "route_state": "WAIT_SOLID_LINE",
+            "route_reason": "solid line beside the block; waiting",
+            "route_speed_cap_kmh": 32.85,
+            "local_path_point_count": 61,
+            "planner_state": "TAILING",
+            "planner_reason": "",
+            "planner_speed_cap_kmh": 37.295660242096304,
+            "planner_obstacle_input_count": 2,
+            "confirmed_obstacle_count": null,
+            "highway_active": false,
+            "highway_sectors": [],
+            "highway_emergency": false,
+            "highway_road_returns_ignored": 0,
+            "obstacle_horizon_m": 45.0,
+            "transition": null,
+            "gap_blocker": null,
+            "pursuit_target": {
+              "x": -60.24,
+              "y": -163.243
+            },
+            "lookahead_m": 5.0,
+            "drive_mode": "GPS",
+            "valid": true,
+            "sector": 4,
+            "stamp": 1792582342.0648105,
+            "stop_reason": null,
+            "frame_id": "map",
+            "x": -60.57763840293046,
+            "y": -168.86480300687253,
+            "yaw": 1.5032383481710505,
+            "raceline": 1,
+            "driving_state": "TAILING",
+            "obstacle_kind": "static",
+            "obstacle_distance_m": 26.22690300135796,
+            "preferred_raceline": 1,
+            "preferred_raceline_reason": "default_lane",
+            "waypoint_index": 608,
+            "finish_line_y": null,
+            "finish_line_rear_y": null,
+            "finish_line_passed": null,
+            "current_raceline": 1,
+            "lane_change_reason": "",
+            "local_lane": null
+          },
+          "/leo/raw_ctrl_cmd": {
+            "accel": 0.07166360574874706,
+            "brake": 0.0
+          },
+          "/ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.15
+          },
+          "/leo/signal_status": {
+            "state": "approach",
+            "intersection_id": "A1256W000807",
+            "signal_camera": "up",
+            "traffic_light_id": "C1256W000091",
+            "stop_distance": 13.491142664092479,
+            "d_m": 10.491142664092479,
+            "v_mps": 6.05247073703342,
+            "signal": "unknown",
+            "can_go": false,
+            "can_stop": false,
+            "decision": "stop",
+            "release_stable": false,
+            "reason": "reviewed camera signal",
+            "armed": true,
+            "route_s": 302.4149650991703,
+            "cross_track_error": 0.11180889604642974,
+            "speed_kmh": 21.788894653320312,
+            "next_controlled_stop_distance_m": 10.476065191344137,
+            "route_index": 607,
+            "route_max_error_m": 3.75
+          },
+          "/leo/traffic_lights": {
+            "stamp": 1792582341.9066732,
+            "camera": "up",
+            "frame": 24,
+            "valid": true,
+            "detections": [
+              {
+                "label": "traffic_light_green",
+                "confidence": 0.7147005200386047,
+                "bbox_normalized": [
+                  0.4392570495605469,
+                  0.6446449915568034,
+                  0.467119026184082,
+                  0.6629289627075196
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "last_green": {
+        "time_kst": "2026-10-21T20:32:23.885+09:00",
+        "detection": {
+          "stamp": 1792582343.714984,
+          "camera": "up",
+          "frame": 33,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.705608606338501,
+              "bbox_normalized": [
+                0.3911449432373047,
+                0.4398699442545573,
+                0.45439968109130857,
+                0.48346786499023436
+              ]
+            }
+          ]
+        },
+        "state": {
+          "/competition/ego_speed_kmh": 24.422151565551758,
+          "/leo/waypoint_debug/tracking_state": {
+            "planner_mode": "route_and_local_avoidance",
+            "local_path_source": "route_avoidance",
+            "r1_handoff_active": false,
+            "route_state": "WAIT_SOLID_LINE",
+            "route_reason": "solid line beside the block; waiting",
+            "route_speed_cap_kmh": 21.54,
+            "local_path_point_count": 61,
+            "planner_state": "TAILING",
+            "planner_reason": "",
+            "planner_speed_cap_kmh": 26.54115925774798,
+            "planner_obstacle_input_count": 1,
+            "confirmed_obstacle_count": null,
+            "highway_active": false,
+            "highway_sectors": [],
+            "highway_emergency": false,
+            "highway_road_returns_ignored": 0,
+            "obstacle_horizon_m": 45.0,
+            "transition": null,
+            "gap_blocker": null,
+            "pursuit_target": {
+              "x": -59.837,
+              "y": -152.997
+            },
+            "lookahead_m": 5.291466172536214,
+            "drive_mode": "GPS",
+            "valid": true,
+            "sector": 4,
+            "stamp": 1792582343.864086,
+            "stop_reason": null,
+            "frame_id": "map",
+            "x": -59.90348926355364,
+            "y": -159.07373721105978,
+            "yaw": 1.5362541261693614,
+            "raceline": 1,
+            "driving_state": "TAILING",
+            "obstacle_kind": "static",
+            "obstacle_distance_m": 16.20308578616363,
+            "preferred_raceline": 1,
+            "preferred_raceline_reason": "default_lane",
+            "waypoint_index": 628,
+            "finish_line_y": null,
+            "finish_line_rear_y": null,
+            "finish_line_passed": null,
+            "current_raceline": 1,
+            "lane_change_reason": "",
+            "local_lane": null
+          },
+          "/leo/raw_ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.11155383539425315
+          },
+          "/ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.15969340444938895
+          },
+          "/leo/signal_status": {
+            "state": "approach",
+            "intersection_id": "A1256W000807",
+            "signal_camera": "up",
+            "traffic_light_id": "C1256W000091",
+            "stop_distance": 3.67942185759199,
+            "d_m": 0.6794218575919899,
+            "v_mps": 6.783930990431044,
+            "signal": "green",
+            "can_go": false,
+            "can_stop": false,
+            "decision": "go",
+            "release_stable": true,
+            "reason": "reviewed camera signal",
+            "armed": true,
+            "route_s": 312.2266859056706,
+            "cross_track_error": 0.10051931600055705,
+            "speed_kmh": 24.422151565551758,
+            "next_controlled_stop_distance_m": 0.6641712267707769,
+            "route_index": 627,
+            "route_max_error_m": 3.75
+          },
+          "/leo/traffic_lights": {
+            "stamp": 1792582343.714984,
+            "camera": "up",
+            "frame": 33,
+            "valid": true,
+            "detections": [
+              {
+                "label": "traffic_light_green",
+                "confidence": 0.705608606338501,
+                "bbox_normalized": [
+                  0.3911449432373047,
+                  0.4398699442545573,
+                  0.45439968109130857,
+                  0.48346786499023436
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "first_green_followed_by_invalid": {
+        "valid_time_kst": "2026-10-21T20:32:23.885+09:00",
+        "valid_message": {
+          "stamp": 1792582343.714984,
+          "camera": "up",
+          "frame": 33,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.705608606338501,
+              "bbox_normalized": [
+                0.3911449432373047,
+                0.4398699442545573,
+                0.45439968109130857,
+                0.48346786499023436
+              ]
+            }
+          ]
+        },
+        "invalid_time_kst": "2026-10-21T20:32:23.996+09:00",
+        "invalid_message": {
+          "stamp": 1792582343.9930072,
+          "camera": "front",
+          "frame": 34,
+          "valid": false,
+          "detections": []
+        }
+      }
+    },
+    {
+      "bag": "src/unita_waypoint/log/semi_leo_2026-10-21-20-37-08.bag",
+      "camera_counts": {
+        "up": 1809
+      },
+      "valid_count": 900,
+      "invalid_count": 909,
+      "adjacent_valid_then_invalid_count": 900,
+      "adjacent_pair_delay_median_ms": 0.6688833236694336,
+      "green_detection_count": 230,
+      "guard_counts": [
+        {
+          "camera": null,
+          "state": "hold",
+          "signal": null,
+          "decision": null,
+          "count": 18
+        },
+        {
+          "camera": "up",
+          "state": "approach",
+          "signal": "unknown",
+          "decision": "stop",
+          "count": 3679
+        },
+        {
+          "camera": "up",
+          "state": "approach",
+          "signal": "green",
+          "decision": "go",
+          "count": 6
+        },
+        {
+          "camera": "up",
+          "state": "approach",
+          "signal": "red",
+          "decision": "stop",
+          "count": 11
+        }
+      ],
+      "warnings": [
+        {
+          "time_kst": "2026-10-21T20:37:12.416+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:17.591+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:22.594+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:27.611+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:32.800+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:37.808+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:42.850+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:47.822+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:52.863+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:37:58.031+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:03.039+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:08.145+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:13.295+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:18.517+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:23.519+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:28.592+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:33.764+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:38.818+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:43.843+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:48.919+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:54.066+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:38:59.091+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:04.132+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:09.137+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:14.300+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:19.312+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:24.325+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:29.360+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:34.371+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:39.590+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:44.639+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:49.751+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:54.801+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:39:59.863+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:40:04.995+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:40:10.191+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        }
+      ],
+      "first_green": {
+        "time_kst": "2026-10-21T20:37:12.374+09:00",
+        "detection": {
+          "stamp": 1792582631.8673825,
+          "camera": "up",
+          "frame": 2,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.744864821434021,
+              "bbox_normalized": [
+                0.43541922569274905,
+                0.6426706314086914,
+                0.46538329124450684,
+                0.6615365982055664
+              ]
+            }
+          ]
+        },
+        "state": {
+          "/competition/ego_speed_kmh": 17.73183822631836,
+          "/leo/waypoint_debug/tracking_state": {
+            "planner_mode": "route_and_local_avoidance",
+            "local_path_source": "route_avoidance",
+            "r1_handoff_active": false,
+            "route_state": "WAIT_SOLID_LINE",
+            "route_reason": "solid line beside the block; waiting",
+            "route_speed_cap_kmh": 30.4,
+            "local_path_point_count": 61,
+            "planner_state": "TAILING",
+            "planner_reason": "",
+            "planner_speed_cap_kmh": 34.40980550981747,
+            "planner_obstacle_input_count": 1,
+            "confirmed_obstacle_count": null,
+            "highway_active": false,
+            "highway_sectors": [],
+            "highway_emergency": false,
+            "highway_road_returns_ignored": 0,
+            "obstacle_horizon_m": 45.0,
+            "transition": null,
+            "gap_blocker": null,
+            "pursuit_target": {
+              "x": -60.085,
+              "y": -160.653
+            },
+            "lookahead_m": 5.0,
+            "drive_mode": "GPS",
+            "valid": true,
+            "sector": 4,
+            "stamp": 1792582632.3489928,
+            "stop_reason": null,
+            "frame_id": "map",
+            "x": -60.364523929776624,
+            "y": -166.09427170222625,
+            "yaw": 1.5097192936822874,
+            "raceline": 1,
+            "driving_state": "TAILING",
+            "obstacle_kind": "static",
+            "obstacle_distance_m": 23.245095612503697,
+            "preferred_raceline": 1,
+            "preferred_raceline_reason": "default_lane",
+            "waypoint_index": 614,
+            "finish_line_y": null,
+            "finish_line_rear_y": null,
+            "finish_line_passed": null,
+            "current_raceline": 1,
+            "lane_change_reason": "",
+            "local_lane": null
+          },
+          "/leo/raw_ctrl_cmd": {
+            "accel": 0.043004694518389355,
+            "brake": 0.0
+          },
+          "/leo/signal_status": {
+            "state": "approach",
+            "intersection_id": "A1256W000807",
+            "signal_camera": "up",
+            "traffic_light_id": "C1256W000091",
+            "stop_distance": 10.712047379272462,
+            "d_m": 7.712047379272462,
+            "v_mps": 4.925510618421766,
+            "signal": "unknown",
+            "can_go": false,
+            "can_stop": false,
+            "decision": "stop",
+            "release_stable": false,
+            "reason": "reviewed camera signal",
+            "armed": true,
+            "route_s": 305.19406038399194,
+            "cross_track_error": 0.08548330031593507,
+            "speed_kmh": 17.73183822631836,
+            "next_controlled_stop_distance_m": 7.686805173884196,
+            "route_index": 613,
+            "route_max_error_m": 3.75
+          },
+          "/ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.19107182662891464
+          },
+          "/leo/traffic_lights": {
+            "stamp": 1792582631.8673825,
+            "camera": "up",
+            "frame": 2,
+            "valid": true,
+            "detections": [
+              {
+                "label": "traffic_light_green",
+                "confidence": 0.744864821434021,
+                "bbox_normalized": [
+                  0.43541922569274905,
+                  0.6426706314086914,
+                  0.46538329124450684,
+                  0.6615365982055664
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "last_green": {
+        "time_kst": "2026-10-21T20:40:14.593+09:00",
+        "detection": {
+          "stamp": 1792582814.4328454,
+          "camera": "up",
+          "frame": 1818,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.7657767534255981,
+              "bbox_normalized": [
+                0.3971601963043213,
+                0.45883461634318035,
+                0.4579773426055908,
+                0.5002502123514811
+              ]
+            }
+          ]
+        },
+        "state": {
+          "/competition/ego_speed_kmh": 1.0040418601420242e-05,
+          "/leo/waypoint_debug/tracking_state": {
+            "planner_mode": "route_and_local_avoidance",
+            "local_path_source": "none",
+            "r1_handoff_active": false,
+            "route_state": "WAIT_SOLID_LINE",
+            "route_reason": "solid line beside the block; waiting",
+            "route_speed_cap_kmh": 21.55,
+            "local_path_point_count": 0,
+            "planner_state": "TAILING",
+            "planner_reason": "",
+            "planner_speed_cap_kmh": 27.27628044237505,
+            "planner_obstacle_input_count": 1,
+            "confirmed_obstacle_count": null,
+            "highway_active": false,
+            "highway_sectors": [],
+            "highway_emergency": false,
+            "highway_road_returns_ignored": 0,
+            "obstacle_horizon_m": 45.0,
+            "transition": null,
+            "gap_blocker": null,
+            "pursuit_target": {
+              "x": -59.833,
+              "y": -155.367
+            },
+            "lookahead_m": 5.0,
+            "drive_mode": "GPS",
+            "valid": false,
+            "sector": 4,
+            "stamp": 1792582814.5490189,
+            "stop_reason": "guard_speed_zero_or_stale",
+            "frame_id": "map",
+            "x": -59.93394442513818,
+            "y": -160.36827507708222,
+            "yaw": 1.5396852922932462,
+            "raceline": 1,
+            "driving_state": "TAILING",
+            "obstacle_kind": "static",
+            "obstacle_distance_m": 16.79354086488647,
+            "preferred_raceline": 1,
+            "preferred_raceline_reason": "default_lane",
+            "waypoint_index": 625,
+            "finish_line_y": null,
+            "finish_line_rear_y": null,
+            "finish_line_passed": null,
+            "current_raceline": 1,
+            "lane_change_reason": "",
+            "local_lane": null
+          },
+          "/leo/raw_ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 1.0
+          },
+          "/leo/signal_status": {
+            "state": "approach",
+            "intersection_id": "A1256W000807",
+            "signal_camera": "up",
+            "traffic_light_id": "C1256W000091",
+            "stop_distance": 4.973825561636659,
+            "d_m": 1.9738255616366587,
+            "v_mps": 2.7890051670611783e-06,
+            "signal": "unknown",
+            "can_go": false,
+            "can_stop": false,
+            "decision": "stop",
+            "release_stable": false,
+            "reason": "reviewed camera signal",
+            "armed": true,
+            "route_s": 310.93228220162774,
+            "cross_track_error": 0.1362244191805842,
+            "speed_kmh": 1.0040418601420242e-05,
+            "next_controlled_stop_distance_m": 1.955517664931675,
+            "route_index": 625,
+            "route_max_error_m": 3.75
+          },
+          "/ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 1.0
+          },
+          "/leo/traffic_lights": {
+            "stamp": 1792582814.4328454,
+            "camera": "up",
+            "frame": 1818,
+            "valid": true,
+            "detections": [
+              {
+                "label": "traffic_light_green",
+                "confidence": 0.7657767534255981,
+                "bbox_normalized": [
+                  0.3971601963043213,
+                  0.45883461634318035,
+                  0.4579773426055908,
+                  0.5002502123514811
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "first_green_followed_by_invalid": {
+        "valid_time_kst": "2026-10-21T20:37:12.374+09:00",
+        "valid_message": {
+          "stamp": 1792582631.8673825,
+          "camera": "up",
+          "frame": 2,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.744864821434021,
+              "bbox_normalized": [
+                0.43541922569274905,
+                0.6426706314086914,
+                0.46538329124450684,
+                0.6615365982055664
+              ]
+            }
+          ]
+        },
+        "invalid_time_kst": "2026-10-21T20:37:12.414+09:00",
+        "invalid_message": {
+          "stamp": 1792582632.4136965,
+          "camera": "up",
+          "frame": 3,
+          "valid": false,
+          "detections": []
+        }
+      }
+    },
+    {
+      "bag": "src/unita_waypoint/log/semi_leo_2026-10-21-20-48-20.bag",
+      "camera_counts": {
+        "front": 402
+      },
+      "valid_count": 200,
+      "invalid_count": 202,
+      "adjacent_valid_then_invalid_count": 200,
+      "adjacent_pair_delay_median_ms": 0.9062290191650391,
+      "green_detection_count": 115,
+      "guard_counts": [
+        {
+          "camera": null,
+          "state": "hold",
+          "signal": null,
+          "decision": null,
+          "count": 17
+        },
+        {
+          "camera": "front",
+          "state": "approach",
+          "signal": "unknown",
+          "decision": "stop",
+          "count": 818
+        },
+        {
+          "camera": "front",
+          "state": "approach",
+          "signal": "red",
+          "decision": "stop",
+          "count": 5
+        },
+        {
+          "camera": "front",
+          "state": "approach",
+          "signal": "green",
+          "decision": "go",
+          "count": 3
+        }
+      ],
+      "warnings": [
+        {
+          "time_kst": "2026-10-21T20:48:23.888+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:48:28.982+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:48:34.019+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:48:39.079+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:48:44.241+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:48:49.414+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:48:54.456+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        },
+        {
+          "time_kst": "2026-10-21T20:48:59.660+09:00",
+          "node": "/leo_traffic_lights",
+          "message": "신호등 추론 실패: 16"
+        }
+      ],
+      "first_green": {
+        "time_kst": "2026-10-21T20:48:41.043+09:00",
+        "detection": {
+          "stamp": 1792583320.843453,
+          "camera": "front",
+          "frame": 173,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.79315584897995,
+              "bbox_normalized": [
+                0.542752456665039,
+                0.1200063705444336,
+                0.5946306228637696,
+                0.1658627404106988
+              ]
+            }
+          ]
+        },
+        "state": {
+          "/competition/ego_speed_kmh": 0.02195567637681961,
+          "/leo/raw_ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.003603895428228959
+          },
+          "/leo/waypoint_debug/tracking_state": {
+            "planner_mode": "route_and_local_avoidance",
+            "local_path_source": "route_avoidance",
+            "r1_handoff_active": false,
+            "route_state": "FOLLOW",
+            "route_reason": "clear",
+            "route_speed_cap_kmh": null,
+            "local_path_point_count": 61,
+            "planner_state": "RACELINE",
+            "planner_reason": "",
+            "planner_speed_cap_kmh": null,
+            "planner_obstacle_input_count": 0,
+            "confirmed_obstacle_count": 0,
+            "highway_active": false,
+            "highway_sectors": [],
+            "highway_emergency": false,
+            "highway_road_returns_ignored": 0,
+            "obstacle_horizon_m": 45.0,
+            "transition": null,
+            "gap_blocker": null,
+            "pursuit_target": {
+              "x": -93.968,
+              "y": -255.752
+            },
+            "lookahead_m": 5.0,
+            "drive_mode": "GPS",
+            "valid": true,
+            "sector": 3,
+            "stamp": 1792583321.0132027,
+            "stop_reason": null,
+            "frame_id": "map",
+            "x": -96.30738209921401,
+            "y": -260.1722647906281,
+            "yaw": 1.0817131673285978,
+            "raceline": 1,
+            "driving_state": "RACELINE",
+            "obstacle_kind": "",
+            "obstacle_distance_m": null,
+            "preferred_raceline": 1,
+            "preferred_raceline_reason": "default_lane",
+            "waypoint_index": 409,
+            "finish_line_y": null,
+            "finish_line_rear_y": null,
+            "finish_line_passed": null,
+            "current_raceline": 1,
+            "lane_change_reason": "",
+            "local_lane": null
+          },
+          "/ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.15
+          },
+          "/leo/signal_status": {
+            "state": "approach",
+            "intersection_id": "A1256W000682",
+            "signal_camera": "front",
+            "traffic_light_id": "C1256W000077",
+            "stop_distance": 5.001464925360466,
+            "d_m": 2.001464925360466,
+            "v_mps": 0.0060987989935610025,
+            "signal": "unknown",
+            "can_go": false,
+            "can_stop": false,
+            "decision": "stop",
+            "release_stable": false,
+            "reason": "reviewed camera signal",
+            "armed": true,
+            "route_s": 203.45745736930536,
+            "cross_track_error": 0.10572427352593447,
+            "speed_kmh": 0.02195567637681961,
+            "next_controlled_stop_distance_m": 1.9827760928280544,
+            "route_index": 409,
+            "route_max_error_m": 3.75
+          },
+          "/leo/traffic_lights": {
+            "stamp": 1792583320.843453,
+            "camera": "front",
+            "frame": 173,
+            "valid": true,
+            "detections": [
+              {
+                "label": "traffic_light_green",
+                "confidence": 0.79315584897995,
+                "bbox_normalized": [
+                  0.542752456665039,
+                  0.1200063705444336,
+                  0.5946306228637696,
+                  0.1658627404106988
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "last_green": {
+        "time_kst": "2026-10-21T20:49:04.082+09:00",
+        "detection": {
+          "stamp": 1792583343.8940194,
+          "camera": "front",
+          "frame": 403,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.7804852724075317,
+              "bbox_normalized": [
+                0.5420498371124267,
+                0.12089438968234592,
+                0.5938753604888916,
+                0.1647545920477973
+              ]
+            }
+          ]
+        },
+        "state": {
+          "/competition/ego_speed_kmh": 0.036451417952775955,
+          "/leo/raw_ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.003484246640995701
+          },
+          "/leo/waypoint_debug/tracking_state": {
+            "planner_mode": "route_and_local_avoidance",
+            "local_path_source": "route_avoidance",
+            "r1_handoff_active": false,
+            "route_state": "FOLLOW",
+            "route_reason": "clear",
+            "route_speed_cap_kmh": null,
+            "local_path_point_count": 61,
+            "planner_state": "RACELINE",
+            "planner_reason": "",
+            "planner_speed_cap_kmh": null,
+            "planner_obstacle_input_count": 0,
+            "confirmed_obstacle_count": 0,
+            "highway_active": false,
+            "highway_sectors": [],
+            "highway_emergency": false,
+            "highway_road_returns_ignored": 0,
+            "obstacle_horizon_m": 45.0,
+            "transition": null,
+            "gap_blocker": null,
+            "pursuit_target": {
+              "x": -93.968,
+              "y": -255.752
+            },
+            "lookahead_m": 5.0,
+            "drive_mode": "GPS",
+            "valid": true,
+            "sector": 3,
+            "stamp": 1792583344.0641086,
+            "stop_reason": null,
+            "frame_id": "map",
+            "x": -96.30738209921401,
+            "y": -260.1722647906281,
+            "yaw": 1.079812757028125,
+            "raceline": 1,
+            "driving_state": "RACELINE",
+            "obstacle_kind": "",
+            "obstacle_distance_m": null,
+            "preferred_raceline": 1,
+            "preferred_raceline_reason": "default_lane",
+            "waypoint_index": 409,
+            "finish_line_y": null,
+            "finish_line_rear_y": null,
+            "finish_line_passed": null,
+            "current_raceline": 1,
+            "lane_change_reason": "",
+            "local_lane": null
+          },
+          "/ctrl_cmd": {
+            "accel": 0.0,
+            "brake": 0.15
+          },
+          "/leo/signal_status": {
+            "state": "approach",
+            "intersection_id": "A1256W000682",
+            "signal_camera": "front",
+            "traffic_light_id": "C1256W000077",
+            "stop_distance": 5.001464925360466,
+            "d_m": 2.001464925360466,
+            "v_mps": 0.006404839352601104,
+            "signal": "unknown",
+            "can_go": false,
+            "can_stop": false,
+            "decision": "stop",
+            "release_stable": false,
+            "reason": "reviewed camera signal",
+            "armed": true,
+            "route_s": 203.45745736930536,
+            "cross_track_error": 0.10572427352593447,
+            "speed_kmh": 0.023057421669363976,
+            "next_controlled_stop_distance_m": 1.9844625562359002,
+            "route_index": 409,
+            "route_max_error_m": 3.75
+          },
+          "/leo/traffic_lights": {
+            "stamp": 1792583343.8940194,
+            "camera": "front",
+            "frame": 403,
+            "valid": true,
+            "detections": [
+              {
+                "label": "traffic_light_green",
+                "confidence": 0.7804852724075317,
+                "bbox_normalized": [
+                  0.5420498371124267,
+                  0.12089438968234592,
+                  0.5938753604888916,
+                  0.1647545920477973
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "first_green_followed_by_invalid": {
+        "valid_time_kst": "2026-10-21T20:48:41.043+09:00",
+        "valid_message": {
+          "stamp": 1792583320.843453,
+          "camera": "front",
+          "frame": 173,
+          "valid": true,
+          "detections": [
+            {
+              "label": "traffic_light_green",
+              "confidence": 0.79315584897995,
+              "bbox_normalized": [
+                0.542752456665039,
+                0.1200063705444336,
+                0.5946306228637696,
+                0.1658627404106988
+              ]
+            }
+          ]
+        },
+        "invalid_time_kst": "2026-10-21T20:48:41.045+09:00",
+        "invalid_message": {
+          "stamp": 1792583321.0445824,
+          "camera": "front",
+          "frame": 174,
+          "valid": false,
+          "detections": []
+        }
+      }
+    }
+  ]
+}

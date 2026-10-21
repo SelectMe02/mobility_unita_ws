@@ -26,6 +26,7 @@ from local_avoidance_core import LocalAvoidancePlanner, Obstacle
 from lane_corridor import LaneCorridor, project_lane_geometry
 from avoidance_runtime import RuntimeSettings
 from pedal_guard import CruiseBrake, PedalGuard
+from tracking_debug import local_plan_trace, saved_route_window, tracking_debug_fields
 
 
 def clamp(value, lower, upper):
@@ -1288,6 +1289,7 @@ class GPSWaypointFollower:
         planner = getattr(self, 'local_planner', None)
         selected_lane = planner.active_lane if planner is not None else None
         publisher.publish(String(data=json.dumps({
+            **tracking_debug_fields(self),
             'valid': valid, 'sector': sector,
             'stamp': rospy.Time.now().to_sec(),
             'stop_reason': getattr(self, 'stop_reason', None),
@@ -1363,7 +1365,14 @@ class GPSWaypointFollower:
                 return self.current_waypoint_index, local_x, local_y, ld
         return None
 
-    def publish_local_path(self, points):
+    def publish_local_path(self, points, source='local_planner'):
+        if not hasattr(self, 'debug_trace'):
+            self.debug_trace = {}
+        self.debug_trace['local_path_source'] = source if points else 'none'
+        self.debug_trace['local_path_point_count'] = len(points)
+        publisher = getattr(self, 'local_path_pub', None)
+        if publisher is None:
+            return
         msg = Path()
         msg.header.frame_id = 'map'
         msg.header.stamp = rospy.Time.now()
@@ -1373,9 +1382,10 @@ class GPSWaypointFollower:
             pose.pose.position.x, pose.pose.position.y = x, y
             pose.pose.orientation.w = 1.
             msg.poses.append(pose)
-        self.local_path_pub.publish(msg)
+        publisher.publish(msg)
 
     def publish_full_stop(self):
+        self.publish_local_path([])
         self.requested_target_speed_kmh = 0.
         cruise_brake = getattr(self, 'sector11_cruise_brake', None)
         if cruise_brake is not None:
@@ -1404,6 +1414,7 @@ class GPSWaypointFollower:
 
     def control_loop(self, event):
         now = time.monotonic()
+        self.debug_trace = dict(planner_mode='waiting', local_path_source='none')
         self.stop_reason = 'unknown'
         self.diagnostic_speed_limits = {}
         runtime = getattr(self, 'runtime_settings', None)
@@ -1435,6 +1446,8 @@ class GPSWaypointFollower:
                 return
 
         if not self.path_ready:
+            self.publish_local_path([])
+            self.publish_tracking_state(valid=False)
             diagnostic = getattr(self, '_diagnostic', None)
             if diagnostic is not None:
                 diagnostic('waiting', reason='waypoint_path_unavailable')
@@ -1524,14 +1537,16 @@ class GPSWaypointFollower:
             if (self.guard_limit_topic and self.guard_limit_received is not None
                     and now-self.guard_limit_received <= .35):
                 desired_kmh = min(desired_kmh, self.guard_speed_limit)
+            planning_obstacles = self.obstacles
             decision = self.local_planner.plan(
                 self.current_waypoint_index, position,
-                (self.current_speed_kmh or 0.)/3.6, self.obstacles, ego_yaw=self.current_yaw,
+                (self.current_speed_kmh or 0.)/3.6, planning_obstacles, ego_yaw=self.current_yaw,
                 desired_speed_mps=desired_kmh/3.6)
+            self.debug_trace.update(local_plan_trace(self.local_planner, decision, planning_obstacles))
             self.obstacle_horizon_pub.publish(String(data=json.dumps(dict(
                 frame_id='map', stamp=rospy.Time.now().to_sec(),
                 points=self.local_planner.obstacle_horizon_path,
-                horizon_m=self.local_planner.obstacle_horizon_m,
+                horizon_m=self.debug_trace['obstacle_horizon_m'],
                 half_width_m=self.local_planner.half_width+self.local_planner.margin))))
             preference = (self.local_planner.effective_preferred_lane,
                           self.local_planner.preference_reason)
@@ -1547,7 +1562,8 @@ class GPSWaypointFollower:
                                        if math.isfinite(decision.obstacle_distance_m) else None)
             local_speed_cap = decision.speed_cap_kmh
             self.last_decision = decision
-            self.publish_local_path(decision.path)
+            if decision.path:
+                self.publish_local_path(decision.path)
             if decision.state == 'BLOCKED':
                 self.stop_reason = 'planner_blocked:' + decision.reason
                 self.publish_full_stop()
@@ -1559,11 +1575,12 @@ class GPSWaypointFollower:
                     self.publish_full_stop()
                     return
         else:
+            self.debug_trace['planner_mode'] = ('external_blackout_target'
+                if getattr(self, 'drive_mode', None) == 'BLACKOUT' else 'saved_route')
             self.avoidance_state = 'RACELINE'
             self.lane_change_reason = ''
             self.avoidance_kind = ''
             self.avoidance_distance = None
-        self.publish_tracking_state()
         blackout = using_drive_pose and self.drive_mode == 'BLACKOUT'
         if blackout:
             if (self.avoidance_target is None or self.avoidance_speed_kmh is None
@@ -1591,6 +1608,18 @@ class GPSWaypointFollower:
             return
 
         target_idx, local_x, local_y, ld = target
+        c, s = math.cos(self.current_yaw), math.sin(self.current_yaw)
+        self.debug_trace['pursuit_target'] = dict(
+            x=self.current_x+c*local_x-s*local_y,
+            y=self.current_y+s*local_x+c*local_y)
+        if blackout:
+            # FTG supplies a target, not a sampled local path.
+            self.publish_local_path([])
+        elif self.debug_trace.get('local_path_source') == 'none':
+            self.publish_local_path(saved_route_window(self.waypoints,
+                self.current_waypoint_index, self.loop_path,
+                max(60., self.lookahead_distance*2.)), source='saved_route')
+        self.publish_tracking_state()
 
         # ------------------------------------------------------------
         # Pure Pursuit steering

@@ -6,9 +6,9 @@ least-squares slope over a short history; classification needs several
 consistent scans and releases with hysteresis.
 
 A static object's visible face changes as Ego approaches or passes it, which
-moves the cluster centre. Scans whose cluster size jumps therefore never
-count as motion evidence, clusters cut by the tracking region are skipped,
-and lateral motion must persist in one direction before it is reported.
+moves the cluster centre. Motion therefore requires the opposite measured
+edges to translate together in the world frame. Geometry remains measured;
+only the motion estimate rejects changes of visible extent.
 """
 from dataclasses import dataclass, field
 import math
@@ -46,6 +46,9 @@ class _Track:
     size: tuple = None
     lateral_scans: int = 0
     velocity_se: tuple = (math.inf, math.inf)
+    bounds_history: list = field(default_factory=list)
+    last_trusted_motion: tuple = None
+    velocity_held: bool = False
 
 
 class ObstacleTracker:
@@ -99,7 +102,7 @@ class ObstacleTracker:
                         & (np.abs(points[:, 1]) <= self.region_half_width_m)]
         clusters = []
         edge_m = .3
-        for low, high, count, _ in cluster_boxes(points):
+        for low, high, count, _, _, _, _, group in cluster_boxes(points, oriented=True):
             size = high[:2] - low[:2]
             if count < self.min_points or np.max(size) > self.max_size_m:
                 continue
@@ -109,7 +112,7 @@ class ObstacleTracker:
                     >= self.region_half_width_m - edge_m):
                 # Cut by the region: its centre slides as Ego moves.
                 continue
-            clusters.append(((low[:2] + high[:2]) / 2., size))
+            clusters.append(((low[:2] + high[:2]) / 2., size, group[:, :2]))
         return clusters
 
     def update(self, points_lidar_m, ego_pose, stamp):
@@ -132,11 +135,15 @@ class ObstacleTracker:
         x0, y0, yaw = ego_pose
         c, s = math.cos(yaw), math.sin(yaw)
         clusters = self._clusters(points)
-        world = []
-        for center, _ in clusters:
+        world, bounds = [], []
+        for center, _, group in clusters:
             rear_x = center[0] + self.lidar_to_rear_x_m
             world.append((x0 + c * rear_x - s * center[1],
                           y0 + s * rear_x + c * center[1]))
+            rear_x = group[:, 0] + self.lidar_to_rear_x_m
+            world_points = np.column_stack((x0 + c * rear_x - s * group[:, 1],
+                                            y0 + s * rear_x + c * group[:, 1]))
+            bounds.append((*world_points.min(axis=0), *world_points.max(axis=0)))
         predicted = []
         for track in self.tracks:
             t, x, y = track.history[-1]
@@ -157,7 +164,7 @@ class ObstacleTracker:
         output = []
         survivors = [t for i, t in enumerate(self.tracks)
                      if i in used or stamp - t.history[-1][0] <= self.lost_s]
-        for ci, (center, size) in enumerate(clusters):
+        for ci, (center, size, _) in enumerate(clusters):
             if ci in assigned:
                 track = self.tracks[assigned[ci]]
             else:
@@ -170,12 +177,21 @@ class ObstacleTracker:
             track.history.append((stamp, *world[ci]))
             track.history = [h for h in track.history
                              if stamp - h[0] <= self.history_s]
+            track.bounds_history.append((stamp, *bounds[ci]))
+            track.bounds_history = [h for h in track.bounds_history
+                                    if stamp - h[0] <= self.history_s]
             self._estimate(track, reliable)
             vx, vy = track.velocity
             lateral_mps = -s * vx + c * vy
             lateral_se = math.hypot(s * track.velocity_se[0],
                                     c * track.velocity_se[1])
-            if (reliable and track.velocity_known
+            if (track.velocity_held and track.dynamic and track.velocity_known
+                    and abs(lateral_mps) >= self.lateral_speed_mps
+                    and track.lateral_scans * lateral_mps > 0.):
+                # A changed visible footprint must not cancel a confirmed
+                # crossing. Held evidence is neither renewed nor incremented.
+                pass
+            elif (reliable and track.velocity_known
                     and abs(lateral_mps) >= self.lateral_speed_mps
                     and abs(lateral_mps) >= self.significance * lateral_se):
                 direction = 1 if lateral_mps > 0. else -1
@@ -194,6 +210,7 @@ class ObstacleTracker:
         return output
 
     def _estimate(self, track, reliable=True):
+        track.velocity_held = False
         history = np.asarray(track.history)
         span = history[-1, 0] - history[0, 0]
         if len(history) < self.min_samples or span < self.min_span_s:
@@ -202,11 +219,9 @@ class ObstacleTracker:
             return
         t = history[:, 0] - history[:, 0].mean()
         denominator = float(t @ t)
-        velocity, se = [], []
-        for axis in (1, 2):
-            centred = history[:, axis] - history[:, axis].mean()
+        def fit(values):
+            centred = values - values.mean()
             slope = float(t @ centred) / denominator
-            velocity.append(slope)
             # Standard error of the slope; a 3-sample fit has one residual
             # degree of freedom and is never trusted as motion evidence.
             if len(history) >= 4:
@@ -214,28 +229,68 @@ class ObstacleTracker:
                 noise = max(self.min_noise_m,
                             math.sqrt(float(residual @ residual)
                                       / (len(history) - 2)))
-                se.append(noise / math.sqrt(denominator))
+                error = noise / math.sqrt(denominator)
             else:
-                se.append(math.inf)
+                error = math.inf
+            return slope, error
+
+        velocity, se = [], []
+        bounds = np.asarray(track.bounds_history)
+        for axis in (1, 2):
+            low, low_se = fit(bounds[:, axis])
+            high, high_se = fit(bounds[:, axis + 2])
+            # A newly visible face moves one edge and the box midpoint even
+            # when the object is parked. Translation must move both edges in
+            # the same direction; use the common part of their displacement.
+            slope = (math.copysign(min(abs(low), abs(high)), low)
+                     if low * high > 0. else 0.)
+            error = max(low_se, high_se)
+            if abs(slope) < self.significance * error:
+                # Do not feed a noisy slope into collision prediction while
+                # merely hiding its DYNAMIC label in the diagnostic view.
+                slope = 0.
+            velocity.append(slope)
+            se.append(error)
         track.velocity = tuple(velocity)
         track.velocity_se = tuple(se)
         track.velocity_known = True
+        if not reliable:
+            # A split/merge or newly exposed surface has no trustworthy
+            # translation for this scan. Keep its full measured geometry.
+            self._hold_or_clear_motion(track)
+            track.moving_scans = track.still_scans = 0
+            return
         speed = math.hypot(*track.velocity)
         speed_se = math.hypot(*se) if all(map(math.isfinite, se)) else math.inf
-        if not reliable:
-            # A changed visible extent is not evidence either way.
-            pass
-        elif (speed >= self.dynamic_speed_mps
+        if (speed >= self.dynamic_speed_mps
               and speed < self.significance * speed_se):
             # Fast but not distinguishable from noise: no evidence.
-            pass
+            self._hold_or_clear_motion(track)
+            track.moving_scans = track.still_scans = 0
         elif speed >= self.dynamic_speed_mps:
+            track.last_trusted_motion = (float(history[-1, 0]),
+                                         track.velocity, track.velocity_se)
             track.moving_scans += 1
             track.still_scans = 0
         elif speed <= self.static_speed_mps:
             track.still_scans += 1
             track.moving_scans = 0
+        else:
+            track.last_trusted_motion = (float(history[-1, 0]),
+                                         track.velocity, track.velocity_se)
+            track.moving_scans = track.still_scans = 0
         if track.moving_scans >= self.confirm_scans:
             track.dynamic = True
         elif track.still_scans >= self.confirm_scans:
             track.dynamic = False
+
+    def _hold_or_clear_motion(self, track):
+        """Retain confirmed traffic briefly through an unreliable footprint."""
+        previous = track.last_trusted_motion
+        if (track.dynamic and previous is not None
+                and 0. <= track.history[-1][0] - previous[0] <= self.lost_s):
+            track.velocity, track.velocity_se = previous[1:]
+            track.velocity_known = track.velocity_held = True
+        else:
+            track.velocity = (0., 0.)
+            track.velocity_known = False

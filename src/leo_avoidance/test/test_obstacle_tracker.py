@@ -47,6 +47,93 @@ def test_static_box_stays_static_while_ego_turns():
     assert len(tracks) == 1 and not tracks[0].dynamic
 
 
+def changing_face_cloud(t, ego, lateral_speed=0.):
+    """A parked box gradually exposes its far side during the pass."""
+    growth = min(2.4, 4. * max(0., t - .8))
+    world = [(x, y + lateral_speed * t)
+             for x in np.linspace(14.7, 15.3, 7)
+             for y in np.linspace(-.3, .3 + growth, 17)]
+    return np.array([(*lidar_xy(p, ego), 0.) for p in world])
+
+
+def test_static_changing_visible_face_has_no_velocity_during_ego_turn():
+    tracker = ObstacleTracker(LIDAR_TO_REAR_M)
+    estimates = []
+    for step in range(25):
+        t = step * .1
+        ego = (3. * t, 0., .2 * t)
+        tracks = tracker.update(changing_face_cloud(t, ego), ego, t)
+        assert len(tracks) == 1
+        estimates.append(tracks[0])
+    assert not any(o.dynamic or o.lateral_scans for o in estimates)
+    assert max(math.hypot(o.vx_mps, o.vy_mps) for o in estimates) < .05
+    # Rejecting apparent motion must not hide the actual wider footprint.
+    assert estimates[15].size_y_m > estimates[0].size_y_m + 1.
+
+
+def test_crossing_with_changing_visible_face_keeps_real_lateral_motion():
+    tracker = ObstacleTracker(LIDAR_TO_REAR_M)
+    ego = (0., 0., 0.)
+    estimates = []
+    for step in range(20):
+        t = step * .1
+        estimates.append(tracker.update(changing_face_cloud(t, ego, 1.5), ego, t)[0])
+    assert estimates[5].dynamic
+    assert all(o.dynamic for o in estimates[5:])
+    assert all(math.isclose(o.vy_mps, 1.5, abs_tol=.05) for o in estimates[5:])
+
+
+def test_moving_track_becomes_static_after_it_stops_and_detects_restart():
+    tracker = ObstacleTracker(LIDAR_TO_REAR_M)
+    ego = (0., 0., 0.)
+    estimates = []
+    for step in range(35):
+        t = step * .1
+        travelled = min(t, .8) + max(0., t - 2.)
+        estimates.append(tracker.update(box(10., -3. + 1.5 * travelled), ego, t)[0])
+    assert estimates[7].dynamic
+    assert not estimates[18].dynamic
+    assert abs(estimates[18].vy_mps) < .05
+    assert estimates[27].dynamic and estimates[27].vy_mps > 1.4
+
+
+def test_confirmed_crossing_keeps_trusted_motion_through_footprint_change():
+    tracker = ObstacleTracker(LIDAR_TO_REAR_M)
+    ego = (0., 0., 0.)
+    for step in range(9):
+        t = step * .1
+        before = tracker.update(box(10., -3. + 1.5 * t), ego, t)[0]
+    assert before.dynamic and before.lateral_scans >= 3
+    t = .9
+    # A far face appears: measured width grows by 0.8m, while the object
+    # continues its real 1.5m/s crossing movement.
+    face = np.array([[10. + dx, -3. + 1.5 * t + dy, 0.]
+                     for dx in np.linspace(-.3, .3, 7)
+                     for dy in np.linspace(-.3, 1.1, 15)])
+    changed = tracker.update(face, ego, t)[0]
+    assert changed.track_id == before.track_id
+    assert changed.dynamic and changed.velocity_known
+    assert changed.lateral_scans == before.lateral_scans
+    assert math.isclose(changed.vy_mps, 1.5, abs_tol=.05)
+    assert changed.size_y_m > before.size_y_m + .7
+
+
+def test_repeated_unreliable_footprints_do_not_extend_trusted_motion():
+    tracker = ObstacleTracker(LIDAR_TO_REAR_M)
+    ego = (0., 0., 0.)
+    for step in range(9):
+        t = step * .1
+        tracker.update(box(10., -3. + 1.5 * t), ego, t)
+    # Alternating visible extents remain unreliable; no new motion evidence.
+    for step in range(9, 16):
+        t = step * .1
+        result = tracker.update(box(10., -3. + 1.5 * t,
+                                    half_m=.8 if step % 2 else .3), ego, t)[0]
+    assert not result.velocity_known
+    assert result.vx_mps == result.vy_mps == 0.
+    assert result.lateral_scans == 0
+
+
 def test_crossing_box_is_dynamic_with_lateral_velocity_in_lidar_frame():
     tracker = ObstacleTracker(LIDAR_TO_REAR_M)
     for step in range(8):

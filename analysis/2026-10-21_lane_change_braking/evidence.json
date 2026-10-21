@@ -1,0 +1,102 @@
+{
+  "bag": "semi_leo_2026-10-21-21-16-00.bag",
+  "bag_start_epoch": 1792584961.0035233,
+  "lane_change_range_rel_s": [
+    85.452,
+    93.551
+  ],
+  "full_brake_pulses": [
+    {
+      "begin_rel_s": 86.75104761123657,
+      "end_rel_s": 86.9026939868927,
+      "duration_s": 0.15164637565612793,
+      "brake": 1.0,
+      "tracking_stop_reasons": {
+        "planner_blocked:transition_obstructed": 3
+      },
+      "speed_at_begin_kmh": 15.567610740661621,
+      "lowest_speed_in_pulse_plus_250ms": 12.743630409240723
+    },
+    {
+      "begin_rel_s": 87.95109486579895,
+      "end_rel_s": 88.45402073860168,
+      "duration_s": 0.5029258728027344,
+      "brake": 1.0,
+      "tracking_stop_reasons": {
+        "route_avoidance_stale": 9
+      },
+      "speed_at_begin_kmh": 16.978485107421875,
+      "lowest_speed_in_pulse_plus_250ms": 0.9078382253646851
+    },
+    {
+      "begin_rel_s": 88.95139122009277,
+      "end_rel_s": 89.00370502471924,
+      "duration_s": 0.052313804626464844,
+      "brake": 1.0,
+      "tracking_stop_reasons": {
+        "route_avoidance_stale": 1
+      },
+      "speed_at_begin_kmh": 5.549280643463135,
+      "lowest_speed_in_pulse_plus_250ms": 5.549280643463135
+    },
+    {
+      "begin_rel_s": 90.10283708572388,
+      "end_rel_s": 90.15140581130981,
+      "duration_s": 0.0485687255859375,
+      "brake": 1.0,
+      "tracking_stop_reasons": {
+        "planned_speed_zero": 1
+      },
+      "speed_at_begin_kmh": 15.275856971740723,
+      "lowest_speed_in_pulse_plus_250ms": 13.849443435668945
+    },
+    {
+      "begin_rel_s": 90.3511700630188,
+      "end_rel_s": 90.65117359161377,
+      "duration_s": 0.3000035285949707,
+      "brake": 1.0,
+      "tracking_stop_reasons": {
+        "planner_blocked:transition_obstructed": 6
+      },
+      "speed_at_begin_kmh": 13.849443435668945,
+      "lowest_speed_in_pulse_plus_250ms": 5.750916481018066
+    },
+    {
+      "begin_rel_s": 93.2512571811676,
+      "end_rel_s": 93.55172419548035,
+      "duration_s": 0.30046701431274414,
+      "brake": 1.0,
+      "tracking_stop_reasons": {
+        "route_avoidance_stale": 6
+      },
+      "speed_at_begin_kmh": 17.423049926757812,
+      "lowest_speed_in_pulse_plus_250ms": 7.241697311401367
+    }
+  ],
+  "total_full_brake_seconds": 1.3559253215789795,
+  "sector": 4,
+  "lane_sequence": [
+    1,
+    2,
+    1
+  ],
+  "signal_state_during_lane_change": "clearing",
+  "route_output_gaps_s": [
+    0.964,
+    0.54,
+    0.798
+  ],
+  "route_staleness_limit_s": 0.5,
+  "collision_replay": {
+    "logged_blocked_tracking_samples": 9,
+    "reproduced_with_logged_geometry_and_velocity": 9,
+    "collision_free_when_only_static_obstacle_velocity_zeroed": 9,
+    "purpose": "Offline cause isolation; not an implemented fix or recommendation to ignore emerging motion.",
+    "first_static_labeled_obstacle_velocity_mps": [
+      1.2481768669189188,
+      0.729180060047486
+    ]
+  },
+  "source_timing_analysis_limit": "Cloud eligibility reconstructed from recorded arrival/header timestamps; internal pending overwrite events are inferred from source and timing, not directly logged.",
+  "production_code_changed": false
+}

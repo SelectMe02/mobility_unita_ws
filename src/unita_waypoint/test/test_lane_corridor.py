@@ -173,6 +173,7 @@ class LaneCorridorTests(unittest.TestCase):
         d = MapDebug.__new__(MapDebug)
         d.lane_corridor, d.obstacle_snapshot = corridor, None
         d.obstacle_marker_ids, d.obstacle_pub = set(), MagicMock()
+        d.ground_z, d.lidar_obstacle_pub = -.1, MagicMock()
         item = dict(id=7, x=20., y=0., radius=2.5, length=4.5, width=1.9,
                     yaw=0., vx=10., vy=0., kind='dynamic', raceline=1,
                     lane_sector=11, lane_stable=True, lane_boundary_crossing=False,
@@ -197,6 +198,7 @@ class LaneCorridorTests(unittest.TestCase):
         n.tracks = {1: dict(x=0., y=0.)}
         d = MapDebug.__new__(MapDebug)
         d.obstacle_snapshot = ([], 0., 0.)
+        d.source_snapshots = {'raceline': {}}
         d.publish_paths = MagicMock()
         msg = String(data=json.dumps(geometry(width=4.)))
         with patch('rospy.set_param'), patch('rospy.loginfo'):
@@ -215,6 +217,7 @@ class LaneCorridorTests(unittest.TestCase):
         d.lane_corridor = LaneCorridor(geometry())
         d.obstacle_snapshot, d.obstacle_marker_ids = None, set()
         d.obstacle_pub = MagicMock()
+        d.ground_z, d.lidar_obstacle_pub = -.1, MagicMock()
         obj = dict(id=1, x=20., y=0., radius=.8, vx=0., vy=0., kind='static')
         with patch('rospy.Time.now', return_value=rospy.Time(100)), \
                 patch('map_debug.time.monotonic', return_value=10.):
