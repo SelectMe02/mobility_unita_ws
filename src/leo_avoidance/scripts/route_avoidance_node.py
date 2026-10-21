@@ -84,7 +84,14 @@ class RouteAvoidanceNode:
         self.poses = deque(maxlen=100)
         self.speed = None
         self.signal = None
-        self.pending = None
+        # Several scans can await their following pose sample at once. Keep
+        # them bounded, and process the newest one whose capture pose is ready.
+        self.pending = deque(maxlen=8)
+        self.last_selected_stamp = None
+        self.input_epoch = 0
+        self.processed_epoch = 0
+        self.last_worker_ros_time = None
+        self.closed = False
         self.pub = rospy.Publisher('/leo/route_avoidance', String, queue_size=1)
         self.debug = PerceptionDebug('/leo/route_debug')
         self.debug_lidar_z = float(rospy.get_param('~lidar_to_rear_z_m', 1.23))
@@ -96,6 +103,7 @@ class RouteAvoidanceNode:
                          String, self.on_signal, queue_size=1)
         rospy.Subscriber(rospy.get_param('~cloud_topic', '/lidar3D'), PointCloud2,
                          self.on_cloud, queue_size=1, buff_size=2 ** 24)
+        rospy.on_shutdown(self.close)
         threading.Thread(target=self.worker, daemon=True).start()
 
     def on_pose(self, message):
@@ -106,9 +114,11 @@ class RouteAvoidanceNode:
         stamp = message.header.stamp.to_sec()
         if all(math.isfinite(v) for v in (p.x, p.y, yaw, stamp)):
             with self.lock:
-                self.pose = ((p.x, p.y, yaw), time.monotonic())
+                if self.closed:
+                    return
                 if self.poses and stamp < self.poses[-1][0]:
-                    self.poses.clear()
+                    self._reset_inputs_locked()
+                self.pose = ((p.x, p.y, yaw), time.monotonic())
                 if not self.poses or stamp > self.poses[-1][0]:
                     self.poses.append((stamp, (p.x, p.y, yaw)))
 
@@ -116,6 +126,9 @@ class RouteAvoidanceNode:
         """Place each scan with its capture pose, including during a turn."""
         with self.lock:
             samples = list(self.poses)
+        return self._pose_from_samples(samples, stamp)
+
+    def _pose_from_samples(self, samples, stamp):
         for sample_stamp, pose in samples:
             if abs(sample_stamp - stamp) < 1e-6:
                 return pose
@@ -146,19 +159,72 @@ class RouteAvoidanceNode:
             self.signal = (status, time.monotonic())
 
     def on_cloud(self, message):
+        stamp = message.header.stamp.to_sec()
+        if message.header.frame_id != 'lidar' or not math.isfinite(stamp):
+            return
         with self.lock:
-            self.pending = (message, time.monotonic())
+            if (self.closed or self.last_selected_stamp is not None
+                    and stamp <= self.last_selected_stamp
+                    or any(item[0].header.stamp.to_sec() == stamp for item in self.pending)):
+                return
+            self.pending.append((message, time.monotonic()))
+
+    def _reset_inputs_locked(self):
+        self.pending.clear()
+        self.poses.clear()
+        self.pose = None
+        self.last_selected_stamp = None
+        self.input_epoch += 1
+
+    def close(self):
+        with self.lock:
+            self.closed = True
+            self._reset_inputs_locked()
+
+    def take_ready_scan(self, now, ros_now):
+        """Consume the newest synchronized scan; preserve newer waiting ones."""
+        with self.lock:
+            if self.closed:
+                return None
+            if self.last_worker_ros_time is not None and ros_now < self.last_worker_ros_time:
+                self._reset_inputs_locked()
+            self.last_worker_ros_time = ros_now
+            if self.processed_epoch != self.input_epoch:
+                # Only the worker mutates these objects. Callback time jumps
+                # invalidate an in-flight result through input_epoch instead.
+                self.tracker.reset()
+                self.planner.reset()
+                self.processed_epoch = self.input_epoch
+            samples = list(self.poses)
+            retained = deque(maxlen=self.pending.maxlen)
+            selected = None
+            for message, received in self.pending:
+                stamp = message.header.stamp.to_sec()
+                if (not -.05 <= ros_now - stamp <= self.input_timeout_s
+                        or not 0. <= now - received <= self.input_timeout_s
+                        or self.last_selected_stamp is not None and stamp <= self.last_selected_stamp):
+                    continue
+                retained.append((message, received))
+                pose = self._pose_from_samples(samples, stamp)
+                if pose is not None and (selected is None or stamp > selected[0].header.stamp.to_sec()):
+                    selected = (message, received, pose, self.input_epoch)
+            if selected is not None:
+                self.last_selected_stamp = selected[0].header.stamp.to_sec()
+                retained = deque((item for item in retained
+                                  if item[0].header.stamp.to_sec() > self.last_selected_stamp),
+                                 maxlen=self.pending.maxlen)
+            self.pending = retained
+            return selected
 
     def fresh(self, item, now, timeout=None):
         timeout = self.input_timeout_s if timeout is None else timeout
         return item[0] if item and 0 <= now - item[1] <= timeout else None
 
     def worker(self):
-        rate = rospy.Rate(50)
-        while not rospy.is_shutdown():
+        rate = rospy.Rate(50, reset=True)
+        while not rospy.is_shutdown() and not self.closed:
             self.runtime.poll()
-            with self.lock:
-                pending, self.pending = self.pending, None
+            pending = self.take_ready_scan(time.monotonic(), rospy.Time.now().to_sec())
             if pending is not None:
                 try:
                     self.process(*pending)
@@ -200,10 +266,14 @@ class RouteAvoidanceNode:
         self.boundary_debug_counts['boundary_removed_points'] = int(boundary.sum())
         return points[~boundary]
 
-    def process(self, message, received):
+    def process(self, message, received, pose=None, epoch=None):
         now = time.monotonic()
         stamp = message.header.stamp.to_sec()
         with self.lock:
+            if self.closed or rospy.is_shutdown() or epoch is not None and epoch != self.input_epoch:
+                return
+            if epoch is None:
+                epoch = self.input_epoch
             latest_pose = self.fresh(self.pose, now)
             speed = self.fresh(self.speed, now)
             signal = self.fresh(self.signal, now, 1.)
@@ -215,14 +285,10 @@ class RouteAvoidanceNode:
             self.debug.clear('waiting_lidar_pose_speed', message.header)
             rospy.logwarn_throttle(2., 'Route avoidance waiting for LiDAR/pose/speed')
             return
-        pose = self.pose_at(stamp)
         if pose is None:
-            # A cloud can arrive just before the next localization sample.
-            # Keep it only until a newer scan or the normal input timeout;
-            # never substitute a differently timed pose during ego motion.
-            with self.lock:
-                if self.pending is None:
-                    self.pending = (message, received)
+            pose = self.pose_at(stamp)
+        if pose is None:
+            # The worker keeps unsynchronized scans in its bounded queue.
             self.debug.clear('waiting_scan_pose', message.header)
             return
         points = np.asarray(list(point_cloud2.read_points(
@@ -256,15 +322,25 @@ class RouteAvoidanceNode:
                                        stop_line_distance_m=stop_line,
                                        stop_line_permitted=permitted)
         cap = decision.speed_cap_mps
-        self.pub.publish(String(data=json.dumps(dict(
+        output = String(data=json.dumps(dict(
             stamp=stamp, state=decision.state, reason=decision.reason,
             speed_cap_kmh=None if math.isinf(cap) else round(cap * 3.6, 2),
+            traffic_speed_cap_kmh=(None if math.isinf(decision.traffic_speed_cap_mps)
+                                   else round(decision.traffic_speed_cap_mps * 3.6, 2)),
             offset_m=round(decision.offset_now_m, 2),
             path=[[round(x, 3), round(y, 3)] for x, y in decision.path],
             obstacles=[dict(s=round(o['s'], 1), d=round(o['d'], 2), r=round(o['r'], 2),
                             l=round(o['l'], 2), v_s=round(o['v_s'], 2),
                             v_d=round(o['v_d'], 2), moving=o['moving'], id=o['id'])
-                       for o in decision.obstacles]))))
+                       for o in decision.obstacles])))
+        with self.lock:
+            if self.closed or rospy.is_shutdown() or epoch != self.input_epoch:
+                return
+            if (not -.05 <= rospy.Time.now().to_sec() - stamp <= self.input_timeout_s
+                    or not 0. <= time.monotonic() - received <= self.input_timeout_s):
+                self.debug.clear('processing_expired', message.header)
+                return
+            self.pub.publish(output)
         self.debug.publish(raw_points, points, message.header, pose,
                            offset=(self.lidar_to_rear_x_m, 0., self.debug_lidar_z),
                            mode='route_filtered', debug_point_stage='route_boundary_filtered_input',

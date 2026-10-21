@@ -115,7 +115,9 @@ class TrackingDebugTests(unittest.TestCase):
                 self.assertEqual(state['local_path_source'],
                                  'local_planner' if local_owns else 'route_avoidance')
                 self.assertEqual(self.path_points(follower), local_path if local_owns else route_path)
-                self.assertEqual(follower.commands[-1][1], 16. if local_owns else 12.)
+                # Steering ownership alone does not discard an unspecified
+                # route obstacle cap; only a known static path wait may yield.
+                self.assertEqual(follower.commands[-1][1], 12.)
                 self.assertEqual(state['route_reason'], 'route_obstacle')
                 self.assertEqual(state['planner_reason'], 'local_obstacle')
 

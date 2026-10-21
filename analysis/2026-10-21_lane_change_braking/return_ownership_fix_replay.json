@@ -1,0 +1,137 @@
+{
+  "source_bag": "semi_leo_2026-10-21-21-16-00.bag",
+  "method": "Run old and new follower control loops offline at recorded planned_speed_zero return sample, with recorded pose/speed/obstacles/transition/route plan and actual saved-lane geometry. Stub publishers only; clocks normalized to the fresh sample. New-producer independent traffic cap is recomputed separately using recorded route obstacles and actual map/survey; a third run checks conservative compatibility with the original legacy producer.",
+  "settings_source": "/home/unita/unita_ws/src/unita_waypoint/log/run_20261021_211600/rosparams.yaml",
+  "recorded_wheelbase_m": 3.0,
+  "recorded_max_steering_rad": 0.5061454830783556,
+  "resolved_min_turn_radius_m": 5.412143265814271,
+  "local_planner_parameters": {
+    "half_width": 0.946,
+    "margin": 0.35,
+    "front_extent": 3.845,
+    "rear_extent": 0.79,
+    "preferred_lane": 1,
+    "min_rear_gap": 8.0,
+    "rear_headway_s": 2.0,
+    "reaction_s": 0.4,
+    "decel": 3.0,
+    "pass_speed_kmh": 20.0,
+    "min_turn_radius_m": 5.412143265814271,
+    "arc_lane_change_max_kmh": 15.0,
+    "lane_change_lateral_accel_mps2": 6.0,
+    "r1_tracking_tolerance_m": 0.85
+  },
+  "rows": [
+    {
+      "elapsed_s": 90.05237078666687,
+      "recorded_transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      },
+      "recorded_route_state": "WAIT_PASS",
+      "recorded_route_cap_kmh": 0.0,
+      "new_producer_traffic_cap_evidence": {
+        "traffic_speed_cap_kmh": null,
+        "all_recorded_route_objects_static": true,
+        "route_ego_s": 326.945280331744,
+        "nearby_crosswalks": [
+          [
+            316.9061077632632,
+            325.9061077632632
+          ]
+        ],
+        "recorded_route_objects": [
+          {
+            "s": 328.6,
+            "d": 0.67,
+            "r": 0.23,
+            "l": 0.22,
+            "v_s": 0.0,
+            "v_d": -0.0,
+            "moving": false,
+            "id": 8
+          },
+          {
+            "s": 329.8,
+            "d": 0.25,
+            "r": 0.13,
+            "l": 0.3,
+            "v_s": 0.0,
+            "v_d": -0.0,
+            "moving": false,
+            "id": 1
+          },
+          {
+            "s": 342.5,
+            "d": -4.6,
+            "r": 0.22,
+            "l": 0.15,
+            "v_s": 0.0,
+            "v_d": -0.0,
+            "moving": false,
+            "id": 6
+          }
+        ],
+        "signal_permitted": true,
+        "method": "Independent cap recomputed using current route producer core with recorded projected obstacle rows, actual route and survey; bag JSON positions are rounded."
+      },
+      "before": {
+        "stop_reason": "planned_speed_zero",
+        "local_path_source": "none",
+        "planner_state": "RETURNING",
+        "target_speed_kmh": 0.0,
+        "full_stop": true,
+        "transition": {
+          "source": 2,
+          "target": 1,
+          "start": 326.94528033174396,
+          "length": 7.736004114639124,
+          "state": "RETURNING",
+          "shape": "arc",
+          "lateral": 3.2530906203703607,
+          "offset": -3.2530906203703607
+        }
+      },
+      "after_with_legacy_producer": {
+        "stop_reason": "planned_speed_zero",
+        "local_path_source": "none",
+        "planner_state": "RETURNING",
+        "target_speed_kmh": 0.0,
+        "full_stop": true,
+        "transition": {
+          "source": 2,
+          "target": 1,
+          "start": 326.94528033174396,
+          "length": 7.736004114639124,
+          "state": "RETURNING",
+          "shape": "arc",
+          "lateral": 3.2530906203703607,
+          "offset": -3.2530906203703607
+        }
+      },
+      "after": {
+        "stop_reason": null,
+        "local_path_source": "local_planner",
+        "planner_state": "RETURNING",
+        "target_speed_kmh": 20.0,
+        "full_stop": false,
+        "transition": {
+          "source": 2,
+          "target": 1,
+          "start": 326.94528033174396,
+          "length": 7.736004114639124,
+          "state": "RETURNING",
+          "shape": "arc",
+          "lateral": 3.2530906203703607,
+          "offset": -3.2530906203703607
+        }
+      }
+    }
+  ]
+}

@@ -78,6 +78,9 @@ class Decision:
     reason: str
     offset_now_m: float = 0.
     obstacles: list = field(default_factory=list)
+    # Keep traffic constraints even if a static-path wait already has a
+    # lower cap and therefore owns the displayed state/reason.
+    traffic_speed_cap_mps: float = math.inf
 
 
 def stopping_speed(distance_m, brake_mps2, reaction_s):
@@ -294,6 +297,7 @@ class RouteAvoidance:
         front_s = s_ego + cfg.front_extent_m
         state, reason = 'FOLLOW', 'clear'
         cap = math.inf
+        traffic_cap = math.inf
 
         if self.active is not None and s_ego > self.active.end_s:
             self.active = None
@@ -367,6 +371,8 @@ class RouteAvoidance:
                     cap = min(cap, 7. / 3.6)
             else:
                 cap = min(cap, stopping_speed(gap, cfg.brake_mps2, cfg.reaction_s))
+                if stop_line_in_pass:
+                    traffic_cap = min(traffic_cap, cap)
                 if not offsets:
                     state, reason = 'WAIT_SOLID_LINE', 'solid line beside the block; waiting'
                 else:
@@ -423,6 +429,7 @@ class RouteAvoidance:
             if self.crosswalk_hold == start:
                 stop = stopping_speed(ahead - cfg.crosswalk_stop_gap_m,
                                       cfg.brake_mps2, cfg.reaction_s)
+                traffic_cap = min(traffic_cap, stop)
                 if stop < cap:
                     cap, state = stop, 'CROSSWALK_STOP'
                     reason = (reason_here if occupied else
@@ -438,16 +445,19 @@ class RouteAvoidance:
                 continue
             if self._in_band(o, off):
                 if ahead <= 0.:
+                    traffic_cap = 0.
                     cap, state, reason = 0., 'YIELD', 'mover beside the bumper'
                     continue
                 if o['v_s'] > cfg.moving_speed_mps and abs(o['v_d']) < cfg.moving_speed_mps:
                     # Lead traffic: keep a gap that still stops if it brakes hard.
                     lead = stopping_speed(ahead - cfg.follow_gap_m, cfg.brake_mps2,
                                           cfg.reaction_s) + o['v_s']
+                    traffic_cap = min(traffic_cap, lead)
                     if lead < cap:
                         cap, state, reason = lead, 'FOLLOW_LEAD', 'following a lead mover'
                     continue
                 stop = stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s)
+                traffic_cap = min(traffic_cap, stop)
                 if stop < cap:
                     cap, state, reason = stop, 'YIELD', 'mover in the path'
                 continue
@@ -465,6 +475,7 @@ class RouteAvoidance:
                     break
             if hit:
                 stop = stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s)
+                traffic_cap = min(traffic_cap, stop)
                 if stop < cap:
                     cap, state, reason = stop, 'YIELD', 'predicted crossing at s+%.1f m' % (
                         o['s'] - s_ego)
@@ -475,4 +486,4 @@ class RouteAvoidance:
             xy, _ = self.route.pose(s, offset_at(s))
             path.append(xy)
             s += cfg.path_step_m
-        return Decision(state, path, cap, reason, offset_now, items)
+        return Decision(state, path, cap, reason, offset_now, items, traffic_cap)

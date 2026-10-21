@@ -207,6 +207,9 @@ class LidarObstacles:
             self.tracks[key] = track
             used.add(key)
             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
+                               candidate_vx=motion['candidate_vx'],
+                               candidate_vy=motion['candidate_vy'],
+                               prediction_confirmed=motion['prediction_confirmed'],
                                velocity_reliable=motion['velocity_reliable'],
                                motion_bounds=list(bounds), predicted=False,
                                kind=motion['motion_kind']))
@@ -220,6 +223,7 @@ class LidarObstacles:
                                    y=track['y']+(track['vy']*dt if reliable else 0.),
                                    radius=track['radius']+.5*dt,
                                    vx=track['vx'], vy=track['vy'], kind='unknown',
+                                   prediction_confirmed=track.get('prediction_confirmed', False),
                                    velocity_reliable=reliable, predicted=True))
         return result
 

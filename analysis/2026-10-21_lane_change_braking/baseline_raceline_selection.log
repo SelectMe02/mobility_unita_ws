@@ -1,0 +1,137 @@
+test_lane_drop_slows_to_stop_before_raceline1_ends (test_raceline_selection.R3RouteTest) ... ok
+test_on_r3_holds_r3_and_passes_only_through_r2 (test_raceline_selection.R3RouteTest) ... ok
+test_r3_entry_waits_for_the_3m_gap_then_changes_lane (test_raceline_selection.R3RouteTest) ... FAIL
+test_raceline3_path_is_continuous_across_the_lane_drop (test_raceline_selection.R3RouteTest) ... ok
+test_s11_route_is_raceline1_until_its_lane_drop_then_raceline3 (test_raceline_selection.R3RouteTest) ... ok
+test_s11_runs_when_raceline1_is_deleted (test_raceline_selection.R3RouteTest) ... ok
+test_standstill_before_lane_drop_can_still_merge (test_raceline_selection.R3RouteTest) ... FAIL
+test_cp11_crossing_uses_rearmost_y_and_is_independent_of_x (test_raceline_selection.RacelineSelectionTest) ... ok
+test_driving_preserves_saved_geometry_even_with_leftover_width_override (test_raceline_selection.RacelineSelectionTest) ... ok
+test_elapsed_time_does_not_switch_global_route (test_raceline_selection.RacelineSelectionTest) ... FAIL
+test_entire_saved_r3_and_manual_extension_keep_priority (test_raceline_selection.RacelineSelectionTest) ... ok
+test_finish_line_return_still_waits_for_rear_car_within_gap (test_raceline_selection.RacelineSelectionTest) ... FAIL
+test_follower_controls_using_selected_local_path_and_stops_on_stale_input (test_raceline_selection.RacelineSelectionTest) ... FAIL
+test_lane_ends_cannot_be_extrapolated_for_passing (test_raceline_selection.RacelineSelectionTest) ... ok
+test_lane_selection_is_reported_to_map_debug (test_raceline_selection.RacelineSelectionTest) ... ok
+test_missing_extension_stops_without_redefining_r3_priority (test_raceline_selection.RacelineSelectionTest) ... ok
+test_obstacle_avoidance_in_manual_extension_keeps_r3_priority (test_raceline_selection.RacelineSelectionTest) ... ok
+test_offset_lane_nearest_r1_index_does_not_end_priority_before_crossing (test_raceline_selection.RacelineSelectionTest) ... ok
+test_priority_mapping_does_not_cover_other_sectors_or_after_cp11 (test_raceline_selection.RacelineSelectionTest) ... ok
+test_real_cp11_holds_r3_until_rear_clears_in_next_sector (test_raceline_selection.RacelineSelectionTest) ... ok
+test_saved_map_prefers_r3_then_r2_when_r3_is_blocked (test_raceline_selection.RacelineSelectionTest) ... FAIL
+test_saved_map_rear_car_within_gap_blocks_r3_entry (test_raceline_selection.RacelineSelectionTest) ... FAIL
+test_saved_r3_returns_to_r3_after_passing_and_checks_rear_gap (test_raceline_selection.RacelineSelectionTest) ... ok
+test_screenshot_position_and_extension_with_live_width_parameter (test_raceline_selection.RacelineSelectionTest) ... ok
+test_test_launch_default_prefers_r3 (test_raceline_selection.RacelineSelectionTest) ... ok
+test_tracking_state_reaches_map_debug_and_expires (test_raceline_selection.RacelineSelectionTest) ... ERROR
+test_valid_sensor_callbacks_never_temporarily_clear_ready (test_raceline_selection.RacelineSelectionTest) ... ok
+
+======================================================================
+ERROR: test_tracking_state_reaches_map_debug_and_expires (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/unittest/mock.py", line 1325, in patched
+    return func(*newargs, **newkeywargs)
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 114, in test_tracking_state_reaches_map_debug_and_expires
+    debug.on_tracking_state(message)
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/scripts/map_debug.py", line 293, in on_tracking_state
+    self.source_snapshots[source]['tracking'] = snapshot
+AttributeError: 'MapDebug' object has no attribute 'source_snapshots'
+
+======================================================================
+FAIL: test_r3_entry_waits_for_the_3m_gap_then_changes_lane (test_raceline_selection.R3RouteTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 508, in test_r3_entry_waits_for_the_3m_gap_then_changes_lane
+    self.assertEqual((d.state, d.reason, p.transition), ('LANE_WAIT', 'lane_change_gap', None))
+AssertionError: Tuples differ: ('LANE_CHANGING', '', {'source': 1, 'target': 2,[97 chars]lse}) != ('LANE_WAIT', 'lane_change_gap', None)
+
+First differing element 0:
+'LANE_CHANGING'
+'LANE_WAIT'
+
++ ('LANE_WAIT', 'lane_change_gap', None)
+- ('LANE_CHANGING',
+-  '',
+-  {'length': 75.89466384404105,
+-   'locked': False,
+-   'source': 1,
+-   'start': 1249.7416180874538,
+-   'state': 'LANE_CHANGING',
+-   'target': 2})
+
+======================================================================
+FAIL: test_standstill_before_lane_drop_can_still_merge (test_raceline_selection.R3RouteTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 550, in test_standstill_before_lane_drop_can_still_merge
+    self.assertEqual((d.state, p.transition['target']), ('LANE_CHANGING', 3))
+AssertionError: Tuples differ: ('LANE_CHANGING', 2) != ('LANE_CHANGING', 3)
+
+First differing element 1:
+2
+3
+
+- ('LANE_CHANGING', 2)
+?                   ^
+
++ ('LANE_CHANGING', 3)
+?                   ^
+
+
+======================================================================
+FAIL: test_elapsed_time_does_not_switch_global_route (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 160, in test_elapsed_time_does_not_switch_global_route
+    self.assertEqual(p.active_lane, 3)
+AssertionError: 2 != 3
+
+======================================================================
+FAIL: test_finish_line_return_still_waits_for_rear_car_within_gap (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 285, in test_finish_line_return_still_waits_for_rear_car_within_gap
+    self.assertEqual(d.state, 'LANE_WAIT')
+AssertionError: 'RETURNING' != 'LANE_WAIT'
+- RETURNING
++ LANE_WAIT
+
+
+======================================================================
+FAIL: test_follower_controls_using_selected_local_path_and_stops_on_stale_input (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 426, in test_follower_controls_using_selected_local_path_and_stops_on_stale_input
+    self.assertEqual(obj.local_planner.active_lane, 3)
+AssertionError: None != 3
+
+======================================================================
+FAIL: test_saved_map_prefers_r3_then_r2_when_r3_is_blocked (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 173, in test_saved_map_prefers_r3_then_r2_when_r3_is_blocked
+    self.assertEqual(p.active_lane, 3)
+AssertionError: 2 != 3
+
+======================================================================
+FAIL: test_saved_map_rear_car_within_gap_blocks_r3_entry (test_raceline_selection.RacelineSelectionTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/test/test_raceline_selection.py", line 226, in test_saved_map_rear_car_within_gap_blocks_r3_entry
+    self.assertEqual(d.state, 'LANE_WAIT')
+AssertionError: 'LANE_CHANGING' != 'LANE_WAIT'
+- LANE_CHANGING
++ LANE_WAIT
+
+
+----------------------------------------------------------------------
+Ran 27 tests in 2.793s
+
+FAILED (failures=7, errors=1)
+IMPORT gps_waypoint_follower /tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/scripts/gps_waypoint_follower.py
+IMPORT map_tunner_core /tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/scripts/map_tunner_core.py
+IMPORT local_avoidance_core /tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/scripts/local_avoidance_core.py
+IMPORT raceline_test_follower /tmp/lane_brake_analysis/baseline_1b83d60/src/unita_waypoint/scripts/raceline_test_follower.py
+FAILURE_IDS ['test_raceline_selection.R3RouteTest.test_r3_entry_waits_for_the_3m_gap_then_changes_lane', 'test_raceline_selection.R3RouteTest.test_standstill_before_lane_drop_can_still_merge', 'test_raceline_selection.RacelineSelectionTest.test_elapsed_time_does_not_switch_global_route', 'test_raceline_selection.RacelineSelectionTest.test_finish_line_return_still_waits_for_rear_car_within_gap', 'test_raceline_selection.RacelineSelectionTest.test_follower_controls_using_selected_local_path_and_stops_on_stale_input', 'test_raceline_selection.RacelineSelectionTest.test_saved_map_prefers_r3_then_r2_when_r3_is_blocked', 'test_raceline_selection.RacelineSelectionTest.test_saved_map_rear_car_within_gap_blocks_r3_entry']
+ERROR_IDS ['test_raceline_selection.RacelineSelectionTest.test_tracking_state_reaches_map_debug_and_expires']

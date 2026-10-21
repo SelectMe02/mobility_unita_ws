@@ -1,5 +1,7 @@
 {
   "source_bag": "/home/unita/unita_ws/src/unita_waypoint/log/semi_leo_2026-10-21-21-16-00.bag",
+  "parameter_source": "/home/unita/unita_ws/src/unita_waypoint/log/run_20261021_211600/rosparams.yaml",
+  "min_turn_radius_m": 5.412143265814271,
   "method": "Rebuild local path from recorded transition and current source; use latest preceding speed and obstacle message, with the same lane-corridor filter.",
   "limitation": "Recorded subscriber receipt order can differ by milliseconds; obstacle counts agree in all compared samples. Static velocity zero is a diagnostic counterfactual, not a proposed blanket change to moving-obstacle safety.",
   "blocked_samples": 9,
@@ -313,8 +315,8 @@
       },
       "replay": {
         "motion_kind": "static",
-        "vx": 1.2481768669189188,
-        "vy": 0.729180060047486,
+        "vx": 0.0,
+        "vy": 0.0,
         "velocity_reliable": true,
         "moving_scans": 1,
         "still_scans": 0
@@ -332,7 +334,7 @@
       "replay": {
         "motion_kind": "static",
         "vx": 0.0,
-        "vy": 0.5147575752427,
+        "vy": 0.0,
         "velocity_reliable": true,
         "moving_scans": 0,
         "still_scans": 0
@@ -368,7 +370,7 @@
       "replay": {
         "motion_kind": "static",
         "vx": 0.0,
-        "vy": 0.3658774185896845,
+        "vy": 0.0,
         "velocity_reliable": true,
         "moving_scans": 0,
         "still_scans": 10
@@ -386,7 +388,7 @@
       "replay": {
         "motion_kind": "static",
         "vx": 0.0,
-        "vy": 0.4783045345091057,
+        "vy": 0.0,
         "velocity_reliable": true,
         "moving_scans": 0,
         "still_scans": 0

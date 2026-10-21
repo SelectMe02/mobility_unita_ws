@@ -160,6 +160,50 @@ def test_solid_line_beside_the_block_means_waiting_behind_it():
     assert math.isclose(decision.speed_cap_mps, stopping_speed(gap, 3., .4))
 
 
+def test_static_wait_does_not_create_a_separate_traffic_constraint():
+    decision = planner(lane_changes=[]).update(
+        (10., 0.), 5.5, [RouteObstacle(16., 0., 1.2)])
+    assert decision.state == 'WAIT_SOLID_LINE'
+    assert decision.speed_cap_mps == 0.
+    assert math.isinf(decision.traffic_speed_cap_mps)
+
+
+def test_static_zero_cap_cannot_hide_an_occupied_crosswalk():
+    avoid = RouteAvoidance(ROUTE, RouteAvoidanceConfig(), [], crosswalks=[(15., 20.)])
+    decision = avoid.update((10., 0.), 5.5,
+        [RouteObstacle(16., 0., 1.2), RouteObstacle(17., .5, .3)])
+    assert decision.state == 'WAIT_SOLID_LINE'
+    assert decision.speed_cap_mps == 0.
+    assert decision.traffic_speed_cap_mps == 0.
+
+
+def test_static_zero_cap_cannot_hide_a_predicted_crossing():
+    decision = planner(lane_changes=[]).update((10., 0.), 5.5,
+        [RouteObstacle(16., 0., 1.2), RouteObstacle(17., 3., .3, vy=-2., dynamic=True)])
+    assert decision.state == 'WAIT_SOLID_LINE'
+    assert decision.speed_cap_mps == 0.
+    assert decision.traffic_speed_cap_mps == 0.
+
+
+def test_static_zero_cap_keeps_the_independent_moving_traffic_limit():
+    decision = planner(lane_changes=[]).update((10., 0.), 5.5,
+        [RouteObstacle(16., 0., 1.2),
+         RouteObstacle(22., 0., 1., vx=2., dynamic=True, half_length=2.)])
+    assert decision.state == 'WAIT_SOLID_LINE'
+    assert decision.speed_cap_mps == 0.
+    expected = stopping_speed(22. - 2. - 13.845 - 6., 3., .4) + 2.
+    assert math.isclose(decision.traffic_speed_cap_mps, expected)
+
+
+def test_solid_line_static_wait_keeps_a_red_stop_line_constraint():
+    decision = planner(lane_changes=[]).update(
+        (10., 0.), 5.5, [RouteObstacle(16., 0., 1.2)],
+        stop_line_distance_m=10., stop_line_permitted=False)
+    assert decision.state == 'WAIT_SOLID_LINE'
+    assert decision.speed_cap_mps == 0.
+    assert decision.traffic_speed_cap_mps == 0.
+
+
 def test_dashed_line_ending_before_the_return_also_means_waiting():
     avoid = planner(lane_changes=[dict(start_s=0., end_s=55., side='left', offset_m=3.5)])
     decision = avoid.update((10., 0.), 5.5, [RouteObstacle(50., 0., 1.2)])

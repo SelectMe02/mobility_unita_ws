@@ -305,6 +305,9 @@ class LidarObstacles:
             self.tracks[key] = track
             used.add(key)
             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
+                               candidate_vx=motion['candidate_vx'],
+                               candidate_vy=motion['candidate_vy'],
+                               prediction_confirmed=motion['prediction_confirmed'],
                                length=length, width=width, yaw=yaw,
                                road_surface=road_surface,
                                confirmed=confirmed, velocity_reliable=bool(velocity_reliable),
@@ -339,6 +342,7 @@ class LidarObstacles:
                                    yaw=track.get('yaw', 0.),
                                    road_surface=track.get('road_surface', False),
                                    vx=track['vx'], vy=track['vy'], kind='unknown',
+                                   prediction_confirmed=track.get('prediction_confirmed', False),
                                    confirmed=track.get('confirmed', False), velocity_reliable=reliable,
                                    hits=track['hits'], observed_s=track['stamp']-track.get('first_stamp', track['stamp']),
                                    measurement_stamp=track['stamp'], raw_width=raw_width,

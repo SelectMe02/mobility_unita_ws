@@ -1,0 +1,357 @@
+{
+  "source_bag": "/home/unita/unita_ws/src/unita_waypoint/log/semi_leo_2026-10-21-21-16-00.bag",
+  "parameter_source": "/home/unita/unita_ws/src/unita_waypoint/log/run_20261021_211600/rosparams.yaml",
+  "planner_parameters": {
+    "half_width": 0.946,
+    "margin": 0.35,
+    "front_extent": 3.845,
+    "rear_extent": 0.79,
+    "reaction_s": 0.4,
+    "decel": 3.0,
+    "pass_speed_kmh": 20.0,
+    "min_turn_radius_m": 5.412143265814271,
+    "r1_tracking_tolerance_m": 0.85,
+    "arc_lane_change_max_kmh": 15.0,
+    "lane_change_lateral_accel_mps2": 6.0
+  },
+  "method": "Replay every recorded measured center/radius/bounds through the revised LocalLidarObstacles._update_tracks; rebuild each recorded transition path and run the unrelaxed collision checker.",
+  "geometry": "All measured centers and radii are asserted unchanged.",
+  "samples": 9,
+  "original_blocked": 9,
+  "fixed_blocked": 0,
+  "cases": [
+    {
+      "elapsed_s": 86.70355129241943,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 1.2481768669189188,
+          "vy": 0.729180060047486,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 1.2481768669189188,
+          "candidate_vy": 0.729180060047486,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -60.68986192843073,
+            -142.43819795446566,
+            -59.43476461841604,
+            -142.3186610296303
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 86.75092554092407,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 1.2481768669189188,
+          "vy": 0.729180060047486,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 1.2481768669189188,
+          "candidate_vy": 0.729180060047486,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -60.68986192843073,
+            -142.43819795446566,
+            -59.43476461841604,
+            -142.3186610296303
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 86.80035400390625,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 1.2481768669189188,
+          "vy": 0.729180060047486,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.062313273423385,
+          "y": -142.3906314837229,
+          "radius": 0.6293487773408731,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 1.2481768669189188,
+          "candidate_vy": 0.729180060047486,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -60.68986192843073,
+            -142.43819795446566,
+            -59.43476461841604,
+            -142.3186610296303
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.3008382320404,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.3658774185896845,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 0.0,
+          "candidate_vy": 0.3658774185896845,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -61.04554423556855,
+            -142.6047567631023,
+            -59.74638194333763,
+            -141.10184867634464
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.35086297988892,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.3658774185896845,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 0.0,
+          "candidate_vy": 0.3658774185896845,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -61.04554423556855,
+            -142.6047567631023,
+            -59.74638194333763,
+            -141.10184867634464
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.4010865688324,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.3658774185896845,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.38991606270589,
+          "y": -141.84297105335767,
+          "radius": 1.0085793396037517,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 0.0,
+          "candidate_vy": 0.3658774185896845,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -61.04554423556855,
+            -142.6047567631023,
+            -59.74638194333763,
+            -141.10184867634464
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.45046043395996,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.4783045345091057,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 0.0,
+          "candidate_vy": 0.4783045345091057,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -60.95494701191762,
+            -142.50715252290948,
+            -59.736424603499096,
+            -141.05911861823196
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.50142359733582,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.4783045345091057,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 0.0,
+          "candidate_vy": 0.4783045345091057,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -60.95494701191762,
+            -142.50715252290948,
+            -59.736424603499096,
+            -141.05911861823196
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    },
+    {
+      "elapsed_s": 90.55064511299133,
+      "original_clear": false,
+      "fixed_clear": true,
+      "recorded": [
+        {
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.4783045345091057,
+          "kind": "static"
+        }
+      ],
+      "fixed": [
+        {
+          "id": 3,
+          "x": -60.342346935893545,
+          "y": -141.77829027521818,
+          "radius": 0.9512648648953569,
+          "vx": 0.0,
+          "vy": 0.0,
+          "candidate_vx": 0.0,
+          "candidate_vy": 0.4783045345091057,
+          "prediction_confirmed": false,
+          "velocity_reliable": true,
+          "motion_bounds": [
+            -60.95494701191762,
+            -142.50715252290948,
+            -59.736424603499096,
+            -141.05911861823196
+          ],
+          "predicted": false,
+          "kind": "static"
+        }
+      ]
+    }
+  ]
+}

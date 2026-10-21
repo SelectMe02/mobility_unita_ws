@@ -848,12 +848,19 @@ class GPSWaypointFollower:
             path = [(float(x), float(y)) for x, y in data['path']]
             cap = data.get('speed_cap_kmh')
             cap = float('inf') if cap is None else float(cap)
-            if not all(math.isfinite(v) for point in path for v in point) or math.isnan(cap):
+            # Older producers did not separate traffic/crosswalk safety from
+            # static-path waits. Keep their entire cap rather than assume
+            # that a static-looking state contains no simultaneous threat.
+            traffic_cap = data.get('traffic_speed_cap_kmh', cap)
+            traffic_cap = float('inf') if traffic_cap is None else float(traffic_cap)
+            if (not all(math.isfinite(v) for point in path for v in point)
+                    or math.isnan(cap) or math.isnan(traffic_cap) or traffic_cap < 0.):
                 raise ValueError('non-finite route avoidance output')
         except (ValueError, KeyError, TypeError):
             self.route_avoidance = None
             return
         self.route_avoidance = dict(path=path, speed_cap_kmh=cap,
+                                    traffic_speed_cap_kmh=traffic_cap,
                                     state=data.get('state', ''),
                                     reason=data.get('reason', ''))
         self.route_avoidance_received = time.monotonic()
@@ -1293,11 +1300,28 @@ class GPSWaypointFollower:
             self.r1_handoff_pending = False
 
     def local_planner_owns_steering(self):
-        """A saved-lane change or drive on R2/R3, not an R1 offset hold/return."""
+        """Keep saved-lane ownership through the return to R1."""
         planner = self.local_planner
         transition = planner.transition
+        returning_from_saved_lane = (transition is not None
+            and transition.get('state') == 'RETURNING'
+            and transition.get('source') in (2, 3)
+            and transition.get('target') == 1)
         return (planner.active_lane is not None
+                or returning_from_saved_lane
                 or (transition is not None and 'offset' not in transition))
+
+    @staticmethod
+    def route_cap_is_static_path_wait(plan):
+        """Only a static block on the unselected route may yield its cap.
+
+        The local planner checks its selected saved-lane path for collisions.
+        Route crossing, pedestrian, moving-traffic and unknown safety caps
+        remain in force even while that local path owns steering.
+        """
+        return (plan['state'], plan['reason']) in (
+            ('WAIT_SOLID_LINE', 'solid line beside the block; waiting'),
+            ('WAIT_PASS', 'static block ahead beyond pass planning'))
 
     def local_target(self, path):
         for x, y in path:
@@ -1526,10 +1550,14 @@ class GPSWaypointFollower:
             local_steers = bool(decision.path) and (
                 force_r1 or not (route_avoidance and plan['path'])
                 or self.local_planner_owns_steering())
-            if force_r1 or not local_steers:
+            if (force_r1 or not local_steers
+                    or (route_avoidance and not self.route_cap_is_static_path_wait(plan))):
                 # Route perception can still slow/stop an R1 handoff even
                 # though its lateral offset path is not selected.
                 local_speed_cap = min(local_speed_cap, route_speed_cap)
+            if route_avoidance:
+                local_speed_cap = min(local_speed_cap,
+                    plan.get('traffic_speed_cap_kmh', route_speed_cap))
             if local_steers or not (route_avoidance and plan['path']):
                 if decision.path:
                     self.publish_local_path(decision.path)

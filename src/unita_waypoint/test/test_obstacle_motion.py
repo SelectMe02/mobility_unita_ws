@@ -12,6 +12,7 @@ from obstacle_motion import box_bounds, update_motion
 from lidar_obstacles import LidarObstacles, object_box
 from lidar_obstacles_local import LidarObstacles as LocalLidarObstacles
 from lidar_obstacles_local import object_circles as local_object_circles
+from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
 
 
 def detector(cls):
@@ -71,6 +72,11 @@ class MotionEstimatorTests(unittest.TestCase):
                 self.assertTrue(results[-1]['velocity_reliable'])
                 self.assertAlmostEqual(results[-1]['vx'], vx, delta=.2)
                 self.assertAlmostEqual(results[-1]['vy'], vy, delta=.2)
+                # Candidate motion cannot enter prediction one scan before
+                # the same evidence is sufficient to classify the object.
+                self.assertEqual((results[-2]['vx'], results[-2]['vy']), (0., 0.))
+                self.assertGreater(math.hypot(results[-2]['candidate_vx'],
+                                             results[-2]['candidate_vy']), .8)
 
     def test_one_scan_position_jump_is_not_dynamic_evidence(self):
         samples = [(i*.1, translated_bounds(.65 if i == 6 else 0., 0.))
@@ -78,6 +84,30 @@ class MotionEstimatorTests(unittest.TestCase):
         results = self.replay(samples)
         self.assertNotIn('dynamic', [r['motion_kind'] for r in results])
         self.assertEqual(results[-1]['motion_kind'], 'static')
+        self.assertTrue(all(r['vx'] == r['vy'] == 0. for r in results))
+
+    def test_sustained_slow_motion_is_predicted_without_promoting_short_drift(self):
+        for speed in (.36, .48, -.36, -.48):
+            with self.subTest(speed=speed):
+                results = self.replay([(i*.1, translated_bounds(0., speed*i*.1))
+                                       for i in range(25)])
+                self.assertEqual(results[-1]['motion_kind'], 'static')
+                self.assertAlmostEqual(results[-1]['candidate_vy'], speed)
+                confirmed = [i for i, value in enumerate(results) if value['prediction_confirmed']]
+                self.assertTrue(confirmed)
+                first = confirmed[0]
+                self.assertEqual(results[first]['prediction_consistent_scans'], 4)
+                self.assertEqual(results[first-1]['vy'], 0.)
+                for value in results[first:]:
+                    self.assertTrue(value['prediction_confirmed'])
+                    self.assertAlmostEqual(value['vy'], speed)
+                    self.assertLess(value['prediction_stop_threshold'], abs(speed))
+
+    def test_back_and_forth_measurement_jumps_do_not_confirm_translation(self):
+        results = self.replay([(i*.1, translated_bounds(.35 if i % 2 else -.35))
+                               for i in range(30)])
+        self.assertFalse(any(value['prediction_confirmed'] for value in results))
+        self.assertTrue(all(value['vx'] == value['vy'] == 0. for value in results))
 
     def test_stopped_object_can_become_static_then_move_again(self):
         samples = []
@@ -91,9 +121,36 @@ class MotionEstimatorTests(unittest.TestCase):
         self.assertEqual(results[22]['motion_kind'], 'static')
         self.assertEqual(results[-1]['motion_kind'], 'dynamic')
         self.assertTrue(results[-1]['velocity_reliable'])
+        self.assertFalse(results[22]['prediction_confirmed'])
+        self.assertEqual((results[22]['vx'], results[22]['vy']), (0., 0.))
+        self.assertTrue(results[-1]['prediction_confirmed'])
+        self.assertAlmostEqual(results[-1]['vx'], 2.5, delta=.2)
 
 
 class DetectorMotionTests(unittest.TestCase):
+    def test_recorded_lane_change_uses_confirmed_motion_without_relaxing_collision_geometry(self):
+        fixture = json.loads((Path(__file__).parent / 'data' /
+                              'static_lane_change_20261021.json').read_text())
+        node, observed = detector(LocalLidarObstacles), []
+        for frame in fixture['frames']:
+            output = node._update_tracks(frame['detections'], frame['stamp'])
+            measured = [item for item in output if not item.get('predicted', False)]
+            self.assertEqual(len(measured), len(frame['detections']))
+            for item, raw in zip(measured, frame['detections']):
+                self.assertEqual((item['x'], item['y'], item['radius']), tuple(raw[:3]))
+            observed.append(output)
+        planner = LocalAvoidancePlanner([(0., 0.), (100., 0.)], [1, 1], {},
+                                        **fixture['planner_parameters'])
+        self.assertEqual(len(fixture['cases']), 9)
+        for case in fixture['cases']:
+            original = [Obstacle(**item) for item in case['original_obstacles']]
+            revised = [Obstacle(*(item[key] for key in ('x', 'y', 'radius', 'vx', 'vy')),
+                                kind=item['kind']) for item in observed[case['frame_index']]]
+            self.assertFalse(planner._collision_free(case['path'], original,
+                                                     case['speed_mps'], case['horizon_s']))
+            self.assertTrue(planner._collision_free(case['path'], revised,
+                                                    case['speed_mps'], case['horizon_s']))
+
     def test_recorded_static_obstacle_remains_static_while_passing(self):
         fixture_path = Path(__file__).parent / 'data' / 'static_obstacle_20261021.json'
         with fixture_path.open() as stream:
@@ -136,6 +193,7 @@ class DetectorMotionTests(unittest.TestCase):
                 self.assertEqual(len({t['id'] for t in observed}), 1)
                 self.assertNotIn('dynamic', [t['kind'] for t in observed])
                 self.assertEqual(observed[-1]['kind'], 'static')
+                self.assertTrue(all(t['vx'] == t['vy'] == 0. for t in observed))
                 # Motion stabilization must not shrink the occupied space.
                 self.assertAlmostEqual(observed[-1]['x'], 20.)
                 self.assertAlmostEqual(observed[-1]['radius'], math.hypot(4., 2.)/2.)
@@ -164,7 +222,7 @@ class DetectorMotionTests(unittest.TestCase):
                     self.assertAlmostEqual(missed['x'], observed[-1]['x']+.1*vx, delta=.03)
                     self.assertAlmostEqual(missed['y'], observed[-1]['y']+.1*vy, delta=.03)
 
-    def test_live_threshold_change_keeps_track_and_velocity(self):
+    def test_live_threshold_change_keeps_track_and_confirmed_velocity(self):
         for cls in (LidarObstacles, LocalLidarObstacles):
             with self.subTest(detector=cls.__module__):
                 node = detector(cls)
@@ -177,7 +235,29 @@ class DetectorMotionTests(unittest.TestCase):
                     [detection(cls, translated_bounds(1.5*.9))], 10.9)[0]
                 self.assertEqual(after['id'], before['id'])
                 self.assertEqual(after['kind'], 'static')
+                self.assertAlmostEqual(after['candidate_vx'], before['vx'], delta=.1)
                 self.assertAlmostEqual(after['vx'], before['vx'], delta=.1)
+                self.assertTrue(after['prediction_confirmed'])
+                missed = node._update_tracks([], 11.)[0]
+                self.assertTrue(missed['prediction_confirmed'])
+                self.assertAlmostEqual(missed['x'], after['x']+.15, delta=.03)
+
+    def test_both_detectors_keep_slow_forward_and_reverse_motion_through_occlusion(self):
+        for cls in (LidarObstacles, LocalLidarObstacles):
+            for speed in (.36, .48, -.36, -.48):
+                with self.subTest(detector=cls.__module__, speed=speed):
+                    node = detector(cls)
+                    observed = []
+                    for i in range(25):
+                        observed.append(node._update_tracks(
+                            [detection(cls, translated_bounds(speed*i*.1))], 10.+i*.1)[0])
+                    self.assertEqual(len({item['id'] for item in observed}), 1)
+                    self.assertEqual(observed[-1]['kind'], 'static')
+                    self.assertTrue(observed[-1]['prediction_confirmed'])
+                    self.assertAlmostEqual(observed[-1]['vx'], speed)
+                    missed = node._update_tracks([], 12.5)[0]
+                    self.assertTrue(missed['prediction_confirmed'])
+                    self.assertAlmostEqual(missed['x'], observed[-1]['x']+.1*speed)
 
     def test_unreliable_jump_does_not_extrapolate_occluded_obstacle(self):
         for cls in (LidarObstacles, LocalLidarObstacles):
@@ -191,6 +271,17 @@ class DetectorMotionTests(unittest.TestCase):
                 missed = node._update_tracks([], 10.9)[0]
                 self.assertAlmostEqual(missed['x'], seen['x'], delta=.03)
                 self.assertAlmostEqual(missed['y'], seen['y'], delta=.03)
+
+    def test_unconfirmed_object_still_blocks_occupied_path(self):
+        node = detector(LocalLidarObstacles)
+        tracked = node._update_tracks([detection(LocalLidarObstacles,
+                                                translated_bounds(6., 0.))], 10.)[0]
+        self.assertEqual(tracked['kind'], 'unknown')
+        self.assertFalse(tracked['prediction_confirmed'])
+        obstacle = Obstacle(*(tracked[key] for key in ('x', 'y', 'radius', 'vx', 'vy')),
+                            kind=tracked['kind'])
+        planner = LocalAvoidancePlanner([(0., 0.), (30., 0.)], [1, 1], {})
+        self.assertFalse(planner._collision_free([(0., 0.), (10., 0.)], [obstacle], 3.))
 
     def test_local_ego_rotation_preserves_stationary_world_bounds(self):
         # An asymmetric L-shaped visible face shifts its body-axis box

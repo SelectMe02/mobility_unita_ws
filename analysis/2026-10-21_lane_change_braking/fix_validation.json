@@ -1,0 +1,135 @@
+{
+  "baseline_commit": "1b83d608f87732ccacb93a5248e70d93ad8126fd",
+  "source_bag": "/home/unita/unita_ws/src/unita_waypoint/log/semi_leo_2026-10-21-21-16-00.bag",
+  "parameter_source": "/home/unita/unita_ws/src/unita_waypoint/log/run_20261021_211600/rosparams.yaml",
+  "changes": [
+    "Keep bounded scan queue while waiting for capture-time pose; select newest synchronized scan without replacing pending eligible scans.",
+    "Separate raw fitted motion from confirmed prediction velocity; require repeated directional motion evidence, including slow movers.",
+    "Retain local saved-lane path ownership through R1 return; preserve independent traffic caps even when route display state is a static-path wait."
+  ],
+  "route_replay": {
+    "method": "Offline scan/pose arrival replay using actual queue-selection function; 20 worker start phases, plus assumed processing durations of 0/10/20/40 ms.",
+    "recorded_scan_count": 610,
+    "old_processed_range": [
+      310,
+      381
+    ],
+    "new_processed_range": [
+      607,
+      607
+    ],
+    "new_avoidance_max_gap_s": 0.3599996566772461,
+    "new_avoidance_timeout_gaps_per_phase": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "retained_whole_run_input_gaps": [
+      {
+        "start": 12.729987859725952,
+        "end": 13.469987154006958,
+        "gap": 0.7399992942810059
+      },
+      {
+        "start": 98.62990593910217,
+        "end": 99.38990521430969,
+        "gap": 0.7599992752075195
+      }
+    ],
+    "evidence": "route_queue_replay.json"
+  },
+  "motion_replay": {
+    "method": "Replay every recorded measured center/radius/bounds through the revised LocalLidarObstacles._update_tracks; rebuild each recorded transition path and run the unrelaxed collision checker.",
+    "samples": 9,
+    "before_blocked": 9,
+    "after_blocked": 0,
+    "min_turn_radius_m": 5.412143265814271,
+    "geometry": "All measured centers and radii are asserted unchanged.",
+    "evidence": "motion_fix_collision_replay.json"
+  },
+  "return_replay": {
+    "before": {
+      "stop_reason": "planned_speed_zero",
+      "local_path_source": "none",
+      "planner_state": "RETURNING",
+      "target_speed_kmh": 0.0,
+      "full_stop": true,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      }
+    },
+    "after": {
+      "stop_reason": null,
+      "local_path_source": "local_planner",
+      "planner_state": "RETURNING",
+      "target_speed_kmh": 20.0,
+      "full_stop": false,
+      "transition": {
+        "source": 2,
+        "target": 1,
+        "start": 326.94528033174396,
+        "length": 7.736004114639124,
+        "state": "RETURNING",
+        "shape": "arc",
+        "lateral": 3.2530906203703607,
+        "offset": -3.2530906203703607
+      }
+    },
+    "legacy_producer_remains_conservative": true,
+    "evidence": "return_ownership_fix_replay.json"
+  },
+  "tests": {
+    "related_suite_passed": 207,
+    "runtime_threshold_tests_passed": 2,
+    "motion_suite_after_actual_steering_parameter_fixture_refresh_passed": 17,
+    "broader_preexisting_raceline_suite": {
+      "failures": 7,
+      "errors": 1,
+      "reproduced_on_baseline": true,
+      "evidence": "baseline_raceline_selection.log"
+    },
+    "syntax_and_diff_check": "passed"
+  },
+  "unchanged_sha256": {
+    "src/unita_waypoint/config/map_tunner_project.json": "afd1b82e6b6e6cd36dd97c5b497bc00a6bbd24fe644409052810a3fdfd0767bf",
+    "src/unita_waypoint/config/raceline_layout.yaml": "de9f525bae529f621da5ef966bdf7d19577bacab4018d5adb68682c22a4f1a2f",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py": "6c4bbcfadd15e5ab37585f79766c6ed6a35f2702e36ae32d6df2a8ba0aa35ec1",
+    "src/perception/scripts/traffic_light_test.py": "b77c151f8ed02dea434142b9356e6e2358bd04fab34e3938d7d2f3d609f0e1f9"
+  },
+  "preserved_constraints": [
+    "0.35 s input freshness",
+    "0.15 s pose interpolation gap",
+    "0.5 s route output timeout",
+    "vehicle footprint and collision margin",
+    "crosswalk, moving traffic and signal stop constraints"
+  ],
+  "limits": [
+    "Recorded-input offline replay; no live vehicle or closed-loop dynamics test.",
+    "Actual sensor/pose outages still cause timeout stops.",
+    "Restart the full semi.launch so both producer and consumer use the new independent traffic cap."
+  ]
+}

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import rosbag
+import yaml
 
 ROOT = Path('/home/unita/unita_ws')
 sys.path.insert(0, str(ROOT / 'src/unita_waypoint/scripts'))
@@ -17,6 +18,10 @@ from obstacle_motion import update_motion
 
 def main():
     project = json.loads((ROOT / 'src/unita_waypoint/log/run_20261021_211600/config/map_tunner_project.json').read_text())
+    parameter_path = ROOT / 'src/unita_waypoint/log/run_20261021_211600/rosparams.yaml'
+    params = yaml.safe_load(parameter_path.read_text())['leo_waypoint_follower']
+    radius = params.get('lane_change_min_turn_radius_m',
+                        params['wheelbase'] / math.tan(params['max_steering_rad']))
     route, sectors = primary_route(project, raceline1_only=True)
     xy = [(point['x'], point['y']) for point in route]
     lanes = {number: [(p['x'], p['y']) for sector in project['sectors']
@@ -24,8 +29,8 @@ def main():
              for number in (2, 3)}
     planner = LocalAvoidancePlanner(
         xy, sectors, lanes, lane_indices=saved_lane_indices(project, route, sectors),
-        min_turn_radius_m=3. / math.tan(math.radians(40)),
-        r1_tracking_tolerance_m=.85)
+        min_turn_radius_m=radius,
+        r1_tracking_tolerance_m=params.get('r1_tracking_tolerance_m', .5))
     corridor = LaneCorridor(project_lane_geometry(project, 3.6, True))
     bag_path = ROOT / 'src/unita_waypoint/log/semi_leo_2026-10-21-21-16-00.bag'
     rows, motion_rows, states = [], [], {}
@@ -89,13 +94,14 @@ def main():
                     obstacles=[vars(o) for o in obstacles]))
     result = dict(
         source_bag=str(bag_path),
+        parameter_source=str(parameter_path), min_turn_radius_m=radius,
         method='Rebuild local path from recorded transition and current source; use latest preceding speed and obstacle message, with the same lane-corridor filter.',
         limitation='Recorded subscriber receipt order can differ by milliseconds; obstacle counts agree in all compared samples. Static velocity zero is a diagnostic counterfactual, not a proposed blanket change to moving-obstacle safety.',
         blocked_samples=len(rows),
         same_input_collision_count=sum(not row['actual_clear'] for row in rows),
         zero_static_velocity_clear_count=sum(row['zero_static_velocity_clear'] for row in rows),
         collision_replay=rows, motion_replay=motion_rows)
-    output = Path('/tmp/lane_brake_analysis/local_transition_collision_replay.json')
+    output = Path(__file__).with_name('local_transition_collision_replay.json')
     output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n')
     print(json.dumps({key: result[key] for key in
                       ('blocked_samples', 'same_input_collision_count', 'zero_static_velocity_clear_count')}))
