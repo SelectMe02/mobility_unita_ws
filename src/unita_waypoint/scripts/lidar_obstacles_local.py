@@ -17,7 +17,7 @@ from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import String
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
-from lane_corridor import LaneCorridor
+from lane_corridor import LaneCorridor, SectorLaneFilter
 from obstacle_motion import box_bounds, update_motion
 from perception_debug import PerceptionDebug
 
@@ -114,6 +114,7 @@ class LidarObstacles:
         self.tracks = {}
         self.next_id = 1
         self.lane_corridor = None
+        self.sector_lane_filter = None
         self.pub = rospy.Publisher('/waypoint_debug/obstacles', String, queue_size=1)
         self.debug = PerceptionDebug('/leo/waypoint_debug', 'ground_status')
         rospy.Subscriber('/waypoint_debug/lane_geometry', String,
@@ -126,15 +127,19 @@ class LidarObstacles:
 
     def on_lane_geometry(self, message):
         try:
-            corridor = LaneCorridor(json.loads(message.data))
+            geometry = json.loads(message.data)
+            corridor = LaneCorridor(geometry)
+            sector_filter = SectorLaneFilter(geometry)
         except (ValueError, KeyError, TypeError, OverflowError) as error:
             rospy.logwarn_throttle(5., 'Invalid lane geometry: %s', error)
             with self.lock:
                 self.lane_corridor = None
+                self.sector_lane_filter = None
                 self.tracks.clear()
             return
         with self.lock:
             self.lane_corridor = corridor
+            self.sector_lane_filter = sector_filter
             self.tracks.clear()
             # Keep all three lane strips in view when a wider layout is used.
             self.side_range = max(self.side_range, 3.*corridor.width)
@@ -236,6 +241,7 @@ class LidarObstacles:
         with self.lock:
             msg = self.pending
             corridor = self.lane_corridor
+            sector_filter = getattr(self, 'sector_lane_filter', None)
         if msg is None:
             if debug is not None:
                 debug.clear_if_stale()
@@ -260,6 +266,10 @@ class LidarObstacles:
             if debug is not None:
                 debug.clear('waiting_pose', msg.header)
             return
+        original_corridor = corridor
+        s12_filter_active = sector_filter is not None and sector_filter.active(pose[:2])
+        if s12_filter_active:
+            corridor = sector_filter.corridor
         with self.lock:
             if self.pending is msg:
                 self.pending = None
@@ -283,7 +293,9 @@ class LidarObstacles:
         debug_selected = points[mask][inside] if capture_debug else None
         debug_counts = dict(candidate_points=int(mask.sum()),
                            lane_removed_points=int((~inside).sum()),
-                           other_removed_points=int((~mask).sum()))
+                           other_removed_points=int((~mask).sum()),
+                           s12_filter_active=s12_filter_active,
+                           lane_filter_width_m=corridor.width)
         xy = xy[inside]
         if len(xy) > 10000:
             xy = xy[::int(math.ceil(len(xy)/10000.))]
@@ -293,8 +305,13 @@ class LidarObstacles:
         mask = corridor.contains([o[:2] for o in found])
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:
-            if self.lane_corridor is not corridor:
+            if self.lane_corridor is not original_corridor:
                 return
+            if s12_filter_active:
+                inside = corridor.contains([(track['x'], track['y'])
+                                            for track in self.tracks.values()])
+                self.tracks = {key: track for (key, track), keep
+                               in zip(self.tracks.items(), inside) if keep}
             tracked = self._update_tracks(found, stamp)
             tracked = corridor.filter_obstacles(tracked)
             # Expired predictions and vehicles leaving the lane are discarded

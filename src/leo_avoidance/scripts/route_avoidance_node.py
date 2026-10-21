@@ -30,7 +30,20 @@ from leo_guard.route_file import (load_lane_changes, load_route_points, load_sur
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
 from avoidance_runtime import FrozenConfigTarget, RuntimeSettings  # noqa: E402
+from lane_corridor import LaneCorridor, SectorLaneFilter, project_lane_geometry  # noqa: E402
+from map_tunner_core import load_project, raceline_layout_settings  # noqa: E402
 from perception_debug import PerceptionDebug, tracked_obstacles_map  # noqa: E402
+
+
+def load_sector_lane_filter(waypoint_file):
+    """Use the follower's saved geometry before its latched message arrives."""
+    if Path(waypoint_file).suffix.lower() != '.json':
+        return None
+    project = load_project(waypoint_file)
+    config = rospy.get_param('~raceline_config', str(
+        Path(rospkg.RosPack().get_path('unita_waypoint')) / 'config/raceline_layout.yaml'))
+    width = raceline_layout_settings(project, config, rospy.get_param('~raceline_width', None))
+    return SectorLaneFilter(project_lane_geometry(project, width), sector=12, width=3.2)
 
 
 class RouteAvoidanceNode:
@@ -39,7 +52,10 @@ class RouteAvoidanceNode:
         self.lidar_to_rear_x_m = float(rospy.get_param('~lidar_to_rear_x_m', 1.4))
         self.input_timeout_s = float(rospy.get_param('~input_timeout_s', .35))
         self.max_pose_gap_s = float(rospy.get_param('~max_pose_age_s', .15))
-        points = load_route_points(rospy.get_param('~waypoint_file'))[:, :2]
+        waypoint_file = rospy.get_param('~waypoint_file')
+        points = load_route_points(waypoint_file)[:, :2]
+        self.sector_lane_filter_enabled = Path(waypoint_file).suffix.lower() == '.json'
+        self.sector_lane_filter = load_sector_lane_filter(waypoint_file)
         config = RouteAvoidanceConfig(**{
             key: float(rospy.get_param('~' + key, default))
             for key, default in vars(RouteAvoidanceConfig()).items()})
@@ -95,6 +111,8 @@ class RouteAvoidanceNode:
         self.pub = rospy.Publisher('/leo/route_avoidance', String, queue_size=1)
         self.debug = PerceptionDebug('/leo/route_debug')
         self.debug_lidar_z = float(rospy.get_param('~lidar_to_rear_z_m', 1.23))
+        rospy.Subscriber(rospy.get_param('~lane_geometry_topic', '/leo/waypoint_debug/lane_geometry'),
+                         String, self.on_lane_geometry, queue_size=1, buff_size=2 ** 22)
         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
                          PoseStamped, self.on_pose, queue_size=1)
         rospy.Subscriber(rospy.get_param('~speed_topic', '/competition/ego_speed_kmh'),
@@ -105,6 +123,47 @@ class RouteAvoidanceNode:
                          self.on_cloud, queue_size=1, buff_size=2 ** 24)
         rospy.on_shutdown(self.close)
         threading.Thread(target=self.worker, daemon=True).start()
+
+    def on_lane_geometry(self, message):
+        if not getattr(self, 'sector_lane_filter_enabled', True):
+            return
+        try:
+            geometry = json.loads(message.data)
+            LaneCorridor(geometry)  # Validate the complete map, including frame and lane IDs.
+            lane_filter = SectorLaneFilter(geometry, sector=12, width=3.2)
+        except (ValueError, KeyError, TypeError, OverflowError) as error:
+            # Retain validated geometry; a bad update must not open the lane filter.
+            rospy.logwarn_throttle(5., 'Invalid route lane geometry: %s', error)
+            return
+        with self.lock:
+            if not self.closed:
+                previous = getattr(self, 'sector_lane_filter', None)
+                if (previous is not None and previous.corridor is not None
+                        and lane_filter.corridor is None):
+                    rospy.logwarn_throttle(5., 'Route lane geometry update has no S12 lane; keeping prior map')
+                    return
+                self.sector_lane_filter = lane_filter
+
+    def _world_xy(self, xy, pose):
+        xy = np.asarray(xy, dtype=float).reshape(-1, 2)
+        x0, y0, yaw = pose
+        c, s = math.cos(yaw), math.sin(yaw)
+        rear_x = xy[:, 0] + self.lidar_to_rear_x_m
+        return np.column_stack((x0 + c * rear_x - s * xy[:, 1],
+                                y0 + s * rear_x + c * xy[:, 1]))
+
+    def _prune_sector_tracks(self, corridor, stamp):
+        """Do not reconnect an outside history to a newly clipped lane cluster."""
+        kept = []
+        for track in self.tracker.tracks:
+            measured_stamp, x, y = track.history[-1]
+            vx, vy = track.velocity if track.velocity_known else (0., 0.)
+            dt = max(0., stamp - measured_stamp)
+            if corridor.contains([(x, y), (x + vx * dt, y + vy * dt)]).all():
+                kept.append(track)
+        removed = len(self.tracker.tracks) - len(kept)
+        self.tracker.tracks = kept
+        return removed
 
     def on_pose(self, message):
         if message.header.frame_id != 'map':
@@ -277,6 +336,7 @@ class RouteAvoidanceNode:
             latest_pose = self.fresh(self.pose, now)
             speed = self.fresh(self.speed, now)
             signal = self.fresh(self.signal, now, 1.)
+            lane_filter = getattr(self, 'sector_lane_filter', None)
         age = rospy.Time.now().to_sec() - stamp
         if (message.header.frame_id != 'lidar' or latest_pose is None or speed is None
                 or not -.05 <= age <= self.input_timeout_s
@@ -296,8 +356,22 @@ class RouteAvoidanceNode:
         raw_points = points
         points = obstacle_points(points, self.road_points)
         road_input_count = len(points)
+        lane_active = lane_filter is not None and lane_filter.active(pose[:2])
+        lane_removed_points = lane_removed_tracks = 0
+        if lane_active:
+            inside = lane_filter.corridor.contains(self._world_xy(points[:, :2], pose))
+            lane_removed_points = int((~inside).sum())
+            points = points[inside]
+            lane_removed_tracks = self._prune_sector_tracks(lane_filter.corridor, stamp)
         points = self.drop_road_boundaries(points, pose)
         tracked = self.tracker.update(points, pose, stamp)
+        if lane_active and tracked:
+            inside = lane_filter.corridor.contains(self._world_xy(
+                [(t.x_m, t.y_m) for t in tracked], pose))
+            rejected_ids = {t.track_id for t, keep in zip(tracked, inside) if not keep}
+            tracked = [t for t, keep in zip(tracked, inside) if keep]
+            lane_removed_tracks += len(rejected_ids)
+            self.tracker.tracks = [t for t in self.tracker.tracks if t.track_id not in rejected_ids]
         x0, y0, yaw = pose
         c, s = math.cos(yaw), math.sin(yaw)
         obstacles = []
@@ -336,6 +410,11 @@ class RouteAvoidanceNode:
         with self.lock:
             if self.closed or rospy.is_shutdown() or epoch != self.input_epoch:
                 return
+            current_filter = getattr(self, 'sector_lane_filter', None)
+            if (current_filter is not lane_filter and (lane_active or
+                    current_filter is not None and current_filter.active(pose[:2]))):
+                self.debug.clear('lane_geometry_changed', message.header)
+                return
             if (not -.05 <= rospy.Time.now().to_sec() - stamp <= self.input_timeout_s
                     or not 0. <= time.monotonic() - received <= self.input_timeout_s):
                 self.debug.clear('processing_expired', message.header)
@@ -343,11 +422,19 @@ class RouteAvoidanceNode:
             self.pub.publish(output)
         self.debug.publish(raw_points, points, message.header, pose,
                            offset=(self.lidar_to_rear_x_m, 0., self.debug_lidar_z),
-                           mode='route_filtered', debug_point_stage='route_boundary_filtered_input',
-                           filter_summary='국소 격자 노면·높이·자차·거리 → 경로변 경계 제거 → 추적',
+                           mode='route_filtered', debug_point_stage=(
+                               'sector_lane_boundary_filtered_input' if lane_active
+                               else 'route_boundary_filtered_input'),
+                           filter_summary=(
+                               '국소 격자 노면·높이·자차·거리 → S12 차선 내부 → 경로변 경계 제거 → 추적'
+                               if lane_active else '국소 격자 노면·높이·자차·거리 → 경로변 경계 제거 → 추적'),
                            pose_sync='interpolated_scan_pose', imu_corrected=False,
                            candidate_points=road_input_count,
                            ground_height_roi_removed_points=len(raw_points)-road_input_count,
+                           sector_lane_filter_active=bool(lane_active),
+                           sector_lane_width_m=3.2 if lane_active else None,
+                           lane_removed_points=lane_removed_points,
+                           lane_removed_tracks=lane_removed_tracks,
                            tracked_obstacles=len(tracked), planner_state=decision.state,
                            obstacles=(tracked_obstacles_map(tracked, pose, self.lidar_to_rear_x_m)
                                       if self.debug.active() else []),

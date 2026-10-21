@@ -18,7 +18,7 @@ from sensor_msgs.msg import PointCloud2, Imu
 from std_msgs.msg import String, Header
 
 sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scripts'))
-from lane_corridor import LaneCorridor
+from lane_corridor import LaneCorridor, SectorLaneFilter
 from obstacle_motion import box_bounds, update_motion
 from avoidance_runtime import RuntimeSettings
 from perception_debug import xyz_cloud
@@ -181,6 +181,7 @@ class LidarObstacles:
         self.tracks = {}
         self.next_id = 1
         self.lane_corridor = None
+        self.sector_lane_filter = None
         self.debug_max_points = max(0, int(rospy.get_param('~debug_max_points', 0)))
         self.runtime_settings = RuntimeSettings('lidar_obstacles', self)
         self.pub = rospy.Publisher('/waypoint_debug/obstacles', String, queue_size=1)
@@ -201,15 +202,19 @@ class LidarObstacles:
 
     def on_lane_geometry(self, message):
         try:
-            corridor = LaneCorridor(json.loads(message.data))
+            geometry = json.loads(message.data)
+            corridor = LaneCorridor(geometry)
+            sector_filter = SectorLaneFilter(geometry)
         except (ValueError, KeyError, TypeError, OverflowError) as error:
             rospy.logwarn_throttle(5., 'Invalid lane geometry: %s', error)
             with self.lock:
                 self.lane_corridor = None
+                self.sector_lane_filter = None
                 self.tracks.clear()
             return
         with self.lock:
             self.lane_corridor = corridor
+            self.sector_lane_filter = sector_filter
             self.tracks.clear()
         rospy.set_param('~raceline_width', corridor.width)
         rospy.loginfo('Obstacle lane filter: width %.2f m (+/- %.2f m)',
@@ -524,6 +529,7 @@ class LidarObstacles:
         with self.lock:
             msg = self.pending
             corridor = self.lane_corridor
+            sector_filter = getattr(self, 'sector_lane_filter', None)
         if msg is None:
             if time.monotonic()-getattr(self, 'last_filter_wall', 0.) > .5:
                 self.publish_wait_status('waiting_cloud')
@@ -545,6 +551,10 @@ class LidarObstacles:
         if pose is None:
             self.publish_wait_status('waiting_pose', msg)
             return
+        original_corridor = corridor
+        s12_filter_active = sector_filter is not None and sector_filter.active(pose[:2])
+        if s12_filter_active:
+            corridor = sector_filter.corridor
         with self.lock:
             if self.pending is msg:
                 self.pending = None
@@ -556,6 +566,8 @@ class LidarObstacles:
         self.last_filter_wall = time.monotonic()
         status['cloud_age_s'] = age
         status['filter_processing_s'] = time.monotonic()-filter_start
+        status.update(s12_filter_active=s12_filter_active,
+                      lane_filter_width_m=corridor.width)
         selected = points[mask]
         xy = selected[:, :2]
         c, s = math.cos(pose[2]), math.sin(pose[2])
@@ -608,8 +620,13 @@ class LidarObstacles:
         status['center_rejected_detections'] = int((~mask).sum())
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:
-            if self.lane_corridor is not corridor:
+            if self.lane_corridor is not original_corridor:
                 return
+            if s12_filter_active:
+                inside = corridor.contains([(track['x'], track['y'])
+                                            for track in self.tracks.values()])
+                self.tracks = {key: track for (key, track), keep
+                               in zip(self.tracks.items(), inside) if keep}
             tracked = self._update_tracks(found, stamp)
             tracked = corridor.filter_obstacles(tracked)
             # Expired predictions and vehicles leaving the lane are discarded

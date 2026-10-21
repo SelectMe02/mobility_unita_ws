@@ -14,8 +14,9 @@ from std_msgs.msg import Header, String
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from lane_corridor import LaneCorridor
+from lane_corridor import LaneCorridor, SectorLaneFilter
 from lidar_obstacles import LidarObstacles
+from lidar_obstacles_local import LidarObstacles as LocalLidarObstacles
 from gps_waypoint_follower import GPSWaypointFollower
 from map_debug import MapDebug
 
@@ -25,7 +26,55 @@ def geometry(width=3.2, lanes=None):
                 lanes=lanes or [dict(sector=1, raceline=1, points=[[-50., 0.], [50., 0.]])])
 
 
+def sector_geometry():
+    return geometry(width=3.6, lanes=[
+        dict(sector=11, raceline=1, points=[[-100., 0.], [-10., 0.]]),
+        dict(sector=11, raceline=2, points=[[-100., 3.6], [0., 3.6]]),
+        dict(sector=12, raceline=1, points=[[0., 0.], [50., 0.]]),
+        dict(sector=13, raceline=1, points=[[50., 0.], [120., 0.]])])
+
+
 class LaneCorridorTests(unittest.TestCase):
+    def test_sector_filter_activates_on_projected_interval_not_nearest_vertex(self):
+        f = SectorLaneFilter(sector_geometry())
+        for x, expected in ((-50., False), (-.001, False), (0., True),
+                            (.001, True), (49.999, True), (50., False), (70., False)):
+            self.assertEqual(f.active((x, 0.)), expected, x)
+        self.assertFalse(f.active((float('nan'), 0.)))
+        # The incoming join is 70 m long. Its points must not acquire S12's
+        # policy merely because the closest saved vertex belongs to S12.
+        g = geometry(width=3.6, lanes=[
+            dict(sector=11, raceline=1, points=[[-80., 0.], [-70., 0.]]),
+            dict(sector=12, raceline=1, points=[[0., 0.], [10., 0.]]),
+            dict(sector=13, raceline=1, points=[[10., 0.], [20., 0.]])])
+        f = SectorLaneFilter(g)
+        self.assertFalse(f.active((-1., 0.)))
+        self.assertTrue(f.active((0., 0.)))
+        self.assertTrue(f.active((9.999, 0.)))
+        self.assertFalse(f.active((10., 0.)))
+
+    def test_sector_filter_has_exact_width_and_keeps_next_sector_ahead(self):
+        g = sector_geometry()
+        f = SectorLaneFilter(g)
+        self.assertEqual(g['raceline_width'], 3.6)
+        self.assertEqual(f.corridor.width, 3.2)
+        self.assertEqual(f.corridor.contains([
+            [20., 1.6], [20., -1.6], [20., 1.7], [20., -1.7],
+            [70., 1.5], [-5., 0.], [-20., 3.6]]).tolist(),
+            [True, True, False, False, True, False, False])
+
+    def test_sector_filter_missing_sector_and_other_sectors_keep_original_corridor(self):
+        missing = SectorLaneFilter(geometry())
+        self.assertIsNone(missing.corridor)
+        self.assertFalse(missing.active((0., 0.)))
+        g = sector_geometry()
+        original, policy = LaneCorridor(g), SectorLaneFilter(g)
+        cloud = [[-20., 3.6], [-20., 1.7], [20., 1.7], [70., 1.7]]
+        for pose in ((-20., 0.), (70., 0.)):
+            selected = policy.corridor if policy.active(pose) else original
+            self.assertIs(selected, original)
+            np.testing.assert_array_equal(selected.contains(cloud), original.contains(cloud))
+
     def test_box_midpoint_labels_three_lanes_and_tracks_boundary_intrusion(self):
         c = LaneCorridor(geometry(width=3.6, lanes=[dict(sector=11, raceline=n,
              points=[[-50., (n-1)*3.6], [50., (n-1)*3.6]]) for n in (1, 2, 3)]))
@@ -105,8 +154,8 @@ class LaneCorridorTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 LaneCorridor(geometry(width))
 
-    def lidar_node(self, corridor):
-        n = LidarObstacles.__new__(LidarObstacles)
+    def lidar_node(self, corridor, node_type=LidarObstacles):
+        n = node_type.__new__(node_type)
         n.lock = threading.Lock()
         n.lane_corridor = corridor
         n.lidar_x = n.lidar_y = n.lidar_z = 0.
@@ -126,6 +175,99 @@ class LaneCorridorTests(unittest.TestCase):
         n.pub = MagicMock()
         n.pose_at = MagicMock(return_value=(0., 0., 0.))
         return n
+
+    def test_both_lidars_narrow_points_before_clustering_only_in_sector12(self):
+        g = sector_geometry()
+        # One centre object, one straddling the boundary, one entirely outside,
+        # and one object in the next sector. The straddling object's inner
+        # returns must survive even though its outer returns are removed.
+        points = [(x+dx, y+dy, 1.)
+                  for x, y, offsets in ((20., 0., (-.3, 0., .3)),
+                                         (25., 1.55, (-.1, 0., .1)),
+                                         (30., 1.75, (-.04, 0., .04)),
+                                         (40., 0., (-.3, 0., .3)))
+                  for dx in (-.3, 0., .3) for dy in offsets]
+        for node_type in (LidarObstacles, LocalLidarObstacles):
+            with self.subTest(node=node_type.__module__):
+                n = self.lidar_node(LaneCorridor(g), node_type)
+                n.sector_lane_filter = SectorLaneFilter(g)
+                n.pose_at.return_value = (20., 0., 0.)
+                n.debug = MagicMock()
+                n.pending = point_cloud2.create_cloud_xyz32(
+                    Header(stamp=rospy.Time(100), frame_id='lidar'), points)
+                with patch('rospy.Time.now', return_value=rospy.Time(100)):
+                    n.process_pending(None)
+                objects = json.loads(n.pub.publish.call_args.args[0].data)['obstacles']
+                self.assertEqual(len(objects), 3)
+                self.assertTrue(any(o['x'] > 55. for o in objects))
+                self.assertFalse(any(48. < o['x'] < 52. for o in objects))
+                self.assertTrue(any(43. < o['x'] < 47. and o['y'] <= 1.6 for o in objects))
+                if node_type is LidarObstacles:
+                    status = json.loads(n.ground_status_pub.publish.call_args.args[0].data)
+                else:
+                    status = n.debug.publish.call_args.kwargs
+                self.assertTrue(status['s12_filter_active'])
+                self.assertEqual(status['lane_filter_width_m'], 3.2)
+                self.assertEqual(n.lane_corridor.width, 3.6)
+
+    def test_both_lidars_remove_outside_tracks_before_associating_inside_returns(self):
+        for node_type in (LidarObstacles, LocalLidarObstacles):
+            with self.subTest(node=node_type.__module__):
+                n = self.lidar_node(LaneCorridor(sector_geometry()), node_type)
+                n.sector_lane_filter = SectorLaneFilter(sector_geometry())
+                n.pose_at.return_value = (20., 0., 0.)
+                n.tracks = {99: dict(x=40., y=1.7, radius=.5, vx=3., vy=0.,
+                                    hits=5, stamp=99.9, confirmed=True,
+                                    velocity_reliable=True)}
+                n.next_id = 100
+                points = [(20.+dx, y, 1.) for dx in (-.3, 0., .3)
+                          for y in (1.3, 1.4, 1.5)]
+                n.pending = point_cloud2.create_cloud_xyz32(
+                    Header(stamp=rospy.Time(100), frame_id='lidar'), points)
+                with patch('rospy.Time.now', return_value=rospy.Time(100)):
+                    n.process_pending(None)
+                objects = json.loads(n.pub.publish.call_args.args[0].data)['obstacles']
+                self.assertEqual([o['id'] for o in objects], [100])
+                self.assertEqual(objects[0]['vx'], 0.)
+                self.assertNotIn(99, n.tracks)
+
+    def test_both_lidars_keep_other_sector_detection_results_identical(self):
+        g = sector_geometry()
+        for node_type in (LidarObstacles, LocalLidarObstacles):
+            for ego_x in (-30., 70.):
+                with self.subTest(node=node_type.__module__, ego_x=ego_x):
+                    published = []
+                    for enabled in (False, True):
+                        n = self.lidar_node(LaneCorridor(g), node_type)
+                        if enabled:
+                            n.sector_lane_filter = SectorLaneFilter(g)
+                        n.pose_at.return_value = (ego_x, 0., 0.)
+                        points = [(20.+dx, y+dy, 1.)
+                                  for y in (0., 1.7, 3.6)
+                                  for dx in (-.3, 0., .3) for dy in (-.03, 0., .03)]
+                        n.pending = point_cloud2.create_cloud_xyz32(
+                            Header(stamp=rospy.Time(100), frame_id='lidar'), points)
+                        with patch('rospy.Time.now', return_value=rospy.Time(100)):
+                            n.process_pending(None)
+                        published.append(json.loads(n.pub.publish.call_args.args[0].data))
+                    self.assertEqual(published[0], published[1])
+                    self.assertTrue(any(o['y'] > 1.6 for o in published[1]['obstacles']))
+
+    def test_both_lidars_prune_predictions_crossing_sector12_width(self):
+        for node_type in (LidarObstacles, LocalLidarObstacles):
+            with self.subTest(node=node_type.__module__):
+                n = self.lidar_node(LaneCorridor(sector_geometry()), node_type)
+                n.sector_lane_filter = SectorLaneFilter(sector_geometry())
+                n.pose_at.return_value = (20., 0., 0.)
+                n.tracks = {1: dict(x=40., y=1.5, radius=.5, vx=0., vy=2.,
+                                   hits=5, stamp=99.9, confirmed=True,
+                                   velocity_reliable=True)}
+                n.pending = point_cloud2.create_cloud_xyz32(
+                    Header(stamp=rospy.Time(100), frame_id='lidar'), [])
+                with patch('rospy.Time.now', return_value=rospy.Time(100)):
+                    n.process_pending(None)
+                self.assertEqual(json.loads(n.pub.publish.call_args.args[0].data)['obstacles'], [])
+                self.assertEqual(n.tracks, {})
 
     def test_lidar_filters_roadside_before_tracking_including_rear(self):
         n = self.lidar_node(LaneCorridor(geometry()))

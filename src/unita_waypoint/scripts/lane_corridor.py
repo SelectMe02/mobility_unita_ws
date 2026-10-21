@@ -15,6 +15,63 @@ def project_lane_geometry(project, width, loop=True):
     return dict(frame_id='map', raceline_width=float(width), loop=bool(loop), lanes=lanes)
 
 
+class SectorLaneFilter:
+    """Use a narrower R1 strip only while projecting inside one saved sector.
+
+    Activation follows the full primary polyline, including sector joins, so
+    a long incoming join cannot activate the filter at the nearest S12 vertex.
+    The next sector remains visible ahead; previous lanes and the closing
+    segment of the map do not become part of this temporary perception strip.
+    """
+    def __init__(self, geometry, sector=12, width=3.2):
+        self.corridor = None
+        self._start = self._end = 0.
+        primary = [lane for lane in geometry['lanes'] if lane['raceline'] == 1]
+        points, start_index, end_index = [], None, None
+        selected = []
+        for lane in primary:
+            if lane['sector'] == sector:
+                start_index = len(points)
+                end_index = start_index + len(lane['points']) - 1
+                selected.append(lane)
+            elif lane['sector'] == sector + 1:
+                selected.append(lane)
+            points.extend(lane['points'])
+        if start_index is None or end_index <= start_index:
+            return
+        points = np.asarray(points, dtype=float)
+        lengths = np.linalg.norm(np.diff(points, axis=0), axis=1)
+        arc = np.r_[0., np.cumsum(lengths)]
+        self._start, self._end = arc[start_index], arc[end_index]
+        if self._end <= self._start:
+            return
+        if geometry.get('loop', True):
+            points = np.vstack((points, points[0]))
+        vectors = np.diff(points, axis=0)
+        squared = np.sum(vectors*vectors, axis=1)
+        valid = squared > 1e-12
+        self._starts = points[:-1][valid]
+        self._vectors = vectors[valid]
+        self._squared = squared[valid]
+        self._arc = np.r_[0., np.cumsum(np.sqrt(squared))][:-1][valid]
+        self.corridor = LaneCorridor(dict(
+            frame_id=geometry['frame_id'], raceline_width=width,
+            loop=False, lanes=selected))
+
+    def active(self, ego_xy):
+        if self.corridor is None:
+            return False
+        point = np.asarray(ego_xy, dtype=float)
+        if point.shape != (2,) or not np.isfinite(point).all():
+            return False
+        offset = point-self._starts
+        fraction = np.clip(np.sum(offset*self._vectors, axis=1)/self._squared, 0., 1.)
+        projected = self._starts+fraction[:, None]*self._vectors
+        closest = int(np.argmin(np.sum((projected-point)**2, axis=1)))
+        progress = self._arc[closest]+fraction[closest]*math.sqrt(self._squared[closest])
+        return bool(self._start <= progress < self._end)
+
+
 class LaneCorridor:
     def __init__(self, geometry):
         self.width = float(geometry['raceline_width'])

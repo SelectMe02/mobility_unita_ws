@@ -1,0 +1,40 @@
+{
+  "scope": "Only when capture pose projects onto S12: R1 perception width 3.2 m (plus/minus 1.6 m); next-sector forward points remain visible. Other sectors retain original filters.",
+  "baseline_commit": "1cd6e1e46d7c72d9946585f992f8370dfe256f1c",
+  "unit_integration_tests": {
+    "command": "source devel/setup.bash\npython3 -m nose src/unita_waypoint/test/test_lane_corridor.py src/unita_waypoint/test/test_obstacle_motion.py src/unita_waypoint/test/test_ground_segmentation.py src/unita_waypoint/test/test_tracking_debug.py src/unita_waypoint/test/test_cp11_handoff_local.py src/unita_waypoint/test/test_return_ownership_local.py src/unita_waypoint/test/test_loop_tracking_local.py src/leo_avoidance/test/test_route_sector_lane_filter.py src/leo_avoidance/test/test_route_pose_sync.py src/leo_avoidance/test/test_route_avoidance.py src/leo_avoidance/test/test_road_points.py src/leo_avoidance/test/test_obstacle_tracker.py",
+    "tests": 200,
+    "result": "OK",
+    "seconds": 15.403
+  },
+  "syntax_parse": {
+    "python_files": 6,
+    "result": "OK"
+  },
+  "diff_whitespace_check": "OK",
+  "unchanged_sha256_checks": {
+    "src/unita_waypoint/config/map_tunner_project.json": true,
+    "src/unita_waypoint/config/raceline_layout.yaml": true,
+    "src/unita_waypoint/scripts/local_avoidance_core.py": true,
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py": true,
+    "src/unita_waypoint/scripts/gps_waypoint_follower.py": true,
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py": true,
+    "src/unita_waypoint/scripts/obstacle_motion.py": true,
+    "src/perception/scripts/traffic_light_test.py": true
+  },
+  "limitations": [
+    "No ROS control commands or live vehicle drive performed.",
+    "Offline replay verifies perception point masks; it is not closed-loop vehicle validation."
+  ],
+  "offline_bag_mask_replay": {
+    "artifact": "analysis/2026-10-21_s12_lane_filter/s12_bag_mask_replay.json",
+    "result": "OK",
+    "method": "Read-only per-frame mask replay using capture-time interpolated pose. Local lidar reproduces its road ROI and existing union-lane mask; route reproduces obstacle_points, applies the new lane mask, then runs existing boundary removal, matching production order; the original route pipeline applies only boundary removal; main lidar starts at its recorded used-point cloud (so ground/IMU segmentation is not rerun). Recorded obstacle centers are filtered independently without rerunning tracker state. Outside S12 arrays are compared exactly.",
+    "limitations": [
+      "Offline recorded-data analysis only; no live ROS nodes or vehicle commands were used, and this is not real-vehicle driving validation.",
+      "This verifies spatial filtering per recorded frame, not vehicle closed-loop behavior or complete post-change tracking histories.",
+      "Missing bracketing poses (>0.15 s gaps or outside recorded range) are skipped and counted.",
+      "Route and local poses are interpolated from their own recorded pose topics; callback arrival ordering is not reproduced."
+    ]
+  }
+}

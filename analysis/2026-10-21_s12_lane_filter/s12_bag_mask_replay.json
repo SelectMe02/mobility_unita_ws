@@ -1,0 +1,7088 @@
+{
+  "source_bags": [
+    "/home/unita/unita_ws/src/unita_waypoint/log/run_20261021_220130/sensors_2026-10-21-22-01-31_0.bag",
+    "/home/unita/unita_ws/src/unita_waypoint/log/semi_leo_2026-10-21-22-01-30.bag"
+  ],
+  "map_sha256": "afd1b82e6b6e6cd36dd97c5b497bc00a6bbd24fe644409052810a3fdfd0767bf",
+  "recorded_geometry_width_m": 3.6,
+  "s12_width_m": 3.2,
+  "method": "Read-only per-frame mask replay using capture-time interpolated pose. Local lidar reproduces its road ROI and existing union-lane mask; route reproduces obstacle_points, applies the new lane mask, then runs existing boundary removal, matching production order; the original route pipeline applies only boundary removal; main lidar starts at its recorded used-point cloud (so ground/IMU segmentation is not rerun). Recorded obstacle centers are filtered independently without rerunning tracker state. Outside S12 arrays are compared exactly.",
+  "limitations": [
+    "Offline recorded-data analysis only; no live ROS nodes or vehicle commands were used, and this is not real-vehicle driving validation.",
+    "This verifies spatial filtering per recorded frame, not vehicle closed-loop behavior or complete post-change tracking histories.",
+    "Missing bracketing poses (>0.15 s gaps or outside recorded range) are skipped and counted.",
+    "Route and local poses are interpolated from their own recorded pose topics; callback arrival ordering is not reproduced."
+  ],
+  "stats": {
+    "local_lidar_road_and_lane_points": {
+      "frames": 1603,
+      "s12_frames": 109,
+      "outside_frames": 1494,
+      "before_points_s12": 7315,
+      "after_points_s12": 1086,
+      "outside_changed_frames": 0,
+      "s12_first_stamp": 1792587872.7537866,
+      "s12_last_stamp": 1792587886.1284459,
+      "max_removed_single_frame": 1873
+    },
+    "route_ground_filtered_points_lane_mask": {
+      "frames": 1773,
+      "s12_frames": 109,
+      "outside_frames": 1664,
+      "before_points_s12": 63090,
+      "after_points_s12": 533,
+      "outside_changed_frames": 0,
+      "s12_first_stamp": 1792587872.7537866,
+      "s12_last_stamp": 1792587886.1284459,
+      "max_removed_single_frame": 4511
+    },
+    "route_final_boundary_filtered_points": {
+      "frames": 1773,
+      "s12_frames": 109,
+      "outside_frames": 1664,
+      "before_points_s12": 54734,
+      "after_points_s12": 533,
+      "outside_changed_frames": 0,
+      "s12_first_stamp": 1792587872.7537866,
+      "s12_last_stamp": 1792587886.1284459,
+      "max_removed_single_frame": 4511
+    },
+    "main_recorded_used_points": {
+      "frames": 2254,
+      "s12_frames": 150,
+      "outside_frames": 2104,
+      "before_points_s12": 9252,
+      "after_points_s12": 974,
+      "outside_changed_frames": 0,
+      "s12_first_stamp": 1792587872.7537866,
+      "s12_last_stamp": 1792587886.1284459,
+      "max_removed_single_frame": 2198
+    },
+    "main_logged_obstacle_centers": {
+      "frames": 1602,
+      "s12_frames": 109,
+      "outside_frames": 1493,
+      "before_points_s12": 124,
+      "after_points_s12": 93,
+      "outside_changed_frames": 0,
+      "s12_first_stamp": 1792587872.7537866,
+      "s12_last_stamp": 1792587886.1284459,
+      "max_removed_single_frame": 4
+    },
+    "local_logged_obstacle_centers": {
+      "frames": 1603,
+      "s12_frames": 109,
+      "outside_frames": 1494,
+      "before_points_s12": 150,
+      "after_points_s12": 97,
+      "outside_changed_frames": 0,
+      "s12_first_stamp": 1792587872.7537866,
+      "s12_last_stamp": 1792587886.1284459,
+      "max_removed_single_frame": 3
+    }
+  },
+  "skipped_pose_frames": {
+    "local_lidar_raw": 172,
+    "route_raw": 2,
+    "main_debug_points": 101,
+    "main_obstacles": 2,
+    "local_obstacles": 2
+  },
+  "real_map_edge_examples": [
+    {
+      "offset_m": 0.0,
+      "old_contains": true,
+      "new_contains": true
+    },
+    {
+      "offset_m": 1.5,
+      "old_contains": true,
+      "new_contains": true
+    },
+    {
+      "offset_m": 1.6,
+      "old_contains": true,
+      "new_contains": true
+    },
+    {
+      "offset_m": 1.7,
+      "old_contains": true,
+      "new_contains": false
+    },
+    {
+      "offset_m": -1.5,
+      "old_contains": true,
+      "new_contains": true
+    },
+    {
+      "offset_m": -1.6,
+      "old_contains": true,
+      "new_contains": true
+    },
+    {
+      "offset_m": -1.7,
+      "old_contains": true,
+      "new_contains": false
+    }
+  ],
+  "real_map_boundary_checks": {
+    "s12_first_active": true,
+    "s12_last_active": false,
+    "incoming_long_bridge_active": false,
+    "just_before_s12_last_active": true,
+    "s13_first_in_perception_corridor": true,
+    "s13_10th_in_perception_corridor": true
+  },
+  "s12_frames": [
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587872.7537866,
+      "ego_xy": [
+        75.3671500788047,
+        -217.94805711873298
+      ],
+      "before_count": 14,
+      "after_count": 3
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587872.7537866,
+      "ego_xy": [
+        75.3671500788047,
+        -217.94805711873298
+      ],
+      "before_count": 583,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587872.7537866,
+      "ego_xy": [
+        75.3671500788047,
+        -217.94805711873298
+      ],
+      "before_count": 295,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587872.7721303,
+      "ego_xy": [
+        75.38129769283981,
+        -218.27670449145782
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587872.7537866,
+      "ego_xy": [
+        75.3671500788047,
+        -217.94805711873298
+      ],
+      "before_count": 12,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587872.7537866,
+      "ego_xy": [
+        75.3671500788047,
+        -217.94805711873298
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587872.861557,
+      "ego_xy": [
+        75.21698540225776,
+        -219.62403839950693
+      ],
+      "before_count": 15,
+      "after_count": 3
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587872.861557,
+      "ego_xy": [
+        75.21698540225776,
+        -219.62403839950693
+      ],
+      "before_count": 591,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587872.861557,
+      "ego_xy": [
+        75.21698540225776,
+        -219.62403839950693
+      ],
+      "before_count": 375,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587872.861557,
+      "ego_xy": [
+        75.21698540225776,
+        -219.62403839950693
+      ],
+      "before_count": 11,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587872.861557,
+      "ego_xy": [
+        75.21698540225776,
+        -219.62403839950693
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587872.965005,
+      "ego_xy": [
+        75.17791906832738,
+        -221.28577501158335
+      ],
+      "before_count": 14,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587872.965005,
+      "ego_xy": [
+        75.17791906832738,
+        -221.28577501158335
+      ],
+      "before_count": 559,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587872.965005,
+      "ego_xy": [
+        75.17791906832738,
+        -221.28577501158335
+      ],
+      "before_count": 230,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587872.965005,
+      "ego_xy": [
+        75.17791906832738,
+        -221.28577501158335
+      ],
+      "before_count": 9,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587872.965005,
+      "ego_xy": [
+        75.17791906832738,
+        -221.28577501158335
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.077976,
+      "ego_xy": [
+        75.1301967747524,
+        -223.31570473828876
+      ],
+      "before_count": 16,
+      "after_count": 6
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.077976,
+      "ego_xy": [
+        75.1301967747524,
+        -223.31570473828876
+      ],
+      "before_count": 559,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.077976,
+      "ego_xy": [
+        75.1301967747524,
+        -223.31570473828876
+      ],
+      "before_count": 479,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.077976,
+      "ego_xy": [
+        75.1301967747524,
+        -223.31570473828876
+      ],
+      "before_count": 71,
+      "after_count": 19
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.077976,
+      "ego_xy": [
+        75.1301967747524,
+        -223.31570473828876
+      ],
+      "before_count": 4,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.202957,
+      "ego_xy": [
+        74.98848097653368,
+        -225.25151007003436
+      ],
+      "before_count": 33,
+      "after_count": 23
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.202957,
+      "ego_xy": [
+        74.98848097653368,
+        -225.25151007003436
+      ],
+      "before_count": 488,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.202957,
+      "ego_xy": [
+        74.98848097653368,
+        -225.25151007003436
+      ],
+      "before_count": 422,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.2221172,
+      "ego_xy": [
+        74.94925155846718,
+        -225.62997527029486
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.202957,
+      "ego_xy": [
+        74.98848097653368,
+        -225.25151007003436
+      ],
+      "before_count": 2,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.202957,
+      "ego_xy": [
+        74.98848097653368,
+        -225.25151007003436
+      ],
+      "before_count": 4,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.3022902,
+      "ego_xy": [
+        74.89736628405437,
+        -226.67374555572508
+      ],
+      "before_count": 36,
+      "after_count": 26
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.3022902,
+      "ego_xy": [
+        74.89736628405437,
+        -226.67374555572508
+      ],
+      "before_count": 368,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.3022902,
+      "ego_xy": [
+        74.89736628405437,
+        -226.67374555572508
+      ],
+      "before_count": 368,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.3022902,
+      "ego_xy": [
+        74.89736628405437,
+        -226.67374555572508
+      ],
+      "before_count": 2,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.3022902,
+      "ego_xy": [
+        74.89736628405437,
+        -226.67374555572508
+      ],
+      "before_count": 4,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.440507,
+      "ego_xy": [
+        74.71589602019944,
+        -228.35322166178133
+      ],
+      "before_count": 31,
+      "after_count": 20
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.440507,
+      "ego_xy": [
+        74.71589602019944,
+        -228.35322166178133
+      ],
+      "before_count": 221,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.440507,
+      "ego_xy": [
+        74.71589602019944,
+        -228.35322166178133
+      ],
+      "before_count": 221,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.440507,
+      "ego_xy": [
+        74.71589602019944,
+        -228.35322166178133
+      ],
+      "before_count": 48,
+      "after_count": 41
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.440507,
+      "ego_xy": [
+        74.71589602019944,
+        -228.35322166178133
+      ],
+      "before_count": 5,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.5738974,
+      "ego_xy": [
+        74.52958005236181,
+        -229.98575829996557
+      ],
+      "before_count": 4,
+      "after_count": 3
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.5738974,
+      "ego_xy": [
+        74.52958005236181,
+        -229.98575829996557
+      ],
+      "before_count": 198,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.5738974,
+      "ego_xy": [
+        74.52958005236181,
+        -229.98575829996557
+      ],
+      "before_count": 198,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.5738974,
+      "ego_xy": [
+        74.52958005236181,
+        -229.98575829996557
+      ],
+      "before_count": 53,
+      "after_count": 8
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.5738974,
+      "ego_xy": [
+        74.52958005236181,
+        -229.98575829996557
+      ],
+      "before_count": 4,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.6870558,
+      "ego_xy": [
+        74.34651431328346,
+        -231.48004039075286
+      ],
+      "before_count": 32,
+      "after_count": 26
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.6870558,
+      "ego_xy": [
+        74.34651431328346,
+        -231.48004039075286
+      ],
+      "before_count": 242,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.6870558,
+      "ego_xy": [
+        74.34651431328346,
+        -231.48004039075286
+      ],
+      "before_count": 242,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.6870558,
+      "ego_xy": [
+        74.34651431328346,
+        -231.48004039075286
+      ],
+      "before_count": 41,
+      "after_count": 1
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.6870558,
+      "ego_xy": [
+        74.34651431328346,
+        -231.48004039075286
+      ],
+      "before_count": 6,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.8038907,
+      "ego_xy": [
+        74.16829167912854,
+        -232.7683133516542
+      ],
+      "before_count": 34,
+      "after_count": 28
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.8038907,
+      "ego_xy": [
+        74.16829167912854,
+        -232.7683133516542
+      ],
+      "before_count": 188,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.8038907,
+      "ego_xy": [
+        74.16829167912854,
+        -232.7683133516542
+      ],
+      "before_count": 168,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.8221576,
+      "ego_xy": [
+        74.16178121716301,
+        -233.04524388646556
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.8038907,
+      "ego_xy": [
+        74.16829167912854,
+        -232.7683133516542
+      ],
+      "before_count": 2,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.8038907,
+      "ego_xy": [
+        74.16829167912854,
+        -232.7683133516542
+      ],
+      "before_count": 6,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587873.9374619,
+      "ego_xy": [
+        74.12399078307705,
+        -234.25197382294337
+      ],
+      "before_count": 43,
+      "after_count": 31
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587873.9374619,
+      "ego_xy": [
+        74.12399078307705,
+        -234.25197382294337
+      ],
+      "before_count": 238,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587873.9374619,
+      "ego_xy": [
+        74.12399078307705,
+        -234.25197382294337
+      ],
+      "before_count": 238,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587873.9374619,
+      "ego_xy": [
+        74.12399078307705,
+        -234.25197382294337
+      ],
+      "before_count": 13,
+      "after_count": 1
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587873.9374619,
+      "ego_xy": [
+        74.12399078307705,
+        -234.25197382294337
+      ],
+      "before_count": 5,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.065014,
+      "ego_xy": [
+        73.94185285620335,
+        -235.54539804364418
+      ],
+      "before_count": 40,
+      "after_count": 30
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.065014,
+      "ego_xy": [
+        73.94185285620335,
+        -235.54539804364418
+      ],
+      "before_count": 206,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.065014,
+      "ego_xy": [
+        73.94185285620335,
+        -235.54539804364418
+      ],
+      "before_count": 206,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.0721579,
+      "ego_xy": [
+        73.91879273121613,
+        -235.6244150395087
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.065014,
+      "ego_xy": [
+        73.94185285620335,
+        -235.54539804364418
+      ],
+      "before_count": 4,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.065014,
+      "ego_xy": [
+        73.94185285620335,
+        -235.54539804364418
+      ],
+      "before_count": 2,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.1819022,
+      "ego_xy": [
+        73.7810465877588,
+        -236.65496160940944
+      ],
+      "before_count": 41,
+      "after_count": 28
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.1819022,
+      "ego_xy": [
+        73.7810465877588,
+        -236.65496160940944
+      ],
+      "before_count": 229,
+      "after_count": 1
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.1819022,
+      "ego_xy": [
+        73.7810465877588,
+        -236.65496160940944
+      ],
+      "before_count": 229,
+      "after_count": 1
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.1819022,
+      "ego_xy": [
+        73.7810465877588,
+        -236.65496160940944
+      ],
+      "before_count": 10,
+      "after_count": 2
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.1819022,
+      "ego_xy": [
+        73.7810465877588,
+        -236.65496160940944
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.312078,
+      "ego_xy": [
+        73.60232674626856,
+        -237.96437855027716
+      ],
+      "before_count": 14,
+      "after_count": 9
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.312078,
+      "ego_xy": [
+        73.60232674626856,
+        -237.96437855027716
+      ],
+      "before_count": 216,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.312078,
+      "ego_xy": [
+        73.60232674626856,
+        -237.96437855027716
+      ],
+      "before_count": 216,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.3221078,
+      "ego_xy": [
+        73.59838025003499,
+        -238.13224744077553
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.312078,
+      "ego_xy": [
+        73.60232674626856,
+        -237.96437855027716
+      ],
+      "before_count": 45,
+      "after_count": 36
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.312078,
+      "ego_xy": [
+        73.60232674626856,
+        -237.96437855027716
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.4371638,
+      "ego_xy": [
+        73.41671988330084,
+        -239.5667410409252
+      ],
+      "before_count": 5,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.4371638,
+      "ego_xy": [
+        73.41671988330084,
+        -239.5667410409252
+      ],
+      "before_count": 226,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.4371638,
+      "ego_xy": [
+        73.41671988330084,
+        -239.5667410409252
+      ],
+      "before_count": 226,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.4371638,
+      "ego_xy": [
+        73.41671988330084,
+        -239.5667410409252
+      ],
+      "before_count": 14,
+      "after_count": 3
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.4371638,
+      "ego_xy": [
+        73.41671988330084,
+        -239.5667410409252
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.5575533,
+      "ego_xy": [
+        73.23272537211368,
+        -241.10051872960116
+      ],
+      "before_count": 2,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.5575533,
+      "ego_xy": [
+        73.23272537211368,
+        -241.10051872960116
+      ],
+      "before_count": 231,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.5575533,
+      "ego_xy": [
+        73.23272537211368,
+        -241.10051872960116
+      ],
+      "before_count": 231,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.5721471,
+      "ego_xy": [
+        73.22911367133051,
+        -241.25414655667265
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.5575533,
+      "ego_xy": [
+        73.23272537211368,
+        -241.10051872960116
+      ],
+      "before_count": 14,
+      "after_count": 2
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.5575533,
+      "ego_xy": [
+        73.23272537211368,
+        -241.10051872960116
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.6702657,
+      "ego_xy": [
+        73.05592351897315,
+        -242.32834666719847
+      ],
+      "before_count": 3,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.6702657,
+      "ego_xy": [
+        73.05592351897315,
+        -242.32834666719847
+      ],
+      "before_count": 186,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.6702657,
+      "ego_xy": [
+        73.05592351897315,
+        -242.32834666719847
+      ],
+      "before_count": 172,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.6702657,
+      "ego_xy": [
+        73.05592351897315,
+        -242.32834666719847
+      ],
+      "before_count": 11,
+      "after_count": 1
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.6702657,
+      "ego_xy": [
+        73.05592351897315,
+        -242.32834666719847
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.7886107,
+      "ego_xy": [
+        73.0218560986968,
+        -243.6288769700608
+      ],
+      "before_count": 8,
+      "after_count": 1
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.7886107,
+      "ego_xy": [
+        73.0218560986968,
+        -243.6288769700608
+      ],
+      "before_count": 249,
+      "after_count": 1
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.7886107,
+      "ego_xy": [
+        73.0218560986968,
+        -243.6288769700608
+      ],
+      "before_count": 193,
+      "after_count": 1
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.7886107,
+      "ego_xy": [
+        73.0218560986968,
+        -243.6288769700608
+      ],
+      "before_count": 28,
+      "after_count": 4
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.7886107,
+      "ego_xy": [
+        73.0218560986968,
+        -243.6288769700608
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587874.9090595,
+      "ego_xy": [
+        72.74570174536125,
+        -245.23885695340275
+      ],
+      "before_count": 2,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587874.9090595,
+      "ego_xy": [
+        72.74570174536125,
+        -245.23885695340275
+      ],
+      "before_count": 183,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587874.9090595,
+      "ego_xy": [
+        72.74570174536125,
+        -245.23885695340275
+      ],
+      "before_count": 133,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.9221268,
+      "ego_xy": [
+        72.71644820414352,
+        -245.42488657379505
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587874.9090595,
+      "ego_xy": [
+        72.74570174536125,
+        -245.23885695340275
+      ],
+      "before_count": 13,
+      "after_count": 1
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587874.9090595,
+      "ego_xy": [
+        72.74570174536125,
+        -245.23885695340275
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.0718374,
+      "ego_xy": [
+        72.6532764394692,
+        -246.76507459879002
+      ],
+      "before_count": 7,
+      "after_count": 1
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.0718374,
+      "ego_xy": [
+        72.6532764394692,
+        -246.76507459879002
+      ],
+      "before_count": 191,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.0718374,
+      "ego_xy": [
+        72.6532764394692,
+        -246.76507459879002
+      ],
+      "before_count": 146,
+      "after_count": 2
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.0718374,
+      "ego_xy": [
+        72.6532764394692,
+        -246.76507459879002
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.0718374,
+      "ego_xy": [
+        72.6532764394692,
+        -246.76507459879002
+      ],
+      "before_count": 28,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.1989264,
+      "ego_xy": [
+        72.36504155849788,
+        -248.50528823715342
+      ],
+      "before_count": 2,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.1989264,
+      "ego_xy": [
+        72.36504155849788,
+        -248.50528823715342
+      ],
+      "before_count": 247,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.1989264,
+      "ego_xy": [
+        72.36504155849788,
+        -248.50528823715342
+      ],
+      "before_count": 226,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.2237566,
+      "ego_xy": [
+        72.31888779764758,
+        -248.8782849238434
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.1989264,
+      "ego_xy": [
+        72.36504155849788,
+        -248.50528823715342
+      ],
+      "before_count": 13,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.1989264,
+      "ego_xy": [
+        72.36504155849788,
+        -248.50528823715342
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.3107457,
+      "ego_xy": [
+        72.29065312639015,
+        -249.53511282991258
+      ],
+      "before_count": 8,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.3107457,
+      "ego_xy": [
+        72.29065312639015,
+        -249.53511282991258
+      ],
+      "before_count": 326,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.3107457,
+      "ego_xy": [
+        72.29065312639015,
+        -249.53511282991258
+      ],
+      "before_count": 306,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.3107457,
+      "ego_xy": [
+        72.29065312639015,
+        -249.53511282991258
+      ],
+      "before_count": 117,
+      "after_count": 73
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.3107457,
+      "ego_xy": [
+        72.29065312639015,
+        -249.53511282991258
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.4157667,
+      "ego_xy": [
+        72.12097454610337,
+        -250.63423591272235
+      ],
+      "before_count": 34,
+      "after_count": 25
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.4157667,
+      "ego_xy": [
+        72.12097454610337,
+        -250.63423591272235
+      ],
+      "before_count": 220,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.4157667,
+      "ego_xy": [
+        72.12097454610337,
+        -250.63423591272235
+      ],
+      "before_count": 204,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.4157667,
+      "ego_xy": [
+        72.12097454610337,
+        -250.63423591272235
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.4157667,
+      "ego_xy": [
+        72.12097454610337,
+        -250.63423591272235
+      ],
+      "before_count": 11,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.534083,
+      "ego_xy": [
+        71.94269785031722,
+        -251.92478740420685
+      ],
+      "before_count": 87,
+      "after_count": 75
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.534083,
+      "ego_xy": [
+        71.94269785031722,
+        -251.92478740420685
+      ],
+      "before_count": 310,
+      "after_count": 31
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.534083,
+      "ego_xy": [
+        71.94269785031722,
+        -251.92478740420685
+      ],
+      "before_count": 227,
+      "after_count": 31
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.534083,
+      "ego_xy": [
+        71.94269785031722,
+        -251.92478740420685
+      ],
+      "before_count": 51,
+      "after_count": 45
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.534083,
+      "ego_xy": [
+        71.94269785031722,
+        -251.92478740420685
+      ],
+      "before_count": 4,
+      "after_count": 4
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.6499615,
+      "ego_xy": [
+        71.82719497899973,
+        -253.19067979340628
+      ],
+      "before_count": 5,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.6499615,
+      "ego_xy": [
+        71.82719497899973,
+        -253.19067979340628
+      ],
+      "before_count": 219,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.6499615,
+      "ego_xy": [
+        71.82719497899973,
+        -253.19067979340628
+      ],
+      "before_count": 76,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.6514368,
+      "ego_xy": [
+        71.82423606635692,
+        -253.20675195498765
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.6499615,
+      "ego_xy": [
+        71.82719497899973,
+        -253.19067979340628
+      ],
+      "before_count": 50,
+      "after_count": 36
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.6499615,
+      "ego_xy": [
+        71.82719497899973,
+        -253.19067979340628
+      ],
+      "before_count": 5,
+      "after_count": 5
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.7586432,
+      "ego_xy": [
+        71.73994363227655,
+        -254.25651332493283
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.7586432,
+      "ego_xy": [
+        71.73994363227655,
+        -254.25651332493283
+      ],
+      "before_count": 269,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.7586432,
+      "ego_xy": [
+        71.73994363227655,
+        -254.25651332493283
+      ],
+      "before_count": 269,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.7586432,
+      "ego_xy": [
+        71.73994363227655,
+        -254.25651332493283
+      ],
+      "before_count": 13,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.7586432,
+      "ego_xy": [
+        71.73994363227655,
+        -254.25651332493283
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.8651881,
+      "ego_xy": [
+        71.56880819791154,
+        -255.24330052173707
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.8651881,
+      "ego_xy": [
+        71.56880819791154,
+        -255.24330052173707
+      ],
+      "before_count": 310,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.8651881,
+      "ego_xy": [
+        71.56880819791154,
+        -255.24330052173707
+      ],
+      "before_count": 292,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.8742588,
+      "ego_xy": [
+        71.56713337371515,
+        -255.31454081925835
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.8651881,
+      "ego_xy": [
+        71.56880819791154,
+        -255.24330052173707
+      ],
+      "before_count": 87,
+      "after_count": 59
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.8651881,
+      "ego_xy": [
+        71.56880819791154,
+        -255.24330052173707
+      ],
+      "before_count": 5,
+      "after_count": 5
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587875.9783654,
+      "ego_xy": [
+        71.5469946749926,
+        -256.1711602502723
+      ],
+      "before_count": 30,
+      "after_count": 23
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587875.9783654,
+      "ego_xy": [
+        71.5469946749926,
+        -256.1711602502723
+      ],
+      "before_count": 259,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587875.9783654,
+      "ego_xy": [
+        71.5469946749926,
+        -256.1711602502723
+      ],
+      "before_count": 238,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587875.9783654,
+      "ego_xy": [
+        71.5469946749926,
+        -256.1711602502723
+      ],
+      "before_count": 7,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587875.9783654,
+      "ego_xy": [
+        71.5469946749926,
+        -256.1711602502723
+      ],
+      "before_count": 4,
+      "after_count": 4
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.0965717,
+      "ego_xy": [
+        71.43342727393009,
+        -257.00148436159526
+      ],
+      "before_count": 31,
+      "after_count": 27
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.0965717,
+      "ego_xy": [
+        71.43342727393009,
+        -257.00148436159526
+      ],
+      "before_count": 231,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.0965717,
+      "ego_xy": [
+        71.43342727393009,
+        -257.00148436159526
+      ],
+      "before_count": 192,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.0987666,
+      "ego_xy": [
+        71.43011823356699,
+        -257.0162279397556
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.0965717,
+      "ego_xy": [
+        71.43342727393009,
+        -257.00148436159526
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.0965717,
+      "ego_xy": [
+        71.43342727393009,
+        -257.00148436159526
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.2019396,
+      "ego_xy": [
+        71.36425901694909,
+        -257.65137252839435
+      ],
+      "before_count": 27,
+      "after_count": 24
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.2019396,
+      "ego_xy": [
+        71.36425901694909,
+        -257.65137252839435
+      ],
+      "before_count": 219,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.2019396,
+      "ego_xy": [
+        71.36425901694909,
+        -257.65137252839435
+      ],
+      "before_count": 191,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.2019396,
+      "ego_xy": [
+        71.36425901694909,
+        -257.65137252839435
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.2019396,
+      "ego_xy": [
+        71.36425901694909,
+        -257.65137252839435
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.3235927,
+      "ego_xy": [
+        71.33856487598074,
+        -258.574131238378
+      ],
+      "before_count": 25,
+      "after_count": 20
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.3235927,
+      "ego_xy": [
+        71.33856487598074,
+        -258.574131238378
+      ],
+      "before_count": 222,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.3235927,
+      "ego_xy": [
+        71.33856487598074,
+        -258.574131238378
+      ],
+      "before_count": 172,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.3235927,
+      "ego_xy": [
+        71.33856487598074,
+        -258.574131238378
+      ],
+      "before_count": 49,
+      "after_count": 39
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.3235927,
+      "ego_xy": [
+        71.33856487598074,
+        -258.574131238378
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.4372294,
+      "ego_xy": [
+        71.17642144265385,
+        -259.34859791081806
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.4372294,
+      "ego_xy": [
+        71.17642144265385,
+        -259.34859791081806
+      ],
+      "before_count": 150,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.4372294,
+      "ego_xy": [
+        71.17642144265385,
+        -259.34859791081806
+      ],
+      "before_count": 150,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.4372294,
+      "ego_xy": [
+        71.17642144265385,
+        -259.34859791081806
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.4372294,
+      "ego_xy": [
+        71.17642144265385,
+        -259.34859791081806
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.6298735,
+      "ego_xy": [
+        71.15104042011434,
+        -260.42820407565074
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.6298735,
+      "ego_xy": [
+        71.15104042011434,
+        -260.42820407565074
+      ],
+      "before_count": 187,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.6298735,
+      "ego_xy": [
+        71.15104042011434,
+        -260.42820407565074
+      ],
+      "before_count": 187,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.6298735,
+      "ego_xy": [
+        71.15104042011434,
+        -260.42820407565074
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.6298735,
+      "ego_xy": [
+        71.15104042011434,
+        -260.42820407565074
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.745672,
+      "ego_xy": [
+        71.02953902735041,
+        -261.5563224167588
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.745672,
+      "ego_xy": [
+        71.02953902735041,
+        -261.5563224167588
+      ],
+      "before_count": 156,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.745672,
+      "ego_xy": [
+        71.02953902735041,
+        -261.5563224167588
+      ],
+      "before_count": 156,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.7486672,
+      "ego_xy": [
+        71.02501275349516,
+        -261.5809081130657
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.745672,
+      "ego_xy": [
+        71.02953902735041,
+        -261.5563224167588
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.745672,
+      "ego_xy": [
+        71.02953902735041,
+        -261.5563224167588
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.8475494,
+      "ego_xy": [
+        70.95287680670069,
+        -262.56465486403346
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.8475494,
+      "ego_xy": [
+        70.95287680670069,
+        -262.56465486403346
+      ],
+      "before_count": 118,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.8475494,
+      "ego_xy": [
+        70.95287680670069,
+        -262.56465486403346
+      ],
+      "before_count": 118,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.8475494,
+      "ego_xy": [
+        70.95287680670069,
+        -262.56465486403346
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.8475494,
+      "ego_xy": [
+        70.95287680670069,
+        -262.56465486403346
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587876.9754217,
+      "ego_xy": [
+        70.92224543837257,
+        -263.74606765110974
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587876.9754217,
+      "ego_xy": [
+        70.92224543837257,
+        -263.74606765110974
+      ],
+      "before_count": 174,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587876.9754217,
+      "ego_xy": [
+        70.92224543837257,
+        -263.74606765110974
+      ],
+      "before_count": 174,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587876.9754217,
+      "ego_xy": [
+        70.92224543837257,
+        -263.74606765110974
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587876.9754217,
+      "ego_xy": [
+        70.92224543837257,
+        -263.74606765110974
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587877.10249,
+      "ego_xy": [
+        70.74501137526119,
+        -265.1137794342246
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587877.10249,
+      "ego_xy": [
+        70.74501137526119,
+        -265.1137794342246
+      ],
+      "before_count": 72,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587877.10249,
+      "ego_xy": [
+        70.74501137526119,
+        -265.1137794342246
+      ],
+      "before_count": 72,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.1221464,
+      "ego_xy": [
+        70.73977132589181,
+        -265.3366698684602
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.10249,
+      "ego_xy": [
+        70.74501137526119,
+        -265.1137794342246
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587877.10249,
+      "ego_xy": [
+        70.74501137526119,
+        -265.1137794342246
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587877.219792,
+      "ego_xy": [
+        70.72041082991035,
+        -266.1601869167676
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587877.219792,
+      "ego_xy": [
+        70.72041082991035,
+        -266.1601869167676
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587877.219792,
+      "ego_xy": [
+        70.72041082991035,
+        -266.1601869167676
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.219792,
+      "ego_xy": [
+        70.72041082991035,
+        -266.1601869167676
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587877.219792,
+      "ego_xy": [
+        70.72041082991035,
+        -266.1601869167676
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587877.3408003,
+      "ego_xy": [
+        70.5372911591424,
+        -267.65672454866314
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587877.3408003,
+      "ego_xy": [
+        70.5372911591424,
+        -267.65672454866314
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587877.3408003,
+      "ego_xy": [
+        70.5372911591424,
+        -267.65672454866314
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.3471239,
+      "ego_xy": [
+        70.53572738966314,
+        -267.7232409417149
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.3408003,
+      "ego_xy": [
+        70.5372911591424,
+        -267.65672454866314
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587877.3408003,
+      "ego_xy": [
+        70.5372911591424,
+        -267.65672454866314
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587877.481113,
+      "ego_xy": [
+        70.50375465200345,
+        -268.9251177655288
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587877.481113,
+      "ego_xy": [
+        70.50375465200345,
+        -268.9251177655288
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587877.481113,
+      "ego_xy": [
+        70.50375465200345,
+        -268.9251177655288
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.481113,
+      "ego_xy": [
+        70.50375465200345,
+        -268.9251177655288
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587877.481113,
+      "ego_xy": [
+        70.50375465200345,
+        -268.9251177655288
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587877.6132674,
+      "ego_xy": [
+        70.32069407749982,
+        -270.57725295510835
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587877.6132674,
+      "ego_xy": [
+        70.32069407749982,
+        -270.57725295510835
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587877.6132674,
+      "ego_xy": [
+        70.32069407749982,
+        -270.57725295510835
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.6221817,
+      "ego_xy": [
+        70.31801038624822,
+        -270.69140625597544
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.6132674,
+      "ego_xy": [
+        70.32069407749982,
+        -270.57725295510835
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587877.6132674,
+      "ego_xy": [
+        70.32069407749982,
+        -270.57725295510835
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587877.773726,
+      "ego_xy": [
+        70.2826072732912,
+        -271.89719855023844
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587877.773726,
+      "ego_xy": [
+        70.2826072732912,
+        -271.89719855023844
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587877.773726,
+      "ego_xy": [
+        70.2826072732912,
+        -271.89719855023844
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.773726,
+      "ego_xy": [
+        70.2826072732912,
+        -271.89719855023844
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587877.773726,
+      "ego_xy": [
+        70.2826072732912,
+        -271.89719855023844
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587877.888964,
+      "ego_xy": [
+        70.11178806249997,
+        -273.1706321610624
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587877.888964,
+      "ego_xy": [
+        70.11178806249997,
+        -273.1706321610624
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587877.888964,
+      "ego_xy": [
+        70.11178806249997,
+        -273.1706321610624
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587877.888964,
+      "ego_xy": [
+        70.11178806249997,
+        -273.1706321610624
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587877.888964,
+      "ego_xy": [
+        70.11178806249997,
+        -273.1706321610624
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.0155797,
+      "ego_xy": [
+        70.07690766806866,
+        -274.65430197608936
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.0155797,
+      "ego_xy": [
+        70.07690766806866,
+        -274.65430197608936
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.0155797,
+      "ego_xy": [
+        70.07690766806866,
+        -274.65430197608936
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.0221138,
+      "ego_xy": [
+        70.07440332864438,
+        -274.7608263921954
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.0155797,
+      "ego_xy": [
+        70.07690766806866,
+        -274.65430197608936
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.0155797,
+      "ego_xy": [
+        70.07690766806866,
+        -274.65430197608936
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.138988,
+      "ego_xy": [
+        70.04646826765182,
+        -275.94907038067475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.138988,
+      "ego_xy": [
+        70.04646826765182,
+        -275.94907038067475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.138988,
+      "ego_xy": [
+        70.04646826765182,
+        -275.94907038067475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.138988,
+      "ego_xy": [
+        70.04646826765182,
+        -275.94907038067475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.138988,
+      "ego_xy": [
+        70.04646826765182,
+        -275.94907038067475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.2444959,
+      "ego_xy": [
+        70.01181928156743,
+        -277.4228978708208
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.2444959,
+      "ego_xy": [
+        70.01181928156743,
+        -277.4228978708208
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.2444959,
+      "ego_xy": [
+        70.01181928156743,
+        -277.4228978708208
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.2489824,
+      "ego_xy": [
+        70.01014394300279,
+        -277.4941600022327
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.2444959,
+      "ego_xy": [
+        70.01181928156743,
+        -277.4228978708208
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.2444959,
+      "ego_xy": [
+        70.01181928156743,
+        -277.4228978708208
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.3711567,
+      "ego_xy": [
+        69.97694834772368,
+        -278.90616657664617
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.3711567,
+      "ego_xy": [
+        69.97694834772368,
+        -278.90616657664617
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.3711567,
+      "ego_xy": [
+        69.97694834772368,
+        -278.90616657664617
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.3711567,
+      "ego_xy": [
+        69.97694834772368,
+        -278.90616657664617
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.3711567,
+      "ego_xy": [
+        69.97694834772368,
+        -278.90616657664617
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.487881,
+      "ego_xy": [
+        69.94636557028778,
+        -280.20703480187717
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.487881,
+      "ego_xy": [
+        69.94636557028778,
+        -280.20703480187717
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.487881,
+      "ego_xy": [
+        69.94636557028778,
+        -280.20703480187717
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.487881,
+      "ego_xy": [
+        69.94636557028778,
+        -280.20703480187717
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.487881,
+      "ego_xy": [
+        69.94636557028778,
+        -280.20703480187717
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.5925274,
+      "ego_xy": [
+        69.99448333274665,
+        -281.8706559896376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.5925274,
+      "ego_xy": [
+        69.99448333274665,
+        -281.8706559896376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.5925274,
+      "ego_xy": [
+        69.99448333274665,
+        -281.8706559896376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.5971065,
+      "ego_xy": [
+        70.0000110840882,
+        -281.9317615024503
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.5925274,
+      "ego_xy": [
+        69.99448333274665,
+        -281.8706559896376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.5925274,
+      "ego_xy": [
+        69.99448333274665,
+        -281.8706559896376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.7146144,
+      "ego_xy": [
+        70.02481024796322,
+        -283.16296224736107
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.7146144,
+      "ego_xy": [
+        70.02481024796322,
+        -283.16296224736107
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.7146144,
+      "ego_xy": [
+        70.02481024796322,
+        -283.16296224736107
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.7146144,
+      "ego_xy": [
+        70.02481024796322,
+        -283.16296224736107
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.7146144,
+      "ego_xy": [
+        70.02481024796322,
+        -283.16296224736107
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.8281636,
+      "ego_xy": [
+        69.99011311600444,
+        -284.63884097696894
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.8281636,
+      "ego_xy": [
+        69.99011311600444,
+        -284.63884097696894
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.8281636,
+      "ego_xy": [
+        69.99011311600444,
+        -284.63884097696894
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.8281636,
+      "ego_xy": [
+        69.99011311600444,
+        -284.63884097696894
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.8281636,
+      "ego_xy": [
+        69.99011311600444,
+        -284.63884097696894
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587878.95067,
+      "ego_xy": [
+        70.04777562487482,
+        -286.34154163540995
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587878.95067,
+      "ego_xy": [
+        70.04777562487482,
+        -286.34154163540995
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587878.95067,
+      "ego_xy": [
+        70.04777562487482,
+        -286.34154163540995
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.972142,
+      "ego_xy": [
+        70.07063369287373,
+        -286.6413219430356
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587878.95067,
+      "ego_xy": [
+        70.04777562487482,
+        -286.34154163540995
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587878.95067,
+      "ego_xy": [
+        70.04777562487482,
+        -286.34154163540995
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.0595453,
+      "ego_xy": [
+        70.0683320943005,
+        -287.60437703042373
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.0595453,
+      "ego_xy": [
+        70.0683320943005,
+        -287.60437703042373
+      ],
+      "before_count": 6,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.0595453,
+      "ego_xy": [
+        70.0683320943005,
+        -287.60437703042373
+      ],
+      "before_count": 6,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.0595453,
+      "ego_xy": [
+        70.0683320943005,
+        -287.60437703042373
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.0595453,
+      "ego_xy": [
+        70.0683320943005,
+        -287.60437703042373
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.1660585,
+      "ego_xy": [
+        70.0293314453429,
+        -289.2633131500285
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.1660585,
+      "ego_xy": [
+        70.0293314453429,
+        -289.2633131500285
+      ],
+      "before_count": 13,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.1660585,
+      "ego_xy": [
+        70.0293314453429,
+        -289.2633131500285
+      ],
+      "before_count": 13,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.1660585,
+      "ego_xy": [
+        70.0293314453429,
+        -289.2633131500285
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.1660585,
+      "ego_xy": [
+        70.0293314453429,
+        -289.2633131500285
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.2662582,
+      "ego_xy": [
+        70.14229821067215,
+        -290.750819882578
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.2662582,
+      "ego_xy": [
+        70.14229821067215,
+        -290.750819882578
+      ],
+      "before_count": 14,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.2662582,
+      "ego_xy": [
+        70.14229821067215,
+        -290.750819882578
+      ],
+      "before_count": 14,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.27421,
+      "ego_xy": [
+        70.13932409890509,
+        -290.8773272114752
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.2662582,
+      "ego_xy": [
+        70.14229821067215,
+        -290.750819882578
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.2662582,
+      "ego_xy": [
+        70.14229821067215,
+        -290.750819882578
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.4422197,
+      "ego_xy": [
+        70.08083200298306,
+        -293.3653575296056
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.4422197,
+      "ego_xy": [
+        70.08083200298306,
+        -293.3653575296056
+      ],
+      "before_count": 13,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.4422197,
+      "ego_xy": [
+        70.08083200298306,
+        -293.3653575296056
+      ],
+      "before_count": 13,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.4422197,
+      "ego_xy": [
+        70.08083200298306,
+        -293.3653575296056
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.4422197,
+      "ego_xy": [
+        70.08083200298306,
+        -293.3653575296056
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.625646,
+      "ego_xy": [
+        70.02077013402223,
+        -295.92016133606376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.625646,
+      "ego_xy": [
+        70.02077013402223,
+        -295.92016133606376
+      ],
+      "before_count": 14,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.625646,
+      "ego_xy": [
+        70.02077013402223,
+        -295.92016133606376
+      ],
+      "before_count": 14,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.625646,
+      "ego_xy": [
+        70.02077013402223,
+        -295.92016133606376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.625646,
+      "ego_xy": [
+        70.02077013402223,
+        -295.92016133606376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.7260077,
+      "ego_xy": [
+        70.13012203243456,
+        -297.56143904622184
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.7260077,
+      "ego_xy": [
+        70.13012203243456,
+        -297.56143904622184
+      ],
+      "before_count": 14,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.7260077,
+      "ego_xy": [
+        70.13012203243456,
+        -297.56143904622184
+      ],
+      "before_count": 14,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.7471392,
+      "ego_xy": [
+        70.1230321564037,
+        -297.86301585120043
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.7260077,
+      "ego_xy": [
+        70.13012203243456,
+        -297.56143904622184
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.7260077,
+      "ego_xy": [
+        70.13012203243456,
+        -297.56143904622184
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.846008,
+      "ego_xy": [
+        70.08862596320472,
+        -299.32652696236073
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.846008,
+      "ego_xy": [
+        70.08862596320472,
+        -299.32652696236073
+      ],
+      "before_count": 16,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.846008,
+      "ego_xy": [
+        70.08862596320472,
+        -299.32652696236073
+      ],
+      "before_count": 16,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.846008,
+      "ego_xy": [
+        70.08862596320472,
+        -299.32652696236073
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.846008,
+      "ego_xy": [
+        70.08862596320472,
+        -299.32652696236073
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587879.9760835,
+      "ego_xy": [
+        70.04671657051287,
+        -301.1091967315634
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587879.9760835,
+      "ego_xy": [
+        70.04671657051287,
+        -301.1091967315634
+      ],
+      "before_count": 18,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587879.9760835,
+      "ego_xy": [
+        70.04671657051287,
+        -301.1091967315634
+      ],
+      "before_count": 18,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587879.9760835,
+      "ego_xy": [
+        70.04671657051287,
+        -301.1091967315634
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587879.9760835,
+      "ego_xy": [
+        70.04671657051287,
+        -301.1091967315634
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.144884,
+      "ego_xy": [
+        69.98895596460864,
+        -303.56611935146475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.144884,
+      "ego_xy": [
+        69.98895596460864,
+        -303.56611935146475
+      ],
+      "before_count": 21,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.144884,
+      "ego_xy": [
+        69.98895596460864,
+        -303.56611935146475
+      ],
+      "before_count": 21,
+      "after_count": 2
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.1488087,
+      "ego_xy": [
+        69.98782198267281,
+        -303.61435475909417
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.144884,
+      "ego_xy": [
+        69.98895596460864,
+        -303.56611935146475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.144884,
+      "ego_xy": [
+        69.98895596460864,
+        -303.56611935146475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.253862,
+      "ego_xy": [
+        70.10769545500224,
+        -304.80809266762344
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.253862,
+      "ego_xy": [
+        70.10769545500224,
+        -304.80809266762344
+      ],
+      "before_count": 22,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.253862,
+      "ego_xy": [
+        70.10769545500224,
+        -304.80809266762344
+      ],
+      "before_count": 22,
+      "after_count": 2
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.253862,
+      "ego_xy": [
+        70.10769545500224,
+        -304.80809266762344
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.253862,
+      "ego_xy": [
+        70.10769545500224,
+        -304.80809266762344
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.3640137,
+      "ego_xy": [
+        70.0729502306103,
+        -306.2860281067789
+      ],
+      "before_count": 5,
+      "after_count": 5
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.3640137,
+      "ego_xy": [
+        70.0729502306103,
+        -306.2860281067789
+      ],
+      "before_count": 25,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.3640137,
+      "ego_xy": [
+        70.0729502306103,
+        -306.2860281067789
+      ],
+      "before_count": 25,
+      "after_count": 2
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.37354,
+      "ego_xy": [
+        70.06814671497739,
+        -306.49035223805197
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.3640137,
+      "ego_xy": [
+        70.0729502306103,
+        -306.2860281067789
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.3640137,
+      "ego_xy": [
+        70.0729502306103,
+        -306.2860281067789
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.4725227,
+      "ego_xy": [
+        70.03381381567424,
+        -307.95074936701
+      ],
+      "before_count": 6,
+      "after_count": 6
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.4725227,
+      "ego_xy": [
+        70.03381381567424,
+        -307.95074936701
+      ],
+      "before_count": 25,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.4725227,
+      "ego_xy": [
+        70.03381381567424,
+        -307.95074936701
+      ],
+      "before_count": 25,
+      "after_count": 2
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.4725227,
+      "ego_xy": [
+        70.03381381567424,
+        -307.95074936701
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.4725227,
+      "ego_xy": [
+        70.03381381567424,
+        -307.95074936701
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.579252,
+      "ego_xy": [
+        70.07296004696336,
+        -309.9594414307301
+      ],
+      "before_count": 7,
+      "after_count": 7
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.579252,
+      "ego_xy": [
+        70.07296004696336,
+        -309.9594414307301
+      ],
+      "before_count": 28,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.579252,
+      "ego_xy": [
+        70.07296004696336,
+        -309.9594414307301
+      ],
+      "before_count": 28,
+      "after_count": 2
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.5971165,
+      "ego_xy": [
+        70.1063785799099,
+        -310.2053807921849
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.579252,
+      "ego_xy": [
+        70.07296004696336,
+        -309.9594414307301
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.579252,
+      "ego_xy": [
+        70.07296004696336,
+        -309.9594414307301
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.7419014,
+      "ego_xy": [
+        70.09468925926107,
+        -311.65405833841794
+      ],
+      "before_count": 8,
+      "after_count": 7
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.7419014,
+      "ego_xy": [
+        70.09468925926107,
+        -311.65405833841794
+      ],
+      "before_count": 30,
+      "after_count": 3
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.7419014,
+      "ego_xy": [
+        70.09468925926107,
+        -311.65405833841794
+      ],
+      "before_count": 30,
+      "after_count": 3
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.7419014,
+      "ego_xy": [
+        70.09468925926107,
+        -311.65405833841794
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.7419014,
+      "ego_xy": [
+        70.09468925926107,
+        -311.65405833841794
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.8597903,
+      "ego_xy": [
+        70.04460279050164,
+        -313.7845593176075
+      ],
+      "before_count": 8,
+      "after_count": 7
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.8597903,
+      "ego_xy": [
+        70.04460279050164,
+        -313.7845593176075
+      ],
+      "before_count": 27,
+      "after_count": 4
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.8597903,
+      "ego_xy": [
+        70.04460279050164,
+        -313.7845593176075
+      ],
+      "before_count": 27,
+      "after_count": 4
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.8721144,
+      "ego_xy": [
+        70.03962778830736,
+        -313.99617831456135
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.8597903,
+      "ego_xy": [
+        70.04460279050164,
+        -313.7845593176075
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.8597903,
+      "ego_xy": [
+        70.04460279050164,
+        -313.7845593176075
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587880.9619474,
+      "ego_xy": [
+        70.16008152957384,
+        -315.1652456350753
+      ],
+      "before_count": 10,
+      "after_count": 9
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587880.9619474,
+      "ego_xy": [
+        70.16008152957384,
+        -315.1652456350753
+      ],
+      "before_count": 39,
+      "after_count": 3
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587880.9619474,
+      "ego_xy": [
+        70.16008152957384,
+        -315.1652456350753
+      ],
+      "before_count": 39,
+      "after_count": 3
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587880.9619474,
+      "ego_xy": [
+        70.16008152957384,
+        -315.1652456350753
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587880.9619474,
+      "ego_xy": [
+        70.16008152957384,
+        -315.1652456350753
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.091174,
+      "ego_xy": [
+        70.11418548144948,
+        -317.11750381212926
+      ],
+      "before_count": 11,
+      "after_count": 10
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.091174,
+      "ego_xy": [
+        70.11418548144948,
+        -317.11750381212926
+      ],
+      "before_count": 33,
+      "after_count": 3
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.091174,
+      "ego_xy": [
+        70.11418548144948,
+        -317.11750381212926
+      ],
+      "before_count": 33,
+      "after_count": 3
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.0971143,
+      "ego_xy": [
+        70.11187810113718,
+        -317.2156517563292
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.091174,
+      "ego_xy": [
+        70.11418548144948,
+        -317.11750381212926
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.091174,
+      "ego_xy": [
+        70.11418548144948,
+        -317.11750381212926
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.2217736,
+      "ego_xy": [
+        70.07307623898751,
+        -318.86614850083595
+      ],
+      "before_count": 12,
+      "after_count": 11
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.2217736,
+      "ego_xy": [
+        70.07307623898751,
+        -318.86614850083595
+      ],
+      "before_count": 20,
+      "after_count": 4
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.2217736,
+      "ego_xy": [
+        70.07307623898751,
+        -318.86614850083595
+      ],
+      "before_count": 20,
+      "after_count": 4
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.2217736,
+      "ego_xy": [
+        70.07307623898751,
+        -318.86614850083595
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.2217736,
+      "ego_xy": [
+        70.07307623898751,
+        -318.86614850083595
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.357887,
+      "ego_xy": [
+        70.17304985766445,
+        -320.9063762012536
+      ],
+      "before_count": 9,
+      "after_count": 8
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.357887,
+      "ego_xy": [
+        70.17304985766445,
+        -320.9063762012536
+      ],
+      "before_count": 27,
+      "after_count": 4
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.357887,
+      "ego_xy": [
+        70.17304985766445,
+        -320.9063762012536
+      ],
+      "before_count": 27,
+      "after_count": 4
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.3721478,
+      "ego_xy": [
+        70.16755685229735,
+        -321.14002995103573
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.357887,
+      "ego_xy": [
+        70.17304985766445,
+        -320.9063762012536
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.357887,
+      "ego_xy": [
+        70.17304985766445,
+        -320.9063762012536
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.479535,
+      "ego_xy": [
+        70.13375294913625,
+        -322.5779330881214
+      ],
+      "before_count": 11,
+      "after_count": 11
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.479535,
+      "ego_xy": [
+        70.13375294913625,
+        -322.5779330881214
+      ],
+      "before_count": 27,
+      "after_count": 5
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.479535,
+      "ego_xy": [
+        70.13375294913625,
+        -322.5779330881214
+      ],
+      "before_count": 27,
+      "after_count": 5
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.479535,
+      "ego_xy": [
+        70.13375294913625,
+        -322.5779330881214
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.479535,
+      "ego_xy": [
+        70.13375294913625,
+        -322.5779330881214
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.5909128,
+      "ego_xy": [
+        70.08669385818038,
+        -324.57966760438467
+      ],
+      "before_count": 8,
+      "after_count": 8
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.5909128,
+      "ego_xy": [
+        70.08669385818038,
+        -324.57966760438467
+      ],
+      "before_count": 31,
+      "after_count": 3
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.5909128,
+      "ego_xy": [
+        70.08669385818038,
+        -324.57966760438467
+      ],
+      "before_count": 31,
+      "after_count": 3
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.5971437,
+      "ego_xy": [
+        70.08459302207162,
+        -324.6690300811068
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.5909128,
+      "ego_xy": [
+        70.08669385818038,
+        -324.57966760438467
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.5909128,
+      "ego_xy": [
+        70.08669385818038,
+        -324.57966760438467
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.7223015,
+      "ego_xy": [
+        70.12985696401176,
+        -326.5626210594781
+      ],
+      "before_count": 11,
+      "after_count": 11
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.7223015,
+      "ego_xy": [
+        70.12985696401176,
+        -326.5626210594781
+      ],
+      "before_count": 72,
+      "after_count": 7
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.7223015,
+      "ego_xy": [
+        70.12985696401176,
+        -326.5626210594781
+      ],
+      "before_count": 72,
+      "after_count": 7
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.7223015,
+      "ego_xy": [
+        70.12985696401176,
+        -326.5626210594781
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.7223015,
+      "ego_xy": [
+        70.12985696401176,
+        -326.5626210594781
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.8200173,
+      "ego_xy": [
+        70.16010540766588,
+        -327.7497656344728
+      ],
+      "before_count": 11,
+      "after_count": 11
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.8200173,
+      "ego_xy": [
+        70.16010540766588,
+        -327.7497656344728
+      ],
+      "before_count": 81,
+      "after_count": 7
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.8200173,
+      "ego_xy": [
+        70.16010540766588,
+        -327.7497656344728
+      ],
+      "before_count": 81,
+      "after_count": 7
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.8221216,
+      "ego_xy": [
+        70.15911127473368,
+        -327.7920527562646
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.8200173,
+      "ego_xy": [
+        70.16010540766588,
+        -327.7497656344728
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.8200173,
+      "ego_xy": [
+        70.16010540766588,
+        -327.7497656344728
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587881.9430678,
+      "ego_xy": [
+        70.11390606048454,
+        -329.71493313305535
+      ],
+      "before_count": 12,
+      "after_count": 12
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587881.9430678,
+      "ego_xy": [
+        70.11390606048454,
+        -329.71493313305535
+      ],
+      "before_count": 116,
+      "after_count": 9
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587881.9430678,
+      "ego_xy": [
+        70.11390606048454,
+        -329.71493313305535
+      ],
+      "before_count": 106,
+      "after_count": 9
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587881.9430678,
+      "ego_xy": [
+        70.11390606048454,
+        -329.71493313305535
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587881.9430678,
+      "ego_xy": [
+        70.11390606048454,
+        -329.71493313305535
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587882.0732727,
+      "ego_xy": [
+        70.07546500751484,
+        -331.45046163005486
+      ],
+      "before_count": 13,
+      "after_count": 12
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587882.0732727,
+      "ego_xy": [
+        70.07546500751484,
+        -331.45046163005486
+      ],
+      "before_count": 128,
+      "after_count": 11
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587882.0732727,
+      "ego_xy": [
+        70.07546500751484,
+        -331.45046163005486
+      ],
+      "before_count": 128,
+      "after_count": 11
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587882.0732727,
+      "ego_xy": [
+        70.07546500751484,
+        -331.45046163005486
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.0732727,
+      "ego_xy": [
+        70.07546500751484,
+        -331.45046163005486
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587882.199566,
+      "ego_xy": [
+        70.18156184064125,
+        -333.1298726481728
+      ],
+      "before_count": 15,
+      "after_count": 14
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587882.199566,
+      "ego_xy": [
+        70.18156184064125,
+        -333.1298726481728
+      ],
+      "before_count": 144,
+      "after_count": 12
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587882.199566,
+      "ego_xy": [
+        70.18156184064125,
+        -333.1298726481728
+      ],
+      "before_count": 144,
+      "after_count": 12
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.2221246,
+      "ego_xy": [
+        70.1772679473871,
+        -333.31252097231595
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.199566,
+      "ego_xy": [
+        70.18156184064125,
+        -333.1298726481728
+      ],
+      "before_count": 10,
+      "after_count": 9
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587882.199566,
+      "ego_xy": [
+        70.18156184064125,
+        -333.1298726481728
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587882.4189994,
+      "ego_xy": [
+        70.13838483198725,
+        -334.96648321597644
+      ],
+      "before_count": 39,
+      "after_count": 31
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587882.4189994,
+      "ego_xy": [
+        70.13838483198725,
+        -334.96648321597644
+      ],
+      "before_count": 132,
+      "after_count": 13
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587882.4189994,
+      "ego_xy": [
+        70.13838483198725,
+        -334.96648321597644
+      ],
+      "before_count": 132,
+      "after_count": 13
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.4189994,
+      "ego_xy": [
+        70.13838483198725,
+        -334.96648321597644
+      ],
+      "before_count": 15,
+      "after_count": 9
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587882.4189994,
+      "ego_xy": [
+        70.13838483198725,
+        -334.96648321597644
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587882.5705853,
+      "ego_xy": [
+        70.10350491065677,
+        -336.4501629944004
+      ],
+      "before_count": 21,
+      "after_count": 12
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587882.5705853,
+      "ego_xy": [
+        70.10350491065677,
+        -336.4501629944004
+      ],
+      "before_count": 174,
+      "after_count": 9
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587882.5705853,
+      "ego_xy": [
+        70.10350491065677,
+        -336.4501629944004
+      ],
+      "before_count": 174,
+      "after_count": 9
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.572093,
+      "ego_xy": [
+        70.10296628350032,
+        -336.4730744681984
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.5705853,
+      "ego_xy": [
+        70.10350491065677,
+        -336.4501629944004
+      ],
+      "before_count": 15,
+      "after_count": 6
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587882.5705853,
+      "ego_xy": [
+        70.10350491065677,
+        -336.4501629944004
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587882.6999612,
+      "ego_xy": [
+        70.17144070589866,
+        -338.11438161951367
+      ],
+      "before_count": 21,
+      "after_count": 11
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587882.6999612,
+      "ego_xy": [
+        70.17144070589866,
+        -338.11438161951367
+      ],
+      "before_count": 241,
+      "after_count": 11
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587882.6999612,
+      "ego_xy": [
+        70.17144070589866,
+        -338.11438161951367
+      ],
+      "before_count": 241,
+      "after_count": 11
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.6999612,
+      "ego_xy": [
+        70.17144070589866,
+        -338.11438161951367
+      ],
+      "before_count": 17,
+      "after_count": 6
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587882.6999612,
+      "ego_xy": [
+        70.17144070589866,
+        -338.11438161951367
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587882.802159,
+      "ego_xy": [
+        70.18854693958195,
+        -339.12555850220645
+      ],
+      "before_count": 32,
+      "after_count": 17
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587882.802159,
+      "ego_xy": [
+        70.18854693958195,
+        -339.12555850220645
+      ],
+      "before_count": 291,
+      "after_count": 14
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587882.802159,
+      "ego_xy": [
+        70.18854693958195,
+        -339.12555850220645
+      ],
+      "before_count": 252,
+      "after_count": 14
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.8221216,
+      "ego_xy": [
+        70.18423471561529,
+        -339.30898691376206
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587882.802159,
+      "ego_xy": [
+        70.18854693958195,
+        -339.12555850220645
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.802159,
+      "ego_xy": [
+        70.18854693958195,
+        -339.12555850220645
+      ],
+      "before_count": 26,
+      "after_count": 12
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587882.9128327,
+      "ego_xy": [
+        70.16421161024772,
+        -340.16070682050844
+      ],
+      "before_count": 56,
+      "after_count": 39
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587882.9128327,
+      "ego_xy": [
+        70.16421161024772,
+        -340.16070682050844
+      ],
+      "before_count": 373,
+      "after_count": 19
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587882.9128327,
+      "ego_xy": [
+        70.16421161024772,
+        -340.16070682050844
+      ],
+      "before_count": 351,
+      "after_count": 19
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587882.9128327,
+      "ego_xy": [
+        70.16421161024772,
+        -340.16070682050844
+      ],
+      "before_count": 41,
+      "after_count": 25
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587882.9128327,
+      "ego_xy": [
+        70.16421161024772,
+        -340.16070682050844
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.0144353,
+      "ego_xy": [
+        70.13309304978374,
+        -341.48439281575185
+      ],
+      "before_count": 42,
+      "after_count": 18
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.0144353,
+      "ego_xy": [
+        70.13309304978374,
+        -341.48439281575185
+      ],
+      "before_count": 425,
+      "after_count": 15
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.0144353,
+      "ego_xy": [
+        70.13309304978374,
+        -341.48439281575185
+      ],
+      "before_count": 425,
+      "after_count": 15
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.0221393,
+      "ego_xy": [
+        70.13098142259376,
+        -341.5742148286899
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.0144353,
+      "ego_xy": [
+        70.13309304978374,
+        -341.48439281575185
+      ],
+      "before_count": 37,
+      "after_count": 16
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.0144353,
+      "ego_xy": [
+        70.13309304978374,
+        -341.48439281575185
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.1462722,
+      "ego_xy": [
+        70.10161675302923,
+        -342.8232961137409
+      ],
+      "before_count": 53,
+      "after_count": 6
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.1462722,
+      "ego_xy": [
+        70.10161675302923,
+        -342.8232961137409
+      ],
+      "before_count": 514,
+      "after_count": 5
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.1462722,
+      "ego_xy": [
+        70.10161675302923,
+        -342.8232961137409
+      ],
+      "before_count": 484,
+      "after_count": 5
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.1462722,
+      "ego_xy": [
+        70.10161675302923,
+        -342.8232961137409
+      ],
+      "before_count": 64,
+      "after_count": 16
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.1462722,
+      "ego_xy": [
+        70.10161675302923,
+        -342.8232961137409
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.2507696,
+      "ego_xy": [
+        70.07980454608536,
+        -343.7511194651355
+      ],
+      "before_count": 68,
+      "after_count": 5
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.2507696,
+      "ego_xy": [
+        70.07980454608536,
+        -343.7511194651355
+      ],
+      "before_count": 512,
+      "after_count": 4
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.2507696,
+      "ego_xy": [
+        70.07980454608536,
+        -343.7511194651355
+      ],
+      "before_count": 476,
+      "after_count": 4
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.272125,
+      "ego_xy": [
+        70.07556987926729,
+        -343.9312490124592
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.2507696,
+      "ego_xy": [
+        70.07980454608536,
+        -343.7511194651355
+      ],
+      "before_count": 68,
+      "after_count": 4
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.2507696,
+      "ego_xy": [
+        70.07980454608536,
+        -343.7511194651355
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.3487773,
+      "ego_xy": [
+        70.06111794717015,
+        -344.54598931663077
+      ],
+      "before_count": 70,
+      "after_count": 3
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.3487773,
+      "ego_xy": [
+        70.06111794717015,
+        -344.54598931663077
+      ],
+      "before_count": 725,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.3487773,
+      "ego_xy": [
+        70.06111794717015,
+        -344.54598931663077
+      ],
+      "before_count": 623,
+      "after_count": 2
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.3487773,
+      "ego_xy": [
+        70.06111794717015,
+        -344.54598931663077
+      ],
+      "before_count": 87,
+      "after_count": 5
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.3487773,
+      "ego_xy": [
+        70.06111794717015,
+        -344.54598931663077
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.4863582,
+      "ego_xy": [
+        70.0341156417361,
+        -345.6945837159906
+      ],
+      "before_count": 76,
+      "after_count": 9
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.4863582,
+      "ego_xy": [
+        70.0341156417361,
+        -345.6945837159906
+      ],
+      "before_count": 713,
+      "after_count": 9
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.4863582,
+      "ego_xy": [
+        70.0341156417361,
+        -345.6945837159906
+      ],
+      "before_count": 652,
+      "after_count": 9
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.4863582,
+      "ego_xy": [
+        70.0341156417361,
+        -345.6945837159906
+      ],
+      "before_count": 85,
+      "after_count": 11
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.4863582,
+      "ego_xy": [
+        70.0341156417361,
+        -345.6945837159906
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.5766854,
+      "ego_xy": [
+        70.01679863957642,
+        -346.431195472969
+      ],
+      "before_count": 68,
+      "after_count": 7
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.5766854,
+      "ego_xy": [
+        70.01679863957642,
+        -346.431195472969
+      ],
+      "before_count": 677,
+      "after_count": 6
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.5766854,
+      "ego_xy": [
+        70.01679863957642,
+        -346.431195472969
+      ],
+      "before_count": 677,
+      "after_count": 6
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.5766854,
+      "ego_xy": [
+        70.01679863957642,
+        -346.431195472969
+      ],
+      "before_count": 89,
+      "after_count": 14
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.5766854,
+      "ego_xy": [
+        70.01679863957642,
+        -346.431195472969
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.7320051,
+      "ego_xy": [
+        69.99071605312123,
+        -347.5406683181481
+      ],
+      "before_count": 76,
+      "after_count": 14
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.7320051,
+      "ego_xy": [
+        69.99071605312123,
+        -347.5406683181481
+      ],
+      "before_count": 697,
+      "after_count": 14
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.7320051,
+      "ego_xy": [
+        69.99071605312123,
+        -347.5406683181481
+      ],
+      "before_count": 697,
+      "after_count": 14
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.7320051,
+      "ego_xy": [
+        69.99071605312123,
+        -347.5406683181481
+      ],
+      "before_count": 105,
+      "after_count": 24
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.7320051,
+      "ego_xy": [
+        69.99071605312123,
+        -347.5406683181481
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.8376462,
+      "ego_xy": [
+        69.96668741922682,
+        -348.56277257701186
+      ],
+      "before_count": 58,
+      "after_count": 11
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.8376462,
+      "ego_xy": [
+        69.96668741922682,
+        -348.56277257701186
+      ],
+      "before_count": 696,
+      "after_count": 13
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.8376462,
+      "ego_xy": [
+        69.96668741922682,
+        -348.56277257701186
+      ],
+      "before_count": 696,
+      "after_count": 13
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.84713,
+      "ego_xy": [
+        69.96504215569577,
+        -348.63275703914235
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.8376462,
+      "ego_xy": [
+        69.96668741922682,
+        -348.56277257701186
+      ],
+      "before_count": 102,
+      "after_count": 23
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.8376462,
+      "ego_xy": [
+        69.96668741922682,
+        -348.56277257701186
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587883.9437265,
+      "ego_xy": [
+        69.94448458868581,
+        -349.5072129588084
+      ],
+      "before_count": 97,
+      "after_count": 16
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587883.9437265,
+      "ego_xy": [
+        69.94448458868581,
+        -349.5072129588084
+      ],
+      "before_count": 922,
+      "after_count": 17
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587883.9437265,
+      "ego_xy": [
+        69.94448458868581,
+        -349.5072129588084
+      ],
+      "before_count": 755,
+      "after_count": 17
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587883.9437265,
+      "ego_xy": [
+        69.94448458868581,
+        -349.5072129588084
+      ],
+      "before_count": 130,
+      "after_count": 32
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587883.9437265,
+      "ego_xy": [
+        69.94448458868581,
+        -349.5072129588084
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.0617845,
+      "ego_xy": [
+        69.92542273417223,
+        -350.31804598398986
+      ],
+      "before_count": 119,
+      "after_count": 34
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.0617845,
+      "ego_xy": [
+        69.92542273417223,
+        -350.31804598398986
+      ],
+      "before_count": 1094,
+      "after_count": 33
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.0617845,
+      "ego_xy": [
+        69.92542273417223,
+        -350.31804598398986
+      ],
+      "before_count": 886,
+      "after_count": 33
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.072123,
+      "ego_xy": [
+        69.92302962406805,
+        -350.41984158830434
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.0617845,
+      "ego_xy": [
+        69.92542273417223,
+        -350.31804598398986
+      ],
+      "before_count": 155,
+      "after_count": 45
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.0617845,
+      "ego_xy": [
+        69.92542273417223,
+        -350.31804598398986
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.1939435,
+      "ego_xy": [
+        70.04847919774022,
+        -351.37644170581274
+      ],
+      "before_count": 172,
+      "after_count": 23
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.1939435,
+      "ego_xy": [
+        70.04847919774022,
+        -351.37644170581274
+      ],
+      "before_count": 1242,
+      "after_count": 23
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.1939435,
+      "ego_xy": [
+        70.04847919774022,
+        -351.37644170581274
+      ],
+      "before_count": 1242,
+      "after_count": 23
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.1939435,
+      "ego_xy": [
+        70.04847919774022,
+        -351.37644170581274
+      ],
+      "before_count": 239,
+      "after_count": 44
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.1939435,
+      "ego_xy": [
+        70.04847919774022,
+        -351.37644170581274
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.3023195,
+      "ego_xy": [
+        70.02629124327316,
+        -352.32025056370657
+      ],
+      "before_count": 182,
+      "after_count": 37
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.3023195,
+      "ego_xy": [
+        70.02629124327316,
+        -352.32025056370657
+      ],
+      "before_count": 1490,
+      "after_count": 34
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.3023195,
+      "ego_xy": [
+        70.02629124327316,
+        -352.32025056370657
+      ],
+      "before_count": 1154,
+      "after_count": 34
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.3221035,
+      "ego_xy": [
+        70.0225917328578,
+        -352.4776166246837
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.3023195,
+      "ego_xy": [
+        70.02629124327316,
+        -352.32025056370657
+      ],
+      "before_count": 240,
+      "after_count": 50
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.3023195,
+      "ego_xy": [
+        70.02629124327316,
+        -352.32025056370657
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.4025998,
+      "ego_xy": [
+        70.0086938032599,
+        -353.0687928696293
+      ],
+      "before_count": 168,
+      "after_count": 40
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.4025998,
+      "ego_xy": [
+        70.0086938032599,
+        -353.0687928696293
+      ],
+      "before_count": 1783,
+      "after_count": 55
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.4025998,
+      "ego_xy": [
+        70.0086938032599,
+        -353.0687928696293
+      ],
+      "before_count": 1286,
+      "after_count": 55
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.4025998,
+      "ego_xy": [
+        70.0086938032599,
+        -353.0687928696293
+      ],
+      "before_count": 180,
+      "after_count": 40
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.4025998,
+      "ego_xy": [
+        70.0086938032599,
+        -353.0687928696293
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.5261116,
+      "ego_xy": [
+        69.98646213288136,
+        -354.01446159307415
+      ],
+      "before_count": 86,
+      "after_count": 24
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.5261116,
+      "ego_xy": [
+        69.98646213288136,
+        -354.01446159307415
+      ],
+      "before_count": 1751,
+      "after_count": 50
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.5261116,
+      "ego_xy": [
+        69.98646213288136,
+        -354.01446159307415
+      ],
+      "before_count": 1141,
+      "after_count": 50
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.5261116,
+      "ego_xy": [
+        69.98646213288136,
+        -354.01446159307415
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.5261116,
+      "ego_xy": [
+        69.98646213288136,
+        -354.01446159307415
+      ],
+      "before_count": 118,
+      "after_count": 29
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.6688392,
+      "ego_xy": [
+        70.1125322323996,
+        -354.944670575481
+      ],
+      "before_count": 166,
+      "after_count": 13
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.6688392,
+      "ego_xy": [
+        70.1125322323996,
+        -354.944670575481
+      ],
+      "before_count": 1826,
+      "after_count": 25
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.6688392,
+      "ego_xy": [
+        70.1125322323996,
+        -354.944670575481
+      ],
+      "before_count": 1046,
+      "after_count": 25
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.6734495,
+      "ego_xy": [
+        70.11173797799131,
+        -354.9784558174127
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.6688392,
+      "ego_xy": [
+        70.1125322323996,
+        -354.944670575481
+      ],
+      "before_count": 205,
+      "after_count": 44
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.6688392,
+      "ego_xy": [
+        70.1125322323996,
+        -354.944670575481
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.7731771,
+      "ego_xy": [
+        70.09080454969767,
+        -355.8689022276772
+      ],
+      "before_count": 156,
+      "after_count": 9
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.7731771,
+      "ego_xy": [
+        70.09080454969767,
+        -355.8689022276772
+      ],
+      "before_count": 2164,
+      "after_count": 21
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.7731771,
+      "ego_xy": [
+        70.09080454969767,
+        -355.8689022276772
+      ],
+      "before_count": 1096,
+      "after_count": 21
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.7731771,
+      "ego_xy": [
+        70.09080454969767,
+        -355.8689022276772
+      ],
+      "before_count": 195,
+      "after_count": 41
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.7731771,
+      "ego_xy": [
+        70.09080454969767,
+        -355.8689022276772
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587884.928457,
+      "ego_xy": [
+        70.06470310257286,
+        -356.97918117278994
+      ],
+      "before_count": 81,
+      "after_count": 13
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587884.928457,
+      "ego_xy": [
+        70.06470310257286,
+        -356.97918117278994
+      ],
+      "before_count": 2471,
+      "after_count": 19
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587884.928457,
+      "ego_xy": [
+        70.06470310257286,
+        -356.97918117278994
+      ],
+      "before_count": 2471,
+      "after_count": 19
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587884.928457,
+      "ego_xy": [
+        70.06470310257286,
+        -356.97918117278994
+      ],
+      "before_count": 124,
+      "after_count": 32
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587884.928457,
+      "ego_xy": [
+        70.06470310257286,
+        -356.97918117278994
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587885.0819302,
+      "ego_xy": [
+        70.03413970318545,
+        -358.27925879534376
+      ],
+      "before_count": 51,
+      "after_count": 14
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587885.0819302,
+      "ego_xy": [
+        70.03413970318545,
+        -358.27925879534376
+      ],
+      "before_count": 2698,
+      "after_count": 2
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587885.0819302,
+      "ego_xy": [
+        70.03413970318545,
+        -358.27925879534376
+      ],
+      "before_count": 1199,
+      "after_count": 2
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.0819302,
+      "ego_xy": [
+        70.03413970318545,
+        -358.27925879534376
+      ],
+      "before_count": 89,
+      "after_count": 15
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587885.0819302,
+      "ego_xy": [
+        70.03413970318545,
+        -358.27925879534376
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587885.1807766,
+      "ego_xy": [
+        70.01682543154628,
+        -359.0157574325497
+      ],
+      "before_count": 36,
+      "after_count": 14
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587885.1807766,
+      "ego_xy": [
+        70.01682543154628,
+        -359.0157574325497
+      ],
+      "before_count": 3568,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587885.1807766,
+      "ego_xy": [
+        70.01682543154628,
+        -359.0157574325497
+      ],
+      "before_count": 3568,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.1807766,
+      "ego_xy": [
+        70.01682543154628,
+        -359.0157574325497
+      ],
+      "before_count": 71,
+      "after_count": 7
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587885.1807766,
+      "ego_xy": [
+        70.01682543154628,
+        -359.0157574325497
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587885.3008685,
+      "ego_xy": [
+        69.99298943485125,
+        -360.0296714257463
+      ],
+      "before_count": 72,
+      "after_count": 14
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587885.3008685,
+      "ego_xy": [
+        69.99298943485125,
+        -360.0296714257463
+      ],
+      "before_count": 3361,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587885.3008685,
+      "ego_xy": [
+        69.99298943485125,
+        -360.0296714257463
+      ],
+      "before_count": 3361,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.3221455,
+      "ego_xy": [
+        69.99014520058327,
+        -360.15065689278543
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.3008685,
+      "ego_xy": [
+        69.99298943485125,
+        -360.0296714257463
+      ],
+      "before_count": 615,
+      "after_count": 8
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587885.3008685,
+      "ego_xy": [
+        69.99298943485125,
+        -360.0296714257463
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587885.4377732,
+      "ego_xy": [
+        69.97765923253077,
+        -360.6817737561721
+      ],
+      "before_count": 907,
+      "after_count": 14
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587885.4377732,
+      "ego_xy": [
+        69.97765923253077,
+        -360.6817737561721
+      ],
+      "before_count": 3957,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587885.4377732,
+      "ego_xy": [
+        69.97765923253077,
+        -360.6817737561721
+      ],
+      "before_count": 3738,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.4377732,
+      "ego_xy": [
+        69.97765923253077,
+        -360.6817737561721
+      ],
+      "before_count": 1093,
+      "after_count": 9
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587885.4377732,
+      "ego_xy": [
+        69.97765923253077,
+        -360.6817737561721
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587885.549727,
+      "ego_xy": [
+        69.9589630033596,
+        -361.60838519594483
+      ],
+      "before_count": 1892,
+      "after_count": 19
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587885.549727,
+      "ego_xy": [
+        69.9589630033596,
+        -361.60838519594483
+      ],
+      "before_count": 4365,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587885.549727,
+      "ego_xy": [
+        69.9589630033596,
+        -361.60838519594483
+      ],
+      "before_count": 3296,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.5721257,
+      "ego_xy": [
+        70.0180812158305,
+        -361.85319939661326
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587885.549727,
+      "ego_xy": [
+        69.9589630033596,
+        -361.60838519594483
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.549727,
+      "ego_xy": [
+        69.9589630033596,
+        -361.60838519594483
+      ],
+      "before_count": 2210,
+      "after_count": 12
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587885.7056499,
+      "ego_xy": [
+        70.08208091394442,
+        -362.5328515396702
+      ],
+      "before_count": 74,
+      "after_count": 10
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587885.7056499,
+      "ego_xy": [
+        70.08208091394442,
+        -362.5328515396702
+      ],
+      "before_count": 4511,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587885.7056499,
+      "ego_xy": [
+        70.08208091394442,
+        -362.5328515396702
+      ],
+      "before_count": 4511,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.7056499,
+      "ego_xy": [
+        70.08208091394442,
+        -362.5328515396702
+      ],
+      "before_count": 73,
+      "after_count": 6
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587885.7056499,
+      "ego_xy": [
+        70.08208091394442,
+        -362.5328515396702
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587885.8727708,
+      "ego_xy": [
+        70.06023481333722,
+        -363.46212249755513
+      ],
+      "before_count": 474,
+      "after_count": 6
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587885.8727708,
+      "ego_xy": [
+        70.06023481333722,
+        -363.46212249755513
+      ],
+      "before_count": 3869,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587885.8727708,
+      "ego_xy": [
+        70.06023481333722,
+        -363.46212249755513
+      ],
+      "before_count": 3869,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587885.8727708,
+      "ego_xy": [
+        70.06023481333722,
+        -363.46212249755513
+      ],
+      "before_count": 813,
+      "after_count": 1
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587885.8727708,
+      "ego_xy": [
+        70.06023481333722,
+        -363.46212249755513
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587886.0023928,
+      "ego_xy": [
+        70.03851569256953,
+        -364.3859922699337
+      ],
+      "before_count": 690,
+      "after_count": 9
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587886.0023928,
+      "ego_xy": [
+        70.03851569256953,
+        -364.3859922699337
+      ],
+      "before_count": 2714,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587886.0023928,
+      "ego_xy": [
+        70.03851569256953,
+        -364.3859922699337
+      ],
+      "before_count": 2714,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587886.0221488,
+      "ego_xy": [
+        70.0347502227331,
+        -364.5461646927084
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587886.0023928,
+      "ego_xy": [
+        70.03851569256953,
+        -364.3859922699337
+      ],
+      "before_count": 693,
+      "after_count": 3
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587886.0023928,
+      "ego_xy": [
+        70.03851569256953,
+        -364.3859922699337
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_lidar_road_and_lane_points",
+      "stamp": 1792587886.1284459,
+      "ego_xy": [
+        70.02104103310192,
+        -365.1293148296645
+      ],
+      "before_count": 409,
+      "after_count": 10
+    },
+    {
+      "source": "route_ground_filtered_points_lane_mask",
+      "stamp": 1792587886.1284459,
+      "ego_xy": [
+        70.02104103310192,
+        -365.1293148296645
+      ],
+      "before_count": 2289,
+      "after_count": 0
+    },
+    {
+      "source": "route_final_boundary_filtered_points",
+      "stamp": 1792587886.1284459,
+      "ego_xy": [
+        70.02104103310192,
+        -365.1293148296645
+      ],
+      "before_count": 2289,
+      "after_count": 0
+    },
+    {
+      "source": "main_recorded_used_points",
+      "stamp": 1792587886.1284459,
+      "ego_xy": [
+        70.02104103310192,
+        -365.1293148296645
+      ],
+      "before_count": 418,
+      "after_count": 3
+    },
+    {
+      "source": "main_logged_obstacle_centers",
+      "stamp": 1792587886.1284459,
+      "ego_xy": [
+        70.02104103310192,
+        -365.1293148296645
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587872.7537866,
+      "ego_xy": [
+        75.3671500788047,
+        -217.94805711873298
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587872.861557,
+      "ego_xy": [
+        75.21698540225776,
+        -219.62403839950693
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587872.965005,
+      "ego_xy": [
+        75.17791906832738,
+        -221.28577501158335
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.077976,
+      "ego_xy": [
+        75.1301967747524,
+        -223.31570473828876
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.202957,
+      "ego_xy": [
+        74.98848097653368,
+        -225.25151007003436
+      ],
+      "before_count": 2,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.3022902,
+      "ego_xy": [
+        74.89736628405437,
+        -226.67374555572508
+      ],
+      "before_count": 3,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.440507,
+      "ego_xy": [
+        74.71589602019944,
+        -228.35322166178133
+      ],
+      "before_count": 3,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.5738974,
+      "ego_xy": [
+        74.52958005236181,
+        -229.98575829996557
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.6870558,
+      "ego_xy": [
+        74.34651431328346,
+        -231.48004039075286
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.8038907,
+      "ego_xy": [
+        74.16829167912854,
+        -232.7683133516542
+      ],
+      "before_count": 3,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587873.9374619,
+      "ego_xy": [
+        74.12399078307705,
+        -234.25197382294337
+      ],
+      "before_count": 3,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.065014,
+      "ego_xy": [
+        73.94185285620335,
+        -235.54539804364418
+      ],
+      "before_count": 3,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.1819022,
+      "ego_xy": [
+        73.7810465877588,
+        -236.65496160940944
+      ],
+      "before_count": 2,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.312078,
+      "ego_xy": [
+        73.60232674626856,
+        -237.96437855027716
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.4371638,
+      "ego_xy": [
+        73.41671988330084,
+        -239.5667410409252
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.5575533,
+      "ego_xy": [
+        73.23272537211368,
+        -241.10051872960116
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.6702657,
+      "ego_xy": [
+        73.05592351897315,
+        -242.32834666719847
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.7886107,
+      "ego_xy": [
+        73.0218560986968,
+        -243.6288769700608
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587874.9090595,
+      "ego_xy": [
+        72.74570174536125,
+        -245.23885695340275
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.0718374,
+      "ego_xy": [
+        72.6532764394692,
+        -246.76507459879002
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.1989264,
+      "ego_xy": [
+        72.36504155849788,
+        -248.50528823715342
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.3107457,
+      "ego_xy": [
+        72.29065312639015,
+        -249.53511282991258
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.4157667,
+      "ego_xy": [
+        72.12097454610337,
+        -250.63423591272235
+      ],
+      "before_count": 2,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.534083,
+      "ego_xy": [
+        71.94269785031722,
+        -251.92478740420685
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.6499615,
+      "ego_xy": [
+        71.82719497899973,
+        -253.19067979340628
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.7586432,
+      "ego_xy": [
+        71.73994363227655,
+        -254.25651332493283
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.8651881,
+      "ego_xy": [
+        71.56880819791154,
+        -255.24330052173707
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587875.9783654,
+      "ego_xy": [
+        71.5469946749926,
+        -256.1711602502723
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.0965717,
+      "ego_xy": [
+        71.43342727393009,
+        -257.00148436159526
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.2019396,
+      "ego_xy": [
+        71.36425901694909,
+        -257.65137252839435
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.3235927,
+      "ego_xy": [
+        71.33856487598074,
+        -258.574131238378
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.4372294,
+      "ego_xy": [
+        71.17642144265385,
+        -259.34859791081806
+      ],
+      "before_count": 3,
+      "after_count": 3
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.6298735,
+      "ego_xy": [
+        71.15104042011434,
+        -260.42820407565074
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.745672,
+      "ego_xy": [
+        71.02953902735041,
+        -261.5563224167588
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.8475494,
+      "ego_xy": [
+        70.95287680670069,
+        -262.56465486403346
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587876.9754217,
+      "ego_xy": [
+        70.92224543837257,
+        -263.74606765110974
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587877.10249,
+      "ego_xy": [
+        70.74501137526119,
+        -265.1137794342246
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587877.219792,
+      "ego_xy": [
+        70.72041082991035,
+        -266.1601869167676
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587877.3408003,
+      "ego_xy": [
+        70.5372911591424,
+        -267.65672454866314
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587877.481113,
+      "ego_xy": [
+        70.50375465200345,
+        -268.9251177655288
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587877.6132674,
+      "ego_xy": [
+        70.32069407749982,
+        -270.57725295510835
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587877.773726,
+      "ego_xy": [
+        70.2826072732912,
+        -271.89719855023844
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587877.888964,
+      "ego_xy": [
+        70.11178806249997,
+        -273.1706321610624
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.0155797,
+      "ego_xy": [
+        70.07690766806866,
+        -274.65430197608936
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.138988,
+      "ego_xy": [
+        70.04646826765182,
+        -275.94907038067475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.2444959,
+      "ego_xy": [
+        70.01181928156743,
+        -277.4228978708208
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.3711567,
+      "ego_xy": [
+        69.97694834772368,
+        -278.90616657664617
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.487881,
+      "ego_xy": [
+        69.94636557028778,
+        -280.20703480187717
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.5925274,
+      "ego_xy": [
+        69.99448333274665,
+        -281.8706559896376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.7146144,
+      "ego_xy": [
+        70.02481024796322,
+        -283.16296224736107
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.8281636,
+      "ego_xy": [
+        69.99011311600444,
+        -284.63884097696894
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587878.95067,
+      "ego_xy": [
+        70.04777562487482,
+        -286.34154163540995
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.0595453,
+      "ego_xy": [
+        70.0683320943005,
+        -287.60437703042373
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.1660585,
+      "ego_xy": [
+        70.0293314453429,
+        -289.2633131500285
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.2662582,
+      "ego_xy": [
+        70.14229821067215,
+        -290.750819882578
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.4422197,
+      "ego_xy": [
+        70.08083200298306,
+        -293.3653575296056
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.625646,
+      "ego_xy": [
+        70.02077013402223,
+        -295.92016133606376
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.7260077,
+      "ego_xy": [
+        70.13012203243456,
+        -297.56143904622184
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.846008,
+      "ego_xy": [
+        70.08862596320472,
+        -299.32652696236073
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587879.9760835,
+      "ego_xy": [
+        70.04671657051287,
+        -301.1091967315634
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.144884,
+      "ego_xy": [
+        69.98895596460864,
+        -303.56611935146475
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.253862,
+      "ego_xy": [
+        70.10769545500224,
+        -304.80809266762344
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.3640137,
+      "ego_xy": [
+        70.0729502306103,
+        -306.2860281067789
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.4725227,
+      "ego_xy": [
+        70.03381381567424,
+        -307.95074936701
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.579252,
+      "ego_xy": [
+        70.07296004696336,
+        -309.9594414307301
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.7419014,
+      "ego_xy": [
+        70.09468925926107,
+        -311.65405833841794
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.8597903,
+      "ego_xy": [
+        70.04460279050164,
+        -313.7845593176075
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587880.9619474,
+      "ego_xy": [
+        70.16008152957384,
+        -315.1652456350753
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.091174,
+      "ego_xy": [
+        70.11418548144948,
+        -317.11750381212926
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.2217736,
+      "ego_xy": [
+        70.07307623898751,
+        -318.86614850083595
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.357887,
+      "ego_xy": [
+        70.17304985766445,
+        -320.9063762012536
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.479535,
+      "ego_xy": [
+        70.13375294913625,
+        -322.5779330881214
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.5909128,
+      "ego_xy": [
+        70.08669385818038,
+        -324.57966760438467
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.7223015,
+      "ego_xy": [
+        70.12985696401176,
+        -326.5626210594781
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.8200173,
+      "ego_xy": [
+        70.16010540766588,
+        -327.7497656344728
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587881.9430678,
+      "ego_xy": [
+        70.11390606048454,
+        -329.71493313305535
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587882.0732727,
+      "ego_xy": [
+        70.07546500751484,
+        -331.45046163005486
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587882.199566,
+      "ego_xy": [
+        70.18156184064125,
+        -333.1298726481728
+      ],
+      "before_count": 0,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587882.4189994,
+      "ego_xy": [
+        70.13838483198725,
+        -334.96648321597644
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587882.5705853,
+      "ego_xy": [
+        70.10350491065677,
+        -336.4501629944004
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587882.6999612,
+      "ego_xy": [
+        70.17144070589866,
+        -338.11438161951367
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587882.802159,
+      "ego_xy": [
+        70.18854693958195,
+        -339.12555850220645
+      ],
+      "before_count": 3,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587882.9128327,
+      "ego_xy": [
+        70.16421161024772,
+        -340.16070682050844
+      ],
+      "before_count": 4,
+      "after_count": 3
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.0144353,
+      "ego_xy": [
+        70.13309304978374,
+        -341.48439281575185
+      ],
+      "before_count": 4,
+      "after_count": 3
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.1462722,
+      "ego_xy": [
+        70.10161675302923,
+        -342.8232961137409
+      ],
+      "before_count": 4,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.2507696,
+      "ego_xy": [
+        70.07980454608536,
+        -343.7511194651355
+      ],
+      "before_count": 3,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.3487773,
+      "ego_xy": [
+        70.06111794717015,
+        -344.54598931663077
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.4863582,
+      "ego_xy": [
+        70.0341156417361,
+        -345.6945837159906
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.5766854,
+      "ego_xy": [
+        70.01679863957642,
+        -346.431195472969
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.7320051,
+      "ego_xy": [
+        69.99071605312123,
+        -347.5406683181481
+      ],
+      "before_count": 3,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.8376462,
+      "ego_xy": [
+        69.96668741922682,
+        -348.56277257701186
+      ],
+      "before_count": 3,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587883.9437265,
+      "ego_xy": [
+        69.94448458868581,
+        -349.5072129588084
+      ],
+      "before_count": 3,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.0617845,
+      "ego_xy": [
+        69.92542273417223,
+        -350.31804598398986
+      ],
+      "before_count": 3,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.1939435,
+      "ego_xy": [
+        70.04847919774022,
+        -351.37644170581274
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.3023195,
+      "ego_xy": [
+        70.02629124327316,
+        -352.32025056370657
+      ],
+      "before_count": 1,
+      "after_count": 0
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.4025998,
+      "ego_xy": [
+        70.0086938032599,
+        -353.0687928696293
+      ],
+      "before_count": 2,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.5261116,
+      "ego_xy": [
+        69.98646213288136,
+        -354.01446159307415
+      ],
+      "before_count": 2,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.6688392,
+      "ego_xy": [
+        70.1125322323996,
+        -354.944670575481
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.7731771,
+      "ego_xy": [
+        70.09080454969767,
+        -355.8689022276772
+      ],
+      "before_count": 1,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587884.928457,
+      "ego_xy": [
+        70.06470310257286,
+        -356.97918117278994
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587885.0819302,
+      "ego_xy": [
+        70.03413970318545,
+        -358.27925879534376
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587885.1807766,
+      "ego_xy": [
+        70.01682543154628,
+        -359.0157574325497
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587885.3008685,
+      "ego_xy": [
+        69.99298943485125,
+        -360.0296714257463
+      ],
+      "before_count": 2,
+      "after_count": 2
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587885.4377732,
+      "ego_xy": [
+        69.97765923253077,
+        -360.6817737561721
+      ],
+      "before_count": 3,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587885.549727,
+      "ego_xy": [
+        69.9589630033596,
+        -361.60838519594483
+      ],
+      "before_count": 3,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587885.7056499,
+      "ego_xy": [
+        70.08208091394442,
+        -362.5328515396702
+      ],
+      "before_count": 3,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587885.8727708,
+      "ego_xy": [
+        70.06023481333722,
+        -363.46212249755513
+      ],
+      "before_count": 3,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587886.0023928,
+      "ego_xy": [
+        70.03851569256953,
+        -364.3859922699337
+      ],
+      "before_count": 3,
+      "after_count": 1
+    },
+    {
+      "source": "local_logged_obstacle_centers",
+      "stamp": 1792587886.1284459,
+      "ego_xy": [
+        70.02104103310192,
+        -365.1293148296645
+      ],
+      "before_count": 3,
+      "after_count": 1
+    }
+  ]
+}
