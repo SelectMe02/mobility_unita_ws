@@ -99,6 +99,27 @@
     <param name="sector11_min_speed_kmh" value="$(arg sector11_min_speed_kmh)"/>
     <param name="highway_sectors" value="$(arg highway_sectors)" type="str"/>
     <param name="highway_preferred_lane" value="3"/>
+    <!-- CP8->CP9 only: protect the S9 entry against a vehicle arriving from
+         the left circulating lane. The conflict point is a surveyed mouse
+         coordinate; the radius covers its stated positional uncertainty. -->
+    <rosparam param="roundabout_conflict_point">[-98.40, 323.39]</rosparam>
+    <rosparam param="roundabout_approach_points">
+      [[-114.11, 330.54], [-112.18, 328.95], [-110.15, 327.50],
+       [-107.86, 326.48], [-105.44, 325.87], [-102.97, 325.54],
+       [-100.47, 325.64], [-98.02, 326.11], [-95.64, 326.88],
+       [-93.40, 327.97]]
+    </rosparam>
+    <param name="roundabout_sector" value="9"/>
+    <param name="roundabout_conflict_radius_m" value="3.5"/>
+    <param name="roundabout_monitor_distance_m" value="30.0"/>
+    <param name="roundabout_approach_width_m" value="4.5"/>
+    <param name="roundabout_unknown_speed_kmh" value="20.0"/>
+    <param name="roundabout_time_gap_s" value="2.5"/>
+    <param name="roundabout_clear_scans" value="3"/>
+    <!-- After yielding: a following car arriving after a still-rolling Ego needs only this lead. -->
+    <param name="roundabout_ego_lead_gap_s" value="1.4"/>
+    <param name="roundabout_ego_lead_min_speed_kmh" value="5.0"/>
+    <param name="roundabout_obstacle_monitor_radius_m" value="35.0"/>
     <!-- S11 cruise and ordinary following: smooth brake; imminent hazards bypass. -->
     <param name="sector11_smooth_braking" value="true"/>
     <param name="sector11_brake_gain" value="0.02"/>
@@ -128,6 +149,17 @@
     <param name="lidar_to_rear_z_m" value="1.23"/>
     <param name="rear_range_m" value="55.0"/>
     <param name="rear_extent_m" value="0.790"/>
+    <!-- Keep the left circulating lane only near the CP8->CP9 merge. -->
+    <rosparam param="roundabout_conflict_point">[-98.40, 323.39]</rosparam>
+    <rosparam param="roundabout_approach_points">
+      [[-114.11, 330.54], [-112.18, 328.95], [-110.15, 327.50],
+       [-107.86, 326.48], [-105.44, 325.87], [-102.97, 325.54],
+       [-100.47, 325.64], [-98.02, 326.11], [-95.64, 326.88],
+       [-93.40, 327.97]]
+    </rosparam>
+    <param name="roundabout_approach_width_m" value="4.5"/>
+    <param name="roundabout_lidar_monitor_radius_m" value="35.0"/>
+    <param name="roundabout_side_range_m" value="20.0"/>
   </node>
 
   <!-- ===== start-CP7, CP11-start, tunnel: Leo follower ===== -->
@@ -206,6 +238,9 @@
     <param name="lane_change_file" value="$(find leo_avoidance)/config/route_lane_changes.json"/>
     <param name="intersection_file" value="$(arg intersection_file)"/>
     <param name="waypoint_only_point_ids" value="$(arg waypoint_only_point_ids)" type="str"/>
+    <!-- CP4->CP5 (sector 5) to the end of its raceline 2: keep a crossing-pedestrian
+         stop until the person is seen clear, full brake when needed. 0 disables. -->
+    <param name="pedestrian_hold_sector" value="5"/>
   </node>
   <!-- Tunnel: IMU-heading dead reckoning, LiDAR odometry and FTG avoidance. -->
   <node pkg="leo_avoidance" type="ego_odometry_node.py" name="leo_ego_odometry" output="screen" required="true">

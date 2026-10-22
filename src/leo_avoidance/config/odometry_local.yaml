@@ -29,7 +29,24 @@ route_max_error_m: 7.0
 exit_anchor: {x: -78.35, y: -545.63, yaw: -2.76369}
 exit_rejoin_start_m: 35.0
 exit_rejoin_full_m: 25.0
-max_blackout_distance_m: 160.0  # TODO: validate ICP drift over the 122 m tunnel in MORAI
+# S14 exit only: use the independently measured right wall to remove lateral
+# dead-reckoning drift without changing progress, IMU yaw or obstacle planning.
+exit_wall_pose_max_offset_m: 1.5
+exit_wall_pose_max_step_m: 0.75
+exit_wall_pose_extension_m: 25.0
+# Ego-speed distance over the ~122 m tunnel reached 148 m under simulator load.
+max_blackout_distance_m: 200.0
+# Past blackout_end_anchor, continue only while the measured right tunnel wall
+# shows Ego inside (plus a short portal allowance; the road curves after it).
+# GPS returned within 9.9 m after the measured wall end in six logged runs.
+exit_portal_overrun_m: 14.0
+exit_tunnel_overrun_max_m: 50.0
+tunnel_wall_alongside_x_m: 2.0
+tunnel_portal_detect_x_m: 12.0
+tunnel_portal_confirm_scans: 3
+# Right-wall end vs exit_anchor along the route: -4.2 +/- 0.3 m in six runs
+# (analysis/2026-10-22_tunnel_exit_portal).
+tunnel_portal_route_offset_m: -4.2
 max_unmatched_distance_m: 3.0
 max_rejoin_error_m: 2.0
 max_rejoin_yaw_rad: 0.25

@@ -1,0 +1,10 @@
+{
+  "label": "2026-10-22 고속도로 차선 변경 옆 차량 대응(미확정 차량 대기 + 변경 중 목표 차로 선행차 재확인) 수정 이전",
+  "base_commit": "8ee47dd78356f43ccaa4fe9a4d66728407a3ece3",
+  "files_to_restore_from_snapshot": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/test/test_highway_planner.py"
+  ],
+  "how": "각 파일을 이 디렉터리의 같은 상대 경로 사본으로 덮어쓴다. 사본의 local_avoidance_core.py에는 이전 회전교차로 수정(roundabout ego-first gap)이 포함되어 있으므로 그 수정은 유지된다. analysis/2026-10-22_highway_side_vehicle/ 는 분석 스크립트.",
+  "rollback_request": "고속도로 차선 변경 옆 차량 대응 수정하기 전으로 돌려줘"
+}

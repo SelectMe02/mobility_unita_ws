@@ -11,6 +11,24 @@ def distance(a, b):
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
+def project_polyline(point, points):
+    """Nearest (distance, progress, tangent) on an open polyline."""
+    best = None
+    progress = 0.
+    for a, b in zip(points, points[1:]):
+        dx, dy = b[0]-a[0], b[1]-a[1]
+        length = math.hypot(dx, dy)
+        if length <= 1e-9:
+            continue
+        t = max(0., min(1., ((point[0]-a[0])*dx+(point[1]-a[1])*dy)/length**2))
+        projected = (a[0]+t*dx, a[1]+t*dy)
+        item = (distance(point, projected), progress+t*length, (dx/length, dy/length))
+        if best is None or item[0] < best[0]:
+            best = item
+        progress += length
+    return best
+
+
 def smoothstep(t):
     t = max(0., min(1., t))
     return t * t * (3. - 2. * t)
@@ -115,7 +133,19 @@ class LocalAvoidancePlanner:
                  mobil_politeness=.2, mobil_threshold_mps2=.2, mobil_safe_decel_mps2=4.,
                  highway_preferred_lane=3, highway_lane_bias_mps2=.6,
                  highway_obstacle_horizon_m=55., highway_change_hold_m=30.,
-                 min_turn_radius_m=5.4):
+                 highway_unconfirmed_width_m=(1.2, 3.),
+                 highway_merge_zone_m=250., highway_merge_yield_kmh=10.,
+                 highway_merge_yield_decel_mps2=2.,
+                 min_turn_radius_m=5.4, roundabout_conflict_point=None,
+                 roundabout_approach_points=(), roundabout_sector=9,
+                 roundabout_conflict_radius_m=3.5,
+                 roundabout_monitor_distance_m=30.,
+                 roundabout_approach_width_m=4.5,
+                 roundabout_unknown_speed_kmh=20.,
+                 roundabout_time_gap_s=2.5,
+                 roundabout_clear_scans=3,
+                 roundabout_ego_lead_gap_s=1.4,
+                 roundabout_ego_lead_min_speed_kmh=5.):
         self.route = list(route)
         self.sectors = list(sectors)
         # Raceline each route point was taken from (S11 may be driven on R3).
@@ -209,6 +239,21 @@ class LocalAvoidancePlanner:
         self.highway_lane_bias_mps2 = highway_lane_bias_mps2
         self.highway_obstacle_horizon_m = highway_obstacle_horizon_m
         self.highway_change_hold_m = highway_change_hold_m
+        # Across-lane width of an unconfirmed track that looks like a car.
+        # Narrower returns and 10 m ground patches stay out of lane choice.
+        self.highway_unconfirmed_width_m = tuple(float(v) for v in highway_unconfirmed_width_m)
+        if not 0. < self.highway_unconfirmed_width_m[0] < self.highway_unconfirmed_width_m[1]:
+            raise ValueError('invalid highway unconfirmed vehicle width range')
+        # Mandatory merge before a lane drop (S11 end): within this distance of
+        # the end of an ending lane, only move toward the continuing lane and
+        # fall in behind its traffic instead of waiting until the lane end.
+        self.highway_merge_zone_m = float(highway_merge_zone_m)
+        self.highway_merge_yield_mps = float(highway_merge_yield_kmh)/3.6
+        self.highway_merge_yield_decel_mps2 = float(highway_merge_yield_decel_mps2)
+        if min(self.highway_merge_zone_m, self.highway_merge_yield_mps,
+               self.highway_merge_yield_decel_mps2) <= 0.:
+            raise ValueError('invalid highway merge zone settings')
+        self.merge_zone_active = False
         self.highway_change_end = None
         self.highway_active = False
         self.highway_emergency = False
@@ -216,6 +261,43 @@ class LocalAvoidancePlanner:
         # Tightest path the car can steer (wheelbase / tan(max steering)):
         # the shortest, slow merge out of a lane that is about to end.
         self.min_turn_radius_m = min_turn_radius_m
+        self.roundabout_conflict_point = (None if roundabout_conflict_point is None else
+                                          tuple(map(float, roundabout_conflict_point)))
+        self.roundabout_approach_points = [tuple(map(float, p))
+                                           for p in roundabout_approach_points]
+        self.roundabout_sector = int(roundabout_sector)
+        self.roundabout_conflict_radius_m = float(roundabout_conflict_radius_m)
+        self.roundabout_monitor_distance_m = float(roundabout_monitor_distance_m)
+        self.roundabout_approach_width_m = float(roundabout_approach_width_m)
+        self.roundabout_unknown_speed_mps = float(roundabout_unknown_speed_kmh)/3.6
+        self.roundabout_time_gap_s = float(roundabout_time_gap_s)
+        self.roundabout_clear_scans = int(roundabout_clear_scans)
+        self.roundabout_ego_lead_gap_s = float(roundabout_ego_lead_gap_s)
+        self.roundabout_ego_lead_min_speed_mps = float(roundabout_ego_lead_min_speed_kmh)/3.6
+        self.roundabout_clear_votes = 0
+        self.roundabout_last_clear_stamp = None
+        self.roundabout_state = 'OUTSIDE'
+        self.roundabout_threat_id = None
+        self.roundabout_ego_eta_s = None
+        self.roundabout_actor_eta_s = None
+        self.roundabout_yield_seen = False
+        self.roundabout_gap_accepted = False
+        self.roundabout_conflict_arc = None
+        self.roundabout_actor_conflict_progress = None
+        if self.roundabout_conflict_point is not None:
+            if len(self.roundabout_conflict_point) != 2:
+                raise ValueError('roundabout conflict point must be XY')
+            conflict_index = min(range(len(self.route)),
+                                 key=lambda i: distance(self.route[i], self.roundabout_conflict_point))
+            tangent = self._tangent(conflict_index)
+            base = self.route[conflict_index]
+            self.roundabout_conflict_arc = (self.arc[conflict_index]
+                +(self.roundabout_conflict_point[0]-base[0])*tangent[0]
+                +(self.roundabout_conflict_point[1]-base[1])*tangent[1])
+        if self.roundabout_approach_points:
+            projected = project_polyline(self.roundabout_conflict_point,
+                                         self.roundabout_approach_points)
+            self.roundabout_actor_conflict_progress = projected[1] if projected else None
         if min(idm_time_gap_s, idm_min_gap_m, idm_accel_mps2, idm_comfort_decel_mps2,
                idm_command_horizon_s, mobil_threshold_mps2, mobil_safe_decel_mps2,
                highway_obstacle_horizon_m, min_turn_radius_m) <= 0 or min(
@@ -227,6 +309,18 @@ class LocalAvoidancePlanner:
                slow_lead_margin_mps,
                clear_hold_s, avoidance_brake_limit, restart_accel_rate) <= 0 or avoidance_brake_limit > 1. or self.preferred_lane not in (1, 2, 3):
             raise ValueError('invalid avoidance geometry')
+        if self.roundabout_conflict_point is not None and (
+                len(self.roundabout_approach_points) < 2
+                or min(self.roundabout_conflict_radius_m,
+                       self.roundabout_monitor_distance_m,
+                       self.roundabout_approach_width_m,
+                       self.roundabout_unknown_speed_mps,
+                       self.roundabout_time_gap_s,
+                       self.roundabout_ego_lead_gap_s) <= 0
+                or self.roundabout_ego_lead_gap_s > self.roundabout_time_gap_s
+                or self.roundabout_ego_lead_min_speed_mps < 0
+                or self.roundabout_clear_scans < 1):
+            raise ValueError('invalid roundabout conflict geometry')
 
     def _forward(self, index, distance_m):
         result = [(index, self.route[index], 0.)]
@@ -499,6 +593,143 @@ class LocalAvoidancePlanner:
                          2.*self.decel*available)-self.decel*self.reaction_s
         return max(0., (lead_speed+safe)*3.6)
 
+    def _roundabout_guard(self, index, progress, ego_speed_mps, desired_speed_mps,
+                          current_path, obstacles, edge_cap, observation_stamp):
+        """Yield at the S9 merge for traffic approaching on the circulating lane.
+
+        This is deliberately map- and sector-scoped. Ordinary adjacent traffic
+        elsewhere continues through the existing path-overlap logic.
+        """
+        if (self.roundabout_conflict_arc is None
+                or self.sectors[index] != self.roundabout_sector):
+            self.roundabout_state = 'OUTSIDE'
+            self.roundabout_clear_votes = 0
+            self.roundabout_last_clear_stamp = None
+            self.roundabout_threat_id = None
+            self.roundabout_ego_eta_s = self.roundabout_actor_eta_s = None
+            self.roundabout_yield_seen = False
+            self.roundabout_gap_accepted = False
+            return None
+        conflict_progress = self.roundabout_conflict_arc+self.lap_offset
+        to_conflict = conflict_progress-progress
+        if to_conflict < -self.total_length/2.:
+            to_conflict += self.total_length
+        elif to_conflict > self.total_length/2.:
+            to_conflict -= self.total_length
+        if to_conflict > self.roundabout_monitor_distance_m:
+            self.roundabout_state = 'OUTSIDE'
+            self.roundabout_clear_votes = 0
+            self.roundabout_last_clear_stamp = None
+            self.roundabout_yield_seen = False
+            self.roundabout_gap_accepted = False
+            return None
+        # The front of Ego has crossed the near edge of the merge area. Avoid
+        # an abrupt stop beside a circulating car; normal path collision
+        # protection remains active from this point onward.
+        if to_conflict <= self.front_extent+self.roundabout_conflict_radius_m:
+            self.roundabout_state = 'COMMITTED'
+            self.roundabout_clear_votes = self.roundabout_clear_scans
+            self.roundabout_threat_id = None
+            self.roundabout_ego_eta_s = self.roundabout_actor_eta_s = None
+            return None
+
+        # Once Ego has actually yielded to a circulating car, stopped, and
+        # observed a clear gap for the requested scans, preserve that accepted
+        # gap until the front enters the merge. Otherwise a following car first
+        # appearing during pedal-release delay can cancel every departure.
+        if self.roundabout_gap_accepted:
+            self.roundabout_state = 'ENTRY_CLEAR'
+            self.roundabout_threat_id = None
+            self.roundabout_ego_eta_s = self.roundabout_actor_eta_s = None
+            return self._decision('ROUNDABOUT_ENTRY', current_path, edge_cap,
+                                  reason='roundabout_gap_accepted')
+
+        self.roundabout_state = 'APPROACH'
+        travel_speed = max(1., ego_speed_mps,
+                           0. if desired_speed_mps is None else desired_speed_mps)
+        ego_eta = max(0., to_conflict-self.front_extent)/travel_speed
+        # After the yielded car has cleared the merge (confirmed clear scans)
+        # and Ego is still rolling, a following car that arrives clearly after
+        # Ego only needs the shorter ego-first margin. Arrivals before or with
+        # Ego, the first approach, and a stopped Ego keep the symmetric gap.
+        ego_lead_gap = (self.roundabout_ego_lead_gap_s
+                        if (self.roundabout_yield_seen
+                            and self.roundabout_clear_votes >= self.roundabout_clear_scans
+                            and ego_speed_mps >= self.roundabout_ego_lead_min_speed_mps)
+                        else self.roundabout_time_gap_s)
+        threat = None
+        threat_eta = None
+        for obstacle in obstacles:
+            if obstacle.road_surface:
+                continue
+            projection = project_polyline((obstacle.x, obstacle.y),
+                                          self.roundabout_approach_points)
+            if projection is None:
+                continue
+            lateral, actor_progress, tangent = projection
+            if lateral > self.roundabout_approach_width_m*.5+obstacle.radius:
+                continue
+            remaining = self.roundabout_actor_conflict_progress-actor_progress
+            if remaining < -self.roundabout_conflict_radius_m-obstacle.radius:
+                continue                 # already clear of the merge
+            if obstacle.velocity_reliable:
+                actor_speed = obstacle.vx*tangent[0]+obstacle.vy*tangent[1]
+                if actor_speed <= .5:
+                    # A stable object before the merge is not circulating
+                    # traffic. A vehicle already in the merge still blocks it.
+                    if remaining > self.roundabout_conflict_radius_m+obstacle.radius:
+                        continue
+                    actor_eta = 0.
+                else:
+                    actor_eta = max(0., remaining-self.roundabout_conflict_radius_m
+                                    -obstacle.radius)/actor_speed
+            else:
+                # A new left-side track gets the scenario's circulating speed
+                # until the detector has enough history for a reliable vector.
+                actor_eta = max(0., remaining-self.roundabout_conflict_radius_m
+                                -obstacle.radius)/self.roundabout_unknown_speed_mps
+            if actor_eta > ego_eta:
+                if actor_eta-ego_eta > ego_lead_gap:
+                    continue
+            elif ego_eta-actor_eta > self.roundabout_time_gap_s:
+                continue
+            if threat is None or actor_eta < threat_eta:
+                threat, threat_eta = obstacle, actor_eta
+
+        self.roundabout_ego_eta_s = ego_eta
+        self.roundabout_actor_eta_s = threat_eta
+        if threat is not None:
+            self.roundabout_state = 'YIELD'
+            self.roundabout_yield_seen = True
+            self.roundabout_clear_votes = 0
+            self.roundabout_last_clear_stamp = observation_stamp
+            self.roundabout_threat_id = threat.track_id
+            clearance = max(0., to_conflict-self.roundabout_conflict_radius_m)
+            cap = min(edge_cap, self._stop_cap(clearance))
+            return self._decision('ROUNDABOUT_YIELD', current_path, cap,
+                                  (clearance, threat, 0.), 'roundabout_conflict')
+
+        self.roundabout_threat_id = None
+        distinct_scan = (observation_stamp is None
+                         or observation_stamp != self.roundabout_last_clear_stamp)
+        if distinct_scan:
+            self.roundabout_clear_votes = min(self.roundabout_clear_scans,
+                                               self.roundabout_clear_votes+1)
+            self.roundabout_last_clear_stamp = observation_stamp
+        if self.roundabout_clear_votes >= self.roundabout_clear_scans:
+            self.roundabout_state = 'ENTRY_CLEAR'
+            if self.roundabout_yield_seen and ego_speed_mps <= .5:
+                self.roundabout_gap_accepted = True
+                return self._decision('ROUNDABOUT_ENTRY', current_path, edge_cap,
+                                      reason='roundabout_gap_accepted')
+            return None
+        # This only has an effect if the car reaches the entry before the
+        # requested consecutive clear scans have arrived.
+        clearance = max(0., to_conflict-self.roundabout_conflict_radius_m)
+        cap = min(edge_cap, self._stop_cap(clearance))
+        return self._decision('ROUNDABOUT_APPROACH', current_path, cap,
+                              reason='roundabout_clear_confirmation')
+
     def _decision(self, state, path, cap, threat=None, reason=''):
         return Decision(state, path, cap, threat[1].kind if threat else '',
                         threat[0] if threat else float('inf'), reason)
@@ -531,7 +762,8 @@ class LocalAvoidancePlanner:
                     edge_cap = min(edge_cap, self._stop_cap(span))
         return edge_cap
 
-    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, desired_speed_mps=None):
+    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None,
+             desired_speed_mps=None, observation_stamp=None):
         # See lane endings early enough to decelerate before merging back.
         # Long enough to plan a two-lane change and see the lane ending.
         # A lane drop must be seen early enough to merge, or else brake to a
@@ -603,6 +835,12 @@ class LocalAvoidancePlanner:
 
         current = self.current_lane
         current_path = self._path(ahead, ego_xy, current, progress)
+        roundabout = self._roundabout_guard(index, progress, speed_mps,
+                                             desired_speed_mps, current_path,
+                                             obstacles, edge_cap, observation_stamp)
+        if roundabout is not None:
+            self.obstacle_horizon_path = path_prefix(current_path, self.obstacle_horizon_m)
+            return roundabout
         threat = self._lead(current_path, ego_xy, obstacles)
         candidates = []
         if current != preferred:
@@ -949,6 +1187,44 @@ class LocalAvoidancePlanner:
             return None, -follower[0]-self.rear_extent-self.front_extent
         return None
 
+    def _merge_yield(self, current, blocker_speed):
+        """Speed that lets the car blocking a mandatory merge go first."""
+        target = max(0., blocker_speed-self.highway_merge_yield_mps)
+        return target if current is None else min(current, target)
+
+    def _unconfirmed_target_vehicle(self, ahead, ego_xy, lane, progress, obstacles):
+        """Car-sized unconfirmed track ahead in a target lane, or None.
+
+        Lane choice uses confirmed tracks only; a car that has just come
+        into view there is unknown, not an empty lane, so the change waits.
+        """
+        low, high = self.highway_unconfirmed_width_m
+        candidates = [o for o in obstacles
+                      if not o.confirmed and not o.road_surface
+                      and low <= (o.width if o.width > 0. else 2.*o.radius) <= high]
+        if not candidates:
+            return None
+        path = self._path(ahead, ego_xy, lane, progress)
+        return (self._lead(path, ego_xy, candidates, self.highway_obstacle_horizon_m, lane=lane)
+                if len(path) >= 2 else None)
+
+    def _target_leader_unsafe(self, ahead, ego_xy, lane, progress, v, tracked):
+        """The MOBIL safety test of the change, repeated during the change.
+
+        The leader in the target lane must still allow the change from the
+        current speed: new information (a revealed or slower car) aborts it
+        while that is still possible.
+        """
+        path = self._path(ahead, ego_xy, lane, progress)
+        lead = (self._lead(path, ego_xy, tracked, self.highway_obstacle_horizon_m, lane=lane)
+                if len(path) >= 2 else None)
+        if lead is None:
+            return None
+        gap = lead[0]-self.front_extent
+        if gap < self.lane_change_gap_m or v > self._highway_collision_speed(gap, lead[2])+.25:
+            return lead
+        return None
+
     def _highway_transition(self, index, ego_xy, v, v0, assumed, progress, ahead,
                             available, obstacles, edge_cap, tracked):
         """Continue, finish or abort the active change. None: it is finished
@@ -962,6 +1238,7 @@ class LocalAvoidancePlanner:
             self.highway_change_end = progress
             return None
         reason = ''
+        leader = None
         if transition['state'] != 'CANCELLING':
             danger = self._target_lane_danger(index, ego_xy, v, v0, assumed, available,
                                               lane, tracked)
@@ -972,13 +1249,21 @@ class LocalAvoidancePlanner:
             lead = self._lead(path, ego_xy, tracked, self.highway_obstacle_horizon_m)
             hazard = lead is not None and v > self._highway_collision_speed(
                 lead[0]-self.front_extent, lead[2])+.25
-            self.cancel_votes = self.cancel_votes+1 if danger is not None or hazard else 0
-            fraction = (progress-transition['start'])/max(transition['length'], 1e-6)
             source = transition['source']
-            if danger is not None or hazard:
+            leader = self._target_leader_unsafe(ahead, ego_xy, lane, progress, v, tracked)
+            # Going back needs room to return and merge again (S11: R1/R2
+            # end). Without it, slowing behind the target leader is the way.
+            source_room = (source in available and self._span(source, ahead)
+                           >= min(ahead[-1][2]-1e-6, 2.*transition['length']))
+            abort = danger is not None or hazard or (leader is not None and source_room)
+            self.cancel_votes = self.cancel_votes+1 if abort else 0
+            fraction = (progress-transition['start'])/max(transition['length'], 1e-6)
+            if abort or leader is not None:
                 if danger is not None and danger[0] is not None:
                     self.gap_blocker = danger
-                reason = 'lane_change_hazard_ahead' if hazard else 'lane_change_gap_hold'
+                reason = ('lane_change_hazard_ahead' if hazard else
+                          'lane_change_gap_hold' if danger is not None else
+                          'lane_change_target_leader')
                 back = (self.cancel_votes >= self.cancel_confirm_scans and source in available
                         and (hazard or fraction <= self.cancel_max_progress)
                         and self._gap_blocker(index, ego_xy, available, source, tracked) is None)
@@ -1001,6 +1286,9 @@ class LocalAvoidancePlanner:
         self.obstacle_horizon_path = path_prefix(path, horizon)
         lead = self._lead(path, ego_xy, obstacles, horizon)
         cap = min(edge_cap, self._idm_cap(v, v0, lead))
+        if leader is not None and lane == transition['target'] and transition['state'] != 'CANCELLING':
+            # Still heading into the target lane: keep a speed its leader allows.
+            cap = min(cap, self._idm_cap(v, v0, leader))
         if transition.get('speed_cap_kmh') is not None:
             cap = min(cap, transition['speed_cap_kmh'])
         return self._decision(transition['state'], path, cap, lead, reason)
@@ -1078,12 +1366,13 @@ class LocalAvoidancePlanner:
         threat = self._lead(current_path, ego_xy, obstacles, horizon,
                             lane=current) if len(current_path) >= 2 else None
         end = ahead[-1][2]
-        leaders, followers, spans = {}, {}, {}
+        leaders, followers, spans, vehicles = {}, {}, {}, {}
         for n in available:
             path = current_path if n == current else self._path(ahead, ego_xy, n, progress)
             lead = threat if n == current else (
                 self._lead(path, ego_xy, tracked, horizon, lane=n) if len(path) >= 2 else None)
             item = None if lead is None else (lead[0]-self.front_extent, lead[2])
+            vehicles[n] = item          # a real leader, never the lane end
             spans[n] = self._span(n, ahead)
             if spans[n] < end-1e-6 and (item is None or spans[n]-self.front_extent < item[0]):
                 item = (spans[n]-self.front_extent, 0.)
@@ -1094,7 +1383,15 @@ class LocalAvoidancePlanner:
         ending = spans[current] < end-1e-6
         held = (self.highway_change_end is not None and
                 0. <= progress-self.highway_change_end < self.highway_change_hold_m)
-        best, waiting = None, ''
+        # The continuing lane and whether an ending lane ends inside the zone.
+        cont = max(available, key=lambda n: (spans[n], -abs(n-pref)))
+        # Only a lane that exists here and ends ahead is a drop; a lane that
+        # has not started yet (S11 entry: R2/R3 begin later) is not.
+        drops = [spans[n] for n in available if spans[n] < spans[cont]-8.
+                 and self._lane_point(n, ahead[0][1], ahead[0][0]) is not None]
+        merge_zone = bool(drops) and min(drops) <= self.highway_merge_zone_m
+        self.merge_zone_active = merge_zone
+        best, waiting, yield_speed = None, '', None
         for lane in leaders:
             if abs(lane-current) != 1:
                 continue
@@ -1103,23 +1400,29 @@ class LocalAvoidancePlanner:
                        and lane+step in leaders else None)
             incentive, safe, toward = self._mobil(current, lane, v, v0, leaders, followers,
                                                   through)
-            if (toward and self.departed_preferred and not ending
+            mandatory = merge_zone and abs(lane-cont) < abs(current-cont)
+            if (not mandatory and toward and self.departed_preferred and not ending
                     and leaders[lane] is not None
                     and leaders[lane][1] < v0-self.slow_lead_margin_mps):
                 # Complete the pass before taking the preferred lane back;
                 # a compact safe gap alone is not evidence we passed the car.
                 waiting = 'overtake_not_passed'
                 continue
-            if not toward and not ending and not self._slow(threat, v0):
+            if not mandatory and not toward and not ending and not self._slow(threat, v0):
                 # IDM keeps a long gap behind a leader near the desired
                 # speed; only a clearly slower one is worth passing.
                 continue
             if not safe:
                 waiting = 'mobil_unsafe'
+                near = [item for item in (vehicles.get(lane), followers.get(lane))
+                        if item is not None and item[0] < self.highway_obstacle_horizon_m*.5]
+                if mandatory:
+                    yield_speed = self._merge_yield(yield_speed, min(
+                        (item[1] for item in near), default=v))
                 continue
-            if incentive <= self.mobil_threshold_mps2:
+            if not mandatory and incentive <= self.mobil_threshold_mps2:
                 continue
-            if held and not toward and not ending:
+            if not mandatory and held and not toward and not ending:
                 waiting = waiting or 'highway_change_hold'
                 continue
             # Even a new track must keep the immediate bumper/side gap clear.
@@ -1127,6 +1430,21 @@ class LocalAvoidancePlanner:
             if blocker is not None:
                 self.gap_blocker = blocker
                 waiting = 'lane_change_gap'
+                if mandatory:
+                    vx, vy = blocker[0].velocity()
+                    tangent = self._tangent(index)
+                    yield_speed = self._merge_yield(yield_speed, (
+                        vx*tangent[0]+vy*tangent[1] if blocker[0].velocity_reliable else v))
+                continue
+            if self._unconfirmed_target_vehicle(ahead, ego_xy, lane, progress,
+                                                obstacles) is not None:
+                waiting = 'unconfirmed_target_vehicle'
+                if mandatory:
+                    yield_speed = self._merge_yield(yield_speed, v)
+                continue
+            if merge_zone and not mandatory:
+                # Near the drop a pass gains nothing and may not get back.
+                waiting = 'merge_zone_keep'
                 continue
             change = self._highway_change(ahead, ego_xy, progress, current, lane, available,
                                           tracked, v, v0)
@@ -1166,6 +1484,11 @@ class LocalAvoidancePlanner:
         path = (current_path if len(current_path) >= 2 and
                 (current != base or distance(ego_xy, available[base]) > .35) else [])
         cap = min(edge_cap, self._idm_cap(v, v0, threat))
+        if yield_speed is not None and yield_speed < v:
+            # Gentle: never ask for more than the yield deceleration now (km/h cap).
+            cap = min(cap, 3.6*max(yield_speed, v-self.highway_merge_yield_decel_mps2
+                                   * self.idm_command_horizon_s))
+            waiting = 'merge_zone_yield'
         if threat is not None:
             return self._decision('TAILING', path, cap, threat, waiting or 'highway_idm')
         state = 'LANE_WAIT' if waiting else 'OVERTAKING' if self.departed_preferred else 'RACELINE'

@@ -1,5 +1,6 @@
 """Route checks used to recover GPS after LiDAR drift at a tunnel exit."""
 import importlib.util
+import json
 from pathlib import Path
 from collections import deque
 import threading
@@ -145,6 +146,11 @@ def exit_state():
     state.exit_rejoin_start_m = 35.
     state.exit_rejoin_full_m = 12.
     state.exit_rejoin_active = False
+    state.exit_progress_m = None
+    state.exit_pose_correction = None
+    state.exit_wall_pose_max_offset_m = 1.5
+    state.exit_wall_pose_max_step_m = .75
+    state.exit_wall_pose_extension_m = 25.
     return state
 
 
@@ -188,6 +194,61 @@ def test_started_exit_guidance_stays_active_past_the_estimated_exit():
         assert abs(heading + .05) < 1e-9
         assert weight == 0.
         assert remaining == 80. - progress
+
+
+def test_exit_guidance_does_not_follow_a_post_portal_bend_early():
+    state = exit_state()
+    # Straight to s=80, then an immediate left bend. Drifted progress must
+    # continue to use the straight surveyed portal tangent until GPS returns.
+    points = np.array([[0., 0.], [75., 0.], [80., 0.], [80., 20.]])
+    state.route = RouteProgress(points, max_error=7.)
+    state.exit_route_s = 80.
+    state.route_progress_m = 70.
+    first = state.exit_rejoin_guidance(0.)[0]
+    state.route_progress_m = 90.
+    later = state.exit_rejoin_guidance(0.)[0]
+    assert abs(first) < 1e-12
+    assert abs(later) < 1e-12
+
+
+def test_s14_exit_wall_correction_preserves_progress_yaw_and_wall_offset():
+    state = exit_state()
+    state.machine = type('Machine', (), {'had_blackout': True})()
+    state.route_progress_m = 70.
+    state.exit_rejoin_active = True
+    tangent = state.route.delta[0] / np.linalg.norm(state.route.delta[0])
+    normal = np.array((-tangent[1], tangent[0]))
+    xy = tangent * 70. + normal * 6.8
+    pose = (float(xy[0]), float(xy[1]), -.2)
+    plan = node.Plan(5., 0., 'gap fits', 20., 5.,
+                     right_wall_clearance_m=2.6,
+                     right_wall_target_clearance_m=2.9,
+                     right_wall_heading_rad=0.,
+                     avoidance_phase='WALL_FOLLOW')
+    corrected = state.correct_exit_pose_from_wall(pose, plan)
+    assert corrected[2] == pose[2]
+    assert np.linalg.norm(np.asarray(corrected[:2]) - np.asarray(pose[:2])) <= .75 + 1e-12
+    # Repeated independent wall observations converge to route center plus
+    # the measured -0.3 m offset, without changing along-route progress.
+    for _ in range(20):
+        corrected = state.correct_exit_pose_from_wall(corrected, plan)
+    along = corrected[0]*tangent[0] + corrected[1]*tangent[1]
+    lateral = tangent[0]*corrected[1] - tangent[1]*corrected[0]
+    assert abs(along - 70.) < 1e-8
+    assert abs(lateral + .3) < 1e-8
+    assert state.exit_pose_correction['method'] == 's14_exit_wall'
+
+
+def test_exit_wall_correction_never_changes_pose_with_obstacle_evidence():
+    state = exit_state();state.machine = type('Machine', (), {'had_blackout': True})()
+    state.route_progress_m = 70.;state.exit_rejoin_active = True
+    pose = (70., 6.8, -.2)
+    base = dict(right_wall_clearance_m=2.6,right_wall_target_clearance_m=2.9,
+                right_wall_heading_rad=0.,avoidance_phase='PASSING')
+    for plan in (node.Plan(5.,0.,'passing',20.,5.,front_points=1,**base),
+                 node.Plan(0.,0.,'stop',2.,0.,obstacle_stop=True,**base),
+                 node.Plan(5.,0.,'crossing',20.,5.,crossing_threats=1,**base)):
+        assert state.correct_exit_pose_from_wall(pose,plan) == pose
 
 
 def exit_tick_state():
@@ -317,3 +378,226 @@ def test_blackout_output_keeps_existing_time_convention():
     tick_at_capture(state)
     assert state.machine.mode == DrivingState.BLACKOUT
     assert state.pose_pub.publish.call_args[0][0].header.stamp.to_sec() == 10.
+
+
+def continuous_exit_state():
+    state = exit_tick_state()
+    state.machine.map_pose = (90., -17., 0.)
+    state.machine.update_raw_gps(37., 127., 9.5)
+    state.machine.update_raw_gps(37., 127., 10.)
+    state.machine.update_gps_valid(True, 10.)
+    state.route = RouteProgress([[0., 0.], [100., 0.], [200., 0.]], max_error=7.)
+    state.rejoin_route = RouteProgress(state.route.points, max_error=2.)
+    state.exit_route_s = 80.
+    state.exit_rejoin_active = True
+    state.gps_history = deque([((81. + i*.5, 2.5, 0.), 9.6+i*.1, 9.6+i*.1)
+                               for i in range(5)], maxlen=100)
+    state.machine.update_gps(state.gps_history[-1][0], 10.)
+    state.latest_speed = (5., 10.)
+    return state
+
+
+def test_continuous_exit_gps_recovers_despite_unprojectable_icp():
+    state = continuous_exit_state()
+    assert not state.route_rejoin_ok(state.machine.gps_pose[0], state.machine.map_pose, 0)
+    assert state.exit_gps_rejoin_ok(10.)
+    assert state.rejoin_diagnostic['method'] == 'continuous_exit_gps'
+    mode, pose, _ = state.machine.select(10., blackout_allowed=False, route_rejoin_ok=True)
+    assert mode == DrivingState.GPS and pose == state.gps_history[-1][0]
+
+
+def test_real_tick_publishes_continuous_rejoin_event_and_gps_pose():
+    state = continuous_exit_state()
+    state.blackout_route = RouteProgress(state.route.points, max_error=7.)
+    state.gps_stamp = 10.
+    state.blackout_end_index = 0
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.GPS
+    status = json.loads(state.status_pub.publish.call_args[0][0].data)
+    assert status['gps_rejoin_stamp'] == 10.
+    assert status['gps_rejoin_diagnostic']['method'] == 'continuous_exit_gps'
+    assert not state.exit_rejoin_active
+
+
+def test_exit_gps_recovery_rejects_unstable_or_wrong_route_samples():
+    for fault in ('blip','stale','gap','repeat','jump','far','heading','inside','unlatched','speed'):
+        state = continuous_exit_state()
+        if fault == 'blip': state.machine.gps_return_since = 9.85
+        elif fault == 'stale': state.machine.gps_pose = (state.machine.gps_pose[0], 9.)
+        elif fault == 'gap': del state.gps_history[2];del state.gps_history[1]
+        elif fault == 'repeat': state.gps_history=deque([(p,t,9.) for p,t,s in state.gps_history])
+        elif fault == 'jump': state.gps_history[2]=((90.,2.5,0.),9.8,9.8)
+        elif fault in ('far','heading','inside'):
+            state.gps_history=deque([((x if fault!='inside' else x-40.,
+                                      y if fault!='far' else 4.,
+                                      yaw if fault!='heading' else .6),t,s)
+                                     for (x,y,yaw),t,s in state.gps_history])
+        elif fault == 'unlatched': state.exit_rejoin_active=False
+        elif fault == 'speed': state.latest_speed=(0.,10.)
+        assert not state.exit_gps_rejoin_ok(10.),fault
+
+
+def tunnel_wall_state():
+    """Exit tick state whose LiDAR pose ran 21 m past the configured end."""
+    state = exit_tick_state()
+    state.blackout_end_index = 120
+    state.exit_portal_overrun_m = 8.
+    state.exit_tunnel_overrun_max_m = 50.
+    state.tunnel_wall_alongside_x_m = 2.
+    state.tunnel_portal_detect_x_m = 12.
+    state.tunnel_portal_confirm_scans = 3
+    state.tunnel_portal_route_offset_m = -4.2    # portal at s = 75.8
+    state.reset_tunnel_wall()
+    state.machine.travelled_m = 140.
+    return state
+
+
+def test_tunnel_wall_alongside_keeps_blackout_past_configured_end():
+    state = tunnel_wall_state()
+    state.update_tunnel_wall((1.5, 19.5))
+    assert state.tunnel_wall_extent_m == 159.5
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.BLACKOUT
+    assert state.tunnel_overrun_active
+    assert state.valid_pub.publish.call_args[0][0].data is True
+    status = json.loads(state.status_pub.publish.call_args[0][0].data)
+    assert status['tunnel_overrun_active'] is True
+
+
+def test_blackout_past_end_without_wall_evidence_still_holds():
+    state = tunnel_wall_state()
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.HOLD
+    assert state.machine.reason == 'GPS blackout outside configured tunnel section'
+    # A wall that does not run beside the car is not tunnel evidence.
+    state.update_tunnel_wall((6., 19.5))
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.HOLD
+
+
+def test_portal_allowance_is_short_after_the_wall_ends():
+    state = tunnel_wall_state()
+    state.exit_portal_overrun_m = 14.
+    state.update_tunnel_wall((1.5, .7))          # wall end 0.7 m ahead of LiDAR
+    state.update_tunnel_wall(None)               # portal passed, wall gone
+    state.machine.travelled_m = 140. + .7 + 13.9
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.BLACKOUT
+    state.machine.travelled_m = 140. + .7 + 14.1
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.HOLD
+    assert not state.tunnel_overrun_active
+
+
+def test_tunnel_overrun_is_bounded_beyond_configured_end():
+    state = tunnel_wall_state()
+    state.blackout_end_index = 20                # pose now 71 m past the end
+    state.update_tunnel_wall((1.5, 19.5))
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.HOLD
+
+
+def approach_portal(state, ends=(8., 7., 6.)):
+    """Drive toward a fixed wall end: travelled grows as the end closes."""
+    extent = state.machine.travelled_m + ends[0]
+    for end in ends:
+        state.machine.travelled_m = extent - end
+        state.update_tunnel_wall((1.5, end))
+    return extent
+
+
+def test_tunnel_wall_record_resets_with_gps_rejoin():
+    state = tunnel_wall_state()
+    approach_portal(state)
+    assert state.tunnel_portal_seen
+    state.machine.update_raw_gps(37., 127., 10.)
+    state.machine.update_gps_valid(True, 10.)
+    state.machine.update_gps(state.machine.map_pose, 10.)
+    tick_at_capture(state)
+    assert state.machine.mode == DrivingState.GPS
+    assert state.tunnel_wall_extent_m is None and not state.tunnel_portal_seen
+
+
+def test_portal_needs_consecutive_closing_wall_end_scans():
+    state = tunnel_wall_state()
+    state.update_tunnel_wall((1.5, 8.4))         # one short fit mid-tunnel
+    state.update_tunnel_wall((1.5, 19.5))
+    approach_portal(state, (8., 7.))
+    assert not state.tunnel_portal_seen
+    state.machine.travelled_m += 1.
+    state.update_tunnel_wall((1.5, 6.))
+    assert state.tunnel_portal_seen
+
+
+def test_portal_rejects_wall_ends_that_do_not_stay_in_place():
+    state = tunnel_wall_state()
+    # An occluding object moving with Ego: the "end" keeps the same range.
+    for _ in range(4):
+        state.machine.travelled_m += 1.
+        state.update_tunnel_wall((1.5, 8.))
+    assert not state.tunnel_portal_seen
+
+
+def test_portal_rejects_wall_end_far_from_any_plausible_progress():
+    state = tunnel_wall_state()
+    state.route_progress_m = 20.                 # 50+ m before the surveyed portal
+    approach_portal(state)
+    assert not state.tunnel_portal_seen
+
+
+def test_portal_is_cancelled_when_the_wall_continues():
+    state = tunnel_wall_state()
+    extent = approach_portal(state)
+    assert state.tunnel_portal_seen
+    state.update_tunnel_wall((1.5, 19.5))        # wall seen running on
+    assert state.machine.travelled_m + 19.5 > extent + 3.
+    assert not state.tunnel_portal_seen and state.portal_progress() is None
+
+
+def test_measured_portal_anchors_exit_progress_on_the_post_portal_curve():
+    state = tunnel_wall_state()
+    state.route_progress_m = 72.                 # drifted LiDAR estimate
+    extent = approach_portal(state)
+    assert abs(state.portal_progress() - (75.8 - 6.)) < 1e-9
+    state.machine.travelled_m = extent + 3.      # 3 m past the wall end
+    assert abs(state.portal_progress() - 78.8) < 1e-9
+    heading, weight, remaining = state.exit_rejoin_guidance(-.2)
+    assert abs(remaining - 1.2) < 1e-9
+    assert abs(heading) < 1e-6                   # straight test route
+    status_state = state
+    tick_at_capture(status_state)
+    status = json.loads(state.status_pub.publish.call_args[0][0].data)
+    assert abs(status['tunnel_portal_progress_m'] - 78.8) < 1e-9
+
+
+def test_continuous_exit_gps_skips_republished_stamps():
+    state = continuous_exit_state()
+    samples = list(state.gps_history)
+    state.gps_history = deque(maxlen=100)
+    for pose, received, stamp in samples:
+        state.gps_history.append((pose, received, stamp))
+        # Same fix republished 0.05 s later with its old stamp.
+        state.gps_history.append((pose, received + .05, stamp))
+    state.gps_history.pop()
+    assert state.exit_gps_rejoin_ok(10.)
+
+
+def test_portal_evidence_opens_exit_gps_check_when_lidar_progress_lags():
+    state = continuous_exit_state()
+    state.exit_rejoin_active = False
+    assert not state.exit_gps_rejoin_ok(10.)
+    state.tunnel_portal_seen = True
+    assert state.exit_gps_rejoin_ok(10.)
+    # GPS itself must still be at the surveyed exit.
+    state.gps_history = deque([((x - 40., y, yaw), t, s)
+                               for (x, y, yaw), t, s in state.gps_history], maxlen=100)
+    assert not state.exit_gps_rejoin_ok(10.)
+
+
+def test_continuous_exit_gps_tolerates_simulator_time_speed_ratio():
+    state = continuous_exit_state()
+    # GPS moved 2.0 m in 0.4 s (5 m/s) while simulator-time speed reads 6.5 m/s.
+    state.latest_speed = (6.5, 10.)
+    assert state.exit_gps_rejoin_ok(10.)
+    state.latest_speed = (12., 10.)
+    assert not state.exit_gps_rejoin_ok(10.)

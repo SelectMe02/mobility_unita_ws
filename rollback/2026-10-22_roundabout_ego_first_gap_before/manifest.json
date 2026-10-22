@@ -1,0 +1,12 @@
+{
+  "label": "2026-10-22 S9 회전교차로 자차 우선 진입 기준(ego lead gap) 수정 이전",
+  "base_commit": "8ee47dd78356f43ccaa4fe9a4d66728407a3ece3",
+  "files_to_restore_from_snapshot": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower.py",
+    "src/unita_launch/launch/semi.launch",
+    "src/unita_waypoint/test/test_roundabout_merge.py"
+  ],
+  "how": "각 파일을 이 디렉터리의 같은 상대 경로 사본으로 덮어쓴다 (cp rollback/2026-10-22_roundabout_ego_first_gap_before/<path> <path>)",
+  "rollback_request": "회전교차로 자차 우선 진입 기준 수정하기 전으로 돌려줘"
+}

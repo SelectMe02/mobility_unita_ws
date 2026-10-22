@@ -1,0 +1,40 @@
+# TODO: Verify LiDAR mounting, scan registration and limits in MORAI blackout.
+lidar_to_rear_x_m: 1.4
+min_z_m: -0.8
+max_z_m: 0.8
+max_range_m: 18.0
+voxel_m: 0.25
+max_pair_distance_m: 0.65
+min_pairs: 35
+max_rmse_m: 0.25
+max_correction_m: 0.5
+max_correction_rad: 0.12
+icp_forward_weight: 0.0  # tunnel wall ICP has weak forward observability; use Ego speed/heading distance
+icp_lateral_weight: 0.10
+input_timeout_s: 0.6
+# A missing /gps stream triggers blackout after this delay, following a GPS anchor.
+gps_silence_timeout_s: 0.75
+gps_return_grace_s: 1.5
+gps_pose_max_age_s: 1.0
+# GPS Denied Area with a margin for simulator sensor boundaries, as map
+# anchors {x, y, yaw}; the route index is computed from the current project.
+blackout_start_anchor: {x: 39.6500, y: -480.0630, yaw: -2.46728}
+blackout_end_anchor: {x: -100.9611, y: -550.4644, yaw: 3.10473}
+# Lateral limit for projecting the LiDAR pose onto the route during blackout.
+# Covers an avoidance pass (~3.5 m) plus LiDAR odometry drift; beyond it
+# the driving state latches HOLD.
+route_max_error_m: 7.0
+# Surveyed tunnel-exit gate (map constant). The route bearing blends toward
+# it from exit_rejoin_start_m using LiDAR route progress only.
+exit_anchor: {x: -78.35, y: -545.63, yaw: -2.76369}
+exit_rejoin_start_m: 35.0
+exit_rejoin_full_m: 25.0
+# S14 exit only: use the independently measured right wall to remove lateral
+# dead-reckoning drift without changing progress, IMU yaw or obstacle planning.
+exit_wall_pose_max_offset_m: 1.5
+exit_wall_pose_max_step_m: 0.75
+exit_wall_pose_extension_m: 25.0
+max_blackout_distance_m: 160.0  # TODO: validate ICP drift over the 122 m tunnel in MORAI
+max_unmatched_distance_m: 3.0
+max_rejoin_error_m: 2.0
+max_rejoin_yaw_rad: 0.25

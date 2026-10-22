@@ -1,0 +1,39 @@
+{
+  "source_bag": "src/unita_waypoint/log/semi_leo_2026-10-21-23-49-18.bag",
+  "baseline_commit": "8ee47dd78356f43ccaa4fe9a4d66728407a3ece3",
+  "diagnosis": "Before GPS handover, ICP progress is about 10 m ahead of GPS route progress. Exit guidance reads the post-portal right-hand bend using that progress, turning before the true position reaches that part of the route.",
+  "measured_max_right_of_saved_r1_m": 2.4106169855150634,
+  "change": "Before GPS rejoin, cap the route heading reference segment to end at the surveyed exit. Existing GPS handover then tracks the bend using GPS position.",
+  "methods_changed_in_driving_state_node": [
+    "exit_rejoin_guidance"
+  ],
+  "previous_gps_rejoin_fix_preserved": true,
+  "ftg_obstacle_filter_heading_smoothing_and_collision_logic_unchanged": true,
+  "tests": {
+    "passed": 190,
+    "new_regressions": [
+      "post-portal bend must not change pre-GPS exit heading on drifted progress",
+      "original saved-map exit remains bounded at progress errors up to 20 m",
+      "obstacle may still force a checked avoidance turn with bounded exit heading"
+    ]
+  },
+  "fixed_state_cloud_comparison": {
+    "run": "234918",
+    "compared": 165,
+    "unchanged_approach_scans": 122,
+    "changed_exit_scans": 20,
+    "match_error_p95_s": 0.01561794281005859,
+    "limitations": [
+      "Fixed-state original-cloud comparison; exact worker odometry and clock inputs were not recorded.",
+      "The changed target has not been validated in a new vehicle drive."
+    ]
+  },
+  "obstacle_stop_differences": 0,
+  "source_sha256": "fd281fdb299f51bee50d84272e1654bb1ff11899905bae133842b34ecf6e0123",
+  "limitations": [
+    "Offsets are measured from saved R1; painted white-line position is not recorded as ground truth.",
+    "GPS becomes available after the tunnel; pre-return longitudinal drift is inferred from the first returned GPS samples.",
+    "Same-input/same-prior-state LiDAR comparisons do not simulate the changed vehicle trajectory.",
+    "No live ROS control node or vehicle was started; real driving validation remains."
+  ]
+}

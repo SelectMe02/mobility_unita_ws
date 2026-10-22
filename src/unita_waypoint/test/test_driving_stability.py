@@ -159,6 +159,14 @@ class StabilityTests(unittest.TestCase):
         guard.stop(1.25)
         self.assertEqual(guard.command(1., 1.3, 10.3)[:2], (0., 1.))
 
+    def test_external_clearance_confirmation_releases_without_second_hold(self):
+        guard = PedalGuard();guard.stop(0.)
+        guard.release(.1)
+        accel, brake, state = guard.command(1., .15, 10.)
+        self.assertGreater(accel, 0.)
+        self.assertEqual(brake, 0.)
+        self.assertEqual(state, 'drive')
+
     def test_throttle_ramps_brake_is_immediate_and_clock_reset_restarts_confirmation(self):
         guard = PedalGuard()
         a = guard.command(1., 1.)[0]
@@ -181,6 +189,22 @@ class StabilityTests(unittest.TestCase):
         self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake, .35)
         n.publish_full_stop()
         self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
+
+    def test_roundabout_accepted_gap_skips_duplicate_pedal_hold(self):
+        n = GPSWaypointFollower.__new__(GPSWaypointFollower)
+        n.longitudinal_control_mode, n.control_rate = 'pid', 20.
+        n.last_pid_update, n.current_speed_kmh = None, 0.
+        n.speed_pid = PIDController(.08, .002, .01)
+        n.ctrl_pub, n.sector11_cruise_brake = MagicMock(), None
+        n.lane_change_reason = 'roundabout_gap_accepted'
+        n.local_planner = MagicMock(clear_hold_s=.4, restart_accel_rate=.5,
+                                    avoidance_brake_limit=.35)
+        n.enable_local_avoidance, n.obstacle_stamp = True, 10.
+        n.pedal_guard = PedalGuard();n.pedal_guard.stop(0.)
+        n.publish_control(0., 30.)
+        command = n.ctrl_pub.publish.call_args.args[0]
+        self.assertFalse(n.pedal_guard.holding)
+        self.assertEqual(command.brake, 0.)
 
     def cruise_follower(self, sector=11):
         n = GPSWaypointFollower.__new__(GPSWaypointFollower)

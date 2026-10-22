@@ -43,6 +43,14 @@ class PedalGuard:
         self.accel = 0.
         self.last_time = now
 
+    def release(self, now):
+        """Release an externally confirmed safe departure without another hold."""
+        self.holding = False
+        self.clear_since = None
+        self.last_sample = None
+        self.clear_samples = 0
+        self.last_time = now
+
     def command(self, output, now, sample_stamp=None, hold_s=.4,
                 accel_rate=.5, brake_limit=1.):
         dt = .05 if self.last_time is None else max(0., min(.2, now-self.last_time))

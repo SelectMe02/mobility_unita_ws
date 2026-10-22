@@ -1,0 +1,12 @@
+{
+  "label": "2026-10-22 S14 터널 출구 위치 보정 이전",
+  "base_commit": "8ee47dd78356f43ccaa4fe9a4d66728407a3ece3",
+  "tracked_files_to_restore": [
+    "src/leo_avoidance/config/odometry_local.yaml",
+    "src/leo_avoidance/scripts/driving_state_node_local.py",
+    "src/leo_avoidance/test/test_rejoin_route_local.py",
+    "src/leo_guard/scripts/signal_guard_node_local.py",
+    "src/leo_guard/test/test_signal_node_local.py"
+  ],
+  "rollback_request": "2026-10-22 S14 터널 출구 위치 보정 이전으로 롤백해줘"
+}

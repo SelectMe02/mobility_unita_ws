@@ -275,6 +275,95 @@ class HighwayPlannerTests(unittest.TestCase):
         self.assertIsNone(p.transition)
         self.assertEqual(decision.reason, 'lane_change_gap')
 
+    def test_unconfirmed_car_ahead_in_target_lane_waits_until_it_is_known(self):
+        # 2026-10-22 21:42 run: an R3 car appeared 28 m ahead (unconfirmed,
+        # no velocity) and the change started into it at 92 km/h.
+        p = planner()
+        unknown = core.Obstacle(28., LANE_Y[2], .9, kind='unknown', confirmed=False,
+                                velocity_reliable=False, length=.5, width=1.65)
+        decision = p.plan(0, (0., 0.), 25., [unknown], desired_speed_mps=CRUISE)
+        self.assertIsNone(p.transition)
+        self.assertEqual(decision.reason, 'unconfirmed_target_vehicle')
+        # Confirmed and moving with us: the ordinary MOBIL choice resumes.
+        known = car(28., 2, 25.)
+        decision = p.plan(0, (0., 0.), 25., [known], desired_speed_mps=CRUISE)
+        self.assertEqual(decision.state, 'LANE_CHANGING')
+
+    def test_narrow_unconfirmed_return_ahead_does_not_hold_the_change(self):
+        p = planner()
+        post = core.Obstacle(28., LANE_Y[2], .3, kind='unknown', confirmed=False,
+                             velocity_reliable=False, length=.4, width=.6)
+        decision = p.plan(0, (0., 0.), 25., [post], desired_speed_mps=CRUISE)
+        self.assertEqual(decision.state, 'LANE_CHANGING')
+
+    def test_change_is_cancelled_when_a_slow_target_leader_is_revealed(self):
+        p = planner()
+        decision = p.plan(0, (0., 0.), 25.6, [], desired_speed_mps=CRUISE)
+        self.assertEqual(decision.state, 'LANE_CHANGING')
+        self.assertEqual(p.transition['target'], 2)
+        slow = car(22., 2, 12.)                   # 43 km/h, revealed 22 m ahead
+        for step in range(p.cancel_confirm_scans):
+            x = 2.5*(step+1)
+            decision = p.plan(int(x), (x, .05*(step+1)), 25.6, [slow],
+                              desired_speed_mps=CRUISE)
+        self.assertEqual(decision.state, 'CANCELLING')
+        self.assertEqual(p.transition['target'], 1)
+
+    def test_same_speed_target_leader_does_not_cancel_the_change(self):
+        p = planner()
+        p.plan(0, (0., 0.), 25.6, [], desired_speed_mps=CRUISE)
+        for step in range(p.cancel_confirm_scans+2):
+            x = 2.5*(step+1)
+            decision = p.plan(int(x), (x, .05*(step+1)), 25.6, [car(x+26., 2, 25.6)],
+                              desired_speed_mps=CRUISE)
+        self.assertNotEqual(decision.state, 'CANCELLING')
+        self.assertEqual(p.transition['target'], 2)
+
+    # Mandatory merge zone. Test geometry mirrors S11: here R3 ends
+    # and R1/R2 continue, so R2 is the lane to merge into.
+    def test_no_pass_away_from_the_continuing_lane_near_a_lane_drop(self):
+        slow = car(225., 2, 10.)
+        far = planner(r3_end=320)                   # drop 120 m ahead
+        far.current_lane = 2
+        decision = far.plan(200, (200., LANE_Y[2]), 15., [slow], desired_speed_mps=CRUISE)
+        self.assertTrue(far.merge_zone_active)
+        self.assertIsNone(far.transition)            # neither R3 (ending) nor R1
+        self.assertEqual(decision.state, 'TAILING')
+        self.assertEqual(decision.reason, 'merge_zone_keep')
+        # Same traffic well before the zone: the pass is still allowed.
+        early = planner(r3_end=800)
+        early.current_lane = 2
+        early.plan(200, (200., LANE_Y[2]), 15., [car(225., 2, 10.)], desired_speed_mps=CRUISE)
+        self.assertFalse(early.merge_zone_active)
+        self.assertIsNotNone(early.transition)
+
+    def test_blocked_merge_yields_and_falls_in_behind_instead_of_stopping(self):
+        # 2026-10-22 19:24: a car pacing alongside in the continuing lane kept
+        # the merge unsafe until the lane end braked the car almost to a stop.
+        p = planner(r3_end=330)                     # drop 110 m ahead
+        p.current_lane = 3
+        decision = p.plan(220, (220., LANE_Y[3]), 14., [car(221., 2, 14.)],
+                          desired_speed_mps=CRUISE)
+        self.assertIsNone(p.transition)
+        self.assertEqual(decision.reason, 'merge_zone_yield')
+        self.assertLess(decision.speed_cap_kmh/3.6, 14.)
+        self.assertGreaterEqual(decision.speed_cap_kmh/3.6,
+                                14.-p.highway_merge_yield_decel_mps2*p.idm_command_horizon_s-1e-6)
+        log, ego, speed = drive(p, (220., LANE_Y[3]), 14.,
+                                lambda t: [car(221.+14.*t, 2, 14.)], 14., desired=14.)
+        merged = next(e for d, e, s, lane, _ in log if lane == 2)
+        self.assertLess(merged[0], 310.)              # in R2 well before the drop
+        self.assertGreater(min(s for _, _, s, _, _ in log), 6.)   # no stop at the end
+        self.assertEqual(p.current_lane, 2)
+
+    def test_merge_in_zone_does_not_need_a_lane_change_incentive(self):
+        p = planner(r3_end=330)
+        p.current_lane = 3
+        # Free continuing lane, nothing ahead: the merge starts at once.
+        decision = p.plan(220, (220., LANE_Y[3]), 14., [], desired_speed_mps=14.)
+        self.assertIsNotNone(p.transition)
+        self.assertEqual(p.transition['target'], 2)
+
     def test_lane_only_crossed_ignores_its_far_slow_leader(self):
         p = planner()
         # R2 leader far ahead and only slightly slower: R1 -> R2 -> R3 still goes.

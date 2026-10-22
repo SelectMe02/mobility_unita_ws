@@ -308,6 +308,37 @@ class LaneCorridorTests(unittest.TestCase):
         self.assertEqual(len(d.obstacle_snapshot[0]), 1)
         self.assertEqual(d.obstacle_snapshot[0][0][0], 1)
 
+    def test_follower_keeps_roundabout_lane_only_near_s9_merge(self):
+        f = GPSWaypointFollower.__new__(GPSWaypointFollower)
+        f.lane_corridor = LaneCorridor(geometry())
+        f.roundabout_obstacle_corridor = LaneCorridor(geometry(
+            width=4.5, lanes=[dict(sector=9, raceline=1,
+                                  points=[[-50., 5.], [50., 5.]])]))
+        f.roundabout_obstacle_conflict_point = (20., 0.)
+        f.roundabout_obstacle_sector = 9
+        f.roundabout_obstacle_monitor_radius_m = 35.
+        f.route_sectors = [9]
+        f.current_waypoint_index = 0
+        f.current_x, f.current_y = 0., 0.
+        objects = [dict(id=i, x=20., y=y, radius=.8, vx=0., vy=0., kind='unknown')
+                   for i, y in enumerate((0., 5., 10.), 1)]
+        message = String(data=json.dumps(dict(stamp=100., frame_id='map', obstacles=objects)))
+        with patch('rospy.Time.now', return_value=rospy.Time(100)):
+            f.obstacles_callback(message)
+        self.assertEqual([o.track_id for o in f.obstacles], [1, 2])
+
+        # The same adjacent-lane object remains filtered in every other sector
+        # and after Ego leaves the local CP8->CP9 monitor radius.
+        with patch('rospy.Time.now', return_value=rospy.Time(100)):
+            f.route_sectors = [8]
+            f.obstacles_callback(message)
+        self.assertEqual([o.track_id for o in f.obstacles], [1])
+        with patch('rospy.Time.now', return_value=rospy.Time(100)):
+            f.route_sectors = [9]
+            f.current_x = -20.
+            f.obstacles_callback(message)
+        self.assertEqual([o.track_id for o in f.obstacles], [1])
+
     def test_lane_metadata_reaches_planner_and_visible_box_label(self):
         corridor = LaneCorridor(geometry())
         f = GPSWaypointFollower.__new__(GPSWaypointFollower)

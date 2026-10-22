@@ -117,14 +117,50 @@ class DrivingStateNode:
         # Surveyed tunnel-exit gate (map constant, not simulator state).
         self.exit_rejoin_start_m = float(rospy.get_param('~exit_rejoin_start_m', 35.))
         self.exit_rejoin_full_m = float(rospy.get_param('~exit_rejoin_full_m', 12.))
+        self.exit_wall_pose_max_offset_m = float(rospy.get_param(
+            '~exit_wall_pose_max_offset_m', 1.5))
+        self.exit_wall_pose_max_step_m = float(rospy.get_param(
+            '~exit_wall_pose_max_step_m', .75))
+        self.exit_wall_pose_extension_m = float(rospy.get_param(
+            '~exit_wall_pose_extension_m', 25.))
         self.exit_rejoin_active = False
+        self.exit_progress_m = None
+        self.exit_pose_correction = None
+        # Tunnel size and shape are fixed; Ego-speed distance is not (it
+        # follows simulator load). Past the configured section end, keep the
+        # blackout only while the measured right tunnel wall says Ego is
+        # still inside, plus a short portal allowance before the curved road.
+        self.exit_portal_overrun_m = float(rospy.get_param('~exit_portal_overrun_m', 8.))
+        self.exit_tunnel_overrun_max_m = float(rospy.get_param(
+            '~exit_tunnel_overrun_max_m', 50.))
+        self.tunnel_wall_alongside_x_m = float(rospy.get_param(
+            '~tunnel_wall_alongside_x_m', 2.))
+        self.tunnel_portal_detect_x_m = float(rospy.get_param(
+            '~tunnel_portal_detect_x_m', 12.))
+        self.tunnel_portal_confirm_scans = int(rospy.get_param(
+            '~tunnel_portal_confirm_scans', 3))
+        # Measured right-wall end relative to exit_anchor along the route, in
+        # the same convention as tunnel_wall_extent_m (LiDAR-frame wall end).
+        self.tunnel_portal_route_offset_m = float(rospy.get_param(
+            '~tunnel_portal_route_offset_m', -4.2))
+        if (not all(math.isfinite(value) and value > 0. for value in (
+                self.exit_portal_overrun_m, self.exit_tunnel_overrun_max_m,
+                self.tunnel_wall_alongside_x_m, self.tunnel_portal_detect_x_m))
+                or not math.isfinite(self.tunnel_portal_route_offset_m)
+                or self.tunnel_portal_confirm_scans < 1):
+            raise ValueError('invalid tunnel wall exit limits')
+        self.reset_tunnel_wall()
         exit_anchor = rospy.get_param('~exit_anchor')
         self.exit_xy = np.array((float(exit_anchor['x']), float(exit_anchor['y'])))
         exit_index, _ = anchor_on_route(route_points, exit_anchor)
         self.exit_index = exit_index
         if (not 0 <= exit_index < len(route_points)-1
                 or not np.isfinite(self.exit_xy).all()
-                or not 0 <= self.exit_rejoin_full_m < self.exit_rejoin_start_m):
+                or not 0 <= self.exit_rejoin_full_m < self.exit_rejoin_start_m
+                or not all(math.isfinite(value) and value > 0. for value in (
+                    self.exit_wall_pose_max_offset_m,
+                    self.exit_wall_pose_max_step_m,
+                    self.exit_wall_pose_extension_m))):
             raise ValueError('invalid tunnel exit coordinate or limits')
         tangent = route_points[exit_index+1, :2] - route_points[exit_index, :2]
         segment_length = float(np.linalg.norm(tangent))
@@ -241,9 +277,101 @@ class DrivingStateNode:
             self.last_cloud_received_wall = received
             self.last_cloud_stamp_age_s = stamp_age
 
+    # Portal plausibility: consecutive wall-end estimates must agree, the
+    # drifting LiDAR progress must be roughly near the surveyed portal, and a
+    # wall seen continuing well past a latched portal cancels it.
+    PORTAL_AGREE_M = 1.5
+    PORTAL_CANCEL_M = 3.
+    PORTAL_LIDAR_WINDOW_M = (-15., 50.)
+
+    def reset_tunnel_wall(self):
+        self.tunnel_wall_extent_m = None
+        self.tunnel_portal_scans = 0
+        self.tunnel_portal_candidate_m = None
+        self.tunnel_portal_seen = False
+        self.tunnel_portal_extent_m = None
+        self.tunnel_overrun_active = False
+
+    def update_tunnel_wall(self, span):
+        """Record how far the measured right tunnel wall is known to continue.
+
+        The extent is in the same travelled-distance coordinate as the
+        blackout odometry, so only the short span since the last wall
+        observation depends on Ego-speed integration.
+        """
+        if not self.machine.had_blackout:
+            self.reset_tunnel_wall()
+            return
+        if (span is None or not all(math.isfinite(value) for value in span)
+                or span[0] > self.tunnel_wall_alongside_x_m or span[1] < 0.):
+            self.tunnel_portal_scans = 0
+            return
+        extent = self.machine.travelled_m + span[1]
+        self.tunnel_wall_extent_m = (extent if self.tunnel_wall_extent_m is None
+                                     else max(self.tunnel_wall_extent_m, extent))
+        if (self.tunnel_portal_seen
+                and extent > self.tunnel_portal_extent_m + self.PORTAL_CANCEL_M):
+            # The wall kept going: that short end was an occlusion.
+            self.tunnel_portal_seen = False
+            self.tunnel_portal_extent_m = None
+            self.tunnel_portal_scans = 0
+        # The same wall end seen closing in over consecutive scans is the
+        # portal itself. Single short fits inside the tunnel do not latch it.
+        portal_s = self.exit_route_s + self.tunnel_portal_route_offset_m
+        lidar_end_s = getattr(self, 'route_progress_m', None)
+        near_portal = (lidar_end_s is not None
+                       and self.PORTAL_LIDAR_WINDOW_M[0]
+                       <= lidar_end_s + span[1] - portal_s
+                       <= self.PORTAL_LIDAR_WINDOW_M[1])
+        if span[1] > self.tunnel_portal_detect_x_m or not near_portal:
+            self.tunnel_portal_scans = 0
+            return
+        if (self.tunnel_portal_scans
+                and abs(extent - self.tunnel_portal_candidate_m) > self.PORTAL_AGREE_M):
+            self.tunnel_portal_scans = 0
+        if not self.tunnel_portal_scans:
+            self.tunnel_portal_candidate_m = extent
+        self.tunnel_portal_scans += 1
+        if (self.tunnel_portal_scans >= self.tunnel_portal_confirm_scans
+                and not self.tunnel_portal_seen):
+            self.tunnel_portal_seen = True
+            self.tunnel_portal_extent_m = extent
+
+    def portal_progress(self):
+        """Route progress anchored on the measured portal, or None.
+
+        Only the distance travelled since the wall end uses Ego-speed
+        integration, which keeps the post-portal curve aligned regardless of
+        how far the whole-tunnel estimate drifted under simulator load.
+        """
+        if not getattr(self, 'tunnel_portal_seen', False):
+            return None
+        return (self.exit_route_s + self.tunnel_portal_route_offset_m
+                + self.machine.travelled_m - self.tunnel_portal_extent_m)
+
+    def tunnel_wall_extension_ok(self, route, index):
+        """Allow the blackout past the configured end only inside the tunnel."""
+        extent = getattr(self, 'tunnel_wall_extent_m', None)
+        end_index = self.blackout_end_index
+        if (extent is None or index is None or not self.machine.had_blackout
+                or index <= end_index):
+            return False
+        overrun = float(route.s[index] - route.s[end_index])
+        return (0. < overrun <= self.exit_tunnel_overrun_max_m
+                and self.machine.travelled_m <= extent + self.exit_portal_overrun_m)
+
     def route_bearing(self, pose):
         x, y, yaw = pose
-        self.route_progress_m, _ = locate_or_reacquire(self.route, x, y, yaw)
+        progress, _ = locate_or_reacquire(self.route, x, y, yaw)
+        # Once the surveyed exit window has started, do not let lateral
+        # dead-reckoning drift move route progress backwards.  This value is
+        # still bounded by the normal route projection and is reset by GPS.
+        if getattr(self, 'exit_rejoin_active', False):
+            previous = getattr(self, 'exit_progress_m', None)
+            self.exit_progress_m = (progress if previous is None else
+                                    max(previous, progress))
+            progress = self.exit_progress_m
+        self.route_progress_m = progress
         index = self.route.index
         distance_m = 0.
         target = self.route.points[index]
@@ -290,7 +418,18 @@ class DrivingStateNode:
             self.exit_rejoin_active = True
         if not self.exit_rejoin_active:
             return None, 1., None
-        progress = self.route_progress_m
+        # LiDAR/IMU progress can run ahead near the portal.  Do not select a
+        # post-portal bend before GPS has returned; hold the surveyed exit
+        # tangent while the independent wall-spacing correction keeps the
+        # lateral pose bounded. A measured portal replaces that estimate, so
+        # the gentle post-portal curve is followed from where it really is.
+        anchored = self.portal_progress()
+        if anchored is not None:
+            progress = anchored
+            remaining = self.exit_route_s - anchored
+        else:
+            progress = min(self.route_progress_m,
+                           self.exit_route_s - self.route_lookahead_m)
         target_s = min(progress + self.route_lookahead_m, float(self.route.s[-1]))
         start = np.array([np.interp(progress, self.route.s, self.route.points[:, axis])
                           for axis in (0, 1)])
@@ -307,6 +446,64 @@ class DrivingStateNode:
         # Smooth the heading handover at both ends of the existing window.
         blend = blend * blend * (3. - 2. * blend)
         return yaw_error, 1. - blend, remaining
+
+    def correct_exit_pose_from_wall(self, pose, plan):
+        """Bound S14 exit lateral drift with an independent wall measurement.
+
+        Longitudinal progress and IMU yaw remain untouched.  The correction
+        is disabled while current obstacle evidence is present, and never
+        widens the route corridor or extends the GPS-denied section.
+        """
+        self.exit_pose_correction = None
+        if (not self.exit_rejoin_active or not self.machine.had_blackout
+                or pose is None or plan is None or plan.speed_mps <= 0.
+                or plan.obstacle_stop or plan.front_points
+                or plan.crossing_threats
+                or plan.right_wall_clearance_m is None
+                or plan.right_wall_target_clearance_m is None
+                or plan.right_wall_heading_rad is None):
+            return pose
+        progress = self.route_progress_m
+        if not (self.exit_route_s - self.exit_rejoin_start_m <= progress
+                <= self.exit_route_s + self.exit_wall_pose_extension_m):
+            return pose
+        values = (plan.right_wall_clearance_m,
+                  plan.right_wall_target_clearance_m,
+                  plan.right_wall_heading_rad, *pose)
+        if not all(math.isfinite(value) for value in values):
+            return pose
+
+        target_s = float(np.clip(progress, 0., self.route.s[-1]))
+        segment = int(np.clip(np.searchsorted(self.route.s, target_s, side='right') - 1,
+                              0, len(self.route.delta) - 1))
+        length = self.route.lengths[segment]
+        if length < 1e-6:
+            return pose
+        tangent = self.route.delta[segment] / length
+        route_yaw = math.atan2(tangent[1], tangent[0])
+        yaw_error = math.atan2(math.sin(pose[2] - route_yaw),
+                               math.cos(pose[2] - route_yaw))
+        if abs(yaw_error) > math.radians(30.):
+            return pose
+        ratio = float(np.clip((target_s - self.route.s[segment]) / length, 0., 1.))
+        center = self.route.points[segment] + ratio * self.route.delta[segment]
+        wall_offset = float(np.clip(
+            plan.right_wall_clearance_m - plan.right_wall_target_clearance_m,
+            -self.exit_wall_pose_max_offset_m,
+            self.exit_wall_pose_max_offset_m))
+        desired = center + np.array((-tangent[1], tangent[0])) * wall_offset
+        current = np.asarray(pose[:2], float)
+        correction = desired - current
+        distance = float(np.linalg.norm(correction))
+        if distance > self.exit_wall_pose_max_step_m:
+            correction *= self.exit_wall_pose_max_step_m / distance
+        corrected = (float(current[0] + correction[0]),
+                     float(current[1] + correction[1]), pose[2])
+        self.exit_pose_correction = dict(
+            method='s14_exit_wall', route_progress_m=progress,
+            wall_offset_m=wall_offset, applied_m=float(np.linalg.norm(correction)),
+            before_pose=pose, corrected_pose=corrected)
+        return corrected
 
     def route_rejoin_ok(self, gps_pose, map_pose, blackout_index):
         """Accept a drifted LiDAR pose only when GPS agrees with nearby route."""
@@ -343,6 +540,72 @@ class DrivingStateNode:
             'lidar_route_index': blackout_index,
             'route_ok': allowed}
         return allowed
+
+    def exit_gps_rejoin_ok(self, now):
+        """Accept only a continuous, route-aligned GPS return at the exit."""
+        machine = self.machine
+        # The measured portal also opens this check: under simulator load the
+        # LiDAR progress can lag or lead the true exit by tens of metres.
+        if (not (self.exit_rejoin_active or getattr(self, 'tunnel_portal_seen', False))
+                or not machine.had_blackout
+                or not machine.gps_available(now)
+                or machine.gps_return_since is None
+                or now - machine.gps_return_since < .3):
+            return False
+        history = []
+        for item in self.gps_history:
+            if not max(machine.gps_return_since, now - .5) <= item[1] <= now:
+                continue
+            # A republished fix carries its previous stamp: it is not new
+            # evidence, so skip it instead of rejecting the whole window.
+            if history and item[2] <= history[-1][2]:
+                continue
+            history.append(item)
+        if (len(history) < 3 or history[-1][1] - history[0][1] < .3
+                or any(b[1] - a[1] > .2 for a, b in zip(history, history[1:]))):
+            return False
+        speed = self.fresh_exit_speed(now)
+        if speed is None:
+            return False
+        projection = RouteProgress(self.route.points, max_error=3., backward_window=30)
+        diagnostics = []
+        try:
+            for pose, received, stamp in history:
+                progress, error = projection.locate(*pose)
+                segment = projection.delta[projection.index]
+                route_yaw = math.atan2(segment[1], segment[0])
+                yaw_error = math.atan2(math.sin(pose[2] - route_yaw),
+                                       math.cos(pose[2] - route_yaw))
+                if (not self.exit_route_s - 5. <= progress <= self.exit_route_s + 20.
+                        or abs(yaw_error) > .45):
+                    return False
+                diagnostics.append((progress, error, yaw_error))
+        except ValueError:
+            return False
+        # Ego speed is simulator-time speed; GPS arrives on the wall clock. Under
+        # load they differ by tens of percent, so the jump bounds scale with it.
+        for a, b in zip(history, history[1:]):
+            dt = b[1] - a[1]
+            distance = math.hypot(b[0][0] - a[0][0], b[0][1] - a[0][1])
+            if distance > (1.35 * speed + 2.) * dt + .4:
+                return False
+        progress, error, yaw_error = diagnostics[-1]
+        displacement = math.hypot(history[-1][0][0] - history[0][0][0],
+                                  history[-1][0][1] - history[0][0][1])
+        expected = speed * (history[-1][1] - history[0][1])
+        if abs(displacement - expected) > .75 + .35 * expected:
+            return False
+        self.rejoin_diagnostic = dict(
+            method='continuous_exit_gps', route_ok=True,
+            gps_cross_track_m=error, gps_yaw_error_rad=yaw_error,
+            gps_route_progress_m=progress,
+            continuous_gps_s=history[-1][1] - history[0][1])
+        return True
+
+    def fresh_exit_speed(self, now):
+        sample = self.latest_speed
+        return (sample[0] if sample and 0. <= now - sample[1] <= self.speed_timeout_s
+                and math.isfinite(sample[0]) and sample[0] >= 0. else None)
 
     @staticmethod
     def nearest_capture(history, stamp, tolerance_s=.15):
@@ -417,8 +680,10 @@ class DrivingStateNode:
                                    or self.machine.gps_zero(received)
                                    or self.machine.gps_missing(received))
                     wall_follow = (wall_follow
-                                   and self.blackout_start_index <= self.route.index
-                                   <= self.blackout_end_index)
+                                   and (self.blackout_start_index <= self.route.index
+                                        <= self.blackout_end_index
+                                        or self.tunnel_wall_extension_ok(
+                                            self.route, self.route.index)))
                     exit_heading, wall_weight, remaining = (
                         self.exit_rejoin_guidance(odom_sample[0][2]) if wall_follow
                         else (None, 1., None))
@@ -433,6 +698,12 @@ class DrivingStateNode:
                                          ground_reference_z_m=ground_reference)
                 if time.monotonic() - received > self.machine.input_timeout_s:
                     raise ValueError('LiDAR planning exceeded input age limit')
+                with self.lock:
+                    self.update_tunnel_wall(self.planner.right_wall_span_m)
+                    corrected_pose = self.correct_exit_pose_from_wall(pose, plan)
+                    if corrected_pose != pose:
+                        self.machine.map_pose = corrected_pose
+                        pose = corrected_pose
             except Exception as error:
                 self.debug.clear('invalid_perception_input', message.header)
                 plan = Plan(0., 0., str(error), 0., 0.)
@@ -524,6 +795,11 @@ class DrivingStateNode:
             blackout_allowed = (blackout_index is not None
                                 and self.blackout_start_index <= blackout_index
                                 <= self.blackout_end_index)
+            tunnel_overrun = (not blackout_allowed
+                              and self.tunnel_wall_extension_ok(
+                                  self.blackout_route, blackout_index))
+            blackout_allowed = blackout_allowed or tunnel_overrun
+            self.tunnel_overrun_active = tunnel_overrun
             if not self.machine.had_blackout or not self.machine.gps_available(now):
                 self.rejoin_diagnostic = None
             gps_rejoin_ok = (self.machine.had_blackout
@@ -531,6 +807,8 @@ class DrivingStateNode:
                              and self.route_rejoin_ok(
                                  self.machine.gps_pose[0], map_pose,
                                  blackout_index))
+            if not gps_rejoin_ok:
+                gps_rejoin_ok = self.exit_gps_rejoin_ok(now)
             mode, pose, reason = self.machine.select(
                 now, blackout_allowed, gps_rejoin_ok)
             # Snapshot the source stamp under the same lock as select(). A
@@ -539,6 +817,9 @@ class DrivingStateNode:
                                  if mode == DrivingState.GPS else None)
             if mode == DrivingState.GPS:
                 self.exit_rejoin_active = False
+                self.exit_progress_m = None
+                self.exit_pose_correction = None
+                self.reset_tunnel_wall()
             previous_output_pose = self.previous_output_pose
             output_jump_m = (float(np.linalg.norm(
                 np.asarray(pose[:2]) - np.asarray(previous_output_pose[:2])))
@@ -651,6 +932,15 @@ class DrivingStateNode:
             'gps_rejoin_route_ok': gps_rejoin_ok,
             'gps_rejoin_error': self.machine.last_rejoin_error,
             'gps_rejoin_diagnostic': self.rejoin_diagnostic,
+            'gps_rejoin_stamp': (
+                output_pose_stamp if gps_rejoin_ok and mode == DrivingState.GPS else None),
+            'exit_pose_correction': self.exit_pose_correction,
+            'tunnel_wall_extent_m': getattr(self, 'tunnel_wall_extent_m', None),
+            'tunnel_portal_seen': getattr(self, 'tunnel_portal_seen', False),
+            'tunnel_portal_progress_m': (self.portal_progress()
+                                         if getattr(self, 'tunnel_portal_seen', False)
+                                         else None),
+            'tunnel_overrun_active': getattr(self, 'tunnel_overrun_active', False),
             'avoidance_reason': plan_reason,
             'scan_fault_reason': scan_fault,
             'map_pose': map_pose,

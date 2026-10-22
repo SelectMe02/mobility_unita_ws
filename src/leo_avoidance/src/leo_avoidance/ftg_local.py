@@ -213,6 +213,9 @@ class FollowTheGap:
         self._last_speed_target = None
         self._held_obstacle_cap = math.inf
         self._obstacle_cap_until = -math.inf
+        # (first_x, last_x) of the fitted right wall in the LiDAR frame for
+        # the latest scan, or None. Read-only evidence for the tunnel portal.
+        self.right_wall_span_m = None
         self._current_obstacle_cap = math.inf
         self.config = config or Config()
         self.config.validate()
@@ -781,6 +784,7 @@ class FollowTheGap:
             return Plan(0., 0., 'invalid wall follow weight', 0., 0.)
         self.wall_target_clear_count = 0
         self.wall_target_allowed = False
+        self.right_wall_span_m = None
         tracks_summary = ()
         threats = []
         stop = lambda reason, clearance=0.0, obstacle=False: Plan(
@@ -879,6 +883,8 @@ class FollowTheGap:
                         avoidance_phase=avoidance_phase)
         points = candidates
         obstacles, wall_fits = self._track_obstacles(points)
+        if wall_fits[0] is not None:
+            self.right_wall_span_m = (wall_fits[0][5], wall_fits[0][6])
         if self.debug_snapshot is not None:
             self.debug_snapshot['tracker_input_points'] = len(obstacles)
             self.debug_snapshot['wall_evidence_points'] = len(points)-len(obstacles)

@@ -1,0 +1,12 @@
+{
+  "label": "2026-10-22 CP4->CP5(+Raceline2 끝) 돌발 보행자 정지 유지·풀브레이크 수정 이전",
+  "base_commit": "8ee47dd78356f43ccaa4fe9a4d66728407a3ece3",
+  "files_to_restore_from_snapshot": [
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py",
+    "src/leo_avoidance/scripts/route_avoidance_node.py",
+    "src/unita_launch/launch/semi.launch"
+  ],
+  "test_changes": "src/leo_avoidance/test/test_route_avoidance.py 끝에 추가된 'Crossing-pedestrian hold' 테스트 블록(# Crossing-pedestrian hold 주석부터 파일 끝까지)을 삭제",
+  "how": "각 파일을 이 디렉터리의 같은 상대 경로 사본으로 덮어쓴다. analysis/2026-10-22_pedestrian_hold/ 는 분석 스크립트로 동작 영향 없음.",
+  "rollback_request": "CP4~CP5 돌발 보행자 정지 유지 수정하기 전으로 돌려줘"
+}

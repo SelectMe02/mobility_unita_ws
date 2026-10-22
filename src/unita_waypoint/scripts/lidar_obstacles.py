@@ -156,6 +156,19 @@ class LidarObstacles:
         self.front_range = float(rospy.get_param('~front_range_m', 55.))
         self.rear_range = float(rospy.get_param('~rear_range_m', 55.))
         self.side_range = float(rospy.get_param('~side_range_m', 12.))
+        self.roundabout_conflict_point = tuple(map(float, rospy.get_param(
+            '~roundabout_conflict_point', [])))
+        self.roundabout_monitor_radius = float(rospy.get_param(
+            '~roundabout_lidar_monitor_radius_m', 35.))
+        self.roundabout_side_range = float(rospy.get_param(
+            '~roundabout_side_range_m', 20.))
+        roundabout_points = rospy.get_param('~roundabout_approach_points', [])
+        self.roundabout_corridor = None
+        if roundabout_points:
+            width = float(rospy.get_param('~roundabout_approach_width_m', 4.5))
+            self.roundabout_corridor = LaneCorridor(dict(
+                frame_id='map', raceline_width=width, loop=False,
+                lanes=[dict(sector=9, raceline=1, points=roundabout_points)]))
         self.dynamic_speed_threshold_mps = float(rospy.get_param('~dynamic_speed_threshold_mps', .8))
         def mount(prefix):
             angles = [float(rospy.get_param('~'+prefix+'_'+axis+'_deg', 0.))
@@ -175,6 +188,10 @@ class LidarObstacles:
         if min(self.front_range, self.rear_range, self.side_range,
                self.half_width, self.front_extent, self.rear_extent) <= 0.:
             raise ValueError('invalid obstacle ROI geometry')
+        if self.roundabout_corridor is not None and (
+                len(self.roundabout_conflict_point) != 2
+                or min(self.roundabout_monitor_radius, self.roundabout_side_range) <= 0.):
+            raise ValueError('invalid roundabout LiDAR geometry')
         self.poses = deque(maxlen=30)
         self.pending = None
         self.lock = threading.Lock()
@@ -416,7 +433,7 @@ class LidarObstacles:
             if not self.imus or stamp > self.imus[-1][0]:
                 self.imus.append((stamp, orientation))
 
-    def filter_ground(self, raw, stamp):
+    def filter_ground(self, raw, stamp, side_range=None):
         points = raw @ self.body_from_lidar.T + [self.lidar_x, self.lidar_y, self.lidar_z]
         with self.lock:
             samples = list(self.imus)
@@ -428,7 +445,8 @@ class LidarObstacles:
         if q is not None:
             rotation, status['roll_deg'], status['pitch_deg'] = level_rotation(q, self.body_from_imu)
             points = points @ rotation.T
-        eligible = road_roi_mask(points, self.front_range, self.rear_range, self.side_range,
+        eligible = road_roi_mask(points, self.front_range, self.rear_range,
+                                 self.side_range if side_range is None else side_range,
                                  self.half_width, self.front_extent, self.rear_extent)
         near = eligible & (np.abs(points[:, 0]) < 12.) & (np.abs(points[:, 1]) < 3.)
         status['near_z_percentiles_m'] = (np.percentile(points[near, 2], [5, 50, 95]).tolist()
@@ -555,6 +573,11 @@ class LidarObstacles:
         s12_filter_active = sector_filter is not None and sector_filter.active(pose[:2])
         if s12_filter_active:
             corridor = sector_filter.corridor
+        roundabout_corridor = getattr(self, 'roundabout_corridor', None)
+        conflict = getattr(self, 'roundabout_conflict_point', ())
+        roundabout_active = bool(roundabout_corridor is not None and len(conflict) == 2
+            and math.hypot(pose[0]-conflict[0], pose[1]-conflict[1])
+                <= self.roundabout_monitor_radius)
         with self.lock:
             if self.pending is msg:
                 self.pending = None
@@ -562,7 +585,8 @@ class LidarObstacles:
         points = np.asarray(list(point_cloud2.read_points(
             msg, field_names=('x', 'y', 'z'), skip_nans=True)), dtype=float)
         points = points.reshape((-1, 3))
-        points, ground, mask, status = self.filter_ground(points, stamp)
+        points, ground, mask, status = self.filter_ground(
+            points, stamp, self.roundabout_side_range if roundabout_active else None)
         self.last_filter_wall = time.monotonic()
         status['cloud_age_s'] = age
         status['filter_processing_s'] = time.monotonic()-filter_start
@@ -576,6 +600,9 @@ class LidarObstacles:
         # Drop roadside returns before clustering so a fence cannot enlarge
         # or merge with a car that is actually inside a mapped lane.
         inside = corridor.contains(map_xy)
+        roundabout_inside = (roundabout_corridor.contains(map_xy)
+                             if roundabout_active else np.zeros(len(map_xy), dtype=bool))
+        inside |= roundabout_inside
         # Keep indices into the full corrected scan for faithful debug
         # colours. The detector below still receives exactly its old arrays.
         used = np.zeros(len(points), dtype=bool)
@@ -585,6 +612,8 @@ class LidarObstacles:
         status.update(candidate_points=int(mask.sum()), used_points=int(used.sum()),
                       ground_removed_points=int(ground.sum()),
                       lane_removed_points=int((~inside).sum()),
+                      roundabout_filter_active=roundabout_active,
+                      roundabout_corridor_points=int(roundabout_inside.sum()),
                       other_removed_points=int((finite & ~ground & ~mask).sum()),
                       discarded_points=int(discarded.sum()),
                       invalid_points=int((~finite).sum()))
@@ -601,13 +630,17 @@ class LidarObstacles:
             status['clusters'] += 1
             world = np.column_stack((pose[0]+c*group[:, 0]-s*group[:, 1],
                                      pose[1]+s*group[:, 0]+c*group[:, 1]))
+            in_roundabout = bool(roundabout_active and
+                                 roundabout_corridor.contains([world.mean(axis=0)])[0])
             # A guardrail or kerb along the lane line reaches only the outer
             # edge band. Anything there is beyond the ego footprint band, and
             # as a lane-aligned box on a bend it would bulge into the lane.
-            if edge_band > 0. and np.max(corridor.depth(world)) < edge_band:
+            if (not in_roundabout and edge_band > 0.
+                    and np.max(corridor.depth(world)) < edge_band):
                 status['edge_rejected_clusters'] += 1
                 continue
-            box = object_box(world, corridor.direction(world.mean(axis=0)),
+            direction_corridor = roundabout_corridor if in_roundabout else corridor
+            box = object_box(world, direction_corridor.direction(world.mean(axis=0)),
                              self.cluster_min_size_m, self.cluster_max_size_m)
             if box is not None:
                 road_surface = road_surface_in_box(
@@ -617,6 +650,8 @@ class LidarObstacles:
             else:
                 status['size_rejected_clusters'] += 1
         mask = corridor.contains([o[:2] for o in found])
+        if roundabout_active:
+            mask |= roundabout_corridor.contains([o[:2] for o in found])
         status['center_rejected_detections'] = int((~mask).sum())
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:
@@ -628,7 +663,11 @@ class LidarObstacles:
                 self.tracks = {key: track for (key, track), keep
                                in zip(self.tracks.items(), inside) if keep}
             tracked = self._update_tracks(found, stamp)
-            tracked = corridor.filter_obstacles(tracked)
+            tracked_inside = corridor.contains([(o['x'], o['y']) for o in tracked])
+            if roundabout_active:
+                tracked_inside |= roundabout_corridor.contains(
+                    [(o['x'], o['y']) for o in tracked])
+            tracked = [o for o, keep in zip(tracked, tracked_inside) if keep]
             # Expired predictions and vehicles leaving the lane are discarded
             # from tracking as well as from the published obstacle stream.
             keep = {o['id'] for o in tracked}

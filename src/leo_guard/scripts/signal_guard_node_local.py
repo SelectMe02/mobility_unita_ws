@@ -70,6 +70,7 @@ class SignalGuard:
         self.passthrough=checkpoint_ranges(rospy.get_param('~passthrough_checkpoints',''),checkpoints)
         self.passthrough_max_error_m=float(rospy.get_param('~passthrough_route_max_error_m',15.))
         self.in_passthrough=False
+        self.last_exit_rejoin_stamp=None
         self.route=RouteProgress(points,max_error=self.route_max_error_m,backward_window=30)
         # Lanes the followers may legitimately drive: saved Raceline 2/3
         # (local avoidance) and the route avoidance offset from Raceline 1.
@@ -98,7 +99,8 @@ class SignalGuard:
             rospy.Subscriber('/localization/pose',PoseStamped,self.pose,queue_size=1),
             rospy.Subscriber('/localization/valid',Bool,lambda m:self.put('valid',m.data),queue_size=1),
             rospy.Subscriber('/competition/ego_speed_kmh',Float64,lambda m:self.put('speed',m.data/3.6),queue_size=1),
-            rospy.Subscriber('/perception/traffic_lights',String,self.signals,queue_size=1)]
+            rospy.Subscriber('/perception/traffic_lights',String,self.signals,queue_size=1),
+            rospy.Subscriber('/leo/driving_status',String,self.driving_status,queue_size=1)]
         route_avoidance_topic=rospy.get_param('~route_avoidance_topic','')
         if route_avoidance_topic:
             self.subs.append(rospy.Subscriber(route_avoidance_topic,String,self.route_offset,queue_size=1))
@@ -135,6 +137,29 @@ class SignalGuard:
         try:offset=float(json.loads(m.data).get('offset_m',0.))
         except (ValueError,TypeError,AttributeError):return
         if math.isfinite(offset):self.put('route_offset',offset)
+
+    def driving_status(self,m):
+        """Capture a validated exit GPS handoff for one atomic route reset."""
+        try:
+            value=json.loads(m.data);diagnostic=value.get('gps_rejoin_diagnostic') or {}
+            stamp=float(value['gps_rejoin_stamp']);pose=tuple(value['driving_pose'])
+            if (value.get('mode')!='GPS' or not value.get('valid')
+                    or diagnostic.get('method')!='continuous_exit_gps'
+                    or diagnostic.get('route_ok') is not True
+                    or len(pose)!=3 or not math.isfinite(stamp)
+                    or not all(math.isfinite(v) for v in pose)):
+                return
+        except (ValueError,KeyError,TypeError,AttributeError):return
+        self.put('exit_gps_rejoin',(stamp,pose))
+
+    def consume_exit_gps_rejoin(self,pose,now):
+        event=self.fresh('exit_gps_rejoin',now,.5)
+        if event is None or event[0]==self.last_exit_rejoin_stamp:return False
+        stamp,selected_pose=event
+        if math.hypot(pose[0]-selected_pose[0],pose[1]-selected_pose[1])>2.:return False
+        self.route.index=None;self.decision.reset();self.in_passthrough=False
+        self.pose_fault_since=None;self.last_exit_rejoin_stamp=stamp
+        return True
 
     def fresh(self,key,now,timeout=.35):
         item=self.inputs.get(key)
@@ -220,6 +245,7 @@ class SignalGuard:
                     if self.fresh('valid',now) is not True or pose is None or speed is None:
                         raise ValueError('localization/control/speed missing or stale')
                     if not math.isfinite(speed) or speed<0:raise ValueError('invalid speed')
+                    self.consume_exit_gps_rejoin(pose,now)
                     progress,error=self.track(pose,now)
                     tangent=self.route.delta[self.route.index]/self.route.lengths[self.route.index]
                     heading=np.array([math.cos(pose[2]),math.sin(pose[2])])

@@ -46,6 +46,27 @@ def load_sector_lane_filter(waypoint_file):
     return SectorLaneFilter(project_lane_geometry(project, width), sector=12, width=3.2)
 
 
+def pedestrian_hold_points(waypoint_file, sector):
+    """Map points bounding the pedestrian hold zone, or None.
+
+    Starts at the sector's first raceline-1 point (its checkpoint) and runs to
+    the end of raceline 2 that continues from that sector, which reaches past
+    the next checkpoint.
+    """
+    if sector <= 0 or Path(waypoint_file).suffix.lower() != '.json':
+        return None
+    sectors = {int(item['number']): item for item in load_project(waypoint_file)['sectors']}
+    if sector not in sectors:
+        raise ValueError('pedestrian hold sector %d is not in the project' % sector)
+    start = sectors[sector]['racelines']['1'][0]
+    end = sectors[sector]['racelines']['1'][-1]
+    number = sector
+    while sectors.get(number, {}).get('racelines', {}).get('2'):
+        end = sectors[number]['racelines']['2'][-1]
+        number += 1
+    return (float(start['x']), float(start['y'])), (float(end['x']), float(end['y']))
+
+
 class RouteAvoidanceNode:
     def __init__(self):
         self.lock = threading.Lock()
@@ -83,6 +104,17 @@ class RouteAvoidanceNode:
             s_last = route.project(points[last, 0], points[last, 1], 0, len(route.lengths))[0]
             self.planner.ignored_s_ranges.append((s_first, s_last))
             rospy.loginfo('Route avoidance ignores obstacles at s %.1f..%.1f m', s_first, s_last)
+        # Crossing-pedestrian hold: only where the competition places them.
+        bounds = pedestrian_hold_points(waypoint_file,
+                                        int(rospy.get_param('~pedestrian_hold_sector', 0)))
+        if bounds is not None:
+            base = len(points) - 1
+            s_start, s_end = (route.project(x, y, 0, base)[0] for x, y in bounds)
+            if not s_start < s_end:
+                raise ValueError('invalid pedestrian hold zone')
+            self.planner.set_pedestrian_hold_ranges([(s_start, s_end)])
+            rospy.loginfo('Route avoidance holds crossing pedestrians at s %.1f..%.1f m',
+                          s_start, s_end)
         self.runtime = RuntimeSettings('leo_route_avoidance', FrozenConfigTarget(self.planner))
         # Open-road returns: local ground per grid cell, not the tunnel's single
         # road plane (which turns a road rising ahead into obstacles).
@@ -151,6 +183,16 @@ class RouteAvoidanceNode:
         rear_x = xy[:, 0] + self.lidar_to_rear_x_m
         return np.column_stack((x0 + c * rear_x - s * xy[:, 1],
                                 y0 + s * rear_x + c * xy[:, 1]))
+
+    def pedestrian_hold_status(self):
+        hold = getattr(self.planner, 'pedestrian_hold', None)
+        if not isinstance(hold, dict):
+            return None
+        return dict(s=round(hold['s'], 1), d=round(hold['d'], 2),
+                    ids=sorted(int(i) for i in hold['ids']),
+                    cap_kmh=None if math.isinf(hold['cap']) else round(hold['cap'] * 3.6, 2),
+                    full_brake=hold['full_brake'], clear_scans=hold['clear_scans'],
+                    static_scans=hold['static_scans'])
 
     def _prune_sector_tracks(self, corridor, stamp):
         """Do not reconnect an outside history to a newly clipped lane cluster."""
@@ -402,6 +444,7 @@ class RouteAvoidanceNode:
             traffic_speed_cap_kmh=(None if math.isinf(decision.traffic_speed_cap_mps)
                                    else round(decision.traffic_speed_cap_mps * 3.6, 2)),
             offset_m=round(decision.offset_now_m, 2),
+            pedestrian_hold=self.pedestrian_hold_status(),
             path=[[round(x, 3), round(y, 3)] for x, y in decision.path],
             obstacles=[dict(s=round(o['s'], 1), d=round(o['d'], 2), r=round(o['r'], 2),
                             l=round(o['l'], 2), v_s=round(o['v_s'], 2),

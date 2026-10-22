@@ -48,6 +48,17 @@ class RouteAvoidanceConfig:
     stop_line_clear_m: float = 5.     # a pass may not end this close past a stop line
     crosswalk_person_m: float = 1.      # half extents up to this look like a person
     crosswalk_stop_gap_m: float = 2.    # front bumper to the crosswalk when stopped
+    # Pedestrian hold (only inside pedestrian_hold_ranges): a person-sized
+    # mover that made Ego yield keeps the stop until it is seen clear of the
+    # band by this margin for release_scans LiDAR updates in a row.
+    pedestrian_release_margin_m: float = 1.
+    pedestrian_release_scans: float = 5.
+    pedestrian_static_release_scans: float = 30.  # waiting at the kerb, outside the band
+    pedestrian_lost_release_scans: float = 30.    # unseen after last being near the band
+    pedestrian_adopt_m: float = 1.5     # a new track id this close continues the person
+    pedestrian_approach_m: float = .05  # each lateral step toward the route confirming a crossing
+    pedestrian_half_m: float = .6       # largest half extent held as a pedestrian
+    pedestrian_min_half_m: float = .24  # a crossing person seen near is at least this big
 
     def band(self, radius_m):
         return self.vehicle_half_width_m + self.side_margin_m + radius_m
@@ -200,6 +211,9 @@ class RouteAvoidance:
         self.route = RouteFrame(points)
         self.crosswalks = sorted(crosswalks)
         self.crosswalk_hold = None  # crosswalk start currently occupied on the route
+        self.pedestrian_hold_ranges = []
+        self.pedestrian_hold = None
+        self.person_d = {}  # track id -> route offsets at the previous two updates
         self.lane_changes = sorted(lane_changes, key=lambda v: v['start_s'])
         self.active = None
         self.last_s = None
@@ -208,6 +222,16 @@ class RouteAvoidance:
         self.active = None
         self.last_s = None
         self.crosswalk_hold = None
+        self.pedestrian_hold = None
+        self.person_d = {}
+
+    def set_pedestrian_hold_ranges(self, ranges):
+        """[(start_s, end_s)] on the base lap where crossing pedestrians are held."""
+        ranges = [(float(a), float(b)) for a, b in ranges]
+        if self.loop_length is not None:
+            ranges += [(a + self.loop_length, b + self.loop_length) for a, b in ranges
+                       if a < self.route.s[-1] - self.loop_length]
+        self.pedestrian_hold_ranges = sorted(ranges)
 
     def _locate_ego(self, x, y):
         if self.last_s is None:
@@ -228,6 +252,8 @@ class RouteAvoidance:
                     block_first_s=self.active.block_first_s - shift)
             if self.crosswalk_hold is not None:
                 self.crosswalk_hold -= self.loop_length
+            if self.pedestrian_hold is not None:
+                self.pedestrian_hold['s'] -= self.loop_length
         self.last_s = s
         return s, d
 
@@ -271,6 +297,86 @@ class RouteAvoidance:
 
     def _in_band(self, o, offset):
         return abs(o['d'] - offset) < self.config.band(o['r'])
+
+    def _person_sized(self, o):
+        cfg = self.config
+        return o['r'] <= cfg.pedestrian_half_m and o['l'] <= cfg.pedestrian_half_m
+
+    def _note_pedestrian(self, o, binding=True):
+        """Start or refresh the pedestrian hold for a mover that made Ego yield.
+
+        Only a person-sized mover whose position really moved toward the
+        route over the last two updates, in the direction of its estimated
+        velocity, starts a hold. Roadside clutter with a stale velocity or a
+        single jump does not. A predicted crossing must also demand braking
+        now (binding).
+        """
+        cfg = self.config
+        if (not binding or not self._person_sized(o)
+                or max(o['r'], o['l']) < cfg.pedestrian_min_half_m
+                or not any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
+                or (abs(o['v_s']) >= cfg.moving_speed_mps
+                    and abs(o['v_s']) >= 2. * abs(o['v_d']))):
+            return  # traffic along the lane is not a crossing pedestrian
+        history = self.person_d.get(o['id'], ())
+        if self.pedestrian_hold is None:
+            path = list(history) + [o['d']]
+            if len(path) < 3 or any(
+                    abs(a) - abs(b) < cfg.pedestrian_approach_m or o['v_d'] * (b - a) <= 0.
+                    for a, b in zip(path, path[1:])):
+                return
+        if self.pedestrian_hold is None:
+            self.pedestrian_hold = dict(ids=set(), s=o['s'], d=o['d'], l=o['l'],
+                                        cap=math.inf, full_brake=False,
+                                        clear_scans=0, static_scans=0,
+                                        lost_scans=0, near=True)
+        self.pedestrian_hold['ids'].add(o['id'])
+
+    def _pedestrian_hold_cap(self, items, speed, s_ego, front_s, offset_at):
+        """Speed cap while a crossing pedestrian is held, or None.
+
+        A momentary velocity dropout or track loss does not release it; only
+        seeing the person clear of the band (or Ego past it) does. While held
+        the cap never rises, and a stop that the planning deceleration cannot
+        make is a full stop.
+        """
+        hold = self.pedestrian_hold
+        if hold is None:
+            return None
+        cfg = self.config
+        near = [o for o in items if self._person_sized(o) and (
+            o['id'] in hold['ids']
+            or (abs(o['s'] - hold['s']) <= cfg.pedestrian_adopt_m
+                and abs(o['d'] - hold['d']) <= cfg.pedestrian_adopt_m))]
+        if near:
+            o = min(near, key=lambda o: math.hypot(o['s'] - hold['s'], o['d'] - hold['d']))
+            hold['ids'].add(o['id'])
+            hold.update(s=o['s'], d=o['d'], l=o['l'], lost_scans=0)
+            lateral = abs(o['d'] - offset_at(o['s']))
+            hold['near'] = lateral < cfg.band(o['r']) + cfg.pedestrian_release_margin_m
+            in_band = lateral < cfg.band(o['r'])
+            hold['static_scans'] = (0 if o['moving'] or in_band
+                                    else hold['static_scans'] + 1)
+            occupied = hold['near']
+        else:
+            # Unseen (e.g. right at the bumper): still where it was last seen.
+            hold['lost_scans'] += 1
+            occupied = (hold['near']
+                        and hold['lost_scans'] < cfg.pedestrian_lost_release_scans)
+        hold['clear_scans'] = 0 if occupied else hold['clear_scans'] + 1
+        if (hold['s'] + hold['l'] < s_ego
+                or hold['clear_scans'] >= cfg.pedestrian_release_scans
+                or hold['static_scans'] >= cfg.pedestrian_static_release_scans):
+            self.pedestrian_hold = None
+            return None
+        ahead = hold['s'] - hold['l'] - front_s
+        stop = (0. if ahead <= 0. else
+                stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s))
+        if hold['full_brake'] or stop + .3 < speed:
+            hold['full_brake'] = speed > .3      # keep full braking until stopped
+            stop = 0.
+        hold['cap'] = min(hold['cap'], stop)
+        return hold['cap']
 
     def _lane_clear(self, items, offset, s_from, s_to, ego_speed):
         """No obstacle in the band at offset over [s_from, s_to], now or on arrival."""
@@ -447,6 +553,7 @@ class RouteAvoidance:
                 if ahead <= 0.:
                     traffic_cap = 0.
                     cap, state, reason = 0., 'YIELD', 'mover beside the bumper'
+                    self._note_pedestrian(o)
                     continue
                 if o['v_s'] > cfg.moving_speed_mps and abs(o['v_d']) < cfg.moving_speed_mps:
                     # Lead traffic: keep a gap that still stops if it brakes hard.
@@ -460,6 +567,7 @@ class RouteAvoidance:
                 traffic_cap = min(traffic_cap, stop)
                 if stop < cap:
                     cap, state, reason = stop, 'YIELD', 'mover in the path'
+                self._note_pedestrian(o)
                 continue
             arrival = ahead / max(speed, 1.)
             t0 = max(0., arrival - cfg.arrival_before_s)
@@ -479,6 +587,19 @@ class RouteAvoidance:
                 if stop < cap:
                     cap, state, reason = stop, 'YIELD', 'predicted crossing at s+%.1f m' % (
                         o['s'] - s_ego)
+                # While Ego itself moves sideways (a pass), static roadside
+                # clutter picks up lateral velocity; keep only the yield.
+                self._note_pedestrian(o, binding=stop < speed and self.active is None)
+
+        hold_cap = self._pedestrian_hold_cap(items, speed, s_ego, front_s, offset_at)
+        if hold_cap is not None:
+            traffic_cap = min(traffic_cap, hold_cap)
+            if hold_cap <= cap:
+                cap, state = hold_cap, 'YIELD'
+                reason = 'holding for pedestrian at s+%.1f m' % (
+                    self.pedestrian_hold['s'] - s_ego)
+        self.person_d = {o['id']: (self.person_d.get(o['id'], ())[-1:] + (o['d'],))
+                         for o in items if self._person_sized(o)}
 
         path = []
         s = s_ego

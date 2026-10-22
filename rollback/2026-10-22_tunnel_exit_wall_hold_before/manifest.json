@@ -1,0 +1,12 @@
+{
+  "label": "2026-10-22 터널 출구 벽 기반 정지 방지(A+C, 벽 끝 진행위치 보정) 수정 이전",
+  "base_commit": "8ee47dd78356f43ccaa4fe9a4d66728407a3ece3",
+  "files_to_restore_from_snapshot": [
+    "src/leo_avoidance/src/leo_avoidance/ftg_local.py",
+    "src/leo_avoidance/scripts/driving_state_node_local.py",
+    "src/leo_avoidance/config/odometry_local.yaml",
+    "src/leo_avoidance/test/test_rejoin_route_local.py"
+  ],
+  "how": "각 파일을 이 디렉터리의 같은 상대 경로 사본으로 덮어쓴다. analysis/2026-10-22_tunnel_exit_portal/ 는 분석 스크립트로 동작에 영향 없음(원하면 삭제).",
+  "rollback_request": "터널 출구 정지 방지 수정하기 전으로 돌려줘"
+}

@@ -367,3 +367,139 @@ def test_waypoint_only_zone_ignores_a_block_inside_it_but_not_outside():
             assert decision.state == 'FOLLOW' and math.isinf(decision.speed_cap_mps)
         else:
             assert decision.state != 'FOLLOW'
+
+
+# Crossing-pedestrian hold: only inside the configured zone (s 100..200 here).
+def hold_planner(zone=((100., 200.),)):
+    avoid = RouteAvoidance(ROUTE, RouteAvoidanceConfig(), [])
+    avoid.set_pedestrian_hold_ranges(zone)
+    return avoid
+
+
+def person(x, y, vy=0., moving=True, track_id=220):
+    return RouteObstacle(x, y, .35, vx=0., vy=vy, dynamic=moving,
+                         track_id=track_id, half_length=.3)
+
+
+def approach(avoid, ego_x, speed, x, y_far, y_near, vy, track_id=220):
+    """Three updates of a person stepping toward the route (y_far -> y_near)."""
+    for y in (y_far + (y_far - y_near), y_far):
+        avoid.update((ego_x, 0.), speed, [person(x, y, vy=vy, track_id=track_id)])
+    return avoid.update((ego_x, 0.), speed, [person(x, y_near, vy=vy, track_id=track_id)])
+
+
+def test_velocity_dropout_beside_the_band_keeps_the_pedestrian_stop():
+    # Logged S7 case: walking in from the right, then one update with no
+    # velocity just outside the band. It must not read as a clear road.
+    for zone, held in ((((100., 200.),), True), ((), False)):
+        avoid = hold_planner(zone)
+        first = approach(avoid, 128., 6.7, 140., -3.1, -2.9, 1.2)
+        assert first.state == 'YIELD'
+        dropout = avoid.update((128.4, 0.), 3.6, [person(140., -2.24, moving=False)])
+        if held:
+            assert dropout.state == 'YIELD'
+            assert dropout.speed_cap_mps <= first.speed_cap_mps
+            assert dropout.traffic_speed_cap_mps == dropout.speed_cap_mps
+        else:
+            assert dropout.state == 'FOLLOW'      # unchanged outside the zone
+
+
+def test_pedestrian_stop_is_a_full_stop_when_planned_braking_is_short():
+    avoid = hold_planner()
+    decision = approach(avoid, 128., 7.9, 139., -3.0, -2.8, 1.9)
+    assert decision.state == 'YIELD'
+    assert decision.speed_cap_mps == 0.
+    # Full braking holds until Ego has stopped, even as the stop gets easier.
+    slower = avoid.update((131., 0.), 2.5, [person(139., -1.8, vy=1.9)])
+    assert slower.speed_cap_mps == 0.
+
+
+def test_crossing_that_needs_no_braking_starts_no_hold():
+    avoid = hold_planner()
+    decision = approach(avoid, 100., 3., 118., -3.5, -3.3, 1.)
+    assert decision.state == 'YIELD' and decision.speed_cap_mps > 3.
+    assert avoid.pedestrian_hold is None
+
+
+def test_roadside_clutter_with_a_stale_velocity_starts_no_hold():
+    # Logged S5 clutter: velocity toward the route, position moving away.
+    avoid = hold_planner()
+    for y in (-1.83, -1.7, -1.5, -1.84, -2.08):    # tiny, approaching once
+        decision = avoid.update((128., 0.), 5.5, [RouteObstacle(
+            140., y, .17, vx=0., vy=2.0, dynamic=True, track_id=128, half_length=.12)])
+    assert avoid.pedestrian_hold is None
+    assert decision.speed_cap_mps > 0.
+
+
+def test_pedestrian_hold_releases_after_the_person_is_seen_clear():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1.0, 1.5)
+    assert avoid.pedestrian_hold is not None
+    # Still within band + margin on the far side: keep waiting.
+    for _ in range(6):
+        assert avoid.update((128., 0.), 0., [person(140., 2.5, vy=1.5)]).state == 'YIELD'
+    # Clear by the margin for five updates in a row, then drive on.
+    states = [avoid.update((128., 0.), 0., [person(140., 3.5, vy=1.5)]).state
+              for _ in range(5)]
+    assert states[:4] == ['YIELD'] * 4 and states[4] == 'FOLLOW'
+    assert avoid.pedestrian_hold is None
+
+
+def test_brief_track_loss_does_not_release_the_pedestrian_stop():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1.0, 1.5)
+    for _ in range(4):
+        assert avoid.update((128., 0.), 0., []).state == 'YIELD'
+    # Re-acquired under a new id next to the last position: same person.
+    assert avoid.update((128., 0.), 0., [person(140.5, -.3, vy=1.5, track_id=301)]).state == 'YIELD'
+    assert 301 in avoid.pedestrian_hold['ids']
+
+
+def test_person_waiting_at_the_kerb_eventually_releases_the_hold():
+    avoid = hold_planner()
+    assert approach(avoid, 128., 6., 140., -2.8, -2.6, 1.5).state == 'YIELD'
+    assert avoid.pedestrian_hold is not None
+    states = [avoid.update((128., 0.), 0., [person(140., -2.6, moving=False)]).state
+              for _ in range(30)]
+    assert states[-2] == 'YIELD' and states[-1] == 'FOLLOW'
+
+
+def test_vehicles_and_lane_traffic_are_not_held_as_pedestrians():
+    avoid = hold_planner()
+    for y in (-2.9, -2.6):
+        avoid.update((128., 0.), 4., [RouteObstacle(140., y, 1., vx=0., vy=1.5, dynamic=True,
+                                                    track_id=5, half_length=2.3)])
+    assert avoid.pedestrian_hold is None
+    avoid = hold_planner()
+    for x in (139., 140.):
+        avoid.update((128., 0.), 4., [RouteObstacle(x, 0., .4, vx=3., vy=0., dynamic=True,
+                                                    track_id=6, half_length=.6)])
+    assert avoid.pedestrian_hold is None
+
+
+def test_pedestrian_hold_ends_once_ego_is_past_the_person():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1.0, 1.5)
+    assert avoid.update((141., 0.), 3., []).state == 'FOLLOW'
+    assert avoid.pedestrian_hold is None
+
+
+def test_person_unseen_at_the_bumper_keeps_the_stop_until_seen_clear():
+    # Logged S5 case: right in front of the bumper the person drops out of
+    # the LiDAR tracks. That is not a clear road.
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 136., -1.3, -1.0, 1.5)
+    states = [avoid.update((128., 0.), 0., []).state for _ in range(29)]
+    assert set(states) == {'YIELD'}
+    # Seen clear on the far side: released after the usual confirmation.
+    states = [avoid.update((128., 0.), 0., [person(136., 3.5, vy=1.5)]).state
+              for _ in range(5)]
+    assert states[-1] == 'FOLLOW'
+
+
+def test_person_last_seen_clear_then_lost_releases_normally():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1.0, 1.5)
+    avoid.update((128., 0.), 0., [person(140., 3.5, vy=1.5)])
+    states = [avoid.update((128., 0.), 0., []).state for _ in range(4)]
+    assert states[-1] == 'FOLLOW'

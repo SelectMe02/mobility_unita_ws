@@ -1,0 +1,71 @@
+{
+  "baseline_commit": "8ee47dd78356f43ccaa4fe9a4d66728407a3ece3",
+  "bag": "semi_leo_2026-10-21-23-18-56.bag",
+  "diagnosis": {
+    "recorded_exit_hold_time": "2026-10-21T23:19:57.725+09:00",
+    "first_reason": "GPS blackout outside configured tunnel section",
+    "subsequent_reason": "GPS return disagrees with LiDAR odometry",
+    "gps_lidar_translation_error_at_hold_m": 16.908453459401027,
+    "scan_fault_at_initial_hold": null,
+    "avoidance_reason_at_initial_hold": "gap fits",
+    "gps_pose_age_at_hold_s": 0.007667171070352197
+  },
+  "replay": {
+    "first_validated_return_time": "2026-10-21T23:19:56.971+09:00",
+    "seconds_before_original_hold": 0.7537040710449219,
+    "route_cross_track_m": 2.4242020958055237,
+    "yaw_error_rad": -0.3671754498184881,
+    "continuous_gps_s": 0.30020856857299805
+  },
+  "change": "Exit-only continuous GPS route validation independent of drifted ICP; event-based signal progress reset on the corresponding corrected GPS pose.",
+  "gates": {
+    "continuous_gps_s": 0.3,
+    "max_sample_gap_s": 0.2,
+    "minimum_distinct_samples": 3,
+    "max_route_cross_track_m": 3.0,
+    "max_route_heading_error_rad": 0.45,
+    "exit_route_window_m": [
+      -5.0,
+      20.0
+    ],
+    "net_motion_error_tolerance_m": 0.75
+  },
+  "tests": {
+    "total_passed": 188,
+    "suites": [
+      "test_scan_odometry_local.py",
+      "test_blackout_watchdog_local.py",
+      "test_rejoin_route_local.py",
+      "test_signal_node_local.py",
+      "test_traffic_local.py",
+      "test_ftg_local.py"
+    ],
+    "includes": [
+      "unprojectable ICP and outside-window GPS recovery",
+      "brief/stale/gapped/repeated/jumping GPS rejection",
+      "off-route/wrong-heading/wrong-exit/speed-inconsistent GPS rejection",
+      "missing GPS still holds at blackout boundary",
+      "real tick corrected pose/event publication",
+      "signal guard correction delivery ordering",
+      "red-light braking after localization correction",
+      "generic and stale status cannot reset progress"
+    ]
+  },
+  "protected_files_unchanged_from_head": [
+    "src/leo_avoidance/src/leo_avoidance/ftg_local.py",
+    "src/leo_avoidance/config/avoidance_local.yaml",
+    "src/leo_avoidance/src/leo_avoidance/driving_state_local.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py"
+  ],
+  "source_sha256": {
+    "src/leo_avoidance/scripts/driving_state_node_local.py": "46eeda98c99bc42f60ae5561e6fb4fd57d24138e4e861c59760699f7179be2c1",
+    "src/leo_guard/scripts/signal_guard_node_local.py": "7885cb3fd5de0998cc4313da3b85837a85bec2963ba11c30509ee163ca4367bc",
+    "src/leo_avoidance/test/test_rejoin_route_local.py": "f6c49239f55404d752119daa98ba9e84acd50c88577aaf3fb3f18fb8d07d38fe",
+    "src/leo_guard/test/test_signal_node_local.py": "04c36e202228e7c23038b454cb3b36e9dc27e871d41f1a858f0c9e817c4c4e8b"
+  },
+  "limitations": [
+    "Recorded-input decision replay only; monotonic callback timing approximated by bag receive time.",
+    "Does not simulate the new vehicle trajectory or prove all possible exit failures are eliminated.",
+    "No live vehicle or ROS control process was started."
+  ]
+}

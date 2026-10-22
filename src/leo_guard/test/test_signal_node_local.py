@@ -27,6 +27,7 @@ class SignalNodeTests(unittest.TestCase):
         g.route_max_error_m = g.blackout_route_max_error_m = 2.
         g.blackout, g.passthrough = [], []
         g.passthrough_max_error_m, g.in_passthrough = 15., False
+        g.last_exit_rejoin_stamp = None
         g.auto_arm, g.auto_arm_hold_s, g.ready_since = False, 1., None
         g.lanes = None
         return g
@@ -151,6 +152,33 @@ class SignalNodeTests(unittest.TestCase):
         g.inputs['route_offset'] = (3.5, 0.)  # stale offset: plain Raceline 1 corridor
         with self.assertRaises(ValueError):
             g.track((50., 3.6, 0.), 1.)
+
+    def test_continuous_exit_gps_event_resets_route_state_once(self):
+        g=self.guard();g.decision.last_s=20.;g.route.index=0;g.in_passthrough=True
+        status=dict(mode='GPS',valid=True,gps_rejoin_stamp=12.3,
+                    driving_pose=[45.,0.,0.],
+                    gps_rejoin_diagnostic=dict(method='continuous_exit_gps',route_ok=True))
+        with patch.object(node.time,'monotonic',return_value=1.):
+            g.driving_status(type('Message',(),{'data':json.dumps(status)})())
+        self.assertTrue(g.consume_exit_gps_rejoin((45.,0.,0.),1.1))
+        self.assertIsNone(g.decision.last_s);self.assertFalse(g.in_passthrough)
+        self.assertFalse(g.consume_exit_gps_rejoin((45.,0.,0.),1.2))
+
+    def test_exit_gps_event_rejects_unvalidated_or_mismatched_pose(self):
+        g=self.guard()
+        for method,route_ok in (('ordinary',True),('continuous_exit_gps',False)):
+            status=dict(mode='GPS',valid=True,gps_rejoin_stamp=12.3,
+                        driving_pose=[45.,0.,0.],
+                        gps_rejoin_diagnostic=dict(method=method,route_ok=route_ok))
+            with patch.object(node.time,'monotonic',return_value=1.):
+                g.driving_status(type('Message',(),{'data':json.dumps(status)})())
+        self.assertNotIn('exit_gps_rejoin',g.inputs)
+        valid=dict(mode='GPS',valid=True,gps_rejoin_stamp=12.3,
+                   driving_pose=[45.,0.,0.],
+                   gps_rejoin_diagnostic=dict(method='continuous_exit_gps',route_ok=True))
+        with patch.object(node.time,'monotonic',return_value=1.):
+            g.driving_status(type('Message',(),{'data':json.dumps(valid)})())
+        self.assertFalse(g.consume_exit_gps_rejoin((50.,0.,0.),1.1))
 
 
 if __name__ == '__main__': unittest.main()
