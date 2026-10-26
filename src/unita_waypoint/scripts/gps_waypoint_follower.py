@@ -510,7 +510,7 @@ class GPSWaypointFollower:
                 roundabout_ego_lead_gap_s=float(rospy.get_param(
                     '~roundabout_ego_lead_gap_s', 1.4)),
                 roundabout_ego_lead_min_speed_kmh=float(rospy.get_param(
-                    '~roundabout_ego_lead_min_speed_kmh', 5.)))
+                    '~roundabout_ego_lead_min_speed_kmh', 2.5)))
             if self.local_planner.roundabout_conflict_point is not None:
                 self.roundabout_obstacle_corridor = LaneCorridor(dict(
                     frame_id='map',
@@ -1238,7 +1238,9 @@ class GPSWaypointFollower:
             if not hasattr(self, 'pedal_guard'):
                 self.pedal_guard = PedalGuard()
             planner = getattr(self, 'local_planner', None)
-            if (getattr(self, 'lane_change_reason', '') == 'roundabout_gap_accepted'
+            roundabout_release = getattr(self, 'lane_change_reason', '') in (
+                'roundabout_gap_accepted', 'roundabout_rolling_entry')
+            if (roundabout_release and velocity > 0.
                     and self.pedal_guard.holding):
                 # The roundabout guard has already confirmed distinct clear
                 # LiDAR scans. Do not repeat PedalGuard's generic clear hold.
@@ -1246,8 +1248,14 @@ class GPSWaypointFollower:
             soft = getattr(self, 'lane_change_reason', '') == 'transition_slowing'
             limit = getattr(planner, 'avoidance_brake_limit', .35) if soft else 1.
             sample = getattr(self, 'obstacle_stamp', None) if getattr(self, 'enable_local_avoidance', False) else None
+            restart_rate = getattr(planner, 'restart_accel_rate', .5)
+            if (roundabout_release
+                    and 0. <= self.current_speed_kmh < 5. and velocity > 0.):
+                # Use the confirmed gap promptly: shorten the initial throttle
+                # ramp after yielding, while retaining PID demand and braking.
+                restart_rate = max(restart_rate, 1.)
             accel, brake, pedal_state = self.pedal_guard.command(output, now, sample,
-                getattr(planner, 'clear_hold_s', .4), getattr(planner, 'restart_accel_rate', .5), limit)
+                getattr(planner, 'clear_hold_s', .4), restart_rate, limit)
             self.pedal_reason = ('clearance_confirmation' if pedal_state == 'clearance_confirmation'
                                  else 'sector11_cruise_brake' if smooth and brake > 0.
                                  else 'avoidance_deceleration' if soft and brake > 0.
@@ -1356,6 +1364,16 @@ class GPSWaypointFollower:
             'current_raceline': planner.current_lane if planner is not None else 1,
             'lane_change_reason': getattr(self, 'lane_change_reason', ''),
             'local_lane': selected_lane})))
+
+    def planning_obstacles(self):
+        """Ignore LiDAR detections only at S10 points saved at 40 km/h."""
+        index = getattr(self, 'current_waypoint_index', -1)
+        sectors = getattr(self, 'route_sectors', [])
+        limits = getattr(self, 'project_speed_limits_kmh', [])
+        ignored = (0 <= index < min(len(sectors), len(limits))
+                   and sectors[index] == 10 and limits[index] == 40.)
+        self.debug_trace['s10_40_lidar_ignored'] = ignored
+        return [] if ignored else self.obstacles
 
     def roundabout_obstacle_filter_active(self):
         """Keep the circulating lane only at the configured S9 merge."""
@@ -1603,7 +1621,7 @@ class GPSWaypointFollower:
             if (self.guard_limit_topic and self.guard_limit_received is not None
                     and now-self.guard_limit_received <= .35):
                 desired_kmh = min(desired_kmh, self.guard_speed_limit)
-            planning_obstacles = self.obstacles
+            planning_obstacles = self.planning_obstacles()
             decision = self.local_planner.plan(
                 self.current_waypoint_index, position,
                 (self.current_speed_kmh or 0.)/3.6, planning_obstacles, ego_yaw=self.current_yaw,

@@ -523,13 +523,18 @@ class LocalAvoidancePlanner:
         off_r1 = self.off_r1
         current_path = self._path(ahead, ego_xy, current, progress)
         threat = self._lead(current_path, ego_xy, obstacles)
+        # S5 road rings can produce large, jumping single-scan footprints.
+        # Keep them in every stopping/gap check, but require the tracker's
+        # temporal classification before they can initiate an overtake.
+        unconfirmed_s5 = (self.sectors[index] == 5 and threat is not None
+                          and threat[1].kind == 'unknown')
         candidates = [preferred]
         if current != preferred and not force_r1:
             candidates.append(current)
-        if threat and not force_r1:
+        if threat and not force_r1 and not unconfirmed_s5:
             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
         candidates = list(dict.fromkeys(candidates))
-        waiting = ''
+        waiting = 'unconfirmed_obstacle' if unconfirmed_s5 else ''
         slow_enough = (speed_mps <= self.pass_speed_kmh/3.6+1.
                        or self._any_speed_lane_change(index))
         for lane in candidates:
@@ -616,7 +621,7 @@ class LocalAvoidancePlanner:
         if threat:
             cap = self._stop_cap(threat[0], threat[2])
             cap = min(cap, edge_cap)
-            if not slow_enough and len(available) > 1:
+            if not slow_enough and len(available) > 1 and not unconfirmed_s5:
                 cap = min(cap, self.pass_speed_kmh)
             return self._decision('TAILING', current_path if current != 1 else [], cap,
                                   threat, waiting)

@@ -1,0 +1,10 @@
+{
+  "rollback_request": "CP8 이후 로터리 재출발 응답 개선 수정 전으로 롤백",
+  "files": [
+    "src/unita_waypoint/scripts/gps_waypoint_follower.py",
+    "src/unita_waypoint/test/test_driving_stability.py"
+  ],
+  "restore_note": "Snapshots include pre-existing uncommitted changes. Reverse change.patch for this change only; do not reset git or overwrite later unrelated edits.",
+  "change": "Accepted roundabout departure below 5 km/h: throttle slew minimum 1.0/s instead of default 0.5/s; existing clearance and braking remain.",
+  "validation": "23 driving stability unittest tests and 17 roundabout function tests passed. No simulator driving validation performed."
+}

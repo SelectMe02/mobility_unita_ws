@@ -1,0 +1,57 @@
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -1246,8 +1246,14 @@
+             soft = getattr(self, 'lane_change_reason', '') == 'transition_slowing'
+             limit = getattr(planner, 'avoidance_brake_limit', .35) if soft else 1.
+             sample = getattr(self, 'obstacle_stamp', None) if getattr(self, 'enable_local_avoidance', False) else None
++            restart_rate = getattr(planner, 'restart_accel_rate', .5)
++            if (getattr(self, 'lane_change_reason', '') == 'roundabout_gap_accepted'
++                    and 0. <= self.current_speed_kmh < 5. and velocity > 0.):
++                # Use the confirmed gap promptly: shorten the initial throttle
++                # ramp after yielding, while retaining PID demand and braking.
++                restart_rate = max(restart_rate, 1.)
+             accel, brake, pedal_state = self.pedal_guard.command(output, now, sample,
+-                getattr(planner, 'clear_hold_s', .4), getattr(planner, 'restart_accel_rate', .5), limit)
++                getattr(planner, 'clear_hold_s', .4), restart_rate, limit)
+             self.pedal_reason = ('clearance_confirmation' if pedal_state == 'clearance_confirmation'
+                                  else 'sector11_cruise_brake' if smooth and brake > 0.
+                                  else 'avoidance_deceleration' if soft and brake > 0.
+--- a/src/unita_waypoint/test/test_driving_stability.py
++++ b/src/unita_waypoint/test/test_driving_stability.py
+@@ -234,6 +234,36 @@
+         self.assertFalse(n.pedal_guard.holding)
+         self.assertEqual(command.brake, 0.)
+ 
++    def test_roundabout_departure_ramps_faster_only_at_low_speed_after_acceptance(self):
++        for reason, speed, expected in (
++                ('roundabout_gap_accepted', 0., .1),
++                ('roundabout_gap_accepted', 4.9, .1),
++                ('roundabout_gap_accepted', 5., .05),
++                ('roundabout_clear_confirmation', 0., .05),
++                ('', 0., .05)):
++            with self.subTest(reason=reason, speed=speed):
++                n = GPSWaypointFollower.__new__(GPSWaypointFollower)
++                n.longitudinal_control_mode, n.control_rate = 'pid', 20.
++                n.last_pid_update, n.current_speed_kmh = 1., speed
++                n.speed_pid = MagicMock()
++                n.speed_pid.update.return_value = 1.
++                n.ctrl_pub, n.sector11_cruise_brake = MagicMock(), None
++                n.lane_change_reason = reason
++                n.local_planner = SimpleNamespace(clear_hold_s=.4, restart_accel_rate=.5)
++                n.pedal_guard = PedalGuard()
++                n.pedal_guard.last_time = 1.
++                with patch('gps_waypoint_follower.time.monotonic', return_value=1.1):
++                    n.publish_control(0., 30.)
++                command = n.ctrl_pub.publish.call_args.args[0]
++                self.assertAlmostEqual(command.accel, expected)
++                self.assertEqual(command.brake, 0.)
++                # A new braking demand still cancels throttle immediately.
++                n.speed_pid.update.return_value = -1.
++                with patch('gps_waypoint_follower.time.monotonic', return_value=1.2):
++                    n.publish_control(0., 0.)
++                command = n.ctrl_pub.publish.call_args.args[0]
++                self.assertEqual((command.accel, command.brake), (0., 1.))
++
+     def cruise_follower(self, sector=11):
+         n = GPSWaypointFollower.__new__(GPSWaypointFollower)
+         n.longitudinal_control_mode, n.control_rate = 'pid', 20.

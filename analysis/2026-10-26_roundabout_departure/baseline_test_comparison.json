@@ -1,0 +1,30 @@
+{
+  "before": {
+    "run": 37,
+    "failures": [
+      "comparison_tests.LocalAvoidanceTests.test_both_sides_occupied_keeps_path_and_slows_for_car_ahead",
+      "comparison_tests.LocalAvoidanceTests.test_close_slow_rear_car_blocks_and_distant_slow_car_allows_change",
+      "comparison_tests.LocalAvoidanceTests.test_fast_lane_change_has_longer_smoother_path",
+      "comparison_tests.LocalAvoidanceTests.test_fast_rear_car_beyond_three_metres_allows_change",
+      "comparison_tests.LocalAvoidanceTests.test_lane_change_cancels_when_target_gap_is_invaded",
+      "comparison_tests.LocalAvoidanceTests.test_prefers_r3_and_transition_end_does_not_move_when_replanning",
+      "comparison_tests.LocalAvoidanceTests.test_r3_ends_returns_before_leaving_saved_coverage",
+      "comparison_tests.LocalAvoidanceTests.test_rear_car_within_three_metres_blocks_preferred_lane_change"
+    ],
+    "errors": []
+  },
+  "after": {
+    "run": 37,
+    "failures": [
+      "comparison_tests.LocalAvoidanceTests.test_both_sides_occupied_keeps_path_and_slows_for_car_ahead",
+      "comparison_tests.LocalAvoidanceTests.test_close_slow_rear_car_blocks_and_distant_slow_car_allows_change",
+      "comparison_tests.LocalAvoidanceTests.test_fast_lane_change_has_longer_smoother_path",
+      "comparison_tests.LocalAvoidanceTests.test_fast_rear_car_beyond_three_metres_allows_change",
+      "comparison_tests.LocalAvoidanceTests.test_lane_change_cancels_when_target_gap_is_invaded",
+      "comparison_tests.LocalAvoidanceTests.test_prefers_r3_and_transition_end_does_not_move_when_replanning",
+      "comparison_tests.LocalAvoidanceTests.test_r3_ends_returns_before_leaving_saved_coverage",
+      "comparison_tests.LocalAvoidanceTests.test_rear_car_within_three_metres_blocks_preferred_lane_change"
+    ],
+    "errors": []
+  }
+}

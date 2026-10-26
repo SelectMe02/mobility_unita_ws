@@ -70,6 +70,37 @@ def r2_planner():
 
 
 class ReturnToR1Tests(unittest.TestCase):
+    def test_s5_unknown_return_cannot_start_overtake_but_still_brakes(self):
+        for gap in (5., 20., 40.):
+            p = r2_planner()
+            p.sectors = [5] * len(p.route)
+            obstacle = Obstacle(0., 20.+gap, 1., kind='unknown')
+            d = p.plan(20, (0., 20.), 5., [obstacle])
+            self.assertIsNone(p.transition)
+            self.assertEqual(d.state, 'TAILING')
+            self.assertEqual(d.reason, 'unconfirmed_obstacle')
+            self.assertAlmostEqual(d.speed_cap_kmh,
+                                   p._stop_cap(d.obstacle_distance_m, 0.))
+            if gap == 5.:
+                self.assertEqual(d.speed_cap_kmh, 0.)
+
+    def test_s5_confirmed_obstacle_and_other_sectors_keep_overtaking(self):
+        for sector, kind in ((5, 'static'), (5, 'dynamic'), (4, 'unknown'),
+                             (6, 'unknown')):
+            p = r2_planner()
+            p.sectors = [sector] * len(p.route)
+            d = p.plan(20, (0., 20.), 5., [Obstacle(0., 40., 1., kind=kind)])
+            self.assertEqual(d.state, 'OVERTAKING', (sector, kind, d))
+            self.assertEqual(p.transition['target'], 2)
+
+    def test_s5_unknown_becomes_static_then_overtakes(self):
+        p = r2_planner()
+        p.sectors = [5] * len(p.route)
+        obstacle = Obstacle(0., 40., 1., kind='unknown')
+        self.assertEqual(p.plan(20, (0., 20.), 5., [obstacle]).state, 'TAILING')
+        obstacle.kind = 'static'
+        self.assertEqual(p.plan(20, (0., 20.), 5., [obstacle]).state, 'OVERTAKING')
+
     def test_returns_to_r1_after_r2_has_ended(self):
         p = r2_planner()
         p.departed_preferred, p.previous_preferred_lane = True, 1

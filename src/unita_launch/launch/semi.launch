@@ -118,7 +118,7 @@
     <param name="roundabout_clear_scans" value="3"/>
     <!-- After yielding: a following car arriving after a still-rolling Ego needs only this lead. -->
     <param name="roundabout_ego_lead_gap_s" value="1.4"/>
-    <param name="roundabout_ego_lead_min_speed_kmh" value="5.0"/>
+    <param name="roundabout_ego_lead_min_speed_kmh" value="2.5"/>
     <param name="roundabout_obstacle_monitor_radius_m" value="35.0"/>
     <!-- S11 cruise and ordinary following: smooth brake; imminent hazards bypass. -->
     <param name="sector11_smooth_braking" value="true"/>

@@ -1,0 +1,46 @@
+{
+  "runs": [
+    "run_20261026_195016",
+    "run_20261026_195054"
+  ],
+  "confirmed": {
+    "first": {
+      "first_gap_clear": "19:50:40.222",
+      "rejected_again_at_kmh": 4.1,
+      "rejected_time": "19:50:40.773",
+      "geometry_commit": "19:50:40.875",
+      "restart_after_pedal_hold": "19:50:41.323",
+      "near_merge_full_brake": "19:50:43.823"
+    },
+    "second": {
+      "first_gap_clear": "19:51:18.495",
+      "rejected_again_at_kmh": 2.8,
+      "rejected_time": "19:51:18.946",
+      "second_gap_clear": "19:51:23.996"
+    },
+    "previous_throttle_change_activated_on_first_run": false
+  },
+  "collision_evidence": "User reported circulating following car hit ego side/rear. No simulator collision event/truth was recorded. Delayed restart after re-yield and geometric commit is consistent with reported contact, not proof of exact impact time.",
+  "changes": [
+    "After yield, require two distinct clear scans; initial approach remains three.",
+    "Rolling ego-first margin applies from 2.5 km/h instead of 5.0 km/h; 1.4 s margin unchanged.",
+    "Pass rolling entry clearance to pedal controller; retain normal path obstacle cap and following-car reassessment.",
+    "Do not allow front-boundary creep alone to cancel a rejected gap."
+  ],
+  "replay_limits": "Recorded ego poses and speeds are held fixed. Second run still yields later at 19:51:19.196 when recorded speed falls below threshold; no claim of collision-free counterfactual trajectory.",
+  "validation": {
+    "roundabout_tests_passed": 21,
+    "driving_stability_tests_passed": 23,
+    "general_avoidance_tests": {
+      "total": 37,
+      "passed": 29,
+      "failures": 8,
+      "same_failures_before_change": true
+    },
+    "guard_replay_release_advance_s": [
+      0.15,
+      0.099
+    ],
+    "closed_loop_simulator_test": false
+  }
+}

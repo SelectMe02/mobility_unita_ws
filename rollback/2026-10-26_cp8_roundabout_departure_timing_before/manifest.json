@@ -1,0 +1,26 @@
+{
+  "rollback_request": "CP8 로터리 출발 시점 및 재정지 개선 수정 전으로 롤백",
+  "files": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower.py",
+    "src/unita_launch/launch/semi.launch",
+    "src/unita_waypoint/test/test_roundabout_merge.py",
+    "src/unita_waypoint/test/test_driving_stability.py"
+  ],
+  "restore_note": "Reverse change.patch to preserve unrelated changes; snapshots include the preceding throttle ramp change.",
+  "validation": {
+    "roundabout_tests_passed": 21,
+    "driving_stability_tests_passed": 23,
+    "general_avoidance_tests": {
+      "total": 37,
+      "passed": 29,
+      "failures": 8,
+      "same_failures_before_change": true
+    },
+    "guard_replay_release_advance_s": [
+      0.15,
+      0.099
+    ],
+    "closed_loop_simulator_test": false
+  }
+}

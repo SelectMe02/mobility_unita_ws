@@ -25,6 +25,34 @@ def planner():
 
 
 class StabilityTests(unittest.TestCase):
+    def test_s10_saved_40_ignores_obstacles_and_restores_them_on_exit(self):
+        n = GPSWaypointFollower.__new__(GPSWaypointFollower)
+        n.route_sectors = [10, 10, 10, 11, 9]
+        n.project_speed_limits_kmh = [55., 40., 55., 40., 40.]
+        n.debug_trace = {}
+        n.obstacles = [Obstacle(12., 0., 1., kind='static'),
+                       Obstacle(15., 0., 1., kind='dynamic')]
+        route = [(float(i), 0.) for i in range(150)]
+        p = LocalAvoidancePlanner(route, [10]*len(route), {})
+        for speed in (0., 25., 40., 55.):
+            n.current_speed_kmh = speed
+            for index in (0, 1, 2, 3, 4, -1, 5):
+                n.current_waypoint_index = index
+                selected = n.planning_obstacles()
+                ignored = index == 1
+                self.assertEqual(n.debug_trace['s10_40_lidar_ignored'], ignored)
+                decision = p.plan(0, (0., 0.), 8., selected)
+                if ignored:
+                    self.assertEqual(selected, [])
+                    self.assertTrue(math.isinf(decision.speed_cap_kmh))
+                    self.assertTrue(math.isinf(decision.obstacle_distance_m))
+                else:
+                    self.assertIs(selected, n.obstacles)
+                    self.assertLess(decision.speed_cap_kmh, 40.)
+        del n.project_speed_limits_kmh
+        n.current_waypoint_index = 1
+        self.assertIs(n.planning_obstacles(), n.obstacles)
+
     def labelled_tracker(self, sector=11):
         n = LidarObstacles.__new__(LidarObstacles)
         n.tracks, n.next_id, n.dynamic_speed_threshold_mps = {}, 1, .8
@@ -201,10 +229,44 @@ class StabilityTests(unittest.TestCase):
                                     avoidance_brake_limit=.35)
         n.enable_local_avoidance, n.obstacle_stamp = True, 10.
         n.pedal_guard = PedalGuard();n.pedal_guard.stop(0.)
-        n.publish_control(0., 30.)
-        command = n.ctrl_pub.publish.call_args.args[0]
-        self.assertFalse(n.pedal_guard.holding)
-        self.assertEqual(command.brake, 0.)
+        for reason in ('roundabout_gap_accepted', 'roundabout_rolling_entry'):
+            n.lane_change_reason = reason
+            n.pedal_guard.stop(0.)
+            n.publish_control(0., 30.)
+            command = n.ctrl_pub.publish.call_args.args[0]
+            self.assertFalse(n.pedal_guard.holding)
+            self.assertEqual(command.brake, 0.)
+
+    def test_roundabout_departure_ramps_faster_only_at_low_speed_after_acceptance(self):
+        for reason, speed, expected in (
+                ('roundabout_gap_accepted', 0., .1),
+                ('roundabout_gap_accepted', 4.9, .1),
+                ('roundabout_rolling_entry', 3., .1),
+                ('roundabout_gap_accepted', 5., .05),
+                ('roundabout_clear_confirmation', 0., .05),
+                ('', 0., .05)):
+            with self.subTest(reason=reason, speed=speed):
+                n = GPSWaypointFollower.__new__(GPSWaypointFollower)
+                n.longitudinal_control_mode, n.control_rate = 'pid', 20.
+                n.last_pid_update, n.current_speed_kmh = 1., speed
+                n.speed_pid = MagicMock()
+                n.speed_pid.update.return_value = 1.
+                n.ctrl_pub, n.sector11_cruise_brake = MagicMock(), None
+                n.lane_change_reason = reason
+                n.local_planner = SimpleNamespace(clear_hold_s=.4, restart_accel_rate=.5)
+                n.pedal_guard = PedalGuard()
+                n.pedal_guard.last_time = 1.
+                with patch('gps_waypoint_follower.time.monotonic', return_value=1.1):
+                    n.publish_control(0., 30.)
+                command = n.ctrl_pub.publish.call_args.args[0]
+                self.assertAlmostEqual(command.accel, expected)
+                self.assertEqual(command.brake, 0.)
+                # A new braking demand still cancels throttle immediately.
+                n.speed_pid.update.return_value = -1.
+                with patch('gps_waypoint_follower.time.monotonic', return_value=1.2):
+                    n.publish_control(0., 0.)
+                command = n.ctrl_pub.publish.call_args.args[0]
+                self.assertEqual((command.accel, command.brake), (0., 1.))
 
     def cruise_follower(self, sector=11):
         n = GPSWaypointFollower.__new__(GPSWaypointFollower)

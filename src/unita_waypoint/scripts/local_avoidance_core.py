@@ -145,7 +145,7 @@ class LocalAvoidancePlanner:
                  roundabout_time_gap_s=2.5,
                  roundabout_clear_scans=3,
                  roundabout_ego_lead_gap_s=1.4,
-                 roundabout_ego_lead_min_speed_kmh=5.):
+                 roundabout_ego_lead_min_speed_kmh=2.5):
         self.route = list(route)
         self.sectors = list(sectors)
         # Raceline each route point was taken from (S11 may be driven on R3).
@@ -623,10 +623,19 @@ class LocalAvoidancePlanner:
             self.roundabout_yield_seen = False
             self.roundabout_gap_accepted = False
             return None
+        # After yielding, two independent clear observations release braking
+        # promptly. Keep the configured confirmation on the initial approach.
+        clear_scans = (min(2, self.roundabout_clear_scans)
+                       if self.roundabout_yield_seen else self.roundabout_clear_scans)
         # The front of Ego has crossed the near edge of the merge area. Avoid
         # an abrupt stop beside a circulating car; normal path collision
         # protection remains active from this point onward.
-        if to_conflict <= self.front_extent+self.roundabout_conflict_radius_m:
+        # Braking can carry the front across the near boundary after a new
+        # YIELD. Geometry alone must not turn that rejected gap into a restart.
+        if (to_conflict <= self.front_extent+self.roundabout_conflict_radius_m
+                and (not self.roundabout_yield_seen
+                     or self.roundabout_gap_accepted
+                     or self.roundabout_clear_votes >= clear_scans)):
             self.roundabout_state = 'COMMITTED'
             self.roundabout_clear_votes = self.roundabout_clear_scans
             self.roundabout_threat_id = None
@@ -654,7 +663,7 @@ class LocalAvoidancePlanner:
         # Ego, the first approach, and a stopped Ego keep the symmetric gap.
         ego_lead_gap = (self.roundabout_ego_lead_gap_s
                         if (self.roundabout_yield_seen
-                            and self.roundabout_clear_votes >= self.roundabout_clear_scans
+                            and self.roundabout_clear_votes >= clear_scans
                             and ego_speed_mps >= self.roundabout_ego_lead_min_speed_mps)
                         else self.roundabout_time_gap_s)
         threat = None
@@ -716,7 +725,7 @@ class LocalAvoidancePlanner:
             self.roundabout_clear_votes = min(self.roundabout_clear_scans,
                                                self.roundabout_clear_votes+1)
             self.roundabout_last_clear_stamp = observation_stamp
-        if self.roundabout_clear_votes >= self.roundabout_clear_scans:
+        if self.roundabout_clear_votes >= clear_scans:
             self.roundabout_state = 'ENTRY_CLEAR'
             if self.roundabout_yield_seen and ego_speed_mps <= .5:
                 self.roundabout_gap_accepted = True
@@ -909,12 +918,19 @@ class LocalAvoidancePlanner:
             self.departed_preferred = False
         if len(current_path) < 2:
             return self._decision('BLOCKED', current_path, 0., reason=waiting or 'saved_path_ends')
+        release_reason = waiting
+        if (not waiting and self.roundabout_state == 'ENTRY_CLEAR'
+                and self.roundabout_yield_seen
+                and speed_mps >= self.roundabout_ego_lead_min_speed_mps):
+            # Mark a rolling release for the pedal controller, but still use
+            # the normal lead/path cap below and recheck traffic next cycle.
+            release_reason = 'roundabout_rolling_entry'
         path = current_path if current != base or distance(ego_xy, available[base]) > .35 else []
         if threat is not None:
             cap = min(edge_cap, self._stop_cap(threat[0], threat[2]))
-            return self._decision('TAILING', path, cap, threat, waiting)
+            return self._decision('TAILING', path, cap, threat, release_reason)
         state = 'LANE_WAIT' if waiting else 'OVERTAKING' if self.departed_preferred else 'RACELINE'
-        return self._decision(state, path, edge_cap, reason=waiting)
+        return self._decision(state, path, edge_cap, reason=release_reason)
 
     def _transition_step(self, index, ego_xy, speed_mps, progress, ahead,
                          available, obstacles, edge_cap):

@@ -200,9 +200,9 @@ def test_first_approach_keeps_symmetric_gap_for_ego_first_arrival():
 
 def test_crawling_ego_keeps_symmetric_gap_after_yield():
     p = planner()
-    _yield_then_clear(p, ego_speed=1.)
+    _yield_then_clear(p, ego_speed=.6)
     assert not p.roundabout_gap_accepted
-    decision = p.plan(10, (10., 0.), 1., [_car_with_lead(p, 1.63)],
+    decision = p.plan(10, (10., 0.), .6, [_car_with_lead(p, 1.63)],
                       desired_speed_mps=30./3.6, observation_stamp=5.)
     assert decision.state == 'ROUNDABOUT_YIELD'
 
@@ -221,3 +221,49 @@ def test_car_still_inside_merge_blocks_rolling_ego_after_yield():
     decision = p.plan(10, (10., 0.), 10./3.6, [circulating(y=1., track_id=40)],
                       desired_speed_mps=30./3.6, observation_stamp=5.)
     assert decision.state == 'ROUNDABOUT_YIELD'
+
+
+def test_yield_release_uses_two_distinct_clear_scans_while_still_rolling():
+    p = planner()
+    p.plan(10, (10., 0.), 2., [circulating()], desired_speed_mps=5.,
+           observation_stamp=1.)
+    for _ in range(4):
+        held = p.plan(10, (10., 0.), 1., [], desired_speed_mps=5.,
+                      observation_stamp=2.)
+        assert held.state == 'ROUNDABOUT_APPROACH'
+    released = p.plan(10, (10., 0.), 1., [], desired_speed_mps=5.,
+                      observation_stamp=2.1)
+    assert released.reason == 'roundabout_rolling_entry'
+    assert math.isinf(released.speed_cap_kmh)
+    assert not p.roundabout_gap_accepted
+
+
+def test_low_speed_rolling_release_rechecks_tight_following_car():
+    p = planner()
+    _yield_then_clear(p, ego_speed=3./3.6)
+    released = p.plan(10, (10., 0.), 3./3.6, [_car_with_lead(p, 1.63)],
+                      desired_speed_mps=30./3.6, observation_stamp=5.)
+    assert released.reason == 'roundabout_rolling_entry'
+    assert not p.roundabout_gap_accepted
+    blocked = p.plan(10, (10., 0.), 3./3.6, [_car_with_lead(p, 1.2)],
+                     desired_speed_mps=30./3.6, observation_stamp=6.)
+    assert blocked.state == 'ROUNDABOUT_YIELD'
+
+
+def test_creeping_over_commit_boundary_cannot_cancel_rejected_gap():
+    p = planner()
+    first = p.plan(22, (22., 0.), 1., [circulating()], desired_speed_mps=5.,
+                   observation_stamp=1.)
+    assert first.state == 'ROUNDABOUT_YIELD'
+    over_boundary = p.plan(24, (24., 0.), .8, [circulating()],
+                           desired_speed_mps=5., observation_stamp=1.1)
+    assert over_boundary.state == 'ROUNDABOUT_YIELD'
+    assert over_boundary.speed_cap_kmh == 0.
+
+
+def test_rolling_release_preserves_path_obstacle_stop():
+    p = planner()
+    _yield_then_clear(p, ego_speed=1.)
+    blocked = p.plan(10, (10., 0.), 1., [core.Obstacle(13., 0., 1.)],
+                     desired_speed_mps=5., observation_stamp=5.)
+    assert blocked.speed_cap_kmh == 0.
