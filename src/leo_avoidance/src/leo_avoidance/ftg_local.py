@@ -658,6 +658,56 @@ class FollowTheGap:
             self._remove_ego_returns(
                 self._in_collision_height(points, reference, plane)))
 
+    def _body_intrusion_threats(self, tracked, ego_speed_mps):
+        """Predict simultaneous body occupancy, including intrusion from beside us.
+
+        Tracker velocities are world motion expressed in the current LiDAR
+        axes: subtract Ego speed for longitudinal relative motion. Unconfirmed
+        motion only qualifies within 1.2 seconds and with a reliable signed
+        lateral observation. Unknown velocity is not evidence of approach.
+        """
+        cfg = self.config
+        front = cfg.front_bumper_from_rear_m - cfg.lidar_to_rear_x_m
+        # Include a one-metre rear-axle buffer for the rear body, rather than
+        # stopping the occupancy envelope at the axle itself.
+        rear = -cfg.lidar_to_rear_x_m - 1.
+        threats = []
+        for track in tracked:
+            if (not track.velocity_known or track.lateral_scans == 0
+                    or abs(track.vy_mps) < cfg.crossing_min_lateral_speed_mps
+                    or track.y_m * track.vy_mps >= 0.):
+                continue
+            confirmed = (track.dynamic and
+                         abs(track.lateral_scans) >= cfg.crossing_confirm_scans)
+            horizon = cfg.crossing_horizon_s if confirmed else min(1.2, cfg.crossing_horizon_s)
+            half_x = track.size_x_m / 2.
+            half_y = (cfg.vehicle_half_width_m + cfg.crossing_margin_m
+                      + track.size_y_m / 2.)
+            vx = track.vx_mps - ego_speed_mps
+            # A fully passed obstacle that cannot catch us must not brake us.
+            if track.x_m + half_x < rear and vx <= 0.:
+                continue
+            entry, leave = 0., horizon
+            for position, velocity, low, high in (
+                    (track.x_m, vx, rear - half_x, front + half_x),
+                    (track.y_m, track.vy_mps, -half_y, half_y)):
+                if abs(velocity) < 1e-6:
+                    if not low <= position <= high:
+                        leave = -1.
+                        break
+                else:
+                    times = sorted(((low-position)/velocity, (high-position)/velocity))
+                    entry, leave = max(entry, times[0]), min(leave, times[1])
+            if entry > leave:
+                continue
+            # Imminent side intrusion needs an immediate stop request, even
+            # when the object's longitudinal position is behind the bumper.
+            clearance = (0. if entry <= 1.2 else
+                         ego_speed_mps * max(0., entry - cfg.reaction_s))
+            threats.append((clearance, math.atan2(track.y_m, track.x_m),
+                            math.copysign(1., track.vy_mps)))
+        return threats
+
     def _crossing_threats(self, tracked):
         """Moving obstacles predicted inside the Ego lane within the horizon.
 
@@ -896,7 +946,13 @@ class FollowTheGap:
         tracks_summary = tuple(
             (t.track_id, round(t.x_m, 2), round(t.y_m, 2), round(t.vx_mps, 2),
              round(t.vy_mps, 2), t.dynamic, t.lateral_scans) for t in tracked)
-        threats = self._crossing_threats(tracked)
+        crossing_tracks = ([t for t in tracked if t.y_m * t.vy_mps < 0.]
+                           if wall_follow else tracked)
+        threats = self._crossing_threats(crossing_tracks)
+        if wall_follow:
+            # Tunnel-only supplement: preserve ordinary route behaviour and
+            # the existing ahead-of-bumper crossing yield calculation.
+            threats.extend(self._body_intrusion_threats(tracked, ego_speed_mps))
         radii = np.hypot(obstacles[:, 0], obstacles[:, 1])
         bearings = np.arctan2(obstacles[:, 1], obstacles[:, 0])
         forward_radii = np.hypot(points[points[:, 0] > 0., 0],

@@ -1223,3 +1223,68 @@ def test_exit_heading_handover_is_gradual_and_invalid_heading_stops():
     bad = FollowTheGap(cfg).plan(
         cloud, 1., wall_follow=True, exit_heading_error_rad=float('nan'))
     assert bad.speed_mps == 0. and bad.reason == 'invalid exit heading'
+
+
+def intrusion_track(x=.81, y=1.54, vx=-.03, vy=-1.81,
+                    dynamic=True, scans=-7, known=True):
+    from leo_avoidance.obstacle_tracker import TrackedObstacle
+    return TrackedObstacle(87, x, y, .8, .8, vx, vy, known, dynamic, scans)
+
+
+def test_confirmed_side_intrusion_behind_front_bumper_is_not_discarded():
+    planner = FollowTheGap()
+    track = intrusion_track()
+    assert planner._crossing_threats([track]) == []
+    assert planner._body_intrusion_threats([track], 4.5)[0][0] == 0.
+
+
+def test_near_intrusion_does_not_wait_for_dynamic_or_three_scan_confirmation():
+    planner = FollowTheGap()
+    track = intrusion_track(5.07, -2.43, -.27, 2.09, dynamic=False, scans=2)
+    assert planner._crossing_threats([track]) == []
+    assert planner._body_intrusion_threats([track], 5.)[0][0] == 0.
+
+
+def test_intrusion_guard_excludes_departing_passed_and_untrusted_motion():
+    planner = FollowTheGap()
+    tracks = [
+        intrusion_track(vy=1.81, scans=7),  # moving away on the left
+        intrusion_track(x=-4.),           # fully passed, cannot catch Ego
+        intrusion_track(vy=0., scans=0, dynamic=False),  # static
+        intrusion_track(known=False),
+        intrusion_track(scans=0),         # no reliable lateral observation
+    ]
+    for track in tracks:
+        assert not planner._body_intrusion_threats([track], 4.5)
+
+
+def test_lateral_approach_without_simultaneous_longitudinal_overlap_is_clear():
+    planner = FollowTheGap()
+    # Ego clears the object before it reaches our lateral envelope.
+    assert not planner._body_intrusion_threats(
+        [intrusion_track(x=1., y=5., vy=-.6)], 5.)
+    # Object crosses ahead and leaves the corridor before Ego arrives.
+    assert not planner._body_intrusion_threats(
+        [intrusion_track(x=20., y=2., vy=-3.)], 5.)
+
+
+def test_unconfirmed_motion_only_uses_short_horizon():
+    planner = FollowTheGap()
+    track = intrusion_track(x=10., y=3.5, vx=0., vy=-1., scans=-1, dynamic=False)
+    assert not planner._body_intrusion_threats([track], 4.)
+
+
+def test_tunnel_side_intrusion_reaches_stop_plan_but_not_route():
+    cloud = tunnel_walls(4., 4.)
+    for wall_follow in (False, True):
+        planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=5.))
+        planner.tracker.update = lambda *args: [intrusion_track()]
+        plan = planner.plan(cloud, 4.5, wall_follow=wall_follow)
+        if wall_follow:
+            assert plan.crossing_threats == 1
+            assert plan.speed_mps == 0.
+            assert plan.reason == 'yielding to crossing obstacle'
+            assert plan.obstacle_stop
+        else:
+            assert plan.crossing_threats == 0
+            assert plan.speed_mps > 0.

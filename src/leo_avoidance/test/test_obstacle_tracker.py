@@ -272,8 +272,8 @@ def test_zero_speed_from_held_obstacle_cap_is_obstacle_stop():
     assert plan.speed_mps == 0. and plan.obstacle_stop
 
 
-def test_object_closing_in_beside_the_car_is_not_yielded_to():
-    """Logged case: braking from 4.9 m/s for a return beside the car."""
+def test_object_closing_in_beside_the_car_is_yielded_to():
+    """Approaching side traffic must not bypass the body occupancy guard."""
     planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.33))
     plans = []
     for step in range(14):
@@ -285,5 +285,5 @@ def test_object_closing_in_beside_the_car_is_not_yielded_to():
         plans.append(planner.plan(cloud, 4., wall_follow=True,
                                   ego_pose=ego, stamp=t))
     assert any(track[5] for plan in plans for track in plan.tracked_obstacles)
-    assert not any(plan.crossing_threats for plan in plans)
-    assert not any('yielding' in plan.reason for plan in plans)
+    assert any(plan.crossing_threats for plan in plans)
+    assert any('yielding' in plan.reason for plan in plans)

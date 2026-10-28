@@ -1,0 +1,166 @@
+--- a/src/leo_avoidance/src/leo_avoidance/ftg_local.py
++++ b/src/leo_avoidance/src/leo_avoidance/ftg_local.py
+@@ -657,6 +657,56 @@
+         return self._rear_obstacle_points(
+             self._remove_ego_returns(
+                 self._in_collision_height(points, reference, plane)))
++
++    def _body_intrusion_threats(self, tracked, ego_speed_mps):
++        """Predict simultaneous body occupancy, including intrusion from beside us.
++
++        Tracker velocities are world motion expressed in the current LiDAR
++        axes: subtract Ego speed for longitudinal relative motion. Unconfirmed
++        motion only qualifies within 1.2 seconds and with a reliable signed
++        lateral observation. Unknown velocity is not evidence of approach.
++        """
++        cfg = self.config
++        front = cfg.front_bumper_from_rear_m - cfg.lidar_to_rear_x_m
++        # Include a one-metre rear-axle buffer for the rear body, rather than
++        # stopping the occupancy envelope at the axle itself.
++        rear = -cfg.lidar_to_rear_x_m - 1.
++        threats = []
++        for track in tracked:
++            if (not track.velocity_known or track.lateral_scans == 0
++                    or abs(track.vy_mps) < cfg.crossing_min_lateral_speed_mps
++                    or track.y_m * track.vy_mps >= 0.):
++                continue
++            confirmed = (track.dynamic and
++                         abs(track.lateral_scans) >= cfg.crossing_confirm_scans)
++            horizon = cfg.crossing_horizon_s if confirmed else min(1.2, cfg.crossing_horizon_s)
++            half_x = track.size_x_m / 2.
++            half_y = (cfg.vehicle_half_width_m + cfg.crossing_margin_m
++                      + track.size_y_m / 2.)
++            vx = track.vx_mps - ego_speed_mps
++            # A fully passed obstacle that cannot catch us must not brake us.
++            if track.x_m + half_x < rear and vx <= 0.:
++                continue
++            entry, leave = 0., horizon
++            for position, velocity, low, high in (
++                    (track.x_m, vx, rear - half_x, front + half_x),
++                    (track.y_m, track.vy_mps, -half_y, half_y)):
++                if abs(velocity) < 1e-6:
++                    if not low <= position <= high:
++                        leave = -1.
++                        break
++                else:
++                    times = sorted(((low-position)/velocity, (high-position)/velocity))
++                    entry, leave = max(entry, times[0]), min(leave, times[1])
++            if entry > leave:
++                continue
++            # Imminent side intrusion needs an immediate stop request, even
++            # when the object's longitudinal position is behind the bumper.
++            clearance = (0. if entry <= 1.2 else
++                         ego_speed_mps * max(0., entry - cfg.reaction_s))
++            threats.append((clearance, math.atan2(track.y_m, track.x_m),
++                            math.copysign(1., track.vy_mps)))
++        return threats
+ 
+     def _crossing_threats(self, tracked):
+         """Moving obstacles predicted inside the Ego lane within the horizon.
+@@ -896,7 +946,13 @@
+         tracks_summary = tuple(
+             (t.track_id, round(t.x_m, 2), round(t.y_m, 2), round(t.vx_mps, 2),
+              round(t.vy_mps, 2), t.dynamic, t.lateral_scans) for t in tracked)
+-        threats = self._crossing_threats(tracked)
++        crossing_tracks = ([t for t in tracked if t.y_m * t.vy_mps < 0.]
++                           if wall_follow else tracked)
++        threats = self._crossing_threats(crossing_tracks)
++        if wall_follow:
++            # Tunnel-only supplement: preserve ordinary route behaviour and
++            # the existing ahead-of-bumper crossing yield calculation.
++            threats.extend(self._body_intrusion_threats(tracked, ego_speed_mps))
+         radii = np.hypot(obstacles[:, 0], obstacles[:, 1])
+         bearings = np.arctan2(obstacles[:, 1], obstacles[:, 0])
+         forward_radii = np.hypot(points[points[:, 0] > 0., 0],
+--- a/src/leo_avoidance/test/test_ftg_local.py
++++ b/src/leo_avoidance/test/test_ftg_local.py
+@@ -1223,3 +1223,68 @@
+     bad = FollowTheGap(cfg).plan(
+         cloud, 1., wall_follow=True, exit_heading_error_rad=float('nan'))
+     assert bad.speed_mps == 0. and bad.reason == 'invalid exit heading'
++
++
++def intrusion_track(x=.81, y=1.54, vx=-.03, vy=-1.81,
++                    dynamic=True, scans=-7, known=True):
++    from leo_avoidance.obstacle_tracker import TrackedObstacle
++    return TrackedObstacle(87, x, y, .8, .8, vx, vy, known, dynamic, scans)
++
++
++def test_confirmed_side_intrusion_behind_front_bumper_is_not_discarded():
++    planner = FollowTheGap()
++    track = intrusion_track()
++    assert planner._crossing_threats([track]) == []
++    assert planner._body_intrusion_threats([track], 4.5)[0][0] == 0.
++
++
++def test_near_intrusion_does_not_wait_for_dynamic_or_three_scan_confirmation():
++    planner = FollowTheGap()
++    track = intrusion_track(5.07, -2.43, -.27, 2.09, dynamic=False, scans=2)
++    assert planner._crossing_threats([track]) == []
++    assert planner._body_intrusion_threats([track], 5.)[0][0] == 0.
++
++
++def test_intrusion_guard_excludes_departing_passed_and_untrusted_motion():
++    planner = FollowTheGap()
++    tracks = [
++        intrusion_track(vy=1.81, scans=7),  # moving away on the left
++        intrusion_track(x=-4.),           # fully passed, cannot catch Ego
++        intrusion_track(vy=0., scans=0, dynamic=False),  # static
++        intrusion_track(known=False),
++        intrusion_track(scans=0),         # no reliable lateral observation
++    ]
++    for track in tracks:
++        assert not planner._body_intrusion_threats([track], 4.5)
++
++
++def test_lateral_approach_without_simultaneous_longitudinal_overlap_is_clear():
++    planner = FollowTheGap()
++    # Ego clears the object before it reaches our lateral envelope.
++    assert not planner._body_intrusion_threats(
++        [intrusion_track(x=1., y=5., vy=-.6)], 5.)
++    # Object crosses ahead and leaves the corridor before Ego arrives.
++    assert not planner._body_intrusion_threats(
++        [intrusion_track(x=20., y=2., vy=-3.)], 5.)
++
++
++def test_unconfirmed_motion_only_uses_short_horizon():
++    planner = FollowTheGap()
++    track = intrusion_track(x=10., y=3.5, vx=0., vy=-1., scans=-1, dynamic=False)
++    assert not planner._body_intrusion_threats([track], 4.)
++
++
++def test_tunnel_side_intrusion_reaches_stop_plan_but_not_route():
++    cloud = tunnel_walls(4., 4.)
++    for wall_follow in (False, True):
++        planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=5.))
++        planner.tracker.update = lambda *args: [intrusion_track()]
++        plan = planner.plan(cloud, 4.5, wall_follow=wall_follow)
++        if wall_follow:
++            assert plan.crossing_threats == 1
++            assert plan.speed_mps == 0.
++            assert plan.reason == 'yielding to crossing obstacle'
++            assert plan.obstacle_stop
++        else:
++            assert plan.crossing_threats == 0
++            assert plan.speed_mps > 0.
+--- a/src/leo_avoidance/test/test_obstacle_tracker.py
++++ b/src/leo_avoidance/test/test_obstacle_tracker.py
+@@ -272,8 +272,8 @@
+     assert plan.speed_mps == 0. and plan.obstacle_stop
+ 
+ 
+-def test_object_closing_in_beside_the_car_is_not_yielded_to():
+-    """Logged case: braking from 4.9 m/s for a return beside the car."""
++def test_object_closing_in_beside_the_car_is_yielded_to():
++    """Approaching side traffic must not bypass the body occupancy guard."""
+     planner = FollowTheGap(Config(max_range_m=30., max_speed_mps=8.33))
+     plans = []
+     for step in range(14):
+@@ -285,5 +285,5 @@
+         plans.append(planner.plan(cloud, 4., wall_follow=True,
+                                   ego_pose=ego, stamp=t))
+     assert any(track[5] for plan in plans for track in plan.tracked_obstacles)
+-    assert not any(plan.crossing_threats for plan in plans)
+-    assert not any('yielding' in plan.reason for plan in plans)
++    assert any(plan.crossing_threats for plan in plans)
++    assert any('yielding' in plan.reason for plan in plans)
