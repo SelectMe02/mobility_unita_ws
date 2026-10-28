@@ -1,0 +1,3684 @@
+{
+  "limitation": "Same-pose geometry comparison only, not closed-loop MORAI validation.",
+  "runs": [
+    {
+      "run": "run_20261028_170227",
+      "compared_frames": 269,
+      "missing_target_geometry": 141,
+      "old_median_m": 1.418778670104902,
+      "new_max_m": 0.0,
+      "rows": [
+        {
+          "t": 15.323,
+          "old_error_m": 0.8445437438250658,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.237556966145835
+        },
+        {
+          "t": 15.375,
+          "old_error_m": 0.8631452470707883,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.237269337972005
+        },
+        {
+          "t": 15.426,
+          "old_error_m": 0.7893816088775921,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.23674036661784
+        },
+        {
+          "t": 15.473,
+          "old_error_m": 0.8153524516141986,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.236275863647464
+        },
+        {
+          "t": 15.526,
+          "old_error_m": 0.8339539369584984,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.235756810506185
+        },
+        {
+          "t": 15.573,
+          "old_error_m": 0.8488707447501278,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.23561299641927
+        },
+        {
+          "t": 15.626,
+          "old_error_m": 0.882299994575224,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.235646057128903
+        },
+        {
+          "t": 15.676,
+          "old_error_m": 0.7973931268739634,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.235710525512697
+        },
+        {
+          "t": 15.727,
+          "old_error_m": 0.8325384675280276,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.236102294921874
+        },
+        {
+          "t": 15.772,
+          "old_error_m": 0.8454848346991602,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.236589940389
+        },
+        {
+          "t": 15.824,
+          "old_error_m": 0.8621167428034938,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.237261072794595
+        },
+        {
+          "t": 15.873,
+          "old_error_m": 0.8824355548174637,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2377140045166
+        },
+        {
+          "t": 15.924,
+          "old_error_m": 0.8066174963538281,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.238287607828777
+        },
+        {
+          "t": 15.977,
+          "old_error_m": 0.8361943731920288,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.238836415608723
+        },
+        {
+          "t": 16.026,
+          "old_error_m": 0.8528262630348141,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.238836415608723
+        },
+        {
+          "t": 16.079,
+          "old_error_m": 0.8703594578310575,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.23910090128581
+        },
+        {
+          "t": 16.126,
+          "old_error_m": 0.8046805598935262,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.239474487304687
+        },
+        {
+          "t": 16.178,
+          "old_error_m": 0.8176082579067533,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.23974889119466
+        },
+        {
+          "t": 16.227,
+          "old_error_m": 0.8388881006227171,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.240043131510415
+        },
+        {
+          "t": 16.277,
+          "old_error_m": 0.8555923925380746,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24058367411296
+        },
+        {
+          "t": 16.324,
+          "old_error_m": 0.8907302492800241,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.241337458292644
+        },
+        {
+          "t": 16.374,
+          "old_error_m": 0.8207371604035268,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.241911061604817
+        },
+        {
+          "t": 16.43,
+          "old_error_m": 0.8207371604035268,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242248280843096
+        },
+        {
+          "t": 16.475,
+          "old_error_m": 0.8631478248007616,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242585500081383
+        },
+        {
+          "t": 16.524,
+          "old_error_m": 0.8843531373564996,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24293924967448
+        },
+        {
+          "t": 16.58,
+          "old_error_m": 0.9055645079733489,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2431458791097
+        },
+        {
+          "t": 16.627,
+          "old_error_m": 0.8304712537661687,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243226877848304
+        },
+        {
+          "t": 16.675,
+          "old_error_m": 0.8550675311738031,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24313596089681
+        },
+        {
+          "t": 16.723,
+          "old_error_m": 0.8737320554488677,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242945861816406
+        },
+        {
+          "t": 16.774,
+          "old_error_m": 0.8953624446785768,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24255409240723
+        },
+        {
+          "t": 16.827,
+          "old_error_m": 0.924842144367591,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242231750488283
+        },
+        {
+          "t": 16.875,
+          "old_error_m": 0.8410210357489409,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242180506388348
+        },
+        {
+          "t": 16.925,
+          "old_error_m": 0.8656172615187605,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242246627807617
+        },
+        {
+          "t": 16.974,
+          "old_error_m": 0.8737745799012702,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24227638244629
+        },
+        {
+          "t": 17.028,
+          "old_error_m": 0.8915859304927021,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243367385864257
+        },
+        {
+          "t": 17.075,
+          "old_error_m": 0.9097389717132407,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24405174255371
+        },
+        {
+          "t": 17.126,
+          "old_error_m": 0.9265277563656761,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24483858744303
+        },
+        {
+          "t": 17.175,
+          "old_error_m": 0.8011250467608875,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24571469624837
+        },
+        {
+          "t": 17.226,
+          "old_error_m": 0.8555828240142425,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.246246973673504
+        },
+        {
+          "t": 17.276,
+          "old_error_m": 0.8701599455955619,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2469908396403
+        },
+        {
+          "t": 17.325,
+          "old_error_m": 0.8773110607136961,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.247258631388345
+        },
+        {
+          "t": 17.375,
+          "old_error_m": 0.8917049158547409,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24774958292643
+        },
+        {
+          "t": 17.424,
+          "old_error_m": 0.915321368829752,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.248076883951825
+        },
+        {
+          "t": 17.477,
+          "old_error_m": 0.9207851556052867,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.248533121744792
+        },
+        {
+          "t": 17.527,
+          "old_error_m": 0.8541274453800171,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.248288472493492
+        },
+        {
+          "t": 17.575,
+          "old_error_m": 0.8778979496014208,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.247516504923503
+        },
+        {
+          "t": 17.625,
+          "old_error_m": 0.8901769653387959,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24660733540853
+        },
+        {
+          "t": 17.674,
+          "old_error_m": 0.9049350829838962,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.245109685262044
+        },
+        {
+          "t": 17.724,
+          "old_error_m": 0.8321388527048698,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2440798441569
+        },
+        {
+          "t": 17.777,
+          "old_error_m": 0.8487675410291107,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243663279215493
+        },
+        {
+          "t": 17.824,
+          "old_error_m": 0.8782560041569105,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243663279215493
+        },
+        {
+          "t": 17.877,
+          "old_error_m": 0.8966460941992385,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243344243367513
+        },
+        {
+          "t": 17.927,
+          "old_error_m": 0.9150361821389041,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243241755167645
+        },
+        {
+          "t": 17.976,
+          "old_error_m": 0.9166485679864943,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243031819661457
+        },
+        {
+          "t": 18.031,
+          "old_error_m": 0.8664853125582185,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24263178507487
+        },
+        {
+          "t": 18.075,
+          "old_error_m": 0.8813410227811618,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242402013142904
+        },
+        {
+          "t": 18.127,
+          "old_error_m": 0.9177620096951176,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24218381245931
+        },
+        {
+          "t": 18.176,
+          "old_error_m": 0.9326177154439493,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24212926228841
+        },
+        {
+          "t": 18.226,
+          "old_error_m": 0.8582487987383842,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24228795369466
+        },
+        {
+          "t": 18.285,
+          "old_error_m": 0.87310449009866,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242744191487628
+        },
+        {
+          "t": 18.327,
+          "old_error_m": 0.8963971172773193,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24296900431315
+        },
+        {
+          "t": 18.399,
+          "old_error_m": 0.9124810430314316,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243316141764325
+        },
+        {
+          "t": 18.428,
+          "old_error_m": 0.9418604750631473,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243117777506512
+        },
+        {
+          "t": 18.475,
+          "old_error_m": 0.8365706498059834,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.242438379923502
+        },
+        {
+          "t": 18.528,
+          "old_error_m": 0.8877654353698852,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24149449666341
+        },
+        {
+          "t": 18.577,
+          "old_error_m": 0.9008465208094735,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.240894444783528
+        },
+        {
+          "t": 18.627,
+          "old_error_m": 0.87722109431474,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24054234822591
+        },
+        {
+          "t": 18.678,
+          "old_error_m": 0.9382294541038197,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.239853032430016
+        },
+        {
+          "t": 18.727,
+          "old_error_m": 0.870568424698056,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.236623001098632
+        },
+        {
+          "t": 18.774,
+          "old_error_m": 0.8811238135040252,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.230043919881183
+        },
+        {
+          "t": 18.824,
+          "old_error_m": 0.916163144661607,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.209050369262695
+        },
+        {
+          "t": 18.874,
+          "old_error_m": 0.9271544465904942,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.189547856648762
+        },
+        {
+          "t": 18.929,
+          "old_error_m": 0.9588206280437345,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.153314971923827
+        },
+        {
+          "t": 18.974,
+          "old_error_m": 0.8800997490163084,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.10680185953776
+        },
+        {
+          "t": 19.026,
+          "old_error_m": 0.908392738666131,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.071294657389323
+        },
+        {
+          "t": 19.074,
+          "old_error_m": 0.9261303493303987,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.032914479573567
+        },
+        {
+          "t": 19.123,
+          "old_error_m": 0.9675634165172965,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.96814854939779
+        },
+        {
+          "t": 19.173,
+          "old_error_m": 0.8923643425656742,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.920960998535158
+        },
+        {
+          "t": 19.223,
+          "old_error_m": 0.9128948767279379,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.844273376464844
+        },
+        {
+          "t": 19.275,
+          "old_error_m": 0.9060045058334995,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.762345631917317
+        },
+        {
+          "t": 19.324,
+          "old_error_m": 0.9498375537149696,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.6732354482015
+        },
+        {
+          "t": 19.374,
+          "old_error_m": 0.9623842601336422,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.612294642130536
+        },
+        {
+          "t": 19.426,
+          "old_error_m": 0.8913417480951082,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.550836435953777
+        },
+        {
+          "t": 19.477,
+          "old_error_m": 0.9217881260044889,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.448797861735027
+        },
+        {
+          "t": 19.524,
+          "old_error_m": 0.9479391213714747,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.36978441874186
+        },
+        {
+          "t": 19.574,
+          "old_error_m": 0.9604142211899195,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.187089284261067
+        },
+        {
+          "t": 19.623,
+          "old_error_m": 1.0066595837090127,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.905519485473633
+        },
+        {
+          "t": 19.674,
+          "old_error_m": 0.9209396964554312,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.674400329589844
+        },
+        {
+          "t": 19.726,
+          "old_error_m": 0.9608457732001485,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.304535293579104
+        },
+        {
+          "t": 19.773,
+          "old_error_m": 0.990092037137892,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.304535293579104
+        },
+        {
+          "t": 19.827,
+          "old_error_m": 1.0272685332522353,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 15.94718869527181
+        },
+        {
+          "t": 19.873,
+          "old_error_m": 1.0423260824854519,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 15.714133834838867
+        },
+        {
+          "t": 19.922,
+          "old_error_m": 0.979296504272613,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 15.48346430460612
+        },
+        {
+          "t": 19.976,
+          "old_error_m": 0.983210535460713,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 15.136530176798503
+        },
+        {
+          "t": 20.03,
+          "old_error_m": 1.0273184613343997,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 14.78380381266276
+        },
+        {
+          "t": 20.077,
+          "old_error_m": 1.052444285671286,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 14.43344790140788
+        },
+        {
+          "t": 20.124,
+          "old_error_m": 1.0884922540825859,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 14.199750010172528
+        },
+        {
+          "t": 20.173,
+          "old_error_m": 1.0153285307607114,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 13.847946866353352
+        },
+        {
+          "t": 20.224,
+          "old_error_m": 1.0289122856386317,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 13.612019030253093
+        },
+        {
+          "t": 20.276,
+          "old_error_m": 1.0642948210979082,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 13.37649949391683
+        },
+        {
+          "t": 20.323,
+          "old_error_m": 1.1122818294256214,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 13.02477569580078
+        },
+        {
+          "t": 20.373,
+          "old_error_m": 1.1324807924209181,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 12.792109298706054
+        },
+        {
+          "t": 20.423,
+          "old_error_m": 1.176994982382428,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 12.445360310872395
+        },
+        {
+          "t": 20.477,
+          "old_error_m": 1.2007585816585513,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 12.099993260701499
+        },
+        {
+          "t": 20.522,
+          "old_error_m": 1.113058834344512,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.75416170756022
+        },
+        {
+          "t": 20.572,
+          "old_error_m": 1.1296053858209558,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.521711031595867
+        },
+        {
+          "t": 20.623,
+          "old_error_m": 1.1616812600114537,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.289145469665527
+        },
+        {
+          "t": 20.674,
+          "old_error_m": 1.195154731395827,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.94038143157959
+        },
+        {
+          "t": 20.723,
+          "old_error_m": 1.2123419517727556,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.708211771647136
+        },
+        {
+          "t": 20.773,
+          "old_error_m": 1.240947775561844,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.360957781473795
+        },
+        {
+          "t": 20.824,
+          "old_error_m": 1.2781723851634175,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.014601389567057
+        },
+        {
+          "t": 20.876,
+          "old_error_m": 1.2884161762581636,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 9.783822758992514
+        },
+        {
+          "t": 20.923,
+          "old_error_m": 1.3205543106265265,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 9.439168167114257
+        },
+        {
+          "t": 20.972,
+          "old_error_m": 1.330912122612397,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 9.095132637023925
+        },
+        {
+          "t": 21.022,
+          "old_error_m": 1.2285010202458788,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.866302108764648
+        },
+        {
+          "t": 21.073,
+          "old_error_m": 1.2427272693891722,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.522750918070475
+        },
+        {
+          "t": 21.126,
+          "old_error_m": 1.2695578531429272,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.294406382242839
+        },
+        {
+          "t": 21.172,
+          "old_error_m": 1.2877233240459889,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.067056973775228
+        },
+        {
+          "t": 21.222,
+          "old_error_m": 1.310601321562676,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.88384526570638
+        },
+        {
+          "t": 21.271,
+          "old_error_m": 1.3192337673272716,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.588841247558594
+        },
+        {
+          "t": 21.322,
+          "old_error_m": 1.3451777871907433,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.485014088948568
+        },
+        {
+          "t": 21.376,
+          "old_error_m": 1.351753794963412,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.373814392089844
+        },
+        {
+          "t": 21.422,
+          "old_error_m": 1.369711418778912,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.361381085713704
+        },
+        {
+          "t": 21.472,
+          "old_error_m": 1.3838751687526452,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.317894681294759
+        },
+        {
+          "t": 21.524,
+          "old_error_m": 1.394245046362954,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.2861944198608395
+        },
+        {
+          "t": 21.573,
+          "old_error_m": 1.4046149233126282,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.259314409891764
+        },
+        {
+          "t": 21.623,
+          "old_error_m": 1.418778670104902,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.259314409891764
+        },
+        {
+          "t": 21.673,
+          "old_error_m": 1.4306656495415888,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.211997922261556
+        },
+        {
+          "t": 21.727,
+          "old_error_m": 1.3118133611015412,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.187985928853353
+        },
+        {
+          "t": 21.773,
+          "old_error_m": 1.3228765051915325,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.141238911946615
+        },
+        {
+          "t": 21.825,
+          "old_error_m": 1.3339396486595916,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.1019189834594725
+        },
+        {
+          "t": 21.872,
+          "old_error_m": 1.3438686675499285,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.048510233561197
+        },
+        {
+          "t": 21.924,
+          "old_error_m": 1.3598963188127706,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.999787012736002
+        },
+        {
+          "t": 21.973,
+          "old_error_m": 1.3824494340512952,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.954421106974284
+        },
+        {
+          "t": 22.025,
+          "old_error_m": 1.3986114102098803,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.9260955174764
+        },
+        {
+          "t": 22.073,
+          "old_error_m": 1.4047611545977734,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.900398667653402
+        },
+        {
+          "t": 22.122,
+          "old_error_m": 1.4259292437030167,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.869073232014974
+        },
+        {
+          "t": 22.172,
+          "old_error_m": 1.430935358325214,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.8380234400431315
+        },
+        {
+          "t": 22.222,
+          "old_error_m": 1.4395703460878677,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.808439890543619
+        },
+        {
+          "t": 22.275,
+          "old_error_m": 1.4495825739349613,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.790631739298503
+        },
+        {
+          "t": 22.324,
+          "old_error_m": 1.4564031236009074,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.773583157857259
+        },
+        {
+          "t": 22.373,
+          "old_error_m": 1.46322367263783,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.750977897644043
+        },
+        {
+          "t": 22.422,
+          "old_error_m": 1.4750503338184158,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.736634508768717
+        },
+        {
+          "t": 22.474,
+          "old_error_m": 1.4918831057467847,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.716454251607259
+        },
+        {
+          "t": 22.523,
+          "old_error_m": 1.4987036520022363,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.6986051877339685
+        },
+        {
+          "t": 22.572,
+          "old_error_m": 1.5037097637145374,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.682271957397461
+        },
+        {
+          "t": 22.622,
+          "old_error_m": 1.5187280976134878,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.6771492004394535
+        },
+        {
+          "t": 22.671,
+          "old_error_m": 1.5287403195482323,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.656532128651937
+        },
+        {
+          "t": 22.726,
+          "old_error_m": 1.538752540805636,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.646341164906819
+        },
+        {
+          "t": 22.775,
+          "old_error_m": 1.5437586511379164,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.636208883921306
+        },
+        {
+          "t": 22.823,
+          "old_error_m": 1.5587769813634966,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.6209290504455565
+        },
+        {
+          "t": 22.873,
+          "old_error_m": 1.429284138307071,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.605805428822835
+        },
+        {
+          "t": 22.922,
+          "old_error_m": 1.4493085627023834,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.596386845906576
+        },
+        {
+          "t": 22.974,
+          "old_error_m": 1.459320774020042,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.596189721425374
+        },
+        {
+          "t": 23.022,
+          "old_error_m": 1.459320774020042,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.598065503438314
+        },
+        {
+          "t": 23.073,
+          "old_error_m": 1.4793451947946359,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.596691004435222
+        },
+        {
+          "t": 23.151,
+          "old_error_m": 1.4943730528203847,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.581719875335693
+        },
+        {
+          "t": 23.175,
+          "old_error_m": 1.5043355785795185,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.571700000762939
+        },
+        {
+          "t": 23.223,
+          "old_error_m": 1.5193747795645105,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.562219429016114
+        },
+        {
+          "t": 23.272,
+          "old_error_m": 1.5293373038273177,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.561980152130127
+        },
+        {
+          "t": 23.323,
+          "old_error_m": 1.5394906543775453,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.56294469833374
+        },
+        {
+          "t": 23.374,
+          "old_error_m": 1.5494531774465652,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.56598793665568
+        },
+        {
+          "t": 23.424,
+          "old_error_m": 1.5594156998976447,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.570021343231201
+        },
+        {
+          "t": 23.474,
+          "old_error_m": 1.5693782218627055,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.57612476348877
+        },
+        {
+          "t": 23.525,
+          "old_error_m": 1.5844174168906988,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.59363743464152
+        },
+        {
+          "t": 23.575,
+          "old_error_m": 1.5945707641769125,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.609461530049642
+        },
+        {
+          "t": 23.623,
+          "old_error_m": 1.6045332839452393,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.614813645680746
+        },
+        {
+          "t": 23.674,
+          "old_error_m": 1.6144958032201862,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.631818008422852
+        },
+        {
+          "t": 23.722,
+          "old_error_m": 1.629454514202368,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.642730522155762
+        },
+        {
+          "t": 23.774,
+          "old_error_m": 1.6338128228836077,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.66047461827596
+        },
+        {
+          "t": 23.823,
+          "old_error_m": 1.6503909477392549,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.677054564158121
+        },
+        {
+          "t": 23.872,
+          "old_error_m": 1.5195884436738787,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.693997764587403
+        },
+        {
+          "t": 23.922,
+          "old_error_m": 1.534414954803105,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.705022271474203
+        },
+        {
+          "t": 23.973,
+          "old_error_m": 1.5448831610387286,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.715922387440999
+        },
+        {
+          "t": 24.025,
+          "old_error_m": 1.5599004961275484,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.738216050465902
+        },
+        {
+          "t": 24.073,
+          "old_error_m": 1.5705595267646668,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.749717458089193
+        },
+        {
+          "t": 24.123,
+          "old_error_m": 1.5856945737188062,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.7612655639648445
+        },
+        {
+          "t": 24.173,
+          "old_error_m": 1.5959598390937748,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.777767403920492
+        },
+        {
+          "t": 24.225,
+          "old_error_m": 1.6008775107511717,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.789245255788167
+        },
+        {
+          "t": 24.273,
+          "old_error_m": 1.6160604461476225,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.806235980987548
+        },
+        {
+          "t": 24.322,
+          "old_error_m": 1.631243380111433,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.822938664754231
+        },
+        {
+          "t": 24.372,
+          "old_error_m": 1.6468562339229205,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.8397595405578615
+        },
+        {
+          "t": 24.422,
+          "old_error_m": 1.6468562339229205,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.8506162643432615
+        },
+        {
+          "t": 24.474,
+          "old_error_m": 1.6718745035733389,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.861587460835774
+        },
+        {
+          "t": 24.522,
+          "old_error_m": 1.680197339291729,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.872599156697591
+        },
+        {
+          "t": 24.573,
+          "old_error_m": 1.6885201738921105,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.895587507883708
+        },
+        {
+          "t": 24.622,
+          "old_error_m": 1.701760675298776,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.89145450592041
+        },
+        {
+          "t": 24.675,
+          "old_error_m": 1.7100835073499296,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.863577302296957
+        },
+        {
+          "t": 24.722,
+          "old_error_m": 1.7199188415020754,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.844179757436116
+        },
+        {
+          "t": 24.772,
+          "old_error_m": 1.731646834240827,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.8159074783325195
+        },
+        {
+          "t": 24.822,
+          "old_error_m": 1.601974806914,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.798126188913981
+        },
+        {
+          "t": 24.872,
+          "old_error_m": 1.6152152942468065,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.781408627827963
+        },
+        {
+          "t": 24.923,
+          "old_error_m": 1.6201329563450682,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.758428128560384
+        },
+        {
+          "t": 24.972,
+          "old_error_m": 1.634885941832384,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.7375585556030275
+        },
+        {
+          "t": 25.023,
+          "old_error_m": 1.6447212646172142,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.718225479125977
+        },
+        {
+          "t": 25.072,
+          "old_error_m": 1.6545565868466072,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.712190246582032
+        },
+        {
+          "t": 25.124,
+          "old_error_m": 1.66930956898534,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.690453243255615
+        },
+        {
+          "t": 25.172,
+          "old_error_m": 1.6791448896177,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.680341625213623
+        },
+        {
+          "t": 25.222,
+          "old_error_m": 1.6889802095909245,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.665195274353027
+        },
+        {
+          "t": 25.272,
+          "old_error_m": 1.6988155289029536,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.665195274353027
+        },
+        {
+          "t": 25.322,
+          "old_error_m": 1.71356850670028,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.649901390075684
+        },
+        {
+          "t": 25.375,
+          "old_error_m": 1.723403824476383,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.639716211954752
+        },
+        {
+          "t": 25.422,
+          "old_error_m": 1.7334841199558484,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.6399662335713705
+        },
+        {
+          "t": 25.472,
+          "old_error_m": 1.7430802609368452,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.6376966158549
+        },
+        {
+          "t": 25.522,
+          "old_error_m": 1.7579337621207507,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.627140331268311
+        },
+        {
+          "t": 25.572,
+          "old_error_m": 1.767529901424958,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.611213334401448
+        },
+        {
+          "t": 25.623,
+          "old_error_m": 1.7358668746140857,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.595218976338704
+        },
+        {
+          "t": 25.671,
+          "old_error_m": 1.7975335339170857,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.579130395253499
+        },
+        {
+          "t": 25.722,
+          "old_error_m": 1.8023925389182318,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.573759269714356
+        },
+        {
+          "t": 25.772,
+          "old_error_m": 1.8139782659979082,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.559558868408203
+        },
+        {
+          "t": 25.822,
+          "old_error_m": 1.6914401255258915,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.557164859771728
+        },
+        {
+          "t": 25.876,
+          "old_error_m": 1.6849857009065006,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.545387395222982
+        },
+        {
+          "t": 25.922,
+          "old_error_m": 1.7132884444747851,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.544636090596517
+        },
+        {
+          "t": 25.972,
+          "old_error_m": 1.7068340190627929,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.54083989461263
+        },
+        {
+          "t": 26.022,
+          "old_error_m": 1.723551075350279,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.539576148986816
+        },
+        {
+          "t": 26.072,
+          "old_error_m": 1.7467225193289282,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.537686729431152
+        },
+        {
+          "t": 26.123,
+          "old_error_m": 1.7453994639740869,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.535054270426432
+        },
+        {
+          "t": 26.172,
+          "old_error_m": 1.768570907284197,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.532501983642578
+        },
+        {
+          "t": 26.222,
+          "old_error_m": 1.7737022399309446,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.530019124348958
+        },
+        {
+          "t": 26.271,
+          "old_error_m": 1.791337236038156,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.5291240056355795
+        },
+        {
+          "t": 26.323,
+          "old_error_m": 1.8029229572866943,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.5262117703755695
+        },
+        {
+          "t": 26.372,
+          "old_error_m": 1.8089722315641135,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.524012406667073
+        },
+        {
+          "t": 26.421,
+          "old_error_m": 1.826607226436816,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.522503598531087
+        },
+        {
+          "t": 26.471,
+          "old_error_m": 1.8326564769331184,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.520623270670573
+        },
+        {
+          "t": 26.523,
+          "old_error_m": 1.7353764695002558,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.518780136108398
+        },
+        {
+          "t": 26.571,
+          "old_error_m": 1.7606439024657023,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.518107350667317
+        },
+        {
+          "t": 26.622,
+          "old_error_m": 1.795673285906503,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.51564474105835
+        },
+        {
+          "t": 26.672,
+          "old_error_m": 1.804890821853556,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.513392066955567
+        },
+        {
+          "t": 26.721,
+          "old_error_m": 1.8540555950157829,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.512427520751953
+        },
+        {
+          "t": 26.773,
+          "old_error_m": 1.7235641208602828,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.509614880879719
+        },
+        {
+          "t": 26.82,
+          "old_error_m": 1.7604154856047167,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.508473046620687
+        },
+        {
+          "t": 26.872,
+          "old_error_m": 1.7583212841012539,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.506688594818115
+        },
+        {
+          "t": 26.922,
+          "old_error_m": 1.807121248050223,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.505594285329183
+        },
+        {
+          "t": 26.971,
+          "old_error_m": 1.830474148966684,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.504784711201986
+        },
+        {
+          "t": 27.023,
+          "old_error_m": 1.8510069329447632,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.503599898020427
+        },
+        {
+          "t": 27.071,
+          "old_error_m": 1.8771799048091056,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.503599898020427
+        },
+        {
+          "t": 27.121,
+          "old_error_m": 1.7835396977988527,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.502899837493897
+        },
+        {
+          "t": 27.171,
+          "old_error_m": 1.8068925672398908,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.501824124654134
+        },
+        {
+          "t": 27.223,
+          "old_error_m": 1.8302454355092719,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.500782712300618
+        },
+        {
+          "t": 27.272,
+          "old_error_m": 1.8535983242723746,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.499829324086507
+        },
+        {
+          "t": 27.321,
+          "old_error_m": 1.8886276562097524,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.498423417409261
+        },
+        {
+          "t": 27.372,
+          "old_error_m": 1.9003040998627887,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.49753573735555
+        },
+        {
+          "t": 27.422,
+          "old_error_m": 1.7949874100346255,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.495930639902751
+        },
+        {
+          "t": 27.473,
+          "old_error_m": 1.8183402897634722,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.494416046142578
+        },
+        {
+          "t": 27.521,
+          "old_error_m": 1.853369608019021,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.49391311009725
+        },
+        {
+          "t": 27.571,
+          "old_error_m": 1.8767224860333414,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.492115434010824
+        },
+        {
+          "t": 27.623,
+          "old_error_m": 1.911751785864479,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.491226514180502
+        },
+        {
+          "t": 27.671,
+          "old_error_m": 1.911751785864479,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.490337594350178
+        },
+        {
+          "t": 27.723,
+          "old_error_m": 1.9467810836519797,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.489242458343505
+        },
+        {
+          "t": 27.771,
+          "old_error_m": 1.8297878813235349,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.487997309366862
+        },
+        {
+          "t": 27.821,
+          "old_error_m": 1.8648171675015737,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.486686038970948
+        },
+        {
+          "t": 27.872,
+          "old_error_m": 1.8764936009890392,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.485412375132243
+        },
+        {
+          "t": 27.921,
+          "old_error_m": 1.9231993010705437,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.4846590042114265
+        },
+        {
+          "t": 27.974,
+          "old_error_m": 1.9465521659359024,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.483978366851807
+        },
+        {
+          "t": 28.021,
+          "old_error_m": 1.9465521659359024,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.483305168151855
+        },
+        {
+          "t": 28.071,
+          "old_error_m": 1.8645881879436133,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.482331116994223
+        },
+        {
+          "t": 28.121,
+          "old_error_m": 1.8645881879436133,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.481817849477133
+        },
+        {
+          "t": 28.171,
+          "old_error_m": 1.8990817704785687,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.481094233194987
+        },
+        {
+          "t": 28.223,
+          "old_error_m": 1.9341016077766349,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.480466492970785
+        },
+        {
+          "t": 28.273,
+          "old_error_m": 1.9574483201584534,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.479718907674154
+        },
+        {
+          "t": 28.322,
+          "old_error_m": 1.9924681837953848,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.479325485229492
+        },
+        {
+          "t": 28.371,
+          "old_error_m": 1.8755078038062067,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.478787422180176
+        },
+        {
+          "t": 28.423,
+          "old_error_m": 1.8988540907207634,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.478663444519043
+        },
+        {
+          "t": 28.472,
+          "old_error_m": 1.9222003658994646,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.478325398763021
+        },
+        {
+          "t": 28.521,
+          "old_error_m": 1.9572198005613812,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.478228696187337
+        },
+        {
+          "t": 28.572,
+          "old_error_m": 1.9805660742641527,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.4782617568969725
+        },
+        {
+          "t": 28.621,
+          "old_error_m": 2.0039123593942567,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.478235721588135
+        },
+        {
+          "t": 28.673,
+          "old_error_m": 1.8986250751090894,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.478190263112387
+        },
+        {
+          "t": 28.721,
+          "old_error_m": 4.431155994867574,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.478229522705078
+        }
+      ]
+    },
+    {
+      "run": "run_20261028_170312",
+      "compared_frames": 254,
+      "missing_target_geometry": 24,
+      "old_median_m": 1.296170668618486,
+      "new_max_m": 0.0,
+      "rows": [
+        {
+          "t": 15.264,
+          "old_error_m": 0.8306484692428738,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.249691899617513
+        },
+        {
+          "t": 15.317,
+          "old_error_m": 0.852861057918349,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.249691899617513
+        },
+        {
+          "t": 15.37,
+          "old_error_m": 0.8714011338173416,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24938112894694
+        },
+        {
+          "t": 15.417,
+          "old_error_m": 0.8015535901246031,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.248845545450845
+        },
+        {
+          "t": 15.47,
+          "old_error_m": 0.8275274207187475,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24837443033854
+        },
+        {
+          "t": 15.52,
+          "old_error_m": 0.8349611946770018,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24781901041667
+        },
+        {
+          "t": 15.567,
+          "old_error_m": 0.8719525606006568,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.247590891520183
+        },
+        {
+          "t": 15.618,
+          "old_error_m": 0.7909986024579645,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.247612380981447
+        },
+        {
+          "t": 15.669,
+          "old_error_m": 0.8159913835457501,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.247936375935872
+        },
+        {
+          "t": 15.717,
+          "old_error_m": 0.8325693764396329,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24837277730306
+        },
+        {
+          "t": 15.767,
+          "old_error_m": 0.8592697413550971,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.248691813151044
+        },
+        {
+          "t": 15.817,
+          "old_error_m": 0.8730703256683083,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.249286905924478
+        },
+        {
+          "t": 15.87,
+          "old_error_m": 0.8039537737932863,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.249918365478518
+        },
+        {
+          "t": 15.917,
+          "old_error_m": 0.8131812886070654,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25028864542643
+        },
+        {
+          "t": 15.966,
+          "old_error_m": 0.8472335496657044,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.250806045532226
+        },
+        {
+          "t": 16.019,
+          "old_error_m": 0.8638105164600685,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.251052347819012
+        },
+        {
+          "t": 16.091,
+          "old_error_m": 0.8416425329485198,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.251411056518556
+        },
+        {
+          "t": 16.115,
+          "old_error_m": 0.8043034510613436,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.251672236124676
+        },
+        {
+          "t": 16.166,
+          "old_error_m": 0.823232810061424,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.252178064982097
+        },
+        {
+          "t": 16.216,
+          "old_error_m": 0.8504867208810465,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25260950724284
+        },
+        {
+          "t": 16.266,
+          "old_error_m": 0.8739764787015601,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.253361638387045
+        },
+        {
+          "t": 16.318,
+          "old_error_m": 0.8983303484327916,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2537104288737
+        },
+        {
+          "t": 16.366,
+          "old_error_m": 0.8285704173202343,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254169972737632
+        },
+        {
+          "t": 16.417,
+          "old_error_m": 0.8310319321342592,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25459976196289
+        },
+        {
+          "t": 16.467,
+          "old_error_m": 0.8708397841035392,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254816309611
+        },
+        {
+          "t": 16.514,
+          "old_error_m": 0.9002857382232367,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254960123697916
+        },
+        {
+          "t": 16.568,
+          "old_error_m": 0.819970543227094,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.255143610636395
+        },
+        {
+          "t": 16.615,
+          "old_error_m": 0.8336167137294105,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.255046081542968
+        },
+        {
+          "t": 16.669,
+          "old_error_m": 0.8678654220918357,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25484937032064
+        },
+        {
+          "t": 16.717,
+          "old_error_m": 0.881600580640614,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254460906982423
+        },
+        {
+          "t": 16.768,
+          "old_error_m": 0.9188052497012633,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254232788085936
+        },
+        {
+          "t": 16.815,
+          "old_error_m": 0.830396193803185,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254169972737632
+        },
+        {
+          "t": 16.867,
+          "old_error_m": 0.8597776639376536,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2542360941569
+        },
+        {
+          "t": 16.913,
+          "old_error_m": 0.8697547069156542,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254285685221355
+        },
+        {
+          "t": 16.966,
+          "old_error_m": 0.8850344599949276,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25534528096517
+        },
+        {
+          "t": 17.017,
+          "old_error_m": 0.8994837395667229,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.255723826090495
+        },
+        {
+          "t": 17.067,
+          "old_error_m": 0.9199042683122444,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25693219502767
+        },
+        {
+          "t": 17.117,
+          "old_error_m": 0.8384110453582827,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25736198425293
+        },
+        {
+          "t": 17.166,
+          "old_error_m": 0.8491936285805962,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25797030131022
+        },
+        {
+          "t": 17.219,
+          "old_error_m": 0.8411653292022374,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.258411661783853
+        },
+        {
+          "t": 17.267,
+          "old_error_m": 0.8816326875594203,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.258712514241537
+        },
+        {
+          "t": 17.323,
+          "old_error_m": 0.8887601836898245,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.259130732218424
+        },
+        {
+          "t": 17.369,
+          "old_error_m": 0.8996340814473532,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25949935913086
+        },
+        {
+          "t": 17.419,
+          "old_error_m": 0.921399463951812,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.26005973815918
+        },
+        {
+          "t": 17.472,
+          "old_error_m": 0.8238994268948852,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.26037050882975
+        },
+        {
+          "t": 17.519,
+          "old_error_m": 0.8513068073790783,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.260129165649413
+        },
+        {
+          "t": 17.57,
+          "old_error_m": 0.8692720450954522,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25934066772461
+        },
+        {
+          "t": 17.617,
+          "old_error_m": 0.8929640451061116,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.258950551350914
+        },
+        {
+          "t": 17.664,
+          "old_error_m": 0.9109292734202101,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25688756306966
+        },
+        {
+          "t": 17.715,
+          "old_error_m": 0.8351175877638379,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.256112289428714
+        },
+        {
+          "t": 17.766,
+          "old_error_m": 0.8644296595753856,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.255398178100585
+        },
+        {
+          "t": 17.819,
+          "old_error_m": 0.8901623551142211,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.255098978678387
+        },
+        {
+          "t": 17.867,
+          "old_error_m": 0.8901623551142211,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.255054346720378
+        },
+        {
+          "t": 17.917,
+          "old_error_m": 0.8378911999474259,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254902267456053
+        },
+        {
+          "t": 17.968,
+          "old_error_m": 0.8562205392218912,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2546443939209
+        },
+        {
+          "t": 18.017,
+          "old_error_m": 0.8784305168662585,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25426419576009
+        },
+        {
+          "t": 18.066,
+          "old_error_m": 0.9038052205802185,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254069137573243
+        },
+        {
+          "t": 18.119,
+          "old_error_m": 0.9186118685590913,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.253953425089517
+        },
+        {
+          "t": 18.17,
+          "old_error_m": 0.8483691906041846,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254069137573243
+        },
+        {
+          "t": 18.213,
+          "old_error_m": 0.8702211849328928,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254497273763022
+        },
+        {
+          "t": 18.267,
+          "old_error_m": 0.8863915321663272,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2548890431722
+        },
+        {
+          "t": 18.319,
+          "old_error_m": 0.9062006751737842,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.255032857259117
+        },
+        {
+          "t": 18.368,
+          "old_error_m": 0.9322462688099574,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25483283996582
+        },
+        {
+          "t": 18.419,
+          "old_error_m": 0.8490172952193623,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.254437764485676
+        },
+        {
+          "t": 18.468,
+          "old_error_m": 0.8783298817487516,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25353190104167
+        },
+        {
+          "t": 18.521,
+          "old_error_m": 0.8946045827146198,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.252588017781576
+        },
+        {
+          "t": 18.567,
+          "old_error_m": 0.9141463094040135,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.25221939086914
+        },
+        {
+          "t": 18.618,
+          "old_error_m": 0.8909072965076988,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2514341990153
+        },
+        {
+          "t": 18.663,
+          "old_error_m": 0.8638970161671743,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.24770329793294
+        },
+        {
+          "t": 18.714,
+          "old_error_m": 0.8744175471873719,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.243010330200196
+        },
+        {
+          "t": 18.764,
+          "old_error_m": 0.8958930804980344,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.221019999186197
+        },
+        {
+          "t": 18.816,
+          "old_error_m": 0.9240926634411623,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.2032101949056
+        },
+        {
+          "t": 18.864,
+          "old_error_m": 0.9522922530565973,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.162690989176433
+        },
+        {
+          "t": 18.915,
+          "old_error_m": 0.8738313409434043,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.100887298583988
+        },
+        {
+          "t": 18.964,
+          "old_error_m": 0.8948723919055888,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.100887298583988
+        },
+        {
+          "t": 19.016,
+          "old_error_m": 0.9230719549028215,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 18.05116399129232
+        },
+        {
+          "t": 19.067,
+          "old_error_m": 0.9645527052299309,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.987203089396157
+        },
+        {
+          "t": 19.115,
+          "old_error_m": 0.9777671098760288,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.89273541768392
+        },
+        {
+          "t": 19.164,
+          "old_error_m": 0.8998629959032719,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.618318303426108
+        },
+        {
+          "t": 19.213,
+          "old_error_m": 0.931486404949941,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.42319564819336
+        },
+        {
+          "t": 19.265,
+          "old_error_m": 0.9627008680052582,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 17.208494440714517
+        },
+        {
+          "t": 19.314,
+          "old_error_m": 0.9771257095241398,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.973887379964193
+        },
+        {
+          "t": 19.363,
+          "old_error_m": 0.9146973519211519,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.516041183471682
+        },
+        {
+          "t": 19.413,
+          "old_error_m": 0.9434498235552538,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.28801155090332
+        },
+        {
+          "t": 19.465,
+          "old_error_m": 0.9671111449567446,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 16.05962651570638
+        },
+        {
+          "t": 19.515,
+          "old_error_m": 1.0035306899841814,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 15.59575335184733
+        },
+        {
+          "t": 19.567,
+          "old_error_m": 1.0503302166681003,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 15.245288340250651
+        },
+        {
+          "t": 19.615,
+          "old_error_m": 1.0825514982719635,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 15.0103209177653
+        },
+        {
+          "t": 19.664,
+          "old_error_m": 0.9873321756550685,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 14.774036026000976
+        },
+        {
+          "t": 19.716,
+          "old_error_m": 1.0214658456769654,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 14.42010129292806
+        },
+        {
+          "t": 19.765,
+          "old_error_m": 1.0487488273994352,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 14.066969935099285
+        },
+        {
+          "t": 19.812,
+          "old_error_m": 1.0741999229659833,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 13.832395935058594
+        },
+        {
+          "t": 19.866,
+          "old_error_m": 1.0899501602238508,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 13.599122047424316
+        },
+        {
+          "t": 19.912,
+          "old_error_m": 1.1315491917268556,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 13.251344045003256
+        },
+        {
+          "t": 19.965,
+          "old_error_m": 1.0519632910473813,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 12.903232955932618
+        },
+        {
+          "t": 20.013,
+          "old_error_m": 1.0682065442625246,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 12.552403450012207
+        },
+        {
+          "t": 20.062,
+          "old_error_m": 1.1046287102614099,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 12.435071818033855
+        },
+        {
+          "t": 20.113,
+          "old_error_m": 1.1372357527564414,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.966668510437012
+        },
+        {
+          "t": 20.171,
+          "old_error_m": 1.1572920206179929,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.733150800069174
+        },
+        {
+          "t": 20.212,
+          "old_error_m": 1.1803983538021918,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.4996950785319
+        },
+        {
+          "t": 20.264,
+          "old_error_m": 1.2166413850149436,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.266320355733235
+        },
+        {
+          "t": 20.315,
+          "old_error_m": 1.1142701157424795,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.904828770955405
+        },
+        {
+          "t": 20.364,
+          "old_error_m": 1.139334558948939,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.904247728983561
+        },
+        {
+          "t": 20.416,
+          "old_error_m": 1.1561607082114045,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.906456184387208
+        },
+        {
+          "t": 20.465,
+          "old_error_m": 1.1853377814509947,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.911657460530598
+        },
+        {
+          "t": 20.516,
+          "old_error_m": 1.194288221102549,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.916419855753581
+        },
+        {
+          "t": 20.567,
+          "old_error_m": 1.2234652870938667,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.926457087198893
+        },
+        {
+          "t": 20.617,
+          "old_error_m": 1.235816208844541,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.936144701639812
+        },
+        {
+          "t": 20.669,
+          "old_error_m": 1.2649932670250872,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.952060127258301
+        },
+        {
+          "t": 20.72,
+          "old_error_m": 1.2818194026056382,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.952060127258301
+        },
+        {
+          "t": 20.767,
+          "old_error_m": 1.1758200474110805,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.962441190083823
+        },
+        {
+          "t": 20.814,
+          "old_error_m": 1.1852157561687429,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.972868537902832
+        },
+        {
+          "t": 20.869,
+          "old_error_m": 1.2109673563877867,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.993117396036784
+        },
+        {
+          "t": 20.915,
+          "old_error_m": 1.2053945412847245,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.00395139058431
+        },
+        {
+          "t": 20.964,
+          "old_error_m": 1.2467105953908424,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.019870948791505
+        },
+        {
+          "t": 21.013,
+          "old_error_m": 1.2406821324961053,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.030124727884928
+        },
+        {
+          "t": 21.063,
+          "old_error_m": 1.2576310075148667,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.04529628753662
+        },
+        {
+          "t": 21.118,
+          "old_error_m": 1.2717041927425172,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.054813639322917
+        },
+        {
+          "t": 21.162,
+          "old_error_m": 1.294179115637319,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.069405810038248
+        },
+        {
+          "t": 21.212,
+          "old_error_m": 1.3071543331086846,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.078827285766602
+        },
+        {
+          "t": 21.261,
+          "old_error_m": 1.202871438618068,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.079442214965821
+        },
+        {
+          "t": 21.315,
+          "old_error_m": 1.209822460779913,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.032788594563801
+        },
+        {
+          "t": 21.365,
+          "old_error_m": 1.2284420910702334,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 11.012719917297362
+        },
+        {
+          "t": 21.413,
+          "old_error_m": 1.266626543483251,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.898088518778483
+        },
+        {
+          "t": 21.462,
+          "old_error_m": 1.2846977048633303,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.804806900024413
+        },
+        {
+          "t": 21.513,
+          "old_error_m": 1.298162221599653,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.793257967631023
+        },
+        {
+          "t": 21.563,
+          "old_error_m": 1.3204846096364324,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.756558926900228
+        },
+        {
+          "t": 21.612,
+          "old_error_m": 1.3353569050147582,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.737229983011881
+        },
+        {
+          "t": 21.662,
+          "old_error_m": 1.3604948514764632,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.703036944071451
+        },
+        {
+          "t": 21.712,
+          "old_error_m": 1.252653478841391,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.680257288614909
+        },
+        {
+          "t": 21.763,
+          "old_error_m": 1.2618667530506587,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.645832824707032
+        },
+        {
+          "t": 21.814,
+          "old_error_m": 1.2823980408726747,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.603798611958823
+        },
+        {
+          "t": 21.862,
+          "old_error_m": 1.30187695600711,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.565911865234375
+        },
+        {
+          "t": 21.911,
+          "old_error_m": 1.3121425979990586,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.513058535257976
+        },
+        {
+          "t": 21.963,
+          "old_error_m": 1.350375835217257,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.39520123799642
+        },
+        {
+          "t": 22.012,
+          "old_error_m": 1.3567296001472522,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.295509974161785
+        },
+        {
+          "t": 22.064,
+          "old_error_m": 1.3724103722598664,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 10.053021240234376
+        },
+        {
+          "t": 22.111,
+          "old_error_m": 1.395008738009718,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 9.74059918721517
+        },
+        {
+          "t": 22.162,
+          "old_error_m": 1.4236650982252192,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 9.391098721822102
+        },
+        {
+          "t": 22.212,
+          "old_error_m": 1.4427506925258784,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 9.154060045878092
+        },
+        {
+          "t": 22.262,
+          "old_error_m": 1.324100583048155,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 9.054381179809571
+        },
+        {
+          "t": 22.312,
+          "old_error_m": 1.357510808079996,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.912988789876302
+        },
+        {
+          "t": 22.362,
+          "old_error_m": 1.3719776463973203,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.912988789876302
+        },
+        {
+          "t": 22.412,
+          "old_error_m": 1.3816222045024225,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.829209645589193
+        },
+        {
+          "t": 22.462,
+          "old_error_m": 1.4009281404781342,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.705355135599772
+        },
+        {
+          "t": 22.512,
+          "old_error_m": 1.4105248393170684,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.658103116353354
+        },
+        {
+          "t": 22.563,
+          "old_error_m": 1.4201215375707905,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.599528630574545
+        },
+        {
+          "t": 22.612,
+          "old_error_m": 1.4540510857210163,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.483224360148112
+        },
+        {
+          "t": 22.662,
+          "old_error_m": 1.4637447980381497,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.365367062886556
+        },
+        {
+          "t": 22.713,
+          "old_error_m": 1.4833178981698012,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 8.020399220784505
+        },
+        {
+          "t": 22.763,
+          "old_error_m": 1.502290882662442,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.91384785970052
+        },
+        {
+          "t": 22.812,
+          "old_error_m": 1.5220510063672406,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.906536483764648
+        },
+        {
+          "t": 22.862,
+          "old_error_m": 1.531837341529567,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.887163734436035
+        },
+        {
+          "t": 22.914,
+          "old_error_m": 1.414561056932222,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.870296986897786
+        },
+        {
+          "t": 22.962,
+          "old_error_m": 1.4284554356687253,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.839237276713053
+        },
+        {
+          "t": 23.011,
+          "old_error_m": 1.4387385182397339,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.808147811889649
+        },
+        {
+          "t": 23.064,
+          "old_error_m": 1.459304683366517,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.777083969116211
+        },
+        {
+          "t": 23.112,
+          "old_error_m": 1.467867141528224,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.756474749247233
+        },
+        {
+          "t": 23.164,
+          "old_error_m": 1.484152077303593,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.735807673136393
+        },
+        {
+          "t": 23.212,
+          "old_error_m": 1.4987163880604686,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.704802513122559
+        },
+        {
+          "t": 23.262,
+          "old_error_m": 1.5072788445164733,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.684189987182617
+        },
+        {
+          "t": 23.312,
+          "old_error_m": 1.513280698403666,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.6531269709269205
+        },
+        {
+          "t": 23.363,
+          "old_error_m": 1.532653349751541,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.632368151346843
+        },
+        {
+          "t": 23.411,
+          "old_error_m": 1.54273707445362,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.60142167409261
+        },
+        {
+          "t": 23.461,
+          "old_error_m": 1.562482204047011,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.570538838704427
+        },
+        {
+          "t": 23.511,
+          "old_error_m": 1.572565926702548,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.539643605550131
+        },
+        {
+          "t": 23.563,
+          "old_error_m": 1.5874803504689083,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.519056701660157
+        },
+        {
+          "t": 23.611,
+          "old_error_m": 1.6070711567282918,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.4983276367187495
+        },
+        {
+          "t": 23.662,
+          "old_error_m": 1.4838460830597544,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.46727123260498
+        },
+        {
+          "t": 23.712,
+          "old_error_m": 1.4988947547005027,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.446535555521647
+        },
+        {
+          "t": 23.762,
+          "old_error_m": 1.5139434248064332,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.415473365783692
+        },
+        {
+          "t": 23.814,
+          "old_error_m": 1.522192663043143,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.384493001302083
+        },
+        {
+          "t": 23.862,
+          "old_error_m": 1.535316082174001,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.353540738423665
+        },
+        {
+          "t": 23.912,
+          "old_error_m": 1.5435653176450634,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.343204307556153
+        },
+        {
+          "t": 23.963,
+          "old_error_m": 1.561562913958225,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.343053881327312
+        },
+        {
+          "t": 24.013,
+          "old_error_m": 1.5664370946805337,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.346875699361165
+        },
+        {
+          "t": 24.061,
+          "old_error_m": 1.578061377485969,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.350833892822266
+        },
+        {
+          "t": 24.11,
+          "old_error_m": 1.5878097369382456,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.357044347127278
+        },
+        {
+          "t": 24.162,
+          "old_error_m": 1.6009331451340443,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.369510714213053
+        },
+        {
+          "t": 24.211,
+          "old_error_m": 1.6106815027613288,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.345084635416667
+        },
+        {
+          "t": 24.265,
+          "old_error_m": 1.6204298597938116,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.313544718424479
+        },
+        {
+          "t": 24.312,
+          "old_error_m": 1.644800749525931,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.303027280171713
+        },
+        {
+          "t": 24.362,
+          "old_error_m": 1.644800749525931,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.281801478068034
+        },
+        {
+          "t": 24.412,
+          "old_error_m": 1.6642974585780905,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.2660480499267575
+        },
+        {
+          "t": 24.465,
+          "old_error_m": 1.6789199886018937,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.265668678283692
+        },
+        {
+          "t": 24.512,
+          "old_error_m": 1.688668341218419,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.258587900797526
+        },
+        {
+          "t": 24.562,
+          "old_error_m": 1.565168018520122,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.253091557820638
+        },
+        {
+          "t": 24.613,
+          "old_error_m": 1.5746793028775254,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.242312939961751
+        },
+        {
+          "t": 24.662,
+          "old_error_m": 1.589401457819831,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.208366203308105
+        },
+        {
+          "t": 24.714,
+          "old_error_m": 1.6041236113242794,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.165274874369303
+        },
+        {
+          "t": 24.762,
+          "old_error_m": 1.5830438109863423,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.1301776250203455
+        },
+        {
+          "t": 24.812,
+          "old_error_m": 1.5470849696727313,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.092775217692058
+        },
+        {
+          "t": 24.862,
+          "old_error_m": 1.631862279642921,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 7.0398913065592446
+        },
+        {
+          "t": 24.913,
+          "old_error_m": 1.657385020680769,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.990777142842611
+        },
+        {
+          "t": 24.962,
+          "old_error_m": 1.673939076838478,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.960715866088868
+        },
+        {
+          "t": 25.012,
+          "old_error_m": 1.6790679741462207,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.932092730204264
+        },
+        {
+          "t": 25.063,
+          "old_error_m": 1.695777169973221,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.881135018666585
+        },
+        {
+          "t": 25.113,
+          "old_error_m": 1.700906065479385,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.857220967610678
+        },
+        {
+          "t": 25.161,
+          "old_error_m": 1.7176152589204914,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.8459807395935055
+        },
+        {
+          "t": 25.211,
+          "old_error_m": 1.7227441909347534,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.806102085113526
+        },
+        {
+          "t": 25.262,
+          "old_error_m": 1.7394534206717354,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.787843894958496
+        },
+        {
+          "t": 25.314,
+          "old_error_m": 1.7510337186867682,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.761340363820394
+        },
+        {
+          "t": 25.361,
+          "old_error_m": 1.761291580425549,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.738584264119466
+        },
+        {
+          "t": 25.41,
+          "old_error_m": 1.7728718780375465,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.717437394460043
+        },
+        {
+          "t": 25.461,
+          "old_error_m": 1.7789183211767732,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.704418500264486
+        },
+        {
+          "t": 25.51,
+          "old_error_m": 1.8020789159803208,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.692641448974609
+        },
+        {
+          "t": 25.562,
+          "old_error_m": 1.814171800883026,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.676694615681966
+        },
+        {
+          "t": 25.612,
+          "old_error_m": 1.8257520979466373,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.66616808573405
+        },
+        {
+          "t": 25.661,
+          "old_error_m": 1.692608427596516,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.655540307362875
+        },
+        {
+          "t": 25.711,
+          "old_error_m": 1.595373951493957,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.6343678156534835
+        },
+        {
+          "t": 25.76,
+          "old_error_m": 1.6301148460200547,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.623876412709554
+        },
+        {
+          "t": 25.813,
+          "old_error_m": 1.6532754470839328,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.608074220021566
+        },
+        {
+          "t": 25.861,
+          "old_error_m": 1.6764360480003544,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.590215651194255
+        },
+        {
+          "t": 25.911,
+          "old_error_m": 1.711176940914935,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.579384962717692
+        },
+        {
+          "t": 25.96,
+          "old_error_m": 1.7343375412106763,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.568675359090169
+        },
+        {
+          "t": 26.011,
+          "old_error_m": 1.7690783938413552,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.5624405225118
+        },
+        {
+          "t": 26.063,
+          "old_error_m": 1.792238953413652,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.561305300394694
+        },
+        {
+          "t": 26.11,
+          "old_error_m": 1.803819244130164,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.557958730061849
+        },
+        {
+          "t": 26.161,
+          "old_error_m": 1.699369926607949,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.557958730061849
+        },
+        {
+          "t": 26.211,
+          "old_error_m": 1.710950213502999,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.5505630493164055
+        },
+        {
+          "t": 26.261,
+          "old_error_m": 1.7572713148968975,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.545418389638265
+        },
+        {
+          "t": 26.313,
+          "old_error_m": 1.7688516006953083,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.536846160888672
+        },
+        {
+          "t": 26.361,
+          "old_error_m": 1.8035924341995253,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.534616216023763
+        },
+        {
+          "t": 26.411,
+          "old_error_m": 1.8151726962530743,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.5318527539571125
+        },
+        {
+          "t": 26.461,
+          "old_error_m": 1.7107233490562916,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.5294694900512695
+        },
+        {
+          "t": 26.513,
+          "old_error_m": 1.7338839112159092,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.527580070495605
+        },
+        {
+          "t": 26.56,
+          "old_error_m": 1.7686247531388986,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.525728257497152
+        },
+        {
+          "t": 26.61,
+          "old_error_m": 1.7917853135980717,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.521748574574788
+        },
+        {
+          "t": 26.661,
+          "old_error_m": 1.8265261532172345,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.519837665557862
+        },
+        {
+          "t": 26.713,
+          "old_error_m": 1.8381064327611765,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.517973454793294
+        },
+        {
+          "t": 26.761,
+          "old_error_m": 1.745237288618799,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.5154319127400715
+        },
+        {
+          "t": 26.811,
+          "old_error_m": 1.7706876924694694,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.512965170542399
+        },
+        {
+          "t": 26.86,
+          "old_error_m": 1.7799780986028209,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.511382802327473
+        },
+        {
+          "t": 26.911,
+          "old_error_m": 1.8031386319285874,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.509090455373129
+        },
+        {
+          "t": 26.963,
+          "old_error_m": 1.8378794383770212,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.506825383504231
+        },
+        {
+          "t": 27.011,
+          "old_error_m": 1.8640612567173027,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.505333105723063
+        },
+        {
+          "t": 27.06,
+          "old_error_m": 1.9107480411755262,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.503209368387858
+        },
+        {
+          "t": 27.111,
+          "old_error_m": 1.782130530222214,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.50191297531128
+        },
+        {
+          "t": 27.161,
+          "old_error_m": 1.8054739227208294,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.500614102681478
+        },
+        {
+          "t": 27.212,
+          "old_error_m": 1.84048899465402,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.498204803466797
+        },
+        {
+          "t": 27.261,
+          "old_error_m": 1.8638323694716177,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.497113386789958
+        },
+        {
+          "t": 27.31,
+          "old_error_m": 1.8866392825849472,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.495600446065267
+        },
+        {
+          "t": 27.36,
+          "old_error_m": 1.921644846403677,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.49470780690511
+        },
+        {
+          "t": 27.412,
+          "old_error_m": 1.8047326272592683,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.493216355641683
+        },
+        {
+          "t": 27.461,
+          "old_error_m": 1.8397381767267884,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.4923547108968105
+        },
+        {
+          "t": 27.511,
+          "old_error_m": 1.8630749322657836,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.491076914469401
+        },
+        {
+          "t": 27.562,
+          "old_error_m": 1.8864116918534821,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.490368175506592
+        },
+        {
+          "t": 27.61,
+          "old_error_m": 1.9097484622006724,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.489454460144043
+        },
+        {
+          "t": 27.662,
+          "old_error_m": 1.9447536113393293,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.4889263153076175
+        },
+        {
+          "t": 27.71,
+          "old_error_m": 1.8278408873301282,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.488250223795573
+        },
+        {
+          "t": 27.761,
+          "old_error_m": 1.851177649325446,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.487668355305989
+        },
+        {
+          "t": 27.81,
+          "old_error_m": 1.8861827860651297,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.487147649129232
+        },
+        {
+          "t": 27.861,
+          "old_error_m": 1.8861827860651297,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.486833985646565
+        },
+        {
+          "t": 27.912,
+          "old_error_m": 4.426784804369251,
+          "new_error_m": 0.0,
+          "target_lane": 2,
+          "lookahead_m": 6.486626942952474
+        }
+      ]
+    }
+  ]
+}

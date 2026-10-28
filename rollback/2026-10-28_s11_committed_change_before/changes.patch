@@ -1,0 +1,342 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -147,7 +147,7 @@
+                  roundabout_clear_scans=3,
+                  roundabout_ego_lead_gap_s=1.4,
+                  roundabout_ego_lead_min_speed_kmh=2.5,
+-                 highway_keep_lane_priority=True):
++                 highway_keep_lane_priority=True, s11_commit_changes=True):
+         self.route = list(route)
+         self.sectors = list(sectors)
+         # Raceline each route point was taken from (S11 may be driven on R3).
+@@ -230,6 +230,8 @@
+         # instead of a speed precondition, and no planner standstill.
+         self.highway_sectors = tuple(int(s) for s in highway_sectors)
+         self.highway_keep_lane_priority = bool(highway_keep_lane_priority)
++        self.s11_commit_changes = bool(s11_commit_changes)
++        self.highway_admission = {}
+         self.idm_time_gap_s = idm_time_gap_s
+         self.idm_min_gap_m = idm_min_gap_m
+         self.idm_accel_mps2 = idm_accel_mps2
+@@ -1334,11 +1336,83 @@
+             return lead
+         return None
+ 
++    def _s11_rear_admission(self, index, ego_xy, available, lane, obstacles,
++                            v, transition, lead):
++        """Check every target-lane rear box through merge + 0.5 s.
++
++        Unknown velocity is not a stationary rear car. Predict ego braking
++        toward the target leader, while the rear car maintains its speed.
++        """
++        tangent = self._tangent(index)
++        normal = (-tangent[1], tangent[0])
++        centre = self._lateral_offset(index, ego_xy, available[lane])
++        band = self.half_width+self.margin
++        target_v = max(30./3.6, min(v, lead[2] if lead is not None else v,
++                       (transition.get('speed_cap_kmh') or float('inf'))/3.6))
++        duration = transition['length']/max(30./3.6, min(v, target_v))+.5
++        decel = max(self.idm_comfort_decel_mps2, self.highway_merge_yield_decel_mps2)
++        braking_time = min(duration, max(0., v-target_v)/decel)
++        ego_distance = (v*braking_time-.5*decel*braking_time**2
++                        + max(0., v-decel*braking_time)*(duration-braking_time))
++        for obstacle in obstacles:
++            longitudinal, lateral = [], []
++            for x, y in obstacle.corners():
++                dx, dy = x-ego_xy[0], y-ego_xy[1]
++                longitudinal.append(dx*tangent[0]+dy*tangent[1])
++                lateral.append(dx*normal[0]+dy*normal[1])
++            if min(lateral) > centre+band or max(lateral) < centre-band:
++                continue
++            gap = -self.rear_extent-max(longitudinal)
++            if gap <= 0. or gap > self.highway_obstacle_horizon_m:
++                continue  # Side-by-side objects are checked by _gap_blocker.
++            if not obstacle.confirmed or not obstacle.velocity_reliable or obstacle.predicted:
++                self.gap_blocker = (obstacle, min(longitudinal)-self.front_extent)
++                return 'target_rear_unreliable'
++            rear_v = max(0., obstacle.vx*tangent[0]+obstacle.vy*tangent[1])
++            required = max(5., .6*rear_v)
++            projected_gap = gap+ego_distance-rear_v*duration
++            if min(gap, projected_gap) < required:
++                self.gap_blocker = (obstacle, min(longitudinal)-self.front_extent)
++                return 'target_rear_gap'
++        return ''
++
++    def _s11_committed_transition(self, index, ego_xy, v, v0, progress,
++                                  ahead, available, obstacles, edge_cap):
++        """Retain the approved target; only longitudinal demand may change."""
++        transition = self.transition
++        lane = transition['target']
++        reached = lane in available and distance(ego_xy, available[lane]) <= .35
++        if progress >= transition['start']+transition['length'] and reached:
++            self.transition = None
++            self.current_lane = lane
++            self.highway_change_end = progress
++            return None
++        path = self._path(ahead, ego_xy, lane, progress, transition) if lane in available else []
++        if len(path) >= 2:
++            self.highway_committed_path = path
++        else:
++            # Temporary lane-index/geometry dropout must not select a new lane.
++            cached = getattr(self, 'highway_committed_path', [])
++            if cached:
++                closest = min(range(len(cached)), key=lambda i: distance(ego_xy, cached[i]))
++                path = [ego_xy]+cached[closest:]
++        self.active_lane = lane if lane != self.route_lanes[index] else None
++        self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
++        lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
++        cap = min(edge_cap, self._idm_cap(v, v0, lead),
++                  self._highway_predictive_cap(path, v, obstacles))
++        if transition.get('speed_cap_kmh') is not None:
++            cap = min(cap, transition['speed_cap_kmh'])
++        return self._decision(transition['state'], path, cap, lead, 'committed_lane_change')
++
+     def _highway_transition(self, index, ego_xy, v, v0, assumed, progress, ahead,
+                             available, obstacles, edge_cap, tracked):
+         """Continue, finish or abort the active change. None: it is finished
+         (or its geometry is gone) and lane selection runs again."""
+         transition = self.transition
++        if transition.get('committed', False):
++            return self._s11_committed_transition(index, ego_xy, v, v0, progress,
++                                                  ahead, available, obstacles, edge_cap)
+         lane = transition['target']
+         if lane not in available or progress >= transition['start']+transition['length']:
+             self.transition = None
+@@ -1466,7 +1540,9 @@
+         tracked = [o for o in obstacles if o.confirmed]
+         assumed = v
+         edge_cap = self._highway_lane_end_cap(ahead, available)
+-        if self.transition is not None and edge_cap <= .01:
++        committed_policy = self.s11_commit_changes and self.sectors[index] == 11
++        if (self.transition is not None and edge_cap <= .01
++                and not self.transition.get('committed', False)):
+             # A change that ends standing at a lane end never completes (the
+             # run stopped for good cancelling back into ending R1): drop it
+             # and pick the merge toward the continuing lane again.
+@@ -1520,6 +1596,7 @@
+         cutin_conflict = self._highway_path_conflict(current_path, v, cutins)
+         keep_cap = self._idm_cap(v, v0, threat)
+         eligible_gains = set()
++        admissible = set()
+         for lane in leaders:
+             if abs(lane-current) != 1:
+                 continue
+@@ -1529,6 +1606,13 @@
+             incentive, safe, toward = self._mobil(current, lane, v, v0, leaders, followers,
+                                                   through)
+             mandatory = merge_zone and abs(lane-cont) < abs(current-cont)
++            if committed_policy:
++                # Another lane ending is not a reason to leave a continuing lane.
++                mandatory = mandatory and ending
++                if not mandatory and (threat is None or not threat[1].velocity_reliable
++                                      or threat[2] >= 30./3.6):
++                    waiting = 'follow_leader_keep_lane' if threat else 'keep_lane_no_passing_need'
++                    continue
+             if (not mandatory and toward and self.departed_preferred and not ending
+                     and leaders[lane] is not None
+                     and leaders[lane][1] < v0-self.slow_lead_margin_mps):
+@@ -1613,8 +1697,33 @@
+             if change is None:
+                 waiting = waiting or 'lane_change_no_room'
+                 continue
++            if committed_policy:
++                transition, path, change_lead = change
++                if (transition.get('speed_cap_kmh') is not None
++                        and transition['speed_cap_kmh'] < 30.):
++                    waiting = 'merge_below_speed_floor'
++                    continue
++                rear_reason = self._s11_rear_admission(index, ego_xy, available, lane,
++                    obstacles, v, transition, change_lead)
++                if rear_reason:
++                    waiting = rear_reason
++                    continue
++                key = (current, lane)
++                admissible.add(key)
++                stamp = self.highway_observation_stamp
++                stamp = time.monotonic() if stamp is None else stamp
++                previous = self.highway_admission.get(key)
++                if previous is None or stamp < previous['last'] or stamp-previous['last'] > .5:
++                    previous = dict(since=stamp, last=stamp, scans=1)
++                elif stamp > previous['last']:
++                    previous = dict(previous, last=stamp, scans=previous['scans']+1)
++                self.highway_admission[key] = previous
++                if previous['scans'] < 3 or stamp-previous['since'] < .4-1e-9:
++                    waiting = 'confirm_merge_gap'
++                    continue
+             if best is None or incentive > best[0]:
+                 best = (incentive, lane, toward, change)
++        self.highway_admission = {k:v for k,v in self.highway_admission.items() if k in admissible}
+         self.highway_gain_since = {k:v for k,v in getattr(self, 'highway_gain_since', {}).items()
+                                    if k in eligible_gains}
+         if best is not None:
+@@ -1622,6 +1731,10 @@
+             state = ('RETURNING' if toward and self.departed_preferred
+                      else 'LANE_CHANGING' if toward else 'OVERTAKING')
+             transition['state'] = state
++            if committed_policy:
++                transition['committed'] = True
++                self.highway_committed_path = list(path)
++                self.highway_admission.clear()
+             self.transition = transition
+             self.cancel_votes = 0
+             # Departed only by moving away from the preferred lane; R1 -> R2
+--- a/src/unita_waypoint/test/test_highway_planner.py
++++ b/src/unita_waypoint/test/test_highway_planner.py
+@@ -21,6 +21,8 @@
+     # Legacy R3 preference fixtures still exercise collision/merge behavior.
+     # The production default keep-lane policy has its own regression suite.
+     kwargs.setdefault('highway_keep_lane_priority', False)
++    # Preserve legacy cancellable-policy coverage; committed S11 has its own suite.
++    kwargs.setdefault('s11_commit_changes', False)
+     route = [(float(i), 0.) for i in range(ROAD)]
+     ends = {2: r2_end or ROAD, 3: r3_end or ROAD}
+     lanes = {n: [(float(i), LANE_Y[n]) for i in range(ends[n])] for n in (2, 3)}
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_committed_change.py
+@@ -0,0 +1,146 @@
++"""Admission considers rear traffic; an approved S11 maneuver never reverses."""
++import unittest
++import test_highway_planner as f
++
++
++def planner(**kwargs):
++    return f.planner(s11_commit_changes=True, highway_keep_lane_priority=True, **kwargs)
++
++
++class CommittedChangeTests(unittest.TestCase):
++    def step(self, p, stamp, obstacles=(), index=60, y=7.2, speed=15.):
++        return p.plan(index, (float(index), y), speed, list(obstacles),
++                      desired_speed_mps=f.CRUISE, observation_stamp=stamp)
++
++    def approved(self):
++        p = planner(r3_end=180)
++        for stamp in (1., 1.2, 1.4):
++            self.step(p, stamp)
++        self.assertIsNotNone(p.transition)
++        self.assertTrue(p.transition['committed'])
++        return p
++
++    def test_default_enables_s11_policy(self):
++        p = f.core.LocalAvoidancePlanner([(0., 0.), (100., 0.)], [11, 11], {})
++        self.assertTrue(p.s11_commit_changes)
++
++    def test_moving_leader_only_generates_same_lane_following(self):
++        for speed in (30./3.6, 12., 20.):
++            for lane in (1, 2, 3):
++                p = planner()
++                for stamp in (1., 1.2, 1.4, 3., 5.):
++                    d = self.step(p, stamp, [f.car(105., lane, speed)], y=f.LANE_Y[lane], speed=25.)
++                    self.assertIsNone(p.transition)
++                    self.assertEqual(d.reason, 'follow_leader_keep_lane')
++                    self.assertLess(d.speed_cap_kmh, f.CRUISE*3.6)
++                    self.assertTrue(all(abs(y-f.LANE_Y[lane]) < .01 for _,y in d.path))
++
++    def test_repeated_scan_cannot_approve_and_gap_must_persist(self):
++        p = planner(r3_end=180)
++        for stamp in (1., 1., 1., 1.2):
++            self.step(p, stamp)
++            self.assertIsNone(p.transition)
++        self.step(p, 1.4)
++        self.assertTrue(p.transition['committed'])
++
++    def test_gap_interruption_and_scan_dropout_reset_confirmation(self):
++        for interruption in ('obstacle', 'dropout'):
++            p = planner(r3_end=180)
++            self.step(p, 1.)
++            self.step(p, 1.2)
++            if interruption == 'obstacle':
++                self.step(p, 1.3, [f.car(60., 2, 15.)])
++            self.step(p, 2.)
++            self.step(p, 2.2)
++            self.assertIsNone(p.transition)
++            self.step(p, 2.4)
++            self.assertIsNotNone(p.transition)
++
++    def test_unknown_or_predicted_rear_car_is_not_assumed_stationary(self):
++        for kind in ('unconfirmed', 'unreliable', 'predicted'):
++            p = planner(r3_end=180)
++            car = f.car(45., 2, 0.)
++            if kind == 'unconfirmed': car.confirmed = False
++            if kind == 'unreliable': car.velocity_reliable = False
++            if kind == 'predicted': car.predicted = True
++            for stamp in (1., 1.2, 1.4, 1.6):
++                d = self.step(p, stamp, [car])
++                self.assertIsNone(p.transition)
++            self.assertEqual(d.reason, 'target_rear_unreliable')
++
++    def test_rear_check_covers_full_merge_and_ego_deceleration(self):
++        p = planner()
++        available = {1:(60., 0.), 2:(60., 3.6)}
++        transition = dict(length=80., speed_cap_kmh=90.)
++        # Rear is 40 m away but will catch ego while ego slows for a leader.
++        rear = f.car(17., 2, 24.)
++        lead = (80., f.car(140., 2, 12.), 12.)
++        self.assertEqual(p._s11_rear_admission(60, (60., 0.), available, 2,
++                         [rear], 25., transition, lead), 'target_rear_gap')
++        rear.vx = 10.
++        self.assertEqual(p._s11_rear_admission(60, (60., 0.), available, 2,
++                         [rear], 25., transition, lead), '')
++
++    def test_safe_rear_car_allows_merge(self):
++        p = planner(r3_end=180)
++        for stamp in (1., 1.2, 1.4):
++            self.step(p, stamp, [f.car(30., 2, 10.)])
++        self.assertTrue(p.transition['committed'])
++
++    def test_new_side_front_or_rear_threat_does_not_cancel(self):
++        for obstacles in ([f.car(64., 2, 0.)], [f.car(85., 2, 0.)], [f.car(50., 2, 30.)]):
++            p = self.approved()
++            original = dict(p.transition)
++            for stamp in (1.5, 1.6, 1.7, 1.8, 2.):
++                d = self.step(p, stamp, obstacles)
++                self.assertEqual(p.transition, original)
++                self.assertEqual(d.reason, 'committed_lane_change')
++                self.assertNotEqual(d.state, 'CANCELLING')
++                self.assertTrue(d.path)
++
++    def test_completion_requires_lateral_arrival_not_just_progress(self):
++        p = self.approved()
++        end = int(p.transition['start']+p.transition['length'])+1
++        self.step(p, 2., index=end, y=5.)
++        self.assertIsNotNone(p.transition)
++        self.step(p, 2.1, index=end+1, y=3.6)
++        self.assertIsNone(p.transition)
++        self.assertEqual(p.current_lane, 2)
++
++    def test_approved_path_reaches_target_without_reverse_or_new_target(self):
++        p = self.approved()
++        ego = (60., 7.2)
++        target = p.transition['target']
++        finished = False
++        for step in range(100):
++            d = p.plan(int(ego[0]), ego, 15., [], desired_speed_mps=f.CRUISE,
++                       observation_stamp=1.5+step*.1)
++            if p.transition is None:
++                finished = True
++                self.assertEqual(p.current_lane, target)
++                self.assertLessEqual(abs(ego[1]-f.LANE_Y[target]), .35)
++                break
++            self.assertEqual(p.transition['target'], target)
++            self.assertNotEqual(d.state, 'CANCELLING')
++            ego = f.point_at(d.path, 1.5)
++        self.assertTrue(finished)
++
++    def test_geometry_dropout_keeps_target_and_cached_path(self):
++        p = self.approved()
++        original = dict(p.transition)
++        p.lane_indices[2].pop(60)
++        d = self.step(p, 1.5)
++        self.assertEqual(p.transition, original)
++        self.assertTrue(d.path)
++
++    def test_other_highway_sector_does_not_use_commit_policy(self):
++        p = planner(r3_end=180)
++        p.sectors = [10]*len(p.sectors)
++        p.highway_sectors = (10,)
++        self.step(p, 1.)
++        self.assertIsNotNone(p.transition)
++        self.assertNotIn('committed', p.transition)
++
++
++if __name__ == '__main__':
++    unittest.main()

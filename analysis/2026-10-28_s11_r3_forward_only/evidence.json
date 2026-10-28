@@ -1,0 +1,1468 @@
+{
+  "limitation": "Open-loop recorded-input replay; ego keeps its recorded pose/speed. Does not prove collision-free execution.",
+  "runs": [
+    {
+      "run": "run_20261028_165445",
+      "frames": 647,
+      "recorded_events": [
+        {
+          "t": 5.286,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        },
+        {
+          "t": 11.4,
+          "state": "LANE_WAIT",
+          "reason": "keep_lane_no_passing_need",
+          "transition": null
+        },
+        {
+          "t": 13.095,
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "transition": null
+        },
+        {
+          "t": 21.839,
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "transition": {
+            "source": 1,
+            "target": 2,
+            "start": 1373.844119226921,
+            "length": 43.75041812644605,
+            "state": "LANE_CHANGING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 39.57863376252239
+          }
+        },
+        {
+          "t": 26.196,
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "transition": {
+            "source": 2,
+            "target": 3,
+            "start": 1417.6082320793898,
+            "length": 44.15100319692189,
+            "state": "LANE_CHANGING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 39.75941470024517
+          }
+        },
+        {
+          "t": 30.287,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        },
+        {
+          "t": 33.187,
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "transition": null
+        },
+        {
+          "t": 34.191,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        }
+      ],
+      "replay_events": [
+        {
+          "t": 5.286,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2252
+        },
+        {
+          "t": 5.286,
+          "version": "after",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2252
+        },
+        {
+          "t": 11.4,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "keep_lane_no_passing_need",
+          "target": null,
+          "index": 2473
+        },
+        {
+          "t": 11.4,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "target": 2,
+          "index": 2473
+        },
+        {
+          "t": 11.444,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "s11_forward_only",
+          "target": 2,
+          "index": 2475
+        },
+        {
+          "t": 12.043,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "unconfirmed_target_vehicle",
+          "target": null,
+          "index": 2506
+        },
+        {
+          "t": 12.599,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2533
+        },
+        {
+          "t": 13.095,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2559
+        },
+        {
+          "t": 13.143,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2561
+        },
+        {
+          "t": 13.947,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2602
+        },
+        {
+          "t": 14.044,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2607
+        },
+        {
+          "t": 14.24,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2615
+        },
+        {
+          "t": 15.188,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2644
+        },
+        {
+          "t": 15.238,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2646
+        },
+        {
+          "t": 16.24,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2665
+        },
+        {
+          "t": 16.435,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2668
+        },
+        {
+          "t": 17.089,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2679
+        },
+        {
+          "t": 17.19,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2681
+        },
+        {
+          "t": 17.239,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2682
+        },
+        {
+          "t": 17.291,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2683
+        },
+        {
+          "t": 17.342,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "insufficient_passing_gain",
+          "target": null,
+          "index": 2684
+        },
+        {
+          "t": 17.39,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2684
+        },
+        {
+          "t": 17.443,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "insufficient_passing_gain",
+          "target": null,
+          "index": 2686
+        },
+        {
+          "t": 17.597,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2688
+        },
+        {
+          "t": 17.79,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "insufficient_passing_gain",
+          "target": null,
+          "index": 2691
+        },
+        {
+          "t": 18.296,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2700
+        },
+        {
+          "t": 18.793,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "comfortable_following",
+          "target": null,
+          "index": 2708
+        },
+        {
+          "t": 19.043,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "highway_idm",
+          "target": null,
+          "index": 2713
+        },
+        {
+          "t": 20.596,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "insufficient_passing_gain",
+          "target": null,
+          "index": 2739
+        },
+        {
+          "t": 20.794,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "highway_idm",
+          "target": null,
+          "index": 2742
+        },
+        {
+          "t": 21.44,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "insufficient_passing_gain",
+          "target": null,
+          "index": 2755
+        },
+        {
+          "t": 21.839,
+          "version": "before",
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "target": 2,
+          "index": 2762
+        },
+        {
+          "t": 21.895,
+          "version": "before",
+          "state": "LANE_CHANGING",
+          "reason": "",
+          "target": 2,
+          "index": 2763
+        },
+        {
+          "t": 26.196,
+          "version": "before",
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "target": 3,
+          "index": 2850
+        },
+        {
+          "t": 26.24,
+          "version": "before",
+          "state": "LANE_CHANGING",
+          "reason": "",
+          "target": 3,
+          "index": 2851
+        },
+        {
+          "t": 26.989,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "target": 3,
+          "index": 2867
+        },
+        {
+          "t": 27.039,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "s11_forward_only",
+          "target": 3,
+          "index": 2869
+        },
+        {
+          "t": 30.287,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2939
+        },
+        {
+          "t": 31.237,
+          "version": "after",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2961
+        },
+        {
+          "t": 33.187,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 3014
+        },
+        {
+          "t": 34.191,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 3065
+        }
+      ],
+      "original_approval_comparison": [
+        {
+          "t": 21.839,
+          "index": 2762,
+          "before": {
+            "state": "LANE_CHANGING",
+            "reason": "mobil_gain",
+            "target": 2
+          },
+          "after": {
+            "state": "LANE_CHANGING",
+            "reason": "s11_forward_only",
+            "target": 2
+          }
+        },
+        {
+          "t": 26.196,
+          "index": 2850,
+          "before": {
+            "state": "LANE_CHANGING",
+            "reason": "mobil_gain",
+            "target": 3
+          },
+          "after": {
+            "state": "LANE_CHANGING",
+            "reason": "s11_forward_only",
+            "target": 2
+          }
+        }
+      ],
+      "rear_evidence": [
+        {
+          "t": 21.839,
+          "id": 37,
+          "along": -48.21,
+          "lateral": 2.13,
+          "lane": 2,
+          "confirmed": true,
+          "velocity_reliable": false,
+          "vx": 0.0,
+          "vy": 0.0,
+          "target": 2
+        },
+        {
+          "t": 26.196,
+          "id": 37,
+          "along": -33.89,
+          "lateral": -0.49,
+          "lane": 2,
+          "confirmed": true,
+          "velocity_reliable": false,
+          "vx": 0.0,
+          "vy": 0.0,
+          "target": 3
+        }
+      ],
+      "before_starts": 1,
+      "after_starts": 1,
+      "before_cancels": 0,
+      "after_cancels": 0,
+      "reason_counts": {
+        "before": {
+          "RACELINE": 249,
+          "keep_lane_no_passing_need": 13,
+          "unconfirmed_target_vehicle": 11,
+          "mobil_unsafe": 87,
+          "merge_zone_yield": 16,
+          "lane_change_gap": 17,
+          "insufficient_passing_gain": 26,
+          "lane_change_no_room": 10,
+          "comfortable_following": 5,
+          "highway_idm": 44,
+          "mobil_gain": 2,
+          "LANE_CHANGING": 167
+        },
+        "after": {
+          "RACELINE": 250,
+          "mobil_gain": 2,
+          "s11_forward_only": 395
+        }
+      }
+    },
+    {
+      "run": "run_20261028_165532",
+      "frames": 678,
+      "recorded_events": [
+        {
+          "t": 5.073,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        },
+        {
+          "t": 11.18,
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "transition": null
+        },
+        {
+          "t": 11.627,
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "transition": null
+        },
+        {
+          "t": 11.777,
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "transition": null
+        },
+        {
+          "t": 11.93,
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "transition": null
+        },
+        {
+          "t": 13.022,
+          "state": "LANE_WAIT",
+          "reason": "lane_change_gap",
+          "transition": null
+        },
+        {
+          "t": 13.274,
+          "state": "TAILING",
+          "reason": "lane_change_no_room",
+          "transition": null
+        },
+        {
+          "t": 13.974,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        },
+        {
+          "t": 14.128,
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "transition": null
+        },
+        {
+          "t": 14.177,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        },
+        {
+          "t": 14.226,
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "transition": null
+        },
+        {
+          "t": 14.676,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        },
+        {
+          "t": 15.023,
+          "state": "LANE_WAIT",
+          "reason": "keep_lane_no_passing_need",
+          "transition": null
+        },
+        {
+          "t": 18.536,
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "transition": {
+            "source": 1,
+            "target": 2,
+            "start": 1335.9006713694234,
+            "length": 78.24807981550482,
+            "state": "LANE_CHANGING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 69.18279266357422
+          }
+        },
+        {
+          "t": 22.233,
+          "state": "CANCELLING",
+          "reason": "lane_change_cancelled",
+          "transition": {
+            "source": 2,
+            "target": 1,
+            "start": 1406.3146175148775,
+            "length": 42.99955489296754,
+            "state": "CANCELLING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 46.10430800437927
+          }
+        },
+        {
+          "t": 25.429,
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "transition": {
+            "source": 1,
+            "target": 2,
+            "start": 1449.7063333005697,
+            "length": 52.59069400480829,
+            "state": "RETURNING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 45.852386474609375
+          }
+        },
+        {
+          "t": 26.028,
+          "state": "CANCELLING",
+          "reason": "lane_change_cancelled",
+          "transition": {
+            "source": 2,
+            "target": 1,
+            "start": 1457.2945716727984,
+            "length": 16.61492139048565,
+            "state": "CANCELLING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 45.36318588256835
+          }
+        },
+        {
+          "t": 27.428,
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "transition": {
+            "source": 1,
+            "target": 2,
+            "start": 1474.147910358436,
+            "length": 41.01861833230269,
+            "state": "RETURNING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 37.96931806106047
+          }
+        },
+        {
+          "t": 27.781,
+          "state": "CANCELLING",
+          "reason": "lane_change_cancelled",
+          "transition": {
+            "source": 2,
+            "target": 1,
+            "start": 1478.2115478824735,
+            "length": 11.68168146414463,
+            "state": "CANCELLING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 39.5312843322754
+          }
+        },
+        {
+          "t": 28.98,
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "transition": {
+            "source": 1,
+            "target": 2,
+            "start": 1490.0586781387901,
+            "length": 25.018634841997418,
+            "state": "RETURNING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 22.72976997630783
+          }
+        },
+        {
+          "t": 30.821,
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "transition": null
+        },
+        {
+          "t": 31.276,
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "transition": {
+            "source": 2,
+            "target": 3,
+            "start": 1508.6606265733533,
+            "length": 14.518650306639831,
+            "state": "RETURNING",
+            "shape": "quintic",
+            "highway": true,
+            "speed_cap_kmh": 13.120579554006115
+          }
+        },
+        {
+          "t": 32.521,
+          "state": "TAILING",
+          "reason": "highway_idm",
+          "transition": null
+        },
+        {
+          "t": 34.27,
+          "state": "RACELINE",
+          "reason": "",
+          "transition": null
+        }
+      ],
+      "replay_events": [
+        {
+          "t": 5.073,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2252
+        },
+        {
+          "t": 5.073,
+          "version": "after",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2252
+        },
+        {
+          "t": 11.18,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2474
+        },
+        {
+          "t": 11.18,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2474
+        },
+        {
+          "t": 11.627,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2495
+        },
+        {
+          "t": 11.627,
+          "version": "after",
+          "state": "TAILING",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2495
+        },
+        {
+          "t": 11.777,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2503
+        },
+        {
+          "t": 11.777,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2503
+        },
+        {
+          "t": 11.93,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2509
+        },
+        {
+          "t": 11.93,
+          "version": "after",
+          "state": "TAILING",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2509
+        },
+        {
+          "t": 12.178,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2521
+        },
+        {
+          "t": 12.528,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2535
+        },
+        {
+          "t": 13.022,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2550
+        },
+        {
+          "t": 13.022,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2550
+        },
+        {
+          "t": 13.175,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "keep_lane_no_passing_need",
+          "target": null,
+          "index": 2555
+        },
+        {
+          "t": 13.175,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2555
+        },
+        {
+          "t": 13.221,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2556
+        },
+        {
+          "t": 13.221,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2556
+        },
+        {
+          "t": 13.274,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2557
+        },
+        {
+          "t": 13.274,
+          "version": "after",
+          "state": "TAILING",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2557
+        },
+        {
+          "t": 13.625,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "confirm_lane_gain",
+          "target": null,
+          "index": 2564
+        },
+        {
+          "t": 13.673,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2566
+        },
+        {
+          "t": 13.925,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 2571
+        },
+        {
+          "t": 13.925,
+          "version": "after",
+          "state": "TAILING",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2571
+        },
+        {
+          "t": 13.974,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2571
+        },
+        {
+          "t": 13.974,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2571
+        },
+        {
+          "t": 14.025,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2572
+        },
+        {
+          "t": 14.128,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2574
+        },
+        {
+          "t": 14.128,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2574
+        },
+        {
+          "t": 14.177,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2575
+        },
+        {
+          "t": 14.177,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2575
+        },
+        {
+          "t": 14.226,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 2576
+        },
+        {
+          "t": 14.226,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 2576
+        },
+        {
+          "t": 14.374,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "keep_lane_no_passing_need",
+          "target": null,
+          "index": 2579
+        },
+        {
+          "t": 14.374,
+          "version": "after",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2579
+        },
+        {
+          "t": 14.422,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "target": 2,
+          "index": 2580
+        },
+        {
+          "t": 14.476,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "s11_forward_only",
+          "target": 2,
+          "index": 2581
+        },
+        {
+          "t": 14.676,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 2584
+        },
+        {
+          "t": 15.023,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "keep_lane_no_passing_need",
+          "target": null,
+          "index": 2591
+        },
+        {
+          "t": 18.536,
+          "version": "before",
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "target": 2,
+          "index": 2685
+        },
+        {
+          "t": 18.582,
+          "version": "before",
+          "state": "LANE_CHANGING",
+          "reason": "",
+          "target": 2,
+          "index": 2687
+        },
+        {
+          "t": 21.728,
+          "version": "before",
+          "state": "LANE_CHANGING",
+          "reason": "lane_change_target_leader",
+          "target": 2,
+          "index": 2809
+        },
+        {
+          "t": 22.233,
+          "version": "before",
+          "state": "CANCELLING",
+          "reason": "lane_change_cancelled",
+          "target": 1,
+          "index": 2827
+        },
+        {
+          "t": 22.276,
+          "version": "before",
+          "state": "CANCELLING",
+          "reason": "",
+          "target": 1,
+          "index": 2829
+        },
+        {
+          "t": 25.429,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "target": 2,
+          "index": 2914
+        },
+        {
+          "t": 25.477,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "",
+          "target": 2,
+          "index": 2915
+        },
+        {
+          "t": 25.628,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "lane_change_target_leader",
+          "target": 2,
+          "index": 2918
+        },
+        {
+          "t": 25.727,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "",
+          "target": 2,
+          "index": 2921
+        },
+        {
+          "t": 25.775,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "lane_change_target_leader",
+          "target": 2,
+          "index": 2922
+        },
+        {
+          "t": 25.83,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "",
+          "target": 2,
+          "index": 2924
+        },
+        {
+          "t": 25.879,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "lane_change_target_leader",
+          "target": 2,
+          "index": 2925
+        },
+        {
+          "t": 25.974,
+          "version": "before",
+          "state": "CANCELLING",
+          "reason": "lane_change_cancelled",
+          "target": 1,
+          "index": 2928
+        },
+        {
+          "t": 26.028,
+          "version": "before",
+          "state": "CANCELLING",
+          "reason": "",
+          "target": 1,
+          "index": 2929
+        },
+        {
+          "t": 27.372,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_no_room",
+          "target": null,
+          "index": 2962
+        },
+        {
+          "t": 27.428,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "target": 2,
+          "index": 2963
+        },
+        {
+          "t": 27.476,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "",
+          "target": 2,
+          "index": 2964
+        },
+        {
+          "t": 27.675,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "lane_change_target_leader",
+          "target": 2,
+          "index": 2969
+        },
+        {
+          "t": 27.781,
+          "version": "before",
+          "state": "CANCELLING",
+          "reason": "lane_change_cancelled",
+          "target": 1,
+          "index": 2971
+        },
+        {
+          "t": 27.823,
+          "version": "before",
+          "state": "CANCELLING",
+          "reason": "",
+          "target": 1,
+          "index": 2972
+        },
+        {
+          "t": 29.176,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "target": 2,
+          "index": 2998
+        },
+        {
+          "t": 29.226,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "",
+          "target": 2,
+          "index": 2999
+        },
+        {
+          "t": 30.821,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "merge_zone_yield",
+          "target": null,
+          "index": 3025
+        },
+        {
+          "t": 31.028,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 3029
+        },
+        {
+          "t": 31.071,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "mobil_unsafe",
+          "target": null,
+          "index": 3029
+        },
+        {
+          "t": 31.122,
+          "version": "before",
+          "state": "LANE_WAIT",
+          "reason": "lane_change_gap",
+          "target": null,
+          "index": 3030
+        },
+        {
+          "t": 31.276,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "mobil_gain",
+          "target": 3,
+          "index": 3032
+        },
+        {
+          "t": 31.324,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "",
+          "target": 3,
+          "index": 3033
+        },
+        {
+          "t": 31.629,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "mobil_gain",
+          "target": 3,
+          "index": 3038
+        },
+        {
+          "t": 31.674,
+          "version": "after",
+          "state": "LANE_CHANGING",
+          "reason": "s11_forward_only",
+          "target": 3,
+          "index": 3039
+        },
+        {
+          "t": 31.775,
+          "version": "before",
+          "state": "RETURNING",
+          "reason": "lane_change_target_leader",
+          "target": 3,
+          "index": 3040
+        },
+        {
+          "t": 32.521,
+          "version": "before",
+          "state": "TAILING",
+          "reason": "highway_idm",
+          "target": null,
+          "index": 3065
+        },
+        {
+          "t": 33.321,
+          "version": "after",
+          "state": "TAILING",
+          "reason": "highway_idm",
+          "target": null,
+          "index": 3065
+        },
+        {
+          "t": 34.27,
+          "version": "before",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 3073
+        },
+        {
+          "t": 34.27,
+          "version": "after",
+          "state": "RACELINE",
+          "reason": "",
+          "target": null,
+          "index": 3073
+        }
+      ],
+      "original_approval_comparison": [
+        {
+          "t": 18.536,
+          "index": 2685,
+          "before": {
+            "state": "LANE_CHANGING",
+            "reason": "mobil_gain",
+            "target": 2
+          },
+          "after": {
+            "state": "LANE_CHANGING",
+            "reason": "s11_forward_only",
+            "target": 2
+          }
+        },
+        {
+          "t": 25.429,
+          "index": 2914,
+          "before": {
+            "state": "RETURNING",
+            "reason": "mobil_gain",
+            "target": 2
+          },
+          "after": {
+            "state": "LANE_CHANGING",
+            "reason": "s11_forward_only",
+            "target": 2
+          }
+        },
+        {
+          "t": 27.428,
+          "index": 2963,
+          "before": {
+            "state": "RETURNING",
+            "reason": "mobil_gain",
+            "target": 2
+          },
+          "after": {
+            "state": "LANE_CHANGING",
+            "reason": "s11_forward_only",
+            "target": 2
+          }
+        },
+        {
+          "t": 28.98,
+          "index": 2995,
+          "before": {
+            "state": "CANCELLING",
+            "reason": "",
+            "target": 1
+          },
+          "after": {
+            "state": "LANE_CHANGING",
+            "reason": "s11_forward_only",
+            "target": 2
+          }
+        },
+        {
+          "t": 31.276,
+          "index": 3032,
+          "before": {
+            "state": "RETURNING",
+            "reason": "mobil_gain",
+            "target": 3
+          },
+          "after": {
+            "state": "LANE_CHANGING",
+            "reason": "s11_forward_only",
+            "target": 2
+          }
+        }
+      ],
+      "rear_evidence": [
+        {
+          "t": 18.536,
+          "id": 23,
+          "along": -25.13,
+          "lateral": 6.71,
+          "lane": 3,
+          "confirmed": true,
+          "velocity_reliable": true,
+          "vx": 0.0,
+          "vy": -16.58374159127592,
+          "target": 2
+        },
+        {
+          "t": 25.429,
+          "id": 37,
+          "along": -26.17,
+          "lateral": 6.8,
+          "lane": 3,
+          "confirmed": true,
+          "velocity_reliable": true,
+          "vx": 0.0,
+          "vy": -16.7450077101934,
+          "target": 2
+        },
+        {
+          "t": 27.428,
+          "id": 37,
+          "along": -16.49,
+          "lateral": 6.75,
+          "lane": 3,
+          "confirmed": true,
+          "velocity_reliable": false,
+          "vx": 0.0,
+          "vy": -17.005655100895645,
+          "target": 2
+        },
+        {
+          "t": 28.98,
+          "id": 37,
+          "along": -9.83,
+          "lateral": 6.93,
+          "lane": 3,
+          "confirmed": true,
+          "velocity_reliable": false,
+          "vx": 0.0,
+          "vy": 0.0,
+          "target": 2
+        },
+        {
+          "t": 28.98,
+          "id": 38,
+          "along": -7.26,
+          "lateral": 6.96,
+          "lane": 3,
+          "confirmed": true,
+          "velocity_reliable": false,
+          "vx": 0.0,
+          "vy": 0.0,
+          "target": 2
+        }
+      ],
+      "before_starts": 3,
+      "after_starts": 1,
+      "before_cancels": 3,
+      "after_cancels": 0,
+      "reason_counts": {
+        "before": {
+          "RACELINE": 227,
+          "mobil_unsafe": 27,
+          "lane_change_gap": 24,
+          "keep_lane_no_passing_need": 77,
+          "lane_change_no_room": 13,
+          "confirm_lane_gain": 1,
+          "mobil_gain": 5,
+          "LANE_CHANGING": 63,
+          "lane_change_target_leader": 32,
+          "lane_change_cancelled": 3,
+          "CANCELLING": 117,
+          "RETURNING": 50,
+          "merge_zone_yield": 4,
+          "highway_idm": 35
+        },
+        "after": {
+          "RACELINE": 216,
+          "merge_zone_yield": 47,
+          "lane_change_no_room": 18,
+          "mobil_gain": 2,
+          "s11_forward_only": 376,
+          "highway_idm": 19
+        }
+      }
+    }
+  ]
+}

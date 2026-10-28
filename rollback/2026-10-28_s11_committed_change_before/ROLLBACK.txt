@@ -1,0 +1,7 @@
+이번 S11 차선 변경 보수화·뒤차 검사 강화·승인 후 완수 변경만 롤백해줘. 기존 최소 30km/h, 정지 금지, 제동 강화와 다른 구간 변경은 유지하고 rollback/2026-10-28_s11_committed_change_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_committed_change_before/changes.patch
+git apply -R rollback/2026-10-28_s11_committed_change_before/changes.patch
+
+적용/롤백 후 semi.launch 재시작 필요. analysis 디렉터리의 분석 기록은 보존합니다.

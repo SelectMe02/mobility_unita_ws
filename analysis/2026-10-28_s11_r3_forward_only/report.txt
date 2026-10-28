@@ -1,0 +1,11 @@
+S11 R3 forward-only analysis, 2026-10-28 Asia/Seoul
+Latest bag run_20261028_165532: R2->R1 CANCELLING at +22.233, +26.028, +27.781 s.
+Policy: S11 candidate must be current+1; R3 is terminal; existing pre-change gap and collision checks remain.
+Approved target is retained despite new hazards; longitudinal caps remain active. Existing 30 km/h floor and stronger brake unchanged.
+Completion requires progress and <=0.35 m target-line error. Completed lane is latched to prevent nearest-line jitter reopening lower lanes.
+Validation: 101 related tests passed; syntax, diff whitespace, and reverse patch application check passed.
+Replay asserts target==source+1 and no CANCELLING for every new-policy transition.
+LIMIT: open-loop recorded-input replay preserves recorded ego motion. It cannot establish actual maneuver completion or collision avoidance. MORAI driving not run.
+
+run_20261028_165445: 647 S11 frames; cancellations before=0, after=0
+run_20261028_165532: 678 S11 frames; cancellations before=3, after=0

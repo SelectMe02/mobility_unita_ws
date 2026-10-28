@@ -21,6 +21,8 @@ def planner(highway=True, r3_end=None, r2_end=None, sector_10_until=0, **kwargs)
     # Legacy R3 preference fixtures still exercise collision/merge behavior.
     # The production default keep-lane policy has its own regression suite.
     kwargs.setdefault('highway_keep_lane_priority', False)
+    # Legacy bidirectional behavior; production S11 is tested separately.
+    kwargs.setdefault('s11_forward_only', False)
     route = [(float(i), 0.) for i in range(ROAD)]
     ends = {2: r2_end or ROAD, 3: r3_end or ROAD}
     lanes = {n: [(float(i), LANE_Y[n]) for i in range(ends[n])] for n in (2, 3)}

@@ -1,0 +1,18 @@
+S11 committed lane change analysis (2026-10-28, Asia/Seoul)
+Input: latest three 16:31-16:33 recorded bags; no ROS outputs.
+Limit: open-loop replay holds the recorded ego pose/speed. It does not demonstrate collision-free execution.
+Latest bag first approval: t=12.610 s, R1->R2, ego 94.10 km/h.
+Target-lane rear object id=5: along=-5.88 m, lateral=5.08 m, confirmed=true, velocity_reliable=false, vx=vy=0.
+Old _follower used confirmed zero velocity even when velocity_reliable=false.
+New policy: follow leaders at >=30 km/h; no preference-only lane change on a continuing lane.
+Mandatory lane-end merge remains possible; all new S11 changes need 0.4 s / 3 distinct scans of safe conditions.
+Rear clearance: max(5 m, 0.6 s * rear speed), through merge duration + 0.5 s, considering ego deceleration toward the leader.
+Unknown/unreliable/predicted rear objects in target corridor defer admission.
+Admission rejects curvature speed below 30 km/h. Existing min30 and stronger brake remain unchanged.
+Committed target/source/length remain fixed; no cancellation. Completion requires progress end and <=0.35 m target center error.
+Legacy cancellable tests explicitly exercise s11_commit_changes=False; new tests cover production default.
+Baseline note: 8 failures in test_local_avoidance.py were reproduced using the unmodified backup; unrelated legacy behavior is not changed.
+
+run_20261028_163141: 477 frames; replay approvals 1 -> 1; cancellations 1 -> 0
+run_20261028_163252: 588 frames; replay approvals 2 -> 1; cancellations 1 -> 0
+run_20261028_163347: 735 frames; replay approvals 3 -> 0; cancellations 4 -> 0

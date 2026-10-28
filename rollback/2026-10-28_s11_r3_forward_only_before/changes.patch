@@ -1,0 +1,251 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -147,7 +147,7 @@
+                  roundabout_clear_scans=3,
+                  roundabout_ego_lead_gap_s=1.4,
+                  roundabout_ego_lead_min_speed_kmh=2.5,
+-                 highway_keep_lane_priority=True):
++                 highway_keep_lane_priority=True, s11_forward_only=True):
+         self.route = list(route)
+         self.sectors = list(sectors)
+         # Raceline each route point was taken from (S11 may be driven on R3).
+@@ -230,6 +230,9 @@
+         # instead of a speed precondition, and no planner standstill.
+         self.highway_sectors = tuple(int(s) for s in highway_sectors)
+         self.highway_keep_lane_priority = bool(highway_keep_lane_priority)
++        self.s11_forward_only = bool(s11_forward_only)
++        self.s11_reached_lane = None
++        self.s11_change_path = []
+         self.idm_time_gap_s = idm_time_gap_s
+         self.idm_min_gap_m = idm_min_gap_m
+         self.idm_accel_mps2 = idm_accel_mps2
+@@ -844,6 +847,8 @@
+         available = {n: point for n, point in available.items() if point is not None}
+         self.current_lane = min(available, key=lambda n: distance(ego_xy, available[n]))
+         requested = self._requested_lane(index, ego_xy, ego_yaw)
++        if self.sectors[index] != 11:
++            self.s11_reached_lane = None
+         self.highway_active = self.sectors[index] in self.highway_sectors
+         if self.highway_active:
+             self.highway_observation_stamp = observation_stamp
+@@ -1334,11 +1339,42 @@
+             return lead
+         return None
+ 
++    def _s11_forward_transition(self, index, ego_xy, v, v0, progress,
++                                ahead, available, obstacles, edge_cap):
++        """Finish the approved increasing-lane change, never steer back."""
++        transition = self.transition
++        lane = transition['target']
++        if (lane in available and progress >= transition['start']+transition['length']
++                and distance(ego_xy, available[lane]) <= .35):
++            self.s11_reached_lane = max(self.s11_reached_lane or lane, lane)
++            self.current_lane = lane
++            self.transition = None
++            self.highway_change_end = progress
++            return None
++        path = self._path(ahead, ego_xy, lane, progress, transition) if lane in available else []
++        if len(path) >= 2:
++            self.s11_change_path = path
++        elif self.s11_change_path:
++            closest = min(range(len(self.s11_change_path)),
++                          key=lambda i: distance(ego_xy, self.s11_change_path[i]))
++            path = [ego_xy]+self.s11_change_path[closest:]
++        self.active_lane = lane if lane != self.route_lanes[index] else None
++        self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
++        lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
++        cap = min(edge_cap, self._idm_cap(v, v0, lead),
++                  self._highway_predictive_cap(path, v, obstacles))
++        if transition.get('speed_cap_kmh') is not None:
++            cap = min(cap, transition['speed_cap_kmh'])
++        return self._decision(transition['state'], path, cap, lead, 's11_forward_only')
++
+     def _highway_transition(self, index, ego_xy, v, v0, assumed, progress, ahead,
+                             available, obstacles, edge_cap, tracked):
+         """Continue, finish or abort the active change. None: it is finished
+         (or its geometry is gone) and lane selection runs again."""
+         transition = self.transition
++        if transition.get('s11_forward_only', False):
++            return self._s11_forward_transition(index, ego_xy, v, v0, progress,
++                ahead, available, obstacles, edge_cap)
+         lane = transition['target']
+         if lane not in available or progress >= transition['start']+transition['length']:
+             self.transition = None
+@@ -1454,10 +1490,18 @@
+         obstacles = [o for o in obstacles if not o.road_surface]
+         v0 = float('inf') if desired_speed_mps is None else max(desired_speed_mps, .1)
+         base = self.route_lanes[index]
+-        pref = self.highway_preferred_lane
++        forward_only = self.s11_forward_only and self.sectors[index] == 11
++        if forward_only:
++            # Nearest-line jitter must not reopen an earlier completed lane.
++            if self.transition is None:
++                self.s11_reached_lane = max(self.s11_reached_lane or self.current_lane,
++                                           self.current_lane)
++            if self.s11_reached_lane in available:
++                self.current_lane = max(self.current_lane, self.s11_reached_lane)
++        pref = 3 if forward_only else self.highway_preferred_lane
+         preferred = min(available, key=lambda n: (abs(n-pref), n != base))
+         self.effective_preferred_lane = self.previous_preferred_lane = preferred
+-        self.preference_reason = 'highway_preferred_lane'
++        self.preference_reason = 's11_r3_forward_only' if forward_only else 'highway_preferred_lane'
+         self.lane_hold = None
+         # Lane changes are decided on confirmed tracks only. Flickering
+         # unconfirmed returns (rear road clutter, 10 m wide ground patches)
+@@ -1466,7 +1510,8 @@
+         tracked = [o for o in obstacles if o.confirmed]
+         assumed = v
+         edge_cap = self._highway_lane_end_cap(ahead, available)
+-        if self.transition is not None and edge_cap <= .01:
++        if (self.transition is not None and edge_cap <= .01
++                and not self.transition.get('s11_forward_only', False)):
+             # A change that ends standing at a lane end never completes (the
+             # run stopped for good cancelling back into ending R1): drop it
+             # and pick the merge toward the continuing lane again.
+@@ -1521,14 +1566,15 @@
+         keep_cap = self._idm_cap(v, v0, threat)
+         eligible_gains = set()
+         for lane in leaders:
+-            if abs(lane-current) != 1:
++            if abs(lane-current) != 1 or (forward_only and lane != current+1):
+                 continue
+             step = lane-current
+             through = (lane+step if abs(lane+step-pref) < abs(lane-pref)
+                        and lane+step in leaders else None)
+             incentive, safe, toward = self._mobil(current, lane, v, v0, leaders, followers,
+                                                   through)
+-            mandatory = merge_zone and abs(lane-cont) < abs(current-cont)
++            mandatory = (lane == current+1 if forward_only else
++                         merge_zone and abs(lane-cont) < abs(current-cont))
+             if (not mandatory and toward and self.departed_preferred and not ending
+                     and leaders[lane] is not None
+                     and leaders[lane][1] < v0-self.slow_lead_margin_mps):
+@@ -1622,6 +1668,9 @@
+             state = ('RETURNING' if toward and self.departed_preferred
+                      else 'LANE_CHANGING' if toward else 'OVERTAKING')
+             transition['state'] = state
++            if forward_only:
++                transition['s11_forward_only'] = True
++                self.s11_change_path = list(path)
+             self.transition = transition
+             self.cancel_votes = 0
+             # Departed only by moving away from the preferred lane; R1 -> R2
+--- a/src/unita_waypoint/test/test_highway_planner.py
++++ b/src/unita_waypoint/test/test_highway_planner.py
+@@ -21,6 +21,8 @@
+     # Legacy R3 preference fixtures still exercise collision/merge behavior.
+     # The production default keep-lane policy has its own regression suite.
+     kwargs.setdefault('highway_keep_lane_priority', False)
++    # Legacy bidirectional behavior; production S11 is tested separately.
++    kwargs.setdefault('s11_forward_only', False)
+     route = [(float(i), 0.) for i in range(ROAD)]
+     ends = {2: r2_end or ROAD, 3: r3_end or ROAD}
+     lanes = {n: [(float(i), LANE_Y[n]) for i in range(ends[n])] for n in (2, 3)}
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_r3_forward_only.py
+@@ -0,0 +1,105 @@
++"""S11: R1 -> R2 -> R3 only, including in-progress hazard handling."""
++import unittest
++import test_highway_planner as f
++
++
++def planner(**kwargs):
++    return f.planner(s11_forward_only=True, highway_keep_lane_priority=True, **kwargs)
++
++
++class ForwardOnlyTests(unittest.TestCase):
++    def test_clear_road_prioritizes_next_lane_despite_keep_lane_policy(self):
++        for lane in (1, 2):
++            p = planner()
++            p.plan(10, (10., f.LANE_Y[lane]), 15., [], desired_speed_mps=f.CRUISE)
++            self.assertEqual((p.transition['source'], p.transition['target']), (lane, lane+1))
++            self.assertTrue(p.transition['s11_forward_only'])
++
++    def test_r3_never_selects_r2_even_with_front_obstacle_or_lane_end(self):
++        for end in (None, 160):
++            p = planner(r3_end=end)
++            for stamp in (1., 2., 3., 4.):
++                d = p.plan(60, (60., 7.2), 15., [f.car(80., 3)],
++                           desired_speed_mps=f.CRUISE, observation_stamp=stamp)
++                self.assertIsNone(p.transition)
++                self.assertTrue(all(abs(y-7.2) < .01 for _, y in d.path))
++                self.assertLess(d.speed_cap_kmh, 54.)
++
++    def test_blocked_r3_does_not_send_r2_vehicle_back_to_r1(self):
++        p = planner()
++        for stamp in (1., 2., 3., 4.):
++            p.plan(60, (60., 3.6), 15., [f.car(80., 2), f.car(60., 3)],
++                   desired_speed_mps=f.CRUISE, observation_stamp=stamp)
++            self.assertIsNone(p.transition)
++            self.assertEqual(p.current_lane, 2)
++
++    def test_rear_gap_checks_still_block_unsafe_forward_change(self):
++        p = planner()
++        p.plan(60, (60., 0.), 15., [f.car(55., 2, 30.)], desired_speed_mps=f.CRUISE)
++        self.assertIsNone(p.transition)
++
++    def test_approved_change_does_not_cancel_for_front_side_or_rear_hazard(self):
++        for obstacles in ([f.car(70., 2)], [f.car(61., 2, 15.)], [f.car(50., 2, 30.)]):
++            p = planner()
++            p.plan(60, (60., 0.), 15., [], desired_speed_mps=f.CRUISE)
++            original = dict(p.transition)
++            for stamp in (1., 1.1, 1.2, 1.3, 2.):
++                d = p.plan(60, (60., 0.), 15., obstacles, desired_speed_mps=f.CRUISE,
++                           observation_stamp=stamp)
++                self.assertEqual(p.transition, original)
++                self.assertNotEqual(d.state, 'CANCELLING')
++                self.assertTrue(d.path)
++
++    def test_complete_sequence_without_backward_transition(self):
++        p = planner()
++        ego = (60., 0.)
++        seen = set()
++        for step in range(160):
++            d = p.plan(int(ego[0]), ego, 15., [], desired_speed_mps=f.CRUISE,
++                       observation_stamp=step*.1)
++            if p.transition:
++                seen.add((p.transition['source'], p.transition['target']))
++                self.assertEqual(p.transition['target'], p.transition['source']+1)
++                ego = f.point_at(d.path, 1.5)
++            elif p.current_lane == 3:
++                break
++        self.assertEqual(seen, {(1, 2), (2, 3)})
++        self.assertEqual(p.current_lane, 3)
++        self.assertLessEqual(abs(ego[1]-7.2), .35)
++
++    def test_progress_end_alone_is_not_completion(self):
++        p = planner()
++        p.plan(60, (60., 0.), 15., [], desired_speed_mps=f.CRUISE)
++        original = dict(p.transition)
++        end = int(original['start']+original['length'])+1
++        p.plan(end, (float(end), 1.), 15., [], desired_speed_mps=f.CRUISE)
++        self.assertEqual(p.transition, original)
++
++    def test_nearest_lane_jitter_cannot_reopen_completed_lower_lane(self):
++        p = planner()
++        p.s11_reached_lane = 3
++        d = p.plan(60, (60., 5.2), 15., [], desired_speed_mps=f.CRUISE)
++        self.assertEqual(p.current_lane, 3)
++        self.assertIsNone(p.transition)
++        self.assertGreater(d.path[-1][1], 7.)
++
++    def test_temporary_missing_target_preserves_approved_target(self):
++        p = planner()
++        p.plan(60, (60., 0.), 15., [], desired_speed_mps=f.CRUISE)
++        original = dict(p.transition)
++        p.lane_indices[2].pop(60)
++        d = p.plan(60, (60., 0.), 15., [], desired_speed_mps=f.CRUISE)
++        self.assertEqual(p.transition, original)
++        self.assertTrue(d.path)
++
++    def test_other_highway_sector_keeps_previous_direction_policy(self):
++        p = planner(r3_end=160)
++        p.sectors = [10]*len(p.sectors)
++        p.highway_sectors = (10,)
++        p.plan(60, (60., 7.2), 15., [], desired_speed_mps=f.CRUISE)
++        self.assertEqual(p.transition['target'], 2)
++        self.assertNotIn('s11_forward_only', p.transition)
++
++
++if __name__ == '__main__':
++    unittest.main()

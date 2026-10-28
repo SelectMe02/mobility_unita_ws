@@ -147,7 +147,7 @@ class LocalAvoidancePlanner:
                  roundabout_clear_scans=3,
                  roundabout_ego_lead_gap_s=1.4,
                  roundabout_ego_lead_min_speed_kmh=2.5,
-                 highway_keep_lane_priority=True):
+                 highway_keep_lane_priority=True, s11_forward_only=True):
         self.route = list(route)
         self.sectors = list(sectors)
         # Raceline each route point was taken from (S11 may be driven on R3).
@@ -230,6 +230,9 @@ class LocalAvoidancePlanner:
         # instead of a speed precondition, and no planner standstill.
         self.highway_sectors = tuple(int(s) for s in highway_sectors)
         self.highway_keep_lane_priority = bool(highway_keep_lane_priority)
+        self.s11_forward_only = bool(s11_forward_only)
+        self.s11_reached_lane = None
+        self.s11_change_path = []
         self.idm_time_gap_s = idm_time_gap_s
         self.idm_min_gap_m = idm_min_gap_m
         self.idm_accel_mps2 = idm_accel_mps2
@@ -450,6 +453,21 @@ class LocalAvoidancePlanner:
         target0 = self._lane_point(lane, ahead[0][1], ahead[0][0])
         if target0 is None:
             return []
+        s11_change = transition is not None and transition.get('s11_forward_only', False)
+        # After the fixed merge endpoint, steer on the saved destination lane
+        # itself. Re-anchoring a long correction at ego on every tick leaves
+        # the near pursuit target between lanes, especially after deceleration.
+        centerline = (s11_change and progress >= transition['start']+transition['length'])
+        centerline = centerline or (transition is None and self.s11_forward_only
+            and self.sectors[ahead[0][0]] == 11 and self.s11_reached_lane == lane)
+        if centerline:
+            path = []
+            for i, point, _ in ahead:
+                target = self._lane_point(lane, point, i)
+                if target is None:
+                    break
+                path.append(target)
+            return path
         blend_of = (quintic if transition is not None and transition.get('shape') == 'quintic'
                     else smoothstep)
         if transition is None:
@@ -477,7 +495,12 @@ class LocalAvoidancePlanner:
                               origin[1]+blend*(target[1]-origin[1]))
             correction_length = (max(8., transition['length']*.5)
                                  if transition is not None else 8.)
-            decay = 1.-smoothstep(s/correction_length)
+            if s11_change:
+                # Every correction must expire by the ORIGINAL endpoint;
+                # remaining distance shrinks instead of moving with ego.
+                correction_length = min(correction_length,
+                    transition['start']+transition['length']-progress)
+            decay = 1.-smoothstep(s/max(correction_length, 1e-6))
             path.append((target[0]+correction[0]*decay,
                          target[1]+correction[1]*decay))
         return path
@@ -844,6 +867,8 @@ class LocalAvoidancePlanner:
         available = {n: point for n, point in available.items() if point is not None}
         self.current_lane = min(available, key=lambda n: distance(ego_xy, available[n]))
         requested = self._requested_lane(index, ego_xy, ego_yaw)
+        if self.sectors[index] != 11:
+            self.s11_reached_lane = None
         self.highway_active = self.sectors[index] in self.highway_sectors
         if self.highway_active:
             self.highway_observation_stamp = observation_stamp
@@ -1266,6 +1291,8 @@ class LocalAvoidancePlanner:
         while length >= minimum-1e-6:
             transition = dict(source=current, target=lane, start=progress, length=length,
                               state='', shape='quintic', highway=True, speed_cap_kmh=None)
+            if self.s11_forward_only and self.sectors[ahead[0][0]] == 11:
+                transition['s11_forward_only'] = True
             path = self._path(ahead, ego_xy, lane, progress, transition)
             speed = self._length_speed(lateral, length)
             if len(path) >= 2:
@@ -1334,11 +1361,47 @@ class LocalAvoidancePlanner:
             return lead
         return None
 
+    def _s11_forward_transition(self, index, ego_xy, v, v0, progress,
+                                ahead, available, obstacles, edge_cap):
+        """Finish the approved increasing-lane change, never steer back."""
+        transition = self.transition
+        lane = transition['target']
+        path = self._path(ahead, ego_xy, lane, progress, transition) if lane in available else []
+        projection = (project_polyline(ego_xy, path)
+                      if progress >= transition['start']+transition['length'] else None)
+        # Compare to the lane polyline, not one index-matched point: its
+        # longitudinal waypoint offset is not a lateral tracking error.
+        if lane in available and projection is not None and projection[0] <= .35:
+            self.s11_reached_lane = max(self.s11_reached_lane or lane, lane)
+            self.current_lane = lane
+            self.transition = None
+            self.highway_change_end = progress
+            return None
+        if len(path) >= 2:
+            self.s11_change_path = path
+        elif self.s11_change_path:
+            closest = min(range(len(self.s11_change_path)),
+                          key=lambda i: distance(ego_xy, self.s11_change_path[i]))
+            path = [ego_xy]+self.s11_change_path[closest:]
+        self.active_lane = lane if lane != self.route_lanes[index] else None
+        self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
+        lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
+        cap = min(edge_cap, self._idm_cap(v, v0, lead),
+                  self._highway_predictive_cap(path, v, obstacles))
+        if transition.get('speed_cap_kmh') is not None:
+            cap = min(cap, transition['speed_cap_kmh'])
+        reason = ('s11_centerline_capture'
+                  if progress >= transition['start']+transition['length'] else 's11_forward_only')
+        return self._decision(transition['state'], path, cap, lead, reason)
+
     def _highway_transition(self, index, ego_xy, v, v0, assumed, progress, ahead,
                             available, obstacles, edge_cap, tracked):
         """Continue, finish or abort the active change. None: it is finished
         (or its geometry is gone) and lane selection runs again."""
         transition = self.transition
+        if transition.get('s11_forward_only', False):
+            return self._s11_forward_transition(index, ego_xy, v, v0, progress,
+                ahead, available, obstacles, edge_cap)
         lane = transition['target']
         if lane not in available or progress >= transition['start']+transition['length']:
             self.transition = None
@@ -1454,10 +1517,18 @@ class LocalAvoidancePlanner:
         obstacles = [o for o in obstacles if not o.road_surface]
         v0 = float('inf') if desired_speed_mps is None else max(desired_speed_mps, .1)
         base = self.route_lanes[index]
-        pref = self.highway_preferred_lane
+        forward_only = self.s11_forward_only and self.sectors[index] == 11
+        if forward_only:
+            # Nearest-line jitter must not reopen an earlier completed lane.
+            if self.transition is None:
+                self.s11_reached_lane = max(self.s11_reached_lane or self.current_lane,
+                                           self.current_lane)
+            if self.s11_reached_lane in available:
+                self.current_lane = max(self.current_lane, self.s11_reached_lane)
+        pref = 3 if forward_only else self.highway_preferred_lane
         preferred = min(available, key=lambda n: (abs(n-pref), n != base))
         self.effective_preferred_lane = self.previous_preferred_lane = preferred
-        self.preference_reason = 'highway_preferred_lane'
+        self.preference_reason = 's11_r3_forward_only' if forward_only else 'highway_preferred_lane'
         self.lane_hold = None
         # Lane changes are decided on confirmed tracks only. Flickering
         # unconfirmed returns (rear road clutter, 10 m wide ground patches)
@@ -1466,7 +1537,8 @@ class LocalAvoidancePlanner:
         tracked = [o for o in obstacles if o.confirmed]
         assumed = v
         edge_cap = self._highway_lane_end_cap(ahead, available)
-        if self.transition is not None and edge_cap <= .01:
+        if (self.transition is not None and edge_cap <= .01
+                and not self.transition.get('s11_forward_only', False)):
             # A change that ends standing at a lane end never completes (the
             # run stopped for good cancelling back into ending R1): drop it
             # and pick the merge toward the continuing lane again.
@@ -1521,14 +1593,19 @@ class LocalAvoidancePlanner:
         keep_cap = self._idm_cap(v, v0, threat)
         eligible_gains = set()
         for lane in leaders:
-            if abs(lane-current) != 1:
+            if abs(lane-current) != 1 or (forward_only and lane != current+1):
+                continue
+            if (forward_only and self.highway_change_end is not None
+                    and 0. <= progress-self.highway_change_end < 5.):
+                waiting = 's11_centerline_hold'
                 continue
             step = lane-current
             through = (lane+step if abs(lane+step-pref) < abs(lane-pref)
                        and lane+step in leaders else None)
             incentive, safe, toward = self._mobil(current, lane, v, v0, leaders, followers,
                                                   through)
-            mandatory = merge_zone and abs(lane-cont) < abs(current-cont)
+            mandatory = (lane == current+1 if forward_only else
+                         merge_zone and abs(lane-cont) < abs(current-cont))
             if (not mandatory and toward and self.departed_preferred and not ending
                     and leaders[lane] is not None
                     and leaders[lane][1] < v0-self.slow_lead_margin_mps):
@@ -1622,6 +1699,9 @@ class LocalAvoidancePlanner:
             state = ('RETURNING' if toward and self.departed_preferred
                      else 'LANE_CHANGING' if toward else 'OVERTAKING')
             transition['state'] = state
+            if forward_only:
+                transition['s11_forward_only'] = True
+                self.s11_change_path = list(path)
             self.transition = transition
             self.cancel_votes = 0
             # Departed only by moving away from the preferred lane; R1 -> R2

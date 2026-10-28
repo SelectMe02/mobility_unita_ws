@@ -1,0 +1,7 @@
+이번 S11 중심선 수렴·마무리 추종·단방향 재적용 변경 전체만 롤백해줘. 기존 최소 30km/h와 제동 강화는 유지하고 rollback/2026-10-28_s11_lane_centering_before/changes.patch만 역적용해줘. 이 롤백은 이번 요청에서 처음 지정한 R3 단방향 패치를 롤백한 직후 상태로 돌아가는 거야.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_lane_centering_before/changes.patch
+git apply -R rollback/2026-10-28_s11_lane_centering_before/changes.patch
+
+적용/롤백 후 semi.launch 재시작 필요. 분석 기록은 보존합니다.

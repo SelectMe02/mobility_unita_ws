@@ -1,0 +1,7 @@
+Requested previous patch reversed successfully before saving the new baseline.
+New patch includes S11 forward-only behavior plus endpoint-anchored correction, direct saved-lane capture after endpoint, lane-polyline completion distance, and 5 m centerline hold before next change.
+Minimum 30 km/h and stronger brake unchanged.
+Tests: 112 passed (S11 23, highway 49, driving stability 23, tracking debug 11, UDP 6).
+Same-pose bag comparison: 523 frames, pursuit target lies on target lane after endpoint (max error 0 m). Previous median errors: 1.419 m and 1.296 m.
+165 frames lacked usable target geometry or a forward target and were excluded. No MORAI closed-loop driving validation.
+Rollback restores post-initial-rollback state, including removal of newly reintroduced forward-only behavior.
