@@ -1,0 +1,4 @@
+Local post-conflict following speed correction
+Only within existing R1 merge controller, with no active merge occupancy cap, and current confirmed non-predicted zero-velocity track with <=0.2s age. Two consecutive displacement estimates must agree within max(3 m/s,30%), each forward1..35 m/s over0.05..0.6s. Use min of the two minus2 m/s for local following and collision prediction only; original obstacle is not mutated.
+Recorded input comparison204147: earliest target > current+0.5 after12.5s moves14.92->13.43s. First braking and firstR2 unchanged.204120 unchanged. Sampled~10Hz, fixed recorded ego, approximate yaw; no closed-loop validation of actual acceleration/collision outcome.
+Pedal gain/rate, min30, brake0.65 and merge occupancy conditions unchanged. Tests83 S11+49 highway. Reverse patch checked.

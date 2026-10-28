@@ -1,0 +1,102 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -1513,6 +1513,44 @@
+             return lead
+         return None
+ 
++    def _s11_merge_timed_cap(self, distance_m, v, clear_after, immediate):
++        """Stage braking only if a gradual approach can still yield in time.
++
++        Constant-deceleration approach followed by 30 km/h cruise. Include
++        0.6 s command/brake response allowance and 5 m spatial reserve.
++        Unknown clearance or infeasible timing retains the original target.
++        """
++        floor = 30./3.6
++        response, decel = .6, 3.
++        if (not math.isfinite(clear_after) or distance_m <= 25.
++                or v <= floor or immediate >= v*3.6):
++            return immediate
++        remaining = distance_m-v*response-5.
++        if remaining <= 0.:
++            return immediate
++
++        def arrival(a):
++            if a <= 1e-9:
++                return response+remaining/v
++            slow_distance = (v*v-floor*floor)/(2.*a)
++            if remaining <= slow_distance:
++                return response+(v-math.sqrt(max(floor*floor,v*v-2.*a*remaining)))/a
++            return response+(v-floor)/a+(remaining-slow_distance)/floor
++
++        if arrival(decel) < clear_after:
++            return immediate
++        low, high = 0., decel
++        for _ in range(24):
++            middle = (low+high)/2.
++            if arrival(middle) >= clear_after:
++                high = middle
++            else:
++                low = middle
++        # Replan every scan, but ask for enough speed error to establish braking.
++        next_speed = max(floor,v-high*.8)
++        envelope = math.sqrt(floor*floor+2.*decel*remaining)
++        return max(immediate,min(v,next_speed,envelope)*3.6)
++
+     def _s11_merge_recovery_cap(self, path, v, desired, lead, obstacles, normal):
+         """Recover low merge speed without a tiny per-frame following target."""
+         if (lead is None or v*3.6 > 45. or normal <= v*3.6+.5
+@@ -1645,15 +1683,17 @@
+                 continue
+             if actor_in <= ego_out+.8 and actor_out+.8 >= ego_in:
+                 target = (entry_distance/(actor_out+.8)*3.6 if math.isfinite(actor_out) else 30.)
+-                cap = min(cap,max(30.,target))
++                immediate = max(30.,target)
++                planned = self._s11_merge_timed_cap(entry_distance,v,actor_out+.8,immediate)
++                cap = min(cap,planned)
+         self.active_lane = 1 if self.route_lanes[index] != 1 else None
+         self.effective_preferred_lane = 3
+         self.obstacle_horizon_path = path_prefix(path,self.highway_obstacle_horizon_m)
+         # Keep ordinary front protection and the saved R1 end envelope as well.
+         following = obstacles
+-        if math.isinf(cap) and now is not None:
+-            # Only after the merge occupancy clears: a zero motion output
+-            # must not erase consistent, fresh measured forward movement.
++        if now is not None:
++            # Keep the merge timing cap, but do not let a false stationary
++            # leader cancel the gradual plan when fresh movement is confirmed.
+             following = []
+             for o in obstacles:
+                 q = tracks.get(o.track_id)
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_merge_timed_decel.py
+@@ -0,0 +1,30 @@
++import unittest
++import test_highway_planner as f
++
++class TimedMergeDecelTests(unittest.TestCase):
++    def setUp(self):
++        self.p=f.planner(s11_forward_only=True)
++
++    def test_feasible_distant_merge_uses_gradual_target(self):
++        immediate=80./5.*3.6
++        cap=self.p._s11_merge_timed_cap(80.,20.,5.,immediate)
++        self.assertGreater(cap,immediate)
++        self.assertLess(cap,72.)
++
++    def test_near_entry_and_unknown_clearance_keep_original_braking(self):
++        self.assertEqual(self.p._s11_merge_timed_cap(20.,20.,3.,30.),30.)
++        self.assertEqual(self.p._s11_merge_timed_cap(80.,20.,float('inf'),30.),30.)
++
++    def test_infeasible_yield_does_not_delay_braking(self):
++        self.assertEqual(self.p._s11_merge_timed_cap(40.,23.,6.,30.),30.)
++
++    def test_floor_speed_does_not_accelerate_toward_conflict(self):
++        self.assertEqual(self.p._s11_merge_timed_cap(60.,30./3.6,5.,30.),30.)
++
++    def test_spatial_response_envelope_bounds_target(self):
++        import math
++        cap=self.p._s11_merge_timed_cap(80.,20.,5.,57.6)
++        envelope=math.sqrt((30./3.6)**2+6.*(80.-20.*.6-5.))*3.6
++        self.assertLessEqual(cap,envelope)
++
++if __name__=='__main__':unittest.main()

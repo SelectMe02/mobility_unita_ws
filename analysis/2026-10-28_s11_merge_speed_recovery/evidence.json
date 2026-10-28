@@ -1,0 +1,147 @@
+{
+  "limitation": "Open-loop replay at recorded ego poses, sampled about 10 Hz; route tangent approximates ego yaw. Not collision or closed-loop validation.",
+  "runs": [
+    {
+      "run": "run_20261028_204637",
+      "old": {
+        "first_r2": {
+          "t": 17.13,
+          "x": 66.49,
+          "y": 95.15,
+          "target": 43.86653518676757
+        },
+        "first_r3": {
+          "t": 21.93,
+          "x": 70.95,
+          "y": 39.54,
+          "target": 54.925159454345696
+        },
+        "first_slow": {
+          "t": 8.58,
+          "y": 178.71,
+          "speed": 71.08,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": {
+          "t": 13.28,
+          "y": 127.58,
+          "target": 31.892067612960606
+        },
+        "recovery": {
+          "t": 13.88,
+          "target": Infinity
+        },
+        "strong_frames": 5,
+        "waits": {
+          "s11_r1_merge_align": 16,
+          "s11_r1_merge_yield": 51
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 17.13,
+          "x": 66.49,
+          "y": 95.15,
+          "target": 43.86653518676757
+        },
+        "first_r3": {
+          "t": 21.93,
+          "x": 70.95,
+          "y": 39.54,
+          "target": 54.925159454345696
+        },
+        "first_slow": {
+          "t": 8.58,
+          "y": 178.71,
+          "speed": 71.08,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": {
+          "t": 13.28,
+          "y": 127.58,
+          "target": 40.017412185668945
+        },
+        "recovery": {
+          "t": 13.28,
+          "target": 40.017412185668945
+        },
+        "strong_frames": 8,
+        "waits": {
+          "s11_r1_merge_align": 16,
+          "s11_r1_merge_yield": 51
+        }
+      }
+    },
+    {
+      "run": "run_20261028_204706",
+      "old": {
+        "first_r2": {
+          "t": 16.57,
+          "x": 65.23,
+          "y": 117.02,
+          "target": 41.02334785461426
+        },
+        "first_r3": {
+          "t": 21.63,
+          "x": 70.76,
+          "y": 62.67,
+          "target": 51.51689910888672
+        },
+        "first_slow": {
+          "t": 8.72,
+          "y": 194.25,
+          "speed": 65.91,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": {
+          "t": 12.71,
+          "y": 149.63,
+          "target": Infinity
+        },
+        "recovery": {
+          "t": 12.71,
+          "target": Infinity
+        },
+        "strong_frames": 0,
+        "waits": {
+          "s11_r1_merge_align": 11,
+          "s11_r1_merge_yield": 64
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 16.57,
+          "x": 65.23,
+          "y": 117.02,
+          "target": 41.02334785461426
+        },
+        "first_r3": {
+          "t": 21.63,
+          "x": 70.76,
+          "y": 62.67,
+          "target": 51.51689910888672
+        },
+        "first_slow": {
+          "t": 8.72,
+          "y": 194.25,
+          "speed": 65.91,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": {
+          "t": 12.71,
+          "y": 149.63,
+          "target": Infinity
+        },
+        "recovery": {
+          "t": 12.71,
+          "target": Infinity
+        },
+        "strong_frames": 12,
+        "waits": {
+          "s11_r1_merge_align": 11,
+          "s11_r1_merge_yield": 64
+        }
+      }
+    }
+  ]
+}

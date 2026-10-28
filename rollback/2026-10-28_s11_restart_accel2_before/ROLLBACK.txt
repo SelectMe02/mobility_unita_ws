@@ -1,0 +1,4 @@
+S11 일반 재가속 페달 증가율 0.5→2.0 변경만 롤백합니다.
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_restart_accel2_before/changes.patch
+git apply -R rollback/2026-10-28_s11_restart_accel2_before/changes.patch

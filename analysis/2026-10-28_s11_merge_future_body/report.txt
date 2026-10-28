@@ -1,0 +1,7 @@
+S11 localized future body overlap
+Scope: only existing _s11_r1_merge local geography/state. No global object dimensions, brake/pedal, lane-change admission or other sector change.
+Confirmed non-road returns with max dimension >=0.6 m and min >=0.3 m receive minimum 4.5 x1.9 m body for this merge check only. This is an assumed vehicle envelope, not reconstructed ground truth.
+Lateral velocity uses reliable observation or same-track displacement over 0.05..0.6 s with abs lateral velocity <=3 m/s. Compare projected lateral intervals over overlapping ego/actor arrival times, max 4 s, lateral displacement bounded to1.5 m. Retain existing local margin and memory.
+Recorded-input comparison on203132 first30 target 10.65s/y147.97 ->9.15s/y181.85.203102 10.96s ->10.86s, firstR2 unchanged14.06s. Replay does not update ego motion, so this does not demonstrate collision-free travel or quantify live extra braking.
+Tests:80 S11 and49 highway pass. Added converging, parallel/diverging, partial body and far-lane cases. Existing local empty-road/outside-region cases pass. Reverse patch verified.
+Requires MORAI rerun; no promise of zero unnecessary braking or no collisions.

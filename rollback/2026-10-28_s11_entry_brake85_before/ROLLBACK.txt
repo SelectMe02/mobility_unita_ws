@@ -1,0 +1,7 @@
+이번 S11 진입 전용 브레이크 0.85·조기 감지 범위 확대·감속 유지 연장만 롤백해줘. 기존 일반 브레이크 0.65, 최소 목표 30km/h, 차선 변경 가속 강화와 R3 단방향·중심선 추종은 유지하고 rollback/2026-10-28_s11_entry_brake85_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_entry_brake85_before/changes.patch
+git apply -R rollback/2026-10-28_s11_entry_brake85_before/changes.patch
+
+적용 및 롤백 후 semi.launch 재시작 필요.

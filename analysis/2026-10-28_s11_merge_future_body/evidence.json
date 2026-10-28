@@ -1,0 +1,77 @@
+{
+  "limitation": "Open-loop replay at recorded ego poses, sampled about 10 Hz; route tangent approximates ego yaw. Not collision or closed-loop validation.",
+  "runs": [
+    {
+      "run": "run_20261028_203102",
+      "old": {
+        "first_r2": {
+          "t": 14.06,
+          "x": 66.18,
+          "y": 100.9,
+          "target": 33.247948951519156
+        },
+        "first_r3": null,
+        "first_slow": {
+          "t": 10.96,
+          "y": 145.75,
+          "speed": 84.51,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 27,
+          "s11_r1_merge_yield": 11
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 14.06,
+          "x": 66.18,
+          "y": 100.9,
+          "target": 33.247948951519156
+        },
+        "first_r3": null,
+        "first_slow": {
+          "t": 10.86,
+          "y": 148.34,
+          "speed": 83.88,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 16,
+          "s11_r1_merge_yield": 22
+        }
+      }
+    },
+    {
+      "run": "run_20261028_203132",
+      "old": {
+        "first_r2": null,
+        "first_r3": null,
+        "first_slow": {
+          "t": 10.65,
+          "y": 147.97,
+          "speed": 83.99,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 27,
+          "s11_r1_merge_yield": 15
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": null,
+        "first_slow": {
+          "t": 9.15,
+          "y": 181.85,
+          "speed": 74.19,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 23,
+          "s11_r1_merge_yield": 19
+        }
+      }
+    }
+  ]
+}

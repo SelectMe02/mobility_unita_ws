@@ -1,0 +1,496 @@
+{
+  "input": "Recorded ego poses, injected NPC at (64,125.85); NOT proof of recorded NPC detection or closed-loop collision avoidance.",
+  "frames": 68,
+  "first": {
+    "x": 62.23152204789221,
+    "y": 190.7328489231877,
+    "recorded_speed": 71.01270294189453,
+    "target": 30.0,
+    "reason": "s11_entry_slowdown"
+  },
+  "last": {
+    "x": 65.21456612402108,
+    "y": 116.27813025191426,
+    "recorded_speed": 84.74943542480469,
+    "target": 30.0,
+    "reason": "s11_entry_slowdown"
+  },
+  "rows": [
+    {
+      "x": 62.23152204789221,
+      "y": 190.7328489231877,
+      "recorded_speed": 71.01270294189453,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.2141278674826,
+      "y": 189.99311283277348,
+      "recorded_speed": 71.40483093261719,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.18368805805221,
+      "y": 188.6985746785067,
+      "recorded_speed": 71.79239654541016,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.16629388491856,
+      "y": 187.9588385927491,
+      "recorded_speed": 72.05653381347656,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.28370115783764,
+      "y": 186.66082396637648,
+      "recorded_speed": 72.4210205078125,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.266307005193084,
+      "y": 185.9210878815502,
+      "recorded_speed": 72.80503845214844,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.23586724430788,
+      "y": 184.626549734734,
+      "recorded_speed": 73.08056640625,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.21847309899749,
+      "y": 183.88681365083903,
+      "recorded_speed": 73.4969482421875,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.18803335115081,
+      "y": 182.59227550867945,
+      "recorded_speed": 73.7642593383789,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.17063921317458,
+      "y": 181.85253942850977,
+      "recorded_speed": 74.16390991210938,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.283698123297654,
+      "y": 180.36959079606459,
+      "recorded_speed": 74.3960952758789,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.27065253537148,
+      "y": 179.81478873779997,
+      "recorded_speed": 74.75138092041016,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.24456136405934,
+      "y": 178.70518461987376,
+      "recorded_speed": 75.10038757324219,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.222818725858815,
+      "y": 177.78051452478394,
+      "recorded_speed": 75.3403091430664,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.340226285974495,
+      "y": 176.48249992309138,
+      "recorded_speed": 75.70177459716797,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.318483674142044,
+      "y": 175.55782982939854,
+      "recorded_speed": 75.9476089477539,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.296741066500545,
+      "y": 174.633159738034,
+      "recorded_speed": 76.33939361572266,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.25760438339785,
+      "y": 172.96875357674435,
+      "recorded_speed": 76.59422302246094,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.38805763004348,
+      "y": 172.22554104030132,
+      "recorded_speed": 76.59422302246094,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.36631505389232,
+      "y": 171.30087095452473,
+      "recorded_speed": 77.116455078125,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.335875454184134,
+      "y": 170.00633283192292,
+      "recorded_speed": 77.24756622314453,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.31413288798649,
+      "y": 169.0816627475433,
+      "recorded_speed": 77.82624053955078,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.43154070194578,
+      "y": 167.7836481682025,
+      "recorded_speed": 78.12752532958984,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.401101147406735,
+      "y": 166.48911005444825,
+      "recorded_speed": 78.53683471679688,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.38370711985044,
+      "y": 165.74937399011105,
+      "recorded_speed": 78.80722045898438,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.4967665366712,
+      "y": 164.26642540562898,
+      "recorded_speed": 79.19532012939453,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.4793725303025,
+      "y": 163.52668934268877,
+      "recorded_speed": 79.4410629272461,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.466327027301304,
+      "y": 162.97188729792833,
+      "recorded_speed": 79.80722045898438,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.57503804087173,
+      "y": 161.304004708305,
+      "recorded_speed": 80.04181671142578,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.5532955629169,
+      "y": 160.3793346332386,
+      "recorded_speed": 80.40484619140625,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.67070365377003,
+      "y": 159.08132008230314,
+      "recorded_speed": 80.64264678955078,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.64896120218327,
+      "y": 158.15665001096204,
+      "recorded_speed": 81.04141998291016,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.766369371209294,
+      "y": 156.85863546514884,
+      "recorded_speed": 81.31279754638672,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.740278461482376,
+      "y": 155.7490313849412,
+      "recorded_speed": 81.74205017089844,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.85768670873949,
+      "y": 154.4510168484412,
+      "recorded_speed": 82.02174377441406,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.83594431064557,
+      "y": 153.5263467831537,
+      "recorded_speed": 82.4522705078125,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.94900416152086,
+      "y": 152.04339824290946,
+      "recorded_speed": 82.87393188476562,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 62.927261790726334,
+      "y": 151.1187281808816,
+      "recorded_speed": 83.16093444824219,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.044670194387436,
+      "y": 149.82071365928277,
+      "recorded_speed": 83.56306457519531,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.018579381518066,
+      "y": 148.71110958978534,
+      "recorded_speed": 83.81666564941406,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.135987865622155,
+      "y": 147.4130950756371,
+      "recorded_speed": 84.31263732910156,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.26209332497092,
+      "y": 146.48494858900085,
+      "recorded_speed": 84.65762329101562,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.22730565216625,
+      "y": 145.00547650363296,
+      "recorded_speed": 84.88346099853516,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.36645654262975,
+      "y": 144.63213205570355,
+      "recorded_speed": 85.2220458984375,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.46647139452398,
+      "y": 142.59438151633367,
+      "recorded_speed": 85.35360717773438,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.444729148061015,
+      "y": 141.6697114687413,
+      "recorded_speed": 85.26284790039062,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.56213789177127,
+      "y": 140.37169698160142,
+      "recorded_speed": 85.19098663330078,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.6838951294194,
+      "y": 139.2586165079847,
+      "recorded_speed": 85.10263061523438,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.653456052183174,
+      "y": 137.96407844638452,
+      "recorded_speed": 85.07756042480469,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.775213367072865,
+      "y": 136.85099797928706,
+      "recorded_speed": 85.04450225830078,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.75347119534854,
+      "y": 135.92632793914527,
+      "recorded_speed": 85.0251235961914,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.86653171561193,
+      "y": 134.4433794640936,
+      "recorded_speed": 84.98989868164062,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 63.99263757339213,
+      "y": 133.51523301703855,
+      "recorded_speed": 84.96749114990234,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.10569820774253,
+      "y": 132.03228455316275,
+      "recorded_speed": 84.96749114990234,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.08395610679872,
+      "y": 131.10761451907456,
+      "recorded_speed": 84.9148178100586,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.19701682473533,
+      "y": 129.62466606451198,
+      "recorded_speed": 84.90489959716797,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.32312284025829,
+      "y": 128.69651963328943,
+      "recorded_speed": 84.86280059814453,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.28833555697929,
+      "y": 127.21704758610576,
+      "recorded_speed": 84.84735107421875,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.41444163984852,
+      "y": 126.28890116233379,
+      "recorded_speed": 84.8394546508789,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.52750255563296,
+      "y": 124.80595272546634,
+      "recorded_speed": 84.81378936767578,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.52750255563296,
+      "y": 124.80595272546634,
+      "recorded_speed": 84.80791473388672,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.64056353637716,
+      "y": 123.32300429791212,
+      "recorded_speed": 84.79753112792969,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.76666975411354,
+      "y": 122.39485788624734,
+      "recorded_speed": 84.78577423095703,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.87973084684927,
+      "y": 120.91190946940333,
+      "recorded_speed": 84.77725219726562,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.8579889102839,
+      "y": 119.9872394502163,
+      "recorded_speed": 84.76644897460938,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 64.97539846901782,
+      "y": 118.68922504456714,
+      "recorded_speed": 84.76087188720703,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 65.22326287184842,
+      "y": 116.64799825754017,
+      "recorded_speed": 84.75348663330078,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    },
+    {
+      "x": 65.21456612402108,
+      "y": 116.27813025191426,
+      "recorded_speed": 84.74943542480469,
+      "target": 30.0,
+      "reason": "s11_entry_slowdown"
+    }
+  ]
+}

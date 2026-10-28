@@ -1,0 +1,142 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -1341,7 +1341,7 @@
+         duration = 2.*self._highway_length(3.6, v)/max(v, 1.)
+         return gap-max(0., v-lead_v)*duration > self.idm_min_gap_m+self.lane_change_gap_m
+ 
+-    def _highway_path_conflict(self, path, speed, obstacles):
++    def _highway_path_conflict(self, path, speed, obstacles, target_speed=None, accel=1.):
+         """Predict oriented body overlap at matching times (four-second horizon)."""
+         if len(path) < 2:
+             return None
+@@ -1356,6 +1356,13 @@
+             for k in range(steps+1):
+                 along = travelled + length*k/steps
+                 t = along/max(speed, 1.)
++                if target_speed is not None and target_speed > speed and accel > 0.:
++                    initial = max(speed, 1.)
++                    target = max(initial, target_speed)
++                    ramp_distance = (target**2-initial**2)/(2.*accel)
++                    t = ((math.sqrt(initial**2+2.*accel*along)-initial)/accel
++                         if along <= ramp_distance else
++                         (target-initial)/accel+(along-ramp_distance)/target)
+                 if t > 4.:
+                     return None
+                 x, y = a[0]+tx*length*k/steps, a[1]+ty*length*k/steps
+@@ -1481,6 +1488,39 @@
+             return lead
+         return None
+ 
++    def _s11_rear_acceleration_cap(self, index, ego_xy, path, v, upper, obstacles):
++        """Prefer acceleration only when it improves a measured rear conflict.
++
++        Check a gradual 1 m/s^2 acceleration, not an instantaneous speed jump.
++        Front/side objects, map, following and geometry limits remain binding.
++        """
++        if not math.isfinite(upper) or upper <= v*3.6+1.:
++            return None
++        tangent = self._tangent(index)
++        rear = []
++        for o in obstacles:
++            along = [(x-ego_xy[0])*tangent[0]+(y-ego_xy[1])*tangent[1]
++                     for x,y in o.corners()]
++            closing = o.vx*tangent[0]+o.vy*tangent[1]-v
++            if (not o.road_surface and o.confirmed and o.velocity_reliable
++                    and not o.predicted and max(along) < -self.rear_extent
++                    and closing > .5):
++                rear.append(o)
++        if not rear:
++            return None
++        baseline = self._highway_path_conflict(path, v, rear)
++        if baseline is None:
++            return None
++        others = [o for o in obstacles if all(o is not r for r in rear)]
++        target = upper/3.6
++        if self._highway_path_conflict(path, v, others, target_speed=target) is not None:
++            return None
++        accelerated = self._highway_path_conflict(path, v, rear, target_speed=target)
++        # A delayed overlap is risk reduction, not proof of collision avoidance.
++        if accelerated is None or accelerated[0] >= baseline[0]+.05:
++            return upper
++        return None
++
+     def _s11_forward_transition(self, index, ego_xy, v, v0, progress,
+                                 ahead, available, obstacles, edge_cap):
+         """Finish the approved increasing-lane change, never steer back."""
+@@ -1506,10 +1546,16 @@
+         self.active_lane = lane if lane != self.route_lanes[index] else None
+         self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
+         lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
+-        cap = min(edge_cap, self._idm_cap(v, v0, lead),
+-                  self._highway_predictive_cap(path, v, obstacles))
++        upper = min(edge_cap, v0*3.6, self._idm_cap(v, v0, lead))
+         if transition.get('speed_cap_kmh') is not None:
+-            cap = min(cap, transition['speed_cap_kmh'])
++            upper = min(upper, transition['speed_cap_kmh'])
++        rear_accel = self._s11_rear_acceleration_cap(
++            index, ego_xy, path, v, upper, obstacles)
++        if rear_accel is not None:
++            self.highway_emergency = True
++            return self._decision(transition['state'], path, rear_accel, lead,
++                                  's11_rear_risk_accelerate')
++        cap = min(upper, self._highway_predictive_cap(path, v, obstacles))
+         reason = ('s11_centerline_capture'
+                   if progress >= transition['start']+transition['length'] else 's11_forward_only')
+         return self._decision(transition['state'], path, cap, lead, reason)
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_rear_risk_accel.py
+@@ -0,0 +1,54 @@
++import unittest
++import test_highway_planner as f
++
++
++class RearRiskAccelerationTests(unittest.TestCase):
++    def setUp(self):
++        self.p=f.planner(s11_forward_only=True)
++        self.path=[(float(x),3.6+3.6*min(x/40.,1.)) for x in range(81)]
++        self.rear=f.car(-16.,3,16.5)
++
++    def cap(self, obstacles, upper=50.):
++        return self.p._s11_rear_acceleration_cap(0,(0.,3.6),self.path,10.,upper,obstacles)
++
++    def test_rear_conflict_prefers_bounded_acceleration(self):
++        self.assertEqual(self.cap([self.rear]),50.)
++        self.assertIsNotNone(self.p._highway_path_conflict(self.path,10.,[self.rear]))
++
++    def test_front_conflict_prevents_acceleration(self):
++        self.assertIsNone(self.cap([self.rear,f.car(23.,3,0.)]))
++
++    def test_uncertain_or_predicted_rear_does_not_trigger(self):
++        for field in ('confirmed','velocity_reliable'):
++            setattr(self.rear,field,False)
++            self.assertIsNone(self.cap([self.rear]))
++            setattr(self.rear,field,True)
++        self.rear.predicted=True
++        self.assertIsNone(self.cap([self.rear]))
++
++    def test_speed_ceiling_and_nonclosing_car(self):
++        self.assertIsNone(self.cap([self.rear],36.))
++        self.rear.vx=9.
++        self.assertIsNone(self.cap([self.rear]))
++
++    def test_gradual_acceleration_still_detects_overlap(self):
++        constant=self.p._highway_path_conflict(self.path,10.,[self.rear])
++        accelerated=self.p._highway_path_conflict(self.path,10.,[self.rear],target_speed=50./3.6)
++        self.assertIsNotNone(accelerated)
++        self.assertGreater(accelerated[0],constant[0])
++
++    def test_committed_transition_uses_acceleration_reason(self):
++        from unittest.mock import patch
++        p=self.p
++        p.transition=dict(source=2,target=3,start=0.,length=40.,state='LANE_CHANGING',
++                          s11_forward_only=True,speed_cap_kmh=50.)
++        ahead=p._forward(0,80.)
++        with patch.object(p,'_path',return_value=self.path):
++            d=p._s11_forward_transition(0,(0.,3.6),10.,100./3.6,0.,ahead,
++                                       {2:(0.,3.6),3:(0.,7.2)},[self.rear],100.)
++        self.assertEqual(d.reason,'s11_rear_risk_accelerate')
++        self.assertEqual(d.speed_cap_kmh,50.)
++        self.assertEqual(p.transition['target'],3)
++
++
++if __name__=='__main__':unittest.main()

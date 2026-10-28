@@ -1,0 +1,1765 @@
+{
+  "limitation": "Recorded-input trigger and pedal comparison; no prediction of actual vehicle motion or collision outcome.",
+  "runs": [
+    {
+      "run": "run_20261028_182110",
+      "first_old": null,
+      "first_new": {
+        "t": 10.164,
+        "x": 62.45328152569709,
+        "y": 162.41708525223657,
+        "speed": 80.18318176269531,
+        "recorded_brake": 0.0
+      },
+      "frames": 50,
+      "rows": [
+        {
+          "t": 10.164,
+          "new_pedal_at_recorded_speed": 0.14373564720153809,
+          "recorded_brake": 0.0,
+          "speed": 80.18318176269531
+        },
+        {
+          "t": 10.214,
+          "new_pedal_at_recorded_speed": 0.2933049201965332,
+          "recorded_brake": 0.0,
+          "speed": 80.4201431274414
+        },
+        {
+          "t": 10.264,
+          "new_pedal_at_recorded_speed": 0.44442057609558105,
+          "recorded_brake": 0.0,
+          "speed": 80.64694213867188
+        },
+        {
+          "t": 10.315,
+          "new_pedal_at_recorded_speed": 0.5987169742584229,
+          "recorded_brake": 0.0,
+          "speed": 81.14208984375
+        },
+        {
+          "t": 10.371,
+          "new_pedal_at_recorded_speed": 0.7646448612213135,
+          "recorded_brake": 0.0,
+          "speed": 81.40908813476562
+        },
+        {
+          "t": 10.415,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.69169616699219
+        },
+        {
+          "t": 10.461,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.95213317871094
+        },
+        {
+          "t": 10.515,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.50300598144531
+        },
+        {
+          "t": 10.569,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.64453125
+        },
+        {
+          "t": 10.611,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.07282257080078
+        },
+        {
+          "t": 10.667,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.32665252685547
+        },
+        {
+          "t": 10.713,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.45435333251953
+        },
+        {
+          "t": 10.768,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 84.06851959228516
+        },
+        {
+          "t": 10.821,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 84.44158935546875
+        },
+        {
+          "t": 10.868,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 84.44158935546875
+        },
+        {
+          "t": 10.927,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.05963638500543311,
+          "speed": 85.06193542480469
+        },
+        {
+          "t": 10.976,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06537702636718734,
+          "speed": 85.17636108398438
+        },
+        {
+          "t": 11.029,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 85.39566802978516
+        },
+        {
+          "t": 11.07,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 85.6149673461914
+        },
+        {
+          "t": 11.13,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 85.40560150146484
+        },
+        {
+          "t": 11.195,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.05466444091796859,
+          "speed": 85.09407806396484
+        },
+        {
+          "t": 11.23,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.05157728271484359,
+          "speed": 84.86351013183594
+        },
+        {
+          "t": 11.278,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 84.86351013183594
+        },
+        {
+          "t": 11.324,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 84.55937957763672
+        },
+        {
+          "t": 11.373,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 84.40862274169922
+        },
+        {
+          "t": 11.417,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.1058881930009926,
+          "speed": 84.17814636230469
+        },
+        {
+          "t": 11.464,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.1525520709917879,
+          "speed": 84.02503204345703
+        },
+        {
+          "t": 11.517,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.20571679199272752,
+          "speed": 83.76581573486328
+        },
+        {
+          "t": 11.561,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.2496445219956337,
+          "speed": 83.66008758544922
+        },
+        {
+          "t": 11.621,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 83.06709289550781
+        },
+        {
+          "t": 11.661,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.10010678701726704,
+          "speed": 82.69075012207031
+        },
+        {
+          "t": 11.713,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.15252823600238175,
+          "speed": 82.09507751464844
+        },
+        {
+          "t": 11.767,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 81.94390869140625
+        },
+        {
+          "t": 11.814,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 81.59933471679688
+        },
+        {
+          "t": 11.868,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 81.32411193847656
+        },
+        {
+          "t": 11.918,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 81.16033172607422
+        },
+        {
+          "t": 11.973,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 80.93030548095703
+        },
+        {
+          "t": 12.013,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 80.70187377929688
+        },
+        {
+          "t": 12.073,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 80.55179595947266
+        },
+        {
+          "t": 12.121,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 80.2508544921875
+        },
+        {
+          "t": 12.173,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 80.17565155029297
+        },
+        {
+          "t": 12.22,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.054821911621093594,
+          "speed": 80.02619934082031
+        },
+        {
+          "t": 12.269,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.05185987548828109,
+          "speed": 79.72830963134766
+        },
+        {
+          "t": 12.314,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.72830963134766
+        },
+        {
+          "t": 12.366,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.3707275390625
+        },
+        {
+          "t": 12.413,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.1667251586914
+        },
+        {
+          "t": 12.467,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.13208770751953
+        },
+        {
+          "t": 12.517,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.15015411376953
+        },
+        {
+          "t": 12.566,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.16727447509766
+        },
+        {
+          "t": 12.618,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.20713806152344
+        }
+      ]
+    },
+    {
+      "run": "run_20261028_182146",
+      "first_old": null,
+      "first_new": {
+        "t": 8.834,
+        "x": 62.26195846730843,
+        "y": 185.7361538610421,
+        "speed": 72.13557434082031,
+        "recorded_brake": 0.0
+      },
+      "frames": 88,
+      "rows": [
+        {
+          "t": 8.834,
+          "new_pedal_at_recorded_speed": 0.1542956829071045,
+          "recorded_brake": 0.0,
+          "speed": 72.13557434082031
+        },
+        {
+          "t": 8.89,
+          "new_pedal_at_recorded_speed": 0.32236790657043457,
+          "recorded_brake": 0.0,
+          "speed": 72.39567565917969
+        },
+        {
+          "t": 8.936,
+          "new_pedal_at_recorded_speed": 0.46143078804016113,
+          "recorded_brake": 0.0,
+          "speed": 72.6780776977539
+        },
+        {
+          "t": 8.985,
+          "new_pedal_at_recorded_speed": 0.6094908714294434,
+          "recorded_brake": 0.0,
+          "speed": 72.9668960571289
+        },
+        {
+          "t": 9.035,
+          "new_pedal_at_recorded_speed": 0.7574207782745361,
+          "recorded_brake": 0.0,
+          "speed": 73.5705795288086
+        },
+        {
+          "t": 9.082,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 74.01036834716797
+        },
+        {
+          "t": 9.138,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 74.28301239013672
+        },
+        {
+          "t": 9.186,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 74.51044464111328
+        },
+        {
+          "t": 9.235,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 74.86689758300781
+        },
+        {
+          "t": 9.285,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.11978149414062
+        },
+        {
+          "t": 9.333,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.53136444091797
+        },
+        {
+          "t": 9.389,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.93075561523438
+        },
+        {
+          "t": 9.436,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 76.35420989990234
+        },
+        {
+          "t": 9.484,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 76.62017822265625
+        },
+        {
+          "t": 9.535,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 77.01834106445312
+        },
+        {
+          "t": 9.586,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 77.2841567993164
+        },
+        {
+          "t": 9.638,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 77.70356750488281
+        },
+        {
+          "t": 9.688,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 78.11819458007812
+        },
+        {
+          "t": 9.738,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 78.53289031982422
+        },
+        {
+          "t": 9.789,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 78.7961196899414
+        },
+        {
+          "t": 9.84,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.05289459228516
+        },
+        {
+          "t": 9.891,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.40721893310547
+        },
+        {
+          "t": 9.938,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.64411926269531
+        },
+        {
+          "t": 9.987,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.89349365234375
+        },
+        {
+          "t": 10.037,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 80.39363861083984
+        },
+        {
+          "t": 10.089,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.05149531798087992,
+          "speed": 80.65703582763672
+        },
+        {
+          "t": 10.141,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.10350967798149213,
+          "speed": 81.07223510742188
+        },
+        {
+          "t": 10.188,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.15034612599993125,
+          "speed": 81.33651733398438
+        },
+        {
+          "t": 10.239,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.20141775597585365,
+          "speed": 81.19773864746094
+        },
+        {
+          "t": 10.29,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.25296480298857205,
+          "speed": 80.84689331054688
+        },
+        {
+          "t": 10.342,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.30429746297886595,
+          "speed": 80.53382110595703
+        },
+        {
+          "t": 10.39,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.3524439659959171,
+          "speed": 80.3884048461914
+        },
+        {
+          "t": 10.438,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.4005330419749953,
+          "speed": 79.76963806152344
+        },
+        {
+          "t": 10.488,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.4511665899772197,
+          "speed": 79.25081634521484
+        },
+        {
+          "t": 10.536,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.4988491499971133,
+          "speed": 78.05490112304688
+        },
+        {
+          "t": 10.588,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.3600416893799138,
+          "speed": 76.57018280029297
+        },
+        {
+          "t": 10.636,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.4006720369630261,
+          "speed": 76.01873779296875
+        },
+        {
+          "t": 10.685,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.1670940532137578,
+          "speed": 73.57750701904297
+        },
+        {
+          "t": 10.759,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.24160541623927967,
+          "speed": 71.6014175415039
+        },
+        {
+          "t": 10.811,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.2932610772338634,
+          "speed": 71.1577377319336
+        },
+        {
+          "t": 10.863,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.3267442760190346,
+          "speed": 70.654541015625
+        },
+        {
+          "t": 10.904,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.3403485302162275,
+          "speed": 69.87687683105469
+        },
+        {
+          "t": 10.953,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.35797078233781887,
+          "speed": 69.12171936035156
+        },
+        {
+          "t": 10.994,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.3988879293469867,
+          "speed": 69.12171936035156
+        },
+        {
+          "t": 11.057,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.24857916802149418,
+          "speed": 68.2005386352539
+        },
+        {
+          "t": 11.106,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.22765753504743874,
+          "speed": 66.77212524414062
+        },
+        {
+          "t": 11.159,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 64.17555236816406
+        },
+        {
+          "t": 11.198,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.03911649200017564,
+          "speed": 64.17555236816406
+        },
+        {
+          "t": 11.25,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.09041604600497521,
+          "speed": 63.31108474731445
+        },
+        {
+          "t": 11.302,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.14321593899512663,
+          "speed": 62.89798355102539
+        },
+        {
+          "t": 11.355,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.19544612799654715,
+          "speed": 62.66827392578125
+        },
+        {
+          "t": 11.392,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.23238508999929763,
+          "speed": 62.483551025390625
+        },
+        {
+          "t": 11.444,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.2846669999998994,
+          "speed": 62.064266204833984
+        },
+        {
+          "t": 11.496,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.31429657795510907,
+          "speed": 61.73549270629883
+        },
+        {
+          "t": 11.543,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.3605841259558005,
+          "speed": 61.00422286987305
+        },
+        {
+          "t": 11.598,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.20818786168516995,
+          "speed": 59.937355041503906
+        },
+        {
+          "t": 11.652,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.20162973578842155,
+          "speed": 59.08049011230469
+        },
+        {
+          "t": 11.714,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.22949978420540817,
+          "speed": 57.85626983642578
+        },
+        {
+          "t": 11.767,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.24764838395692038,
+          "speed": 57.65578842163086
+        },
+        {
+          "t": 11.807,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.20530718084814312,
+          "speed": 56.72700500488281
+        },
+        {
+          "t": 11.866,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.2425984988895786,
+          "speed": 56.33165740966797
+        },
+        {
+          "t": 11.913,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.13818963572157827,
+          "speed": 55.907615661621094
+        },
+        {
+          "t": 11.945,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.16849398167615448,
+          "speed": 55.35698699951172
+        },
+        {
+          "t": 11.994,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.017909887797617277,
+          "speed": 54.940731048583984
+        },
+        {
+          "t": 12.044,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.025391038982288307,
+          "speed": 54.52360153198242
+        },
+        {
+          "t": 12.094,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.039247387504476594,
+          "speed": 54.234832763671875
+        },
+        {
+          "t": 12.143,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.030257287597656272,
+          "speed": 54.10126495361328
+        },
+        {
+          "t": 12.195,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.029527612304687523,
+          "speed": 53.90608215332031
+        },
+        {
+          "t": 12.238,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.03560000000000002,
+          "speed": 53.90608215332031
+        },
+        {
+          "t": 12.288,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06719122476743848,
+          "speed": 53.7931022644043
+        },
+        {
+          "t": 12.354,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0811621001708562,
+          "speed": 53.48811721801758
+        },
+        {
+          "t": 12.393,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.12082723115652413,
+          "speed": 53.43417739868164
+        },
+        {
+          "t": 12.444,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.1571715859066873,
+          "speed": 53.380615234375
+        },
+        {
+          "t": 12.491,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.13395607640499832,
+          "speed": 53.145694732666016
+        },
+        {
+          "t": 12.544,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.15442952521535233,
+          "speed": 52.97657775878906
+        },
+        {
+          "t": 12.593,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.1962357427584348,
+          "speed": 52.634708404541016
+        },
+        {
+          "t": 12.641,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.2178173630703364,
+          "speed": 52.394989013671875
+        },
+        {
+          "t": 12.694,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.2583351027602305,
+          "speed": 51.96440124511719
+        },
+        {
+          "t": 12.742,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 51.63899230957031
+        },
+        {
+          "t": 12.784,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 51.275230407714844
+        },
+        {
+          "t": 12.837,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.424312591552734
+        },
+        {
+          "t": 12.887,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.462345123291016
+        },
+        {
+          "t": 12.936,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.56471633911133
+        },
+        {
+          "t": 12.984,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.660064697265625
+        },
+        {
+          "t": 13.034,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.72734069824219
+        },
+        {
+          "t": 13.088,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.76448440551758
+        },
+        {
+          "t": 13.137,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.785640716552734
+        },
+        {
+          "t": 13.185,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 50.81388854980469
+        }
+      ]
+    },
+    {
+      "run": "run_20261028_182212",
+      "first_old": null,
+      "first_new": {
+        "t": 9.128,
+        "x": 62.17499097122345,
+        "y": 188.32870663702488,
+        "speed": 71.95381927490234,
+        "recorded_brake": 0.0
+      },
+      "frames": 88,
+      "rows": [
+        {
+          "t": 9.128,
+          "new_pedal_at_recorded_speed": 0.15633487701416016,
+          "recorded_brake": 0.0,
+          "speed": 71.95381927490234
+        },
+        {
+          "t": 9.182,
+          "new_pedal_at_recorded_speed": 0.3166158199310303,
+          "recorded_brake": 0.0,
+          "speed": 72.32479858398438
+        },
+        {
+          "t": 9.225,
+          "new_pedal_at_recorded_speed": 0.44511866569519043,
+          "recorded_brake": 0.0,
+          "speed": 72.6961669921875
+        },
+        {
+          "t": 9.277,
+          "new_pedal_at_recorded_speed": 0.6039175987243652,
+          "recorded_brake": 0.0,
+          "speed": 72.96526336669922
+        },
+        {
+          "t": 9.327,
+          "new_pedal_at_recorded_speed": 0.7512302398681641,
+          "recorded_brake": 0.0,
+          "speed": 73.36279296875
+        },
+        {
+          "t": 9.377,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 73.6196060180664
+        },
+        {
+          "t": 9.432,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 73.99580383300781
+        },
+        {
+          "t": 9.478,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 74.352294921875
+        },
+        {
+          "t": 9.529,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 74.59166717529297
+        },
+        {
+          "t": 9.578,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 74.94673919677734
+        },
+        {
+          "t": 9.633,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.29959106445312
+        },
+        {
+          "t": 9.679,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.29959106445312
+        },
+        {
+          "t": 9.726,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.54936981201172
+        },
+        {
+          "t": 9.776,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.9029541015625
+        },
+        {
+          "t": 9.828,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 76.5457992553711
+        },
+        {
+          "t": 9.882,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 76.96383666992188
+        },
+        {
+          "t": 9.927,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 76.96383666992188
+        },
+        {
+          "t": 9.978,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 77.09915161132812
+        },
+        {
+          "t": 10.029,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 77.63216400146484
+        },
+        {
+          "t": 10.082,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 77.91035461425781
+        },
+        {
+          "t": 10.131,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 78.19175720214844
+        },
+        {
+          "t": 10.177,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 78.58965301513672
+        },
+        {
+          "t": 10.226,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 78.85548400878906
+        },
+        {
+          "t": 10.278,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.25990295410156
+        },
+        {
+          "t": 10.329,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.6197509765625
+        },
+        {
+          "t": 10.381,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.86383819580078
+        },
+        {
+          "t": 10.431,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 80.21571350097656
+        },
+        {
+          "t": 10.504,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 80.86127471923828
+        },
+        {
+          "t": 10.549,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.27930450439453
+        },
+        {
+          "t": 10.582,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.27930450439453
+        },
+        {
+          "t": 10.63,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.69430541992188
+        },
+        {
+          "t": 10.679,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.95523071289062
+        },
+        {
+          "t": 10.727,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.3299789428711
+        },
+        {
+          "t": 10.779,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.46094512939453
+        },
+        {
+          "t": 10.831,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.862548828125
+        },
+        {
+          "t": 10.877,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.27205657958984
+        },
+        {
+          "t": 10.933,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.54622650146484
+        },
+        {
+          "t": 10.983,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.93986511230469
+        },
+        {
+          "t": 11.033,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 84.32317352294922
+        },
+        {
+          "t": 11.086,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 84.58332824707031
+        },
+        {
+          "t": 11.14,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.05389837999246083,
+          "speed": 84.93164825439453
+        },
+        {
+          "t": 11.187,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 85.17327117919922
+        },
+        {
+          "t": 11.231,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 85.56023406982422
+        },
+        {
+          "t": 11.279,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.1083090759864541,
+          "speed": 85.41529846191406
+        },
+        {
+          "t": 11.338,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.16788068599342354,
+          "speed": 85.18889617919922
+        },
+        {
+          "t": 11.38,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.2088489620007573,
+          "speed": 85.1125717163086
+        },
+        {
+          "t": 11.436,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.26595838899882496,
+          "speed": 84.81775665283203
+        },
+        {
+          "t": 11.479,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.30933077999432557,
+          "speed": 84.26155090332031
+        },
+        {
+          "t": 11.535,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.3654646830043754,
+          "speed": 83.89785766601562
+        },
+        {
+          "t": 11.582,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.41181053098333054,
+          "speed": 83.89785766601562
+        },
+        {
+          "t": 11.628,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.458315630989801,
+          "speed": 82.77758026123047
+        },
+        {
+          "t": 11.685,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.5150637190024833,
+          "speed": 80.90422821044922
+        },
+        {
+          "t": 11.734,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.564284249988105,
+          "speed": 79.7646255493164
+        },
+        {
+          "t": 11.784,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.6135935980062465,
+          "speed": 79.18328857421875
+        },
+        {
+          "t": 11.833,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 77.89639282226562
+        },
+        {
+          "t": 11.884,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 75.85459899902344
+        },
+        {
+          "t": 11.929,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 74.5094985961914
+        },
+        {
+          "t": 11.984,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 71.5095443725586
+        },
+        {
+          "t": 12.034,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 70.00890350341797
+        },
+        {
+          "t": 12.083,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 67.76930236816406
+        },
+        {
+          "t": 12.13,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 66.25883483886719
+        },
+        {
+          "t": 12.183,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 64.03400421142578
+        },
+        {
+          "t": 12.231,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 61.81912612915039
+        },
+        {
+          "t": 12.281,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 60.334529876708984
+        },
+        {
+          "t": 12.33,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 58.821067810058594
+        },
+        {
+          "t": 12.383,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 56.588199615478516
+        },
+        {
+          "t": 12.431,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 55.14181900024414
+        },
+        {
+          "t": 12.48,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 52.94863510131836
+        },
+        {
+          "t": 12.529,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 51.47948455810547
+        },
+        {
+          "t": 12.575,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 49.33277130126953
+        },
+        {
+          "t": 12.627,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.65,
+          "speed": 47.890647888183594
+        },
+        {
+          "t": 12.675,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.5891923522949218,
+          "speed": 45.72980880737305
+        },
+        {
+          "t": 12.728,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.5313175964355469,
+          "speed": 44.28293991088867
+        },
+        {
+          "t": 12.779,
+          "new_pedal_at_recorded_speed": 0.8331903076171875,
+          "recorded_brake": 0.3125558333937596,
+          "speed": 41.414878845214844
+        },
+        {
+          "t": 12.827,
+          "new_pedal_at_recorded_speed": 0.7776284790039063,
+          "recorded_brake": 0.3603254753922164,
+          "speed": 40.72035598754883
+        },
+        {
+          "t": 12.876,
+          "new_pedal_at_recorded_speed": 0.5880056762695313,
+          "recorded_brake": 0.0,
+          "speed": 38.35007095336914
+        },
+        {
+          "t": 12.928,
+          "new_pedal_at_recorded_speed": 0.5043392944335937,
+          "recorded_brake": 0.0,
+          "speed": 37.30424118041992
+        },
+        {
+          "t": 12.979,
+          "new_pedal_at_recorded_speed": 0.42979400634765624,
+          "recorded_brake": 0.0512500400072895,
+          "speed": 36.3724250793457
+        },
+        {
+          "t": 13.029,
+          "new_pedal_at_recorded_speed": 0.425670166015625,
+          "recorded_brake": 0.10068865399807692,
+          "speed": 36.32087707519531
+        },
+        {
+          "t": 13.077,
+          "new_pedal_at_recorded_speed": 0.4258004760742188,
+          "recorded_brake": 0.14818985998863354,
+          "speed": 36.322505950927734
+        },
+        {
+          "t": 13.128,
+          "new_pedal_at_recorded_speed": 0.40950347900390627,
+          "recorded_brake": 0.19906005100347102,
+          "speed": 36.11879348754883
+        },
+        {
+          "t": 13.178,
+          "new_pedal_at_recorded_speed": 0.4022940063476563,
+          "recorded_brake": 0.20475173950195313,
+          "speed": 36.0286750793457
+        },
+        {
+          "t": 13.23,
+          "new_pedal_at_recorded_speed": 0.38517730712890624,
+          "recorded_brake": 0.19258865356445312,
+          "speed": 35.81471633911133
+        },
+        {
+          "t": 13.275,
+          "new_pedal_at_recorded_speed": 0.3753445434570313,
+          "recorded_brake": 0.18767227172851564,
+          "speed": 35.69180679321289
+        },
+        {
+          "t": 13.324,
+          "new_pedal_at_recorded_speed": 0.3343743896484375,
+          "recorded_brake": 0.16718719482421876,
+          "speed": 35.17967987060547
+        },
+        {
+          "t": 13.376,
+          "new_pedal_at_recorded_speed": 0.29502349853515625,
+          "recorded_brake": 0.14751174926757812,
+          "speed": 34.68779373168945
+        },
+        {
+          "t": 13.429,
+          "new_pedal_at_recorded_speed": 0.27104156494140624,
+          "recorded_brake": 0.13552078247070312,
+          "speed": 34.38801956176758
+        },
+        {
+          "t": 13.479,
+          "new_pedal_at_recorded_speed": 0.22879302978515625,
+          "recorded_brake": 0.11439651489257813,
+          "speed": 33.85991287231445
+        }
+      ]
+    },
+    {
+      "run": "run_20261028_182231",
+      "first_old": {
+        "t": 12.154,
+        "x": 64.71448905806756,
+        "y": 120.17564983805642,
+        "speed": 82.25415802001953,
+        "recorded_brake": 0.04866809499799274
+      },
+      "first_new": {
+        "t": 10.006,
+        "x": 62.32717842713464,
+        "y": 169.63646479742602,
+        "speed": 77.53825378417969,
+        "recorded_brake": 0.0
+      },
+      "frames": 57,
+      "rows": [
+        {
+          "t": 10.006,
+          "new_pedal_at_recorded_speed": 0.16564607620239258,
+          "recorded_brake": 0.0,
+          "speed": 77.53825378417969
+        },
+        {
+          "t": 10.054,
+          "new_pedal_at_recorded_speed": 0.30945467948913574,
+          "recorded_brake": 0.0,
+          "speed": 77.830078125
+        },
+        {
+          "t": 10.101,
+          "new_pedal_at_recorded_speed": 0.45085716247558594,
+          "recorded_brake": 0.0,
+          "speed": 78.22706604003906
+        },
+        {
+          "t": 10.153,
+          "new_pedal_at_recorded_speed": 0.6064631938934326,
+          "recorded_brake": 0.0,
+          "speed": 78.63060760498047
+        },
+        {
+          "t": 10.199,
+          "new_pedal_at_recorded_speed": 0.745762825012207,
+          "recorded_brake": 0.0,
+          "speed": 79.0318374633789
+        },
+        {
+          "t": 10.256,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.27881622314453
+        },
+        {
+          "t": 10.3,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.61296844482422
+        },
+        {
+          "t": 10.351,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 79.83008575439453
+        },
+        {
+          "t": 10.4,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 80.06059265136719
+        },
+        {
+          "t": 10.454,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 80.41018676757812
+        },
+        {
+          "t": 10.506,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 80.8006362915039
+        },
+        {
+          "t": 10.55,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.07965850830078
+        },
+        {
+          "t": 10.603,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.49215698242188
+        },
+        {
+          "t": 10.65,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 81.76512908935547
+        },
+        {
+          "t": 10.704,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.04444122314453
+        },
+        {
+          "t": 10.753,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.59384155273438
+        },
+        {
+          "t": 10.807,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.8775634765625
+        },
+        {
+          "t": 10.861,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.17391967773438
+        },
+        {
+          "t": 10.92,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.66767883300781
+        },
+        {
+          "t": 10.959,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.90054321289062
+        },
+        {
+          "t": 11.005,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 84.01880645751953
+        },
+        {
+          "t": 11.056,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 84.35970306396484
+        },
+        {
+          "t": 11.11,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.053772486018715426,
+          "speed": 84.8126449584961
+        },
+        {
+          "t": 11.159,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.07055097656249984,
+          "speed": 85.0564193725586
+        },
+        {
+          "t": 11.211,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0685511596679686,
+          "speed": 85.25019836425781
+        },
+        {
+          "t": 11.26,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 85.25019836425781
+        },
+        {
+          "t": 11.306,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 85.02518463134766
+        },
+        {
+          "t": 11.363,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.05427045898437484,
+          "speed": 84.69792938232422
+        },
+        {
+          "t": 11.411,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 84.69792938232422
+        },
+        {
+          "t": 11.455,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 84.46728515625
+        },
+        {
+          "t": 11.51,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 84.23660278320312
+        },
+        {
+          "t": 11.563,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.06079999999999984,
+          "speed": 84.08247375488281
+        },
+        {
+          "t": 11.612,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.85147094726562
+        },
+        {
+          "t": 11.656,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.69915008544922
+        },
+        {
+          "t": 11.705,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.47006225585938
+        },
+        {
+          "t": 11.76,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.45271301269531
+        },
+        {
+          "t": 11.806,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.46355438232422
+        },
+        {
+          "t": 11.858,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.51636505126953
+        },
+        {
+          "t": 11.905,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.52896881103516
+        },
+        {
+          "t": 11.96,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 83.53632354736328
+        },
+        {
+          "t": 12.003,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.041921777999959886,
+          "speed": 83.53648376464844
+        },
+        {
+          "t": 12.052,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0913439629948698,
+          "speed": 83.5390853881836
+        },
+        {
+          "t": 12.106,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 82.52405548095703
+        },
+        {
+          "t": 12.154,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.04866809499799274,
+          "speed": 82.25415802001953
+        },
+        {
+          "t": 12.21,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.10467238401179202,
+          "speed": 81.67552947998047
+        },
+        {
+          "t": 12.263,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.15648384499945678,
+          "speed": 80.9051513671875
+        },
+        {
+          "t": 12.305,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.1967312399938237,
+          "speed": 77.5177001953125
+        },
+        {
+          "t": 12.353,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.24793824198422953,
+          "speed": 77.20703887939453
+        },
+        {
+          "t": 12.405,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 76.365966796875
+        },
+        {
+          "t": 12.453,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.64205169677734
+        },
+        {
+          "t": 12.509,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.31079864501953
+        },
+        {
+          "t": 12.558,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.3393783569336
+        },
+        {
+          "t": 12.61,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.37682342529297
+        },
+        {
+          "t": 12.662,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.5987777709961
+        },
+        {
+          "t": 12.713,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.75533294677734
+        },
+        {
+          "t": 12.761,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.8555908203125
+        },
+        {
+          "t": 12.812,
+          "new_pedal_at_recorded_speed": 0.85,
+          "recorded_brake": 0.0,
+          "speed": 75.95714569091797
+        }
+      ]
+    }
+  ]
+}

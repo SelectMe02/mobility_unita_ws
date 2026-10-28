@@ -1,0 +1,111 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -948,6 +948,7 @@
+         requested = self._requested_lane(index, ego_xy, ego_yaw)
+         if self.sectors[index] != 11:
+             self.s11_reached_lane = None
++            self.s11_r1_merge_complete = False
+         self.highway_active = self.sectors[index] in self.highway_sectors
+         if self.highway_active:
+             self.highway_observation_stamp = observation_stamp
+@@ -1438,8 +1439,15 @@
+             if len(path) >= 2:
+                 conflict = self._highway_path_conflict(path, v, obstacles)
+                 if early_accel and min(planning_speed, speed) > v+.01:
+-                    conflict = conflict or self._highway_path_conflict(
+-                        path, min(planning_speed, speed), obstacles)
++                    if (current == 1 and lane == 2
++                            and getattr(self, 's11_r1_merge_complete', False)):
++                        # After merging, evaluate gradual acceleration rather
++                        # than assuming the full +10 km/h from time zero.
++                        conflict = conflict or self._highway_path_conflict(
++                            path, v, obstacles, target_speed=min(planning_speed, speed))
++                    else:
++                        conflict = conflict or self._highway_path_conflict(
++                            path, min(planning_speed, speed), obstacles)
+                 if conflict is not None:
+                     length = max(minimum, length*.85) if length > minimum+1e-6 else minimum-1.
+                     continue
+@@ -1516,7 +1524,11 @@
+                  and abs(lateral) <= 8.)
+         if not local:
+             self.s11_merge_tracks = {}
+-            return None
++            if self.sectors[index] == 11 and along > LENGTH+15. and abs(lateral) <= 8.:
++                self.s11_r1_merge_complete = True
++            return None
++        if along < LENGTH:
++            self.s11_r1_merge_complete = False
+         # Never reverse a maneuver already committed, including a hot restart.
+         if self.transition is not None or self.current_lane != 1:
+             return None
+@@ -1532,6 +1544,7 @@
+         aligned = centre is not None and distance(ego, centre) <= .75 and heading <= math.radians(12.)
+         if along >= LENGTH+8. and aligned:
+             self.s11_merge_tracks = {}
++            self.s11_r1_merge_complete = True
+             return None
+         tracks = getattr(self, 's11_merge_tracks', {})
+         now = stamp
+@@ -2060,7 +2073,11 @@
+                     self._idm_cap(v, v0, candidate_lead),
+                     self._highway_predictive_cap(candidate_path, v, obstacles),
+                     candidate['speed_cap_kmh'] if candidate['speed_cap_kmh'] is not None else float('inf'))
+-                required = min(v0*3.6, v*3.6+5.)
++                post_merge_r2 = (current == 1 and lane == 2
++                                 and getattr(self, 's11_r1_merge_complete', False))
++                # A safe moving departure need not already offer +5 km/h.
++                # Keep the no-deceleration check and all swept-path/gap tests.
++                required = min(v0*3.6, v*3.6+(.5 if post_merge_r2 else 5.))
+                 if start_cap < required-1e-6 or start_cap < v*3.6-.5:
+                     waiting = 'wait_acceleration_room'
+                     continue
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_post_merge_r2.py
+@@ -0,0 +1,46 @@
++import unittest
++from unittest.mock import MagicMock
++import test_highway_planner as f
++import test_s11_entry_slowdown as e
++
++class PostMergeR2Tests(unittest.TestCase):
++    def test_small_positive_speed_margin_allowed_only_after_r1_merge(self):
++        p=f.planner(s11_forward_only=True)
++        p._idm_cap=MagicMock(return_value=31.8)
++        p.plan(60,(60.,0.),30./3.6,[],desired_speed_mps=100./3.6)
++        self.assertIsNone(p.transition)
++        p.s11_r1_merge_complete=True
++        d=p.plan(60,(60.,0.),30./3.6,[],desired_speed_mps=100./3.6)
++        self.assertEqual(p.transition['target'],2)
++        self.assertAlmostEqual(d.speed_cap_kmh,31.8)
++
++    def test_deceleration_requirement_still_blocks(self):
++        p=f.planner(s11_forward_only=True)
++        p.s11_r1_merge_complete=True
++        p._idm_cap=MagicMock(return_value=29.)
++        p.plan(60,(60.,0.),30./3.6,[],desired_speed_mps=100./3.6)
++        self.assertIsNone(p.transition)
++
++    def test_close_target_vehicle_still_blocks_after_merge(self):
++        p=f.planner(s11_forward_only=True)
++        p.s11_r1_merge_complete=True
++        p.plan(60,(60.,0.),30./3.6,[f.car(60.,2,30./3.6)],desired_speed_mps=100./3.6)
++        self.assertIsNone(p.transition)
++
++    def test_r2_to_r3_keeps_five_kmh_requirement(self):
++        p=f.planner(s11_forward_only=True)
++        p.s11_r1_merge_complete=True
++        p._idm_cap=MagicMock(return_value=31.8)
++        p.plan(60,(60.,3.6),30./3.6,[],desired_speed_mps=100./3.6)
++        self.assertIsNone(p.transition)
++
++    def test_real_entry_sets_completion_only_after_join(self):
++        p=e.planner(merge_control=True)
++        p.plan(60,e.point(0.),10.,[],desired_speed_mps=25.,observation_stamp=1.)
++        self.assertFalse(p.s11_r1_merge_complete)
++        self.assertIsNone(p.transition)
++        p.plan(100,e.point(40.),10.,[],desired_speed_mps=25.,observation_stamp=2.)
++        self.assertTrue(p.s11_r1_merge_complete)
++        self.assertEqual(p.transition['target'],2)
++
++if __name__=='__main__':unittest.main()

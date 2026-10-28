@@ -1,0 +1,8 @@
+Local S11 R1 merge controller
+Scope: entry approach coordinates along -60 m to LENGTH+15 m, lateral +/-8 m; S11, inferred lane R1, no existing committed maneuver. About 88 m before entry to 15 m past it.
+Stay on R1 until at least 8 m past entry, within 0.75 m of saved lane centre and 12 degrees heading alignment; outer geographic boundary limits this controller. Keep previous approved changes intact.
+No-obstacle branch adds no speed cap (normal following and lane-end constraints still apply). Merge occupancy uses vehicle bodies and actual saved R1 join centre, plus a local 0.5 m allowance for partial footprints. Labels do not exclude a conflicting vehicle.
+Arrival windows use measured motion or recent same-ID displacement, with +/-2 m/s uncertainty; unknown motion uses 0..25 m/s forward interval. Minimum merge target 30 km/h, timing margin 0.8 s. Recent bodies retained at most 0.8 s; no indefinite detection-loss hold.
+Checks: 71 S11 tests,49 highway tests,23 driving stability tests passed; reverse patch checked.
+Recorded-input replay on eight 20:00-20:05 runs is not closed-loop simulation. Recorded ego can move into R2 despite the new planner withholding approval, so first_r2=null with a later R3 event does not establish live behavior. Route tangent approximates yaw. New controller may reduce speed earlier in some cases, later in others where the original path was already changing. No claim of collision avoidance or unchanged overall lap time.
+Re-run MORAI to validate actual R1 arrival speed, NPC timing, lane completion, and absence of unnecessary braking; missing/incorrect detections and a 30 km/h minimum remain limitations.

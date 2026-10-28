@@ -1,0 +1,5 @@
+이번 S11 진입부 R1 합류 제어·합류 후 R2 변경 분리·합류 위험 차량 0.8초 기억 변경만 롤백해줘. 기존 최소 목표 30km/h, 브레이크 0.65, 페달 증가율 1.0, 단방향 변경·승인 후 완수·이전 승인 보수화와 뒤차 위험 가속 대응은 유지하고 rollback/2026-10-28_s11_r1_merge_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_r1_merge_before/changes.patch
+git apply -R rollback/2026-10-28_s11_r1_merge_before/changes.patch

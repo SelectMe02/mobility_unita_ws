@@ -1,0 +1,167 @@
+{
+  "limitation": "Open-loop replay at recorded ego poses, sampled about 10 Hz; route tangent approximates ego yaw. Not collision or closed-loop validation.",
+  "runs": [
+    {
+      "run": "run_20261028_194053",
+      "old": {
+        "first_r2": {
+          "t": 8.22,
+          "x": 62.16,
+          "y": 200.17,
+          "target": 77.71794891357422
+        },
+        "first_r3": {
+          "t": 13.72,
+          "x": 70.54,
+          "y": 72.11,
+          "target": Infinity
+        },
+        "waits": {}
+      },
+      "new": {
+        "first_r2": {
+          "t": 9.56,
+          "x": 62.69,
+          "y": 172.59,
+          "target": 89.15734100341798
+        },
+        "first_r3": {
+          "t": 15.42,
+          "x": 71.53,
+          "y": 26.39,
+          "target": Infinity
+        },
+        "waits": {
+          "s11_wait_entry_observation": 11,
+          "s11_wait_rear_motion": 3
+        }
+      }
+    },
+    {
+      "run": "run_20261028_194123",
+      "old": {
+        "first_r2": {
+          "t": 8.21,
+          "x": 62.14,
+          "y": 199.62,
+          "target": 78.1575927734375
+        },
+        "first_r3": {
+          "t": 14.43,
+          "x": 69.71,
+          "y": 106.18,
+          "target": 55.373744964599595
+        },
+        "waits": {}
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 12.26,
+          "x": 66.96,
+          "y": 133.82,
+          "target": 58.07492446899413
+        },
+        "waits": {
+          "s11_wait_entry_observation": 11
+        }
+      }
+    },
+    {
+      "run": "run_20261028_194148",
+      "old": {
+        "first_r2": {
+          "t": 16.22,
+          "x": 65.14,
+          "y": 94.26,
+          "target": 45.52047570567723
+        },
+        "first_r3": {
+          "t": 24.63,
+          "x": 71.02,
+          "y": -1.54,
+          "target": 52.00956726074218
+        },
+        "waits": {}
+      },
+      "new": {
+        "first_r2": {
+          "t": 16.22,
+          "x": 65.14,
+          "y": 94.26,
+          "target": 45.52047570567723
+        },
+        "first_r3": {
+          "t": 24.63,
+          "x": 71.02,
+          "y": -1.54,
+          "target": 52.00956726074218
+        },
+        "waits": {
+          "s11_wait_entry_observation": 11
+        }
+      }
+    },
+    {
+      "run": "run_20261028_194224",
+      "old": {
+        "first_r2": {
+          "t": 8.33,
+          "x": 62.14,
+          "y": 199.62,
+          "target": 78.42496490478516
+        },
+        "first_r3": null,
+        "waits": {}
+      },
+      "new": {
+        "first_r2": {
+          "t": 9.49,
+          "x": 62.48,
+          "y": 175.92,
+          "target": 88.52497100830078
+        },
+        "first_r3": null,
+        "waits": {
+          "s11_wait_entry_observation": 11,
+          "s11_wait_rear_motion": 17
+        }
+      }
+    },
+    {
+      "run": "run_20261028_194257",
+      "old": {
+        "first_r2": {
+          "t": 8.22,
+          "x": 62.17,
+          "y": 200.73,
+          "target": 78.02810668945312
+        },
+        "first_r3": {
+          "t": 12.67,
+          "x": 70.39,
+          "y": 97.47,
+          "target": Infinity
+        },
+        "waits": {}
+      },
+      "new": {
+        "first_r2": {
+          "t": 9.52,
+          "x": 62.58,
+          "y": 174.26,
+          "target": 89.22606658935545
+        },
+        "first_r3": {
+          "t": 13.72,
+          "x": 71.05,
+          "y": 68.59,
+          "target": Infinity
+        },
+        "waits": {
+          "s11_wait_entry_observation": 11
+        }
+      }
+    }
+  ]
+}

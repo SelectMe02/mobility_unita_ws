@@ -1,0 +1,5 @@
+Local timed merge braking
+For finite actor clearance, entry distance>25 m, speed>30km/h: solve constant deceleration up to3m/s^2 then30km/h cruise, with0.6s response allowance and5m spatial reserve. Only relax original target if this modeled approach still arrives after actor clearance+0.8s. Retain original target for unknown clearance or infeasible timing. Replan every observation. Acceleration cap remains below current speed.
+Confirmed fresh local motion correction now also supplies ordinary following during yielding; merge occupancy cap always remains binding. Global detector/pedals unchanged.
+IMPORTANT recorded-input replay205505 changes only one raw cap28.16->30 (final minimum30 means no effective speed change);205548 no caps change. Thus latest two runs show no material reduction in braking/slow travel. Most clearance estimates remain unknown or gradual yield infeasible under model; do not claim this resolves the reported symptom.
+Tests92 S11+49 highway passed, AST and reverse patch checked. Modeling assumptions not calibrated live MORAI guarantees; closed-loop validation outstanding.

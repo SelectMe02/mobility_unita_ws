@@ -1,0 +1,109 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -3,7 +3,7 @@
+ The state flow follows the RoboRacer raceline/trailing/overtake/recovery idea.
+ All geometry and speed limits belong to this vehicle and its saved map.
+ """
+-from dataclasses import dataclass
++from dataclasses import dataclass, replace
+ import math
+ import time
+ 
+@@ -1560,6 +1560,7 @@
+             measured = o.measurement_stamp if o.measurement_stamp > 0. else now
+             if measured is None or now is None or not 0. <= now-measured <= .3:
+                 continue
++            motion_floor = None
+             speed = (o.vx*TANGENT[0]+o.vy*TANGENT[1]) if o.velocity_reliable else None
+             side_speed = (-o.vx*TANGENT[1]+o.vy*TANGENT[0]) if o.velocity_reliable else None
+             if previous is not None and .05 <= measured-previous[0] <= .6:
+@@ -1567,14 +1568,17 @@
+                 estimate = (s11_entry_coordinates((o.x,o.y))[0]-old_along)/(measured-previous[0])
+                 if 1. <= estimate <= 35.:
+                     speed = estimate
++                    if (previous[2] is not None and previous[2] > 1.
++                            and abs(estimate-previous[2]) <= max(3.,.3*estimate)):
++                        motion_floor = max(0.,min(estimate,previous[2])-2.)
+                     old_side = s11_entry_coordinates((previous[1].x,previous[1].y))[1]
+                     side_estimate = (s11_entry_coordinates((o.x,o.y))[1]-old_side)/(measured-previous[0])
+                     # Reject abrupt face/association jumps, not genuine convergence.
+                     if abs(side_estimate) <= 3.:
+                         side_speed = side_estimate
+             if previous is not None and measured == previous[0]:
+-                speed, side_speed = previous[2], previous[3]
+-            tracks[key] = (measured,o,speed,side_speed)
++                speed, side_speed, motion_floor = previous[2], previous[3], previous[4]
++            tracks[key] = (measured,o,speed,side_speed,motion_floor)
+         self.s11_merge_tracks = tracks
+         # R1's actual saved centre at the join, rather than a fixed NPC centre box.
+         join = min(path, key=lambda q:abs(s11_entry_coordinates(q)[0]-LENGTH))
+@@ -1583,7 +1587,7 @@
+         ego_in = entry_distance/max(v,30./3.6)
+         ego_out = max(0.,LENGTH+12.-along+self.rear_extent)/max(v,30./3.6)
+         cap = float('inf')
+-        for measured,o,speed,side_speed in tracks.values():
++        for measured,o,speed,side_speed,motion_floor in tracks.values():
+             corners = o.corners()
+             # Only this merge controller treats a confirmed vehicle-sized return
+             # as a partial body. Do not alter global detections or tiny clutter.
+@@ -1628,8 +1632,21 @@
+         self.effective_preferred_lane = 3
+         self.obstacle_horizon_path = path_prefix(path,self.highway_obstacle_horizon_m)
+         # Keep ordinary front protection and the saved R1 end envelope as well.
+-        lead = self._lead(path,ego,obstacles,self.highway_obstacle_horizon_m)
+-        normal = min(self._idm_cap(v,desired,lead),self._highway_predictive_cap(path,v,obstacles))
++        following = obstacles
++        if math.isinf(cap) and now is not None:
++            # Only after the merge occupancy clears: a zero motion output
++            # must not erase consistent, fresh measured forward movement.
++            following = []
++            for o in obstacles:
++                q = tracks.get(o.track_id)
++                if (q is not None and q[4] is not None and q[4] > 0.
++                        and o.confirmed and not o.predicted
++                        and 0. <= now-q[0] <= .2 and abs(o.vx)+abs(o.vy) < .1):
++                    o = replace(o,vx=q[4]*TANGENT[0],vy=q[4]*TANGENT[1],
++                                velocity_reliable=True)
++                following.append(o)
++        lead = self._lead(path,ego,following,self.highway_obstacle_horizon_m)
++        normal = min(self._idm_cap(v,desired,lead),self._highway_predictive_cap(path,v,following))
+         cap = min(cap,normal)
+         return self._decision('TAILING' if cap < desired*3.6 else 'LANE_WAIT',path,cap,lead,
+                               's11_r1_merge_yield' if cap < desired*3.6 else 's11_r1_merge_align')
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_merge_reaccel.py
+@@ -0,0 +1,34 @@
++import unittest
++import test_s11_entry_slowdown as e
++import test_highway_planner as f
++
++class MergeReaccelTests(unittest.TestCase):
++    def sequence(self, movement):
++        p=e.planner(merge_control=True)
++        p.sector_min_speed_kmh=30.
++        results=[]
++        for k in range(3):
++            o=e.npc(track_id=7,velocity_reliable=False)
++            o.x,o.y=e.point(f.core.LENGTH+15.+movement*k)
++            o.measurement_stamp=1.+k*.1
++            d=p.plan(88,e.point(f.core.LENGTH),30./3.6,[o],
++                     desired_speed_mps=100./3.6,observation_stamp=o.measurement_stamp)
++            results.append(d.speed_cap_kmh)
++            self.assertEqual(o.vx,0.)
++            self.assertEqual(o.vy,0.)
++            self.assertFalse(o.velocity_reliable)
++        return results
++
++    def test_fresh_consistent_motion_releases_false_stationary_following_cap(self):
++        caps=self.sequence(1.)
++        self.assertLessEqual(caps[0],30.)
++        self.assertLessEqual(caps[1],30.)
++        self.assertGreater(caps[2],30.)
++
++    def test_stationary_vehicle_still_requires_slowing(self):
++        self.assertTrue(all(c<=30. for c in self.sequence(0.)))
++
++    def test_backward_motion_does_not_confirm_forward_clearance(self):
++        self.assertTrue(all(c<=30. for c in self.sequence(-1.)))
++
++if __name__=='__main__':unittest.main()

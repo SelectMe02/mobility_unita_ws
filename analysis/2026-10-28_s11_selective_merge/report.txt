@@ -1,0 +1,8 @@
+S11 selective approval margins
+Changes: first R1->R2 in real entry coordinates requires entry within 55 m longitudinal distance inside the extended ROI, 3 distinct scans spanning >=0.2 s. This does not establish visibility through occlusions.
+Destination body geometry, regardless of lane label: 0.25 m extra lateral band, 1 m extra adjacent longitudinal clearance; uncertain rear within 20 m waits; reliable rear within 25 m needs >= existing gap+1 m at end of nominal change, evaluated at current ego speed, duration capped at 6 s. Far cars and equal-speed cars with space are unaffected.
+Within 12 m of entry, with traffic within 20 m, require heading error <=12 degrees relative to R1 tangent. No general alignment wait. Existing lane-end speed bounds remain active.
+Entry braking can trigger on confirmed reliable vehicle projected to entry at ego arrival within 3 s; lane exclusions and existing release conditions retained. No new brake strength or global speed cap.
+Tests: 65 S11 +49 highway +23 driving stability =137 passed.
+Replay: recorded ego, about 10 Hz, yaw approximated by route tangent; no closed-loop vehicle simulation. Early R2 approvals in 194053/194224/194257 shift about 1.16-1.34 s; 194148 approval unchanged. 194123 diverges: recorded ego moves into R2 although revised planner has not approved R2, so later R3 event cannot be interpreted as real behavior or approval latency.
+No collision-free or no-unnecessary-braking guarantee. The R1 entry near-contact case still requires simulator validation; the new prediction only uses reliable motion and cannot repair missing/incorrect tracks.

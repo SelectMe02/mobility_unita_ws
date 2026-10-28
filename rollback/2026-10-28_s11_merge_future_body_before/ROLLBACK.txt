@@ -1,0 +1,5 @@
+이번 S11 R1 합류 구간 미래 차체 겹침 예측·부분 검출 크기 보정 변경만 롤백해줘. 기존 합류 제어, 합류 후 R2 승인 완화, 최소 목표 30km/h, 브레이크 0.65, 페달 증가율 1.0과 다른 구간 설정은 유지하고 rollback/2026-10-28_s11_merge_future_body_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_merge_future_body_before/changes.patch
+git apply -R rollback/2026-10-28_s11_merge_future_body_before/changes.patch

@@ -1,0 +1,5 @@
+이번 S11 합류 위험 해소 후 저속 회복 목표 속도 완화만 롤백해줘. 기존 진입 충돌 감속, 미래 차체 검사, 앞차 속도 보정, 최소 목표 30km/h, 페달 증가율 1.0 및 차선 변경 설정은 유지하고 rollback/2026-10-28_s11_merge_speed_recovery_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_merge_speed_recovery_before/changes.patch
+git apply -R rollback/2026-10-28_s11_merge_speed_recovery_before/changes.patch

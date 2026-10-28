@@ -1,0 +1,5 @@
+이번 S11 진입 관측 확인·가까운 옆뒤차 승인 여유·진입 정렬 확인·진입 예상 시점 차량 검사 변경만 롤백해줘. 기존 최소 목표 30km/h, 브레이크 0.65, 페달 증가율 1.0, 단방향 변경·승인 후 완수·뒤차 위험 가속 대응은 유지하고 rollback/2026-10-28_s11_selective_merge_margin_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_selective_merge_margin_before/changes.patch
+git apply -R rollback/2026-10-28_s11_selective_merge_margin_before/changes.patch

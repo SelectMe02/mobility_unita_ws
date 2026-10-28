@@ -1,0 +1,6 @@
+S11 post-merge R1->R2 departure
+Only after geographic R1 merge completion: require 0.5 rather than 5 km/h positive speed margin, capped by map desired speed. Retain no-deceleration, current-speed swept collision, target front/rear/side gaps, geometry and following limits.
+Additional planned-speed collision check uses a gradual 1 m/s^2 acceleration rather than an immediate +10 km/h jump. This is a prediction assumption, not a calibrated MORAI acceleration model.
+R2->R3, pre-merge approval, R1 merge guard and pedal settings unchanged.
+Recorded-input replay: 202123 old first R2 22.02 s ->13.41 s; 202203 20.32 s ->14.62 s. First entry slowdown identical in both runs. Replay holds recorded ego poses and approximates yaw by route tangent; cannot establish actual collision avoidance, changed speed or maneuver completion.
+Validation: 76 S11 tests and 49 highway tests; reverse patch checked. Live MORAI validation still required.

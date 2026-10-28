@@ -1,0 +1,239 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -6,6 +6,52 @@
+ from dataclasses import dataclass
+ import math
+ import time
++
++APPROACH = (62.92, 153.98)
++ENTRY = (64., 125.85)
++LENGTH = math.dist(APPROACH, ENTRY)
++TANGENT = ((ENTRY[0]-APPROACH[0])/LENGTH, (ENTRY[1]-APPROACH[1])/LENGTH)
++S11_ENTRY_FRONT_RANGE_M = 65.
++
++
++def s11_entry_coordinates(point):
++    dx,dy=point[0]-APPROACH[0],point[1]-APPROACH[1]
++    return dx*TANGENT[0]+dy*TANGENT[1], -dx*TANGENT[1]+dy*TANGENT[0]
++
++
++def s11_entry_monitor_active(point):
++    along,lateral=s11_entry_coordinates(point)
++    # Start watching up to 40 m before the user's approach point; a 28 m
++    # braking window alone is too short for the recorded ~85 km/h arrival.
++    return -40. <= along <= LENGTH+10. and abs(lateral) <= 6.
++
++
++class EntryGuard:
++    def __init__(self):
++        self.active=False
++        self.blocker=None
++
++    def update(self, sector, lane, ego, obstacles):
++        if sector != 11 or not s11_entry_monitor_active(ego):
++            self.active=False
++            self.blocker=None
++            return False
++        if self.active:
++            return True  # Hold through short occlusion and through the entry.
++        if lane != 1:
++            return False
++        for o in obstacles:
++            if o.road_surface:
++                continue
++            along,lateral=s11_entry_coordinates((o.x,o.y))
++            if abs(along-LENGTH)>10. or abs(lateral)>2.3:
++                continue
++            if o.lane_stable and o.lane_sector==11 and o.raceline in (2,3) and not o.lane_boundary_crossing:
++                continue
++            self.active=True
++            self.blocker=o
++            return True
++        return False
+ 
+ 
+ def distance(a, b):
+@@ -233,6 +279,7 @@
+         self.s11_forward_only = bool(s11_forward_only)
+         self.s11_reached_lane = None
+         self.s11_change_path = []
++        self.s11_entry_guard = EntryGuard()
+         self.idm_time_gap_s = idm_time_gap_s
+         self.idm_min_gap_m = idm_min_gap_m
+         self.idm_accel_mps2 = idm_accel_mps2
+@@ -872,8 +919,25 @@
+         self.highway_active = self.sectors[index] in self.highway_sectors
+         if self.highway_active:
+             self.highway_observation_stamp = observation_stamp
+-            return self._plan_highway(index, ego_xy, speed_mps, obstacles,
+-                                      desired_speed_mps, ahead, progress, available)
++            entry_slowdown = self.s11_entry_guard.update(
++                self.sectors[index], self.current_lane, ego_xy, obstacles)
++            if entry_slowdown and self.transition is None and self.current_lane == 1:
++                # Delay new lateral maneuvers until the guarded entry is passed.
++                path = self._path(ahead, ego_xy, 1, progress)
++                self.active_lane = 1 if base != 1 else None
++                self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
++                self.highway_emergency = False
++                self.effective_preferred_lane = 3
++                self.preference_reason = 's11_entry_hold_r1'
++                return self._decision('TAILING', path, 30., reason='s11_entry_slowdown')
++            decision = self._plan_highway(index, ego_xy, speed_mps, obstacles,
++                                         desired_speed_mps, ahead, progress, available)
++            if entry_slowdown:
++                # Do not reverse a maneuver already approved before detection.
++                decision.speed_cap_kmh = min(30., decision.speed_cap_kmh)
++                decision.reason = 's11_entry_slowdown:' + decision.reason
++            return decision
++        self.s11_entry_guard.update(self.sectors[index], self.current_lane, ego_xy, [])
+         self.preference_reason = 'priority_interval' if requested != self.preferred_lane else 'default_lane'
+         preferred = requested if requested in available else base
+         if requested not in available:
+--- a/src/unita_waypoint/scripts/lidar_obstacles.py
++++ b/src/unita_waypoint/scripts/lidar_obstacles.py
+@@ -25,6 +25,8 @@
+ from ground_segmentation import (rotation_rpy, normalized_quaternion, quaternion_at,
+                                  level_rotation, segment_ground)
+ 
++from local_avoidance_core import (s11_entry_monitor_active as entry_monitor_active,
++                                  S11_ENTRY_FRONT_RANGE_M as ENTRY_FRONT_RANGE_M)
+ 
+ def road_obstacle_mask(points, front_range=55., rear_range=55., side_range=12.,
+                        half_width=.946, front_extent=3.845, rear_extent=.790,
+@@ -433,7 +435,7 @@
+             if not self.imus or stamp > self.imus[-1][0]:
+                 self.imus.append((stamp, orientation))
+ 
+-    def filter_ground(self, raw, stamp, side_range=None):
++    def filter_ground(self, raw, stamp, side_range=None, front_range=None):
+         points = raw @ self.body_from_lidar.T + [self.lidar_x, self.lidar_y, self.lidar_z]
+         with self.lock:
+             samples = list(self.imus)
+@@ -445,7 +447,7 @@
+         if q is not None:
+             rotation, status['roll_deg'], status['pitch_deg'] = level_rotation(q, self.body_from_imu)
+             points = points @ rotation.T
+-        eligible = road_roi_mask(points, self.front_range, self.rear_range,
++        eligible = road_roi_mask(points, self.front_range if front_range is None else front_range, self.rear_range,
+                                  self.side_range if side_range is None else side_range,
+                                  self.half_width, self.front_extent, self.rear_extent)
+         near = eligible & (np.abs(points[:, 0]) < 12.) & (np.abs(points[:, 1]) < 3.)
+@@ -585,8 +587,12 @@
+         points = np.asarray(list(point_cloud2.read_points(
+             msg, field_names=('x', 'y', 'z'), skip_nans=True)), dtype=float)
+         points = points.reshape((-1, 3))
++        entry_active = entry_monitor_active(pose[:2])
++        front_range = max(self.front_range, ENTRY_FRONT_RANGE_M) if entry_active else self.front_range
+         points, ground, mask, status = self.filter_ground(
+-            points, stamp, self.roundabout_side_range if roundabout_active else None)
++            points, stamp, self.roundabout_side_range if roundabout_active else None,
++            front_range=front_range)
++        status.update(s11_entry_monitor_active=entry_active, effective_front_range_m=front_range)
+         self.last_filter_wall = time.monotonic()
+         status['cloud_age_s'] = age
+         status['filter_processing_s'] = time.monotonic()-filter_start
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_entry_slowdown.py
+@@ -0,0 +1,102 @@
++import math
++import unittest
++import sys
++from pathlib import Path
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"scripts"))
++import test_highway_planner as f
++
++
++def point(along, lateral=0.):
++    c=f.core
++    return (c.APPROACH[0]+c.TANGENT[0]*along-c.TANGENT[1]*lateral,
++            c.APPROACH[1]+c.TANGENT[1]*along+c.TANGENT[0]*lateral)
++
++
++def npc(lateral=0., **kw):
++    x,y=point(f.core.LENGTH,lateral)
++    return f.core.Obstacle(x,y,2.,length=4.5,width=1.9,
++                          yaw=math.atan2(f.core.TANGENT[1],f.core.TANGENT[0]),**kw)
++
++
++def planner():
++    route=[point(i-60.) for i in range(201)]
++    lanes={n:[point(i-60.,(n-1)*3.6) for i in range(201)] for n in (2,3)}
++    indices={n:dict(enumerate(line)) for n,line in lanes.items()}
++    return f.core.LocalAvoidancePlanner(route,[11]*len(route),lanes,
++                                        lane_indices=indices,highway_sectors=(11,))
++
++
++class EntrySlowdownTests(unittest.TestCase):
++    def test_requested_approach_detects_npc_and_holds_r1_at_30(self):
++        p=planner()
++        d=p.plan(60,point(0.),85./3.6,[npc()],desired_speed_mps=100./3.6)
++        self.assertEqual(d.reason,'s11_entry_slowdown')
++        self.assertEqual(d.speed_cap_kmh,30.)
++        self.assertIsNone(p.transition)
++        self.assertTrue(all(abs(f.core.s11_entry_coordinates(pt)[1])<1e-6 for pt in d.path))
++
++    def test_monitor_starts_before_requested_approach(self):
++        p=planner()
++        d=p.plan(30,point(-30.),80./3.6,[npc()],desired_speed_mps=100./3.6)
++        self.assertEqual(d.speed_cap_kmh,30.)
++        self.assertIsNone(p.transition)
++
++    def test_no_npc_does_not_apply_entry_speed_limit(self):
++        p=planner()
++        d=p.plan(60,point(0.),80./3.6,[],desired_speed_mps=100./3.6)
++        self.assertFalse(p.s11_entry_guard.active)
++        self.assertNotEqual(d.reason,'s11_entry_slowdown')
++
++    def test_other_lane_road_and_outside_region_do_not_trigger(self):
++        for o in (npc(3.6),npc(7.2),npc(road_surface=True),
++                  npc(lane_stable=True,lane_sector=11,raceline=2,lane_boundary_crossing=False)):
++            p=planner();p.plan(60,point(0.),20.,[o],desired_speed_mps=25.)
++            self.assertFalse(p.s11_entry_guard.active)
++        o=npc();o.x,o.y=point(f.core.LENGTH+15.)
++        self.assertFalse(f.core.EntryGuard().update(11,1,point(0.),[o]))
++
++    def test_new_or_occluded_npc_keeps_30_until_entry_passed(self):
++        p=planner();o=npc(confirmed=False,velocity_reliable=False)
++        p.plan(60,point(0.),20.,[o],desired_speed_mps=25.)
++        d=p.plan(90,point(30.),10.,[],desired_speed_mps=25.)
++        self.assertEqual(d.speed_cap_kmh,30.)
++        self.assertIsNone(p.transition)
++        p.plan(100,point(40.),10.,[],desired_speed_mps=25.)
++        self.assertFalse(p.s11_entry_guard.active)
++        self.assertIsNotNone(p.transition)
++        self.assertEqual(p.transition['target'],2)
++
++    def test_already_approved_change_is_slowed_without_reversal(self):
++        p=planner()
++        p.plan(60,point(0.),20.,[],desired_speed_mps=25.)
++        self.assertIsNotNone(p.transition)
++        target=p.transition['target']
++        d=p.plan(61,point(1.),20.,[npc()],desired_speed_mps=25.)
++        self.assertLessEqual(d.speed_cap_kmh,30.)
++        self.assertEqual(p.transition['target'],target)
++        self.assertNotEqual(p.transition['state'],'CANCELLING')
++
++    def test_other_sector_or_completed_lane_does_not_trigger(self):
++        for sector,lane in ((10,1),(12,1),(11,2),(11,3)):
++            self.assertFalse(f.core.EntryGuard().update(sector,lane,point(0.),[npc()]))
++
++    def test_lidar_front_override_preserves_points_at_50m(self):
++        from collections import deque
++        import threading
++        import numpy as np
++        from lidar_obstacles import LidarObstacles
++        n=LidarObstacles.__new__(LidarObstacles)
++        n.body_from_lidar=np.eye(3);n.lidar_x=1.4;n.lidar_y=0.;n.lidar_z=1.23
++        n.lock=threading.Lock();n.imus=deque();n.imu_max_skew_s=.05
++        n.front_range=30.;n.rear_range=55.;n.side_range=12.
++        n.half_width=.946;n.front_extent=3.845;n.rear_extent=.790
++        n.obstacle_min_height_m=.22;n.obstacle_max_height_m=2.6
++        n.ground_plane_tolerance_m=.04
++        raw=np.array([[48.6,2.,-.23]])
++        _,_,normal,_=n.filter_ground(raw,1.)
++        _,_,entry,_=n.filter_ground(raw,1.,front_range=65.)
++        self.assertFalse(normal[0]);self.assertTrue(entry[0])
++        self.assertEqual(n.front_range,30.)
++
++
++if __name__=='__main__':unittest.main()

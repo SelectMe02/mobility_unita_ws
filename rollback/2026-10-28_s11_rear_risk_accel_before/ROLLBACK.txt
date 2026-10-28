@@ -1,0 +1,5 @@
+이번 S11 차선 변경 중 뒤차 충돌 위험에 대한 가속 우선 대응만 롤백해줘. 기존 최소 목표 30km/h, 브레이크 0.65, 페달 증가율 1.0, 감속 조기 해제 및 차선 변경 설정은 유지하고 rollback/2026-10-28_s11_rear_risk_accel_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_rear_risk_accel_before/changes.patch
+git apply -R rollback/2026-10-28_s11_rear_risk_accel_before/changes.patch

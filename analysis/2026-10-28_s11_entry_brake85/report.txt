@@ -1,0 +1,8 @@
+Actual recorded obstacle/ego replay: four 18:21-18:22 bags, no injected NPC.
+Latest run: old entry trigger t=12.154 s, y=120.176 m, speed=82.254 km/h. New trigger t=10.006 s, y=169.636 m, speed=77.538 km/h.
+Primary issue: early objects labelled R2 and outside old narrow entry zone. Latest recorded entry-region braking was ~0.061 during merge yield, then 0.042 after the target dropped; cap alone would not fix late detection.
+Entry-only brake: max 0.65 -> 0.85, rise 1/s -> 3/s, gain 0.04 -> 0.08. Explicit entry braking demand overrides positive/weak PID transients above target+1 km/h. Brake releases at <=31 km/h.
+Detection near entry: longitudinal +/-10 -> +/-20 m, lateral +/-2.3 -> +/-4.2 m; nearby R2 labels no longer hide entry-side objects. May conservatively slow for adjacent traffic.
+Hold release: entry+10 -> entry+20 m. Ordinary S11 brake remains 0.65; min target 30 km/h retained.
+Tests: S11 41, driving stability 23, tracking debug 11, UDP 6, total 81 passed.
+Limit: same recorded poses/speeds; no closed-loop MORAI collision validation, no conversion of brake percentage into guaranteed physical deceleration.

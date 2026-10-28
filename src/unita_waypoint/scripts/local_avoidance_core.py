@@ -3,9 +3,86 @@
 The state flow follows the RoboRacer raceline/trailing/overtake/recovery idea.
 All geometry and speed limits belong to this vehicle and its saved map.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 import time
+
+APPROACH = (62.92, 153.98)
+ENTRY = (64., 125.85)
+LENGTH = math.dist(APPROACH, ENTRY)
+TANGENT = ((ENTRY[0]-APPROACH[0])/LENGTH, (ENTRY[1]-APPROACH[1])/LENGTH)
+S11_ENTRY_FRONT_RANGE_M = 65.
+
+
+def s11_entry_coordinates(point):
+    dx,dy=point[0]-APPROACH[0],point[1]-APPROACH[1]
+    return dx*TANGENT[0]+dy*TANGENT[1], -dx*TANGENT[1]+dy*TANGENT[0]
+
+
+def s11_entry_monitor_active(point):
+    along,lateral=s11_entry_coordinates(point)
+    # Start watching up to 40 m before the user's approach point; a 28 m
+    # braking window alone is too short for the recorded ~85 km/h arrival.
+    return -40. <= along <= LENGTH+10. and abs(lateral) <= 6.
+
+
+class EntryGuard:
+    def __init__(self):
+        self.active=False
+        self.blocker=None
+        self.clear_since=None
+        self.clear_stamp=None
+        self.clear_votes=0
+
+    def release_if_clear(self, clear, stamp):
+        """Require two fresh clear observations spanning 0.15 s, never dropout."""
+        if not clear or stamp is None or (self.clear_stamp is not None and stamp < self.clear_stamp):
+            self.clear_since=None
+            self.clear_stamp=None
+            self.clear_votes=0
+            return False
+        if self.clear_stamp is not None and stamp-self.clear_stamp > .5:
+            self.clear_since=None
+            self.clear_votes=0
+        if stamp != self.clear_stamp:
+            self.clear_stamp=stamp
+            self.clear_votes+=1
+            if self.clear_since is None:
+                self.clear_since=stamp
+        if self.clear_votes >= 2 and stamp-self.clear_since >= .15:
+            self.active=False
+            return True
+        return False
+
+    def update(self, sector, lane, ego, obstacles, speed_mps=0.):
+        if sector != 11 or not s11_entry_monitor_active(ego):
+            self.__init__()
+            return False
+        if self.active:
+            return True  # Hold through short occlusion and through the entry.
+        if lane != 1:
+            return False
+        for o in obstacles:
+            if o.road_surface:
+                continue
+            along,lateral=s11_entry_coordinates((o.x,o.y))
+            at_entry = abs(along-LENGTH) <= 10. and abs(lateral) <= 2.3
+            ego_along, _ = s11_entry_coordinates(ego)
+            eta = (LENGTH-ego_along)/max(speed_mps, 1.)
+            if (not at_entry and 0. < eta <= 3. and o.confirmed
+                    and o.velocity_reliable and not o.predicted):
+                future, side = s11_entry_coordinates((o.x+o.vx*eta, o.y+o.vy*eta))
+                at_entry = abs(future-LENGTH) <= 10. and abs(side) <= 2.3
+            if not at_entry:
+                continue
+            if o.lane_stable and o.lane_sector==11 and o.raceline in (2,3) and not o.lane_boundary_crossing:
+                continue
+            if self.blocker is None or self.blocker.track_id != o.track_id:
+                self.release_if_clear(False, None)
+            self.active=True
+            self.blocker=o
+            return True
+        return False
 
 
 def distance(a, b):
@@ -233,6 +310,7 @@ class LocalAvoidancePlanner:
         self.s11_forward_only = bool(s11_forward_only)
         self.s11_reached_lane = None
         self.s11_change_path = []
+        self.s11_entry_guard = EntryGuard()
         self.idm_time_gap_s = idm_time_gap_s
         self.idm_min_gap_m = idm_min_gap_m
         self.idm_accel_mps2 = idm_accel_mps2
@@ -866,14 +944,64 @@ class LocalAvoidancePlanner:
                      for n in sorted({1, 2, 3} | set(self.lanes))}
         available = {n: point for n, point in available.items() if point is not None}
         self.current_lane = min(available, key=lambda n: distance(ego_xy, available[n]))
+        self.s11_ego_yaw = ego_yaw
         requested = self._requested_lane(index, ego_xy, ego_yaw)
         if self.sectors[index] != 11:
             self.s11_reached_lane = None
+            self.s11_r1_merge_complete = False
         self.highway_active = self.sectors[index] in self.highway_sectors
         if self.highway_active:
             self.highway_observation_stamp = observation_stamp
-            return self._plan_highway(index, ego_xy, speed_mps, obstacles,
-                                      desired_speed_mps, ahead, progress, available)
+            self.s11_entry_ready = self._s11_entry_observation_ready(ego_xy, observation_stamp)
+            merge = self._s11_r1_merge(index, ego_xy, speed_mps,
+                desired_speed_mps if desired_speed_mps is not None else max(speed_mps,30./3.6),
+                ahead, progress, obstacles, observation_stamp)
+            if merge is not None:
+                self.s11_entry_guard.__init__()
+                merge.speed_cap_kmh = min(merge.speed_cap_kmh,
+                                         self._highway_lane_end_cap(ahead, available))
+                return merge
+            entry_slowdown = self.s11_entry_guard.update(
+                self.sectors[index], self.current_lane, ego_xy, obstacles, speed_mps)
+            if entry_slowdown:
+                # Release the positional latch on measured clearance of the
+                # actual remaining path, including the approved lane change.
+                lane = self.transition['target'] if self.transition else self.current_lane
+                path = self._path(ahead, ego_xy, lane, progress, self.transition)
+                blocker = self.s11_entry_guard.blocker
+                observed = blocker is not None and blocker.track_id > 0 and any(
+                    o.track_id == blocker.track_id and o.confirmed
+                    and o.velocity_reliable and not o.predicted for o in obstacles)
+                desired = desired_speed_mps if desired_speed_mps is not None else speed_mps
+                probe = min(desired, max(35./3.6, speed_mps+10./3.6))
+                previous_emergency = self.highway_emergency
+                try:
+                    lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
+                    clear = (observed and len(path) >= 2 and probe > 30./3.6
+                             and self._idm_cap(speed_mps, desired, lead) >= probe*3.6
+                             and self._highway_path_conflict(path, speed_mps, obstacles) is None
+                             and self._highway_path_conflict(path, probe, obstacles) is None)
+                finally:
+                    self.highway_emergency = previous_emergency
+                if self.s11_entry_guard.release_if_clear(clear, observation_stamp):
+                    entry_slowdown = False
+            if entry_slowdown and self.transition is None:
+                # Hold the current lane until entry clearance is confirmed.
+                path = self._path(ahead, ego_xy, self.current_lane, progress)
+                self.active_lane = self.current_lane if base != self.current_lane else None
+                self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
+                self.highway_emergency = False
+                self.effective_preferred_lane = 3
+                self.preference_reason = 's11_entry_hold_lane'
+                return self._decision('TAILING', path, 30., reason='s11_entry_slowdown')
+            decision = self._plan_highway(index, ego_xy, speed_mps, obstacles,
+                                         desired_speed_mps, ahead, progress, available)
+            if entry_slowdown:
+                # Do not reverse a maneuver already approved before detection.
+                decision.speed_cap_kmh = min(30., decision.speed_cap_kmh)
+                decision.reason = 's11_entry_slowdown:' + decision.reason
+            return decision
+        self.s11_entry_guard.update(self.sectors[index], self.current_lane, ego_xy, [])
         self.preference_reason = 'priority_interval' if requested != self.preferred_lane else 'default_lane'
         preferred = requested if requested in available else base
         if requested not in available:
@@ -1231,7 +1359,7 @@ class LocalAvoidancePlanner:
         duration = 2.*self._highway_length(3.6, v)/max(v, 1.)
         return gap-max(0., v-lead_v)*duration > self.idm_min_gap_m+self.lane_change_gap_m
 
-    def _highway_path_conflict(self, path, speed, obstacles):
+    def _highway_path_conflict(self, path, speed, obstacles, target_speed=None, accel=1.):
         """Predict oriented body overlap at matching times (four-second horizon)."""
         if len(path) < 2:
             return None
@@ -1246,6 +1374,13 @@ class LocalAvoidancePlanner:
             for k in range(steps+1):
                 along = travelled + length*k/steps
                 t = along/max(speed, 1.)
+                if target_speed is not None and target_speed > speed and accel > 0.:
+                    initial = max(speed, 1.)
+                    target = max(initial, target_speed)
+                    ramp_distance = (target**2-initial**2)/(2.*accel)
+                    t = ((math.sqrt(initial**2+2.*accel*along)-initial)/accel
+                         if along <= ramp_distance else
+                         (target-initial)/accel+(along-ramp_distance)/target)
                 if t > 4.:
                     return None
                 x, y = a[0]+tx*length*k/steps, a[1]+ty*length*k/steps
@@ -1283,6 +1418,12 @@ class LocalAvoidancePlanner:
         lateral = distance(ego_xy, available[lane])
         minimum = self._highway_length(lateral, 0.)
         planning_speed = max(v, min(v0, self.sector_min_speed_kmh/3.6))
+        early_accel = self.s11_forward_only and self.sectors[ahead[0][0]] == 11
+        if early_accel:
+            # Reserve curvature room for acceleration from the first merge
+            # command; otherwise the fixed merge cap equals its starting speed.
+            planning_speed = max(planning_speed,
+                min(v0, v+max(0., self.lane_change_speed_boost_kmh)/3.6))
         length = min(self._highway_length(lateral, planning_speed), self._span(current, ahead),
                      self._span(lane, ahead)-8.)
         if length < minimum:
@@ -1296,7 +1437,18 @@ class LocalAvoidancePlanner:
             path = self._path(ahead, ego_xy, lane, progress, transition)
             speed = self._length_speed(lateral, length)
             if len(path) >= 2:
-                if self._highway_path_conflict(path, v, obstacles) is not None:
+                conflict = self._highway_path_conflict(path, v, obstacles)
+                if early_accel and min(planning_speed, speed) > v+.01:
+                    if (current == 1 and lane == 2
+                            and getattr(self, 's11_r1_merge_complete', False)):
+                        # After merging, evaluate gradual acceleration rather
+                        # than assuming the full +10 km/h from time zero.
+                        conflict = conflict or self._highway_path_conflict(
+                            path, v, obstacles, target_speed=min(planning_speed, speed))
+                    else:
+                        conflict = conflict or self._highway_path_conflict(
+                            path, min(planning_speed, speed), obstacles)
+                if conflict is not None:
                     length = max(minimum, length*.85) if length > minimum+1e-6 else minimum-1.
                     continue
                 lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
@@ -1361,6 +1513,297 @@ class LocalAvoidancePlanner:
             return lead
         return None
 
+    def _s11_merge_timed_cap(self, distance_m, v, clear_after, immediate):
+        """Stage braking only if a gradual approach can still yield in time.
+
+        Constant-deceleration approach followed by 30 km/h cruise. Include
+        0.6 s command/brake response allowance and 5 m spatial reserve.
+        Unknown clearance or infeasible timing retains the original target.
+        """
+        floor = 30./3.6
+        response, decel = .6, 3.
+        if (not math.isfinite(clear_after) or distance_m <= 25.
+                or v <= floor or immediate >= v*3.6):
+            return immediate
+        remaining = distance_m-v*response-5.
+        if remaining <= 0.:
+            return immediate
+
+        def arrival(a):
+            if a <= 1e-9:
+                return response+remaining/v
+            slow_distance = (v*v-floor*floor)/(2.*a)
+            if remaining <= slow_distance:
+                return response+(v-math.sqrt(max(floor*floor,v*v-2.*a*remaining)))/a
+            return response+(v-floor)/a+(remaining-slow_distance)/floor
+
+        if arrival(decel) < clear_after:
+            return immediate
+        low, high = 0., decel
+        for _ in range(24):
+            middle = (low+high)/2.
+            if arrival(middle) >= clear_after:
+                high = middle
+            else:
+                low = middle
+        # Replan every scan, but ask for enough speed error to establish braking.
+        next_speed = max(floor,v-high*.8)
+        envelope = math.sqrt(floor*floor+2.*decel*remaining)
+        return max(immediate,min(v,next_speed,envelope)*3.6)
+
+    def _s11_merge_recovery_cap(self, path, v, desired, lead, obstacles, normal):
+        """Recover low merge speed without a tiny per-frame following target."""
+        if (lead is None or v*3.6 > 45. or normal <= v*3.6+.5
+                or not lead[1].confirmed or not lead[1].velocity_reliable
+                or lead[1].predicted):
+            return normal
+        gap = lead[0]-self.front_extent
+        if gap < max(12.,1.2*v) or lead[2] < max(1.,v-1.):
+            return normal
+        comfortable = self._relative_speed_limit(gap,lead[2],
+                             self.idm_comfort_decel_mps2,self.idm_min_gap_m)*3.6
+        target = min(desired*3.6,v*3.6+10.,comfortable,
+                     self._highway_collision_speed(gap,lead[2])*3.6)
+        if (target > normal and self._highway_path_conflict(
+                path,v,obstacles,target_speed=target/3.6) is None):
+            return target
+        return normal
+
+    def _s11_r1_merge(self, index, ego, v, desired, ahead, progress, obstacles, stamp):
+        """Local R1 merge occupancy control; no lane-label assumption for traffic.
+
+        Retain recently measured bodies for 0.8 s across occlusion. Compare
+        arrival intervals at the entry, not just distance to a labelled leader.
+        """
+        along, lateral = s11_entry_coordinates(ego)
+        local = (self.sectors[index] == 11 and -60. <= along <= LENGTH+15.
+                 and abs(lateral) <= 8.)
+        if not local:
+            self.s11_merge_tracks = {}
+            if self.sectors[index] == 11 and along > LENGTH+15. and abs(lateral) <= 8.:
+                self.s11_r1_merge_complete = True
+            return None
+        if along < LENGTH:
+            self.s11_r1_merge_complete = False
+        # Never reverse a maneuver already committed, including a hot restart.
+        if self.transition is not None or self.current_lane != 1:
+            return None
+        path = self._path(ahead, ego, 1, progress)
+        if len(path) < 2:
+            return None
+        tangent = self._tangent(index)
+        yaw = getattr(self, 's11_ego_yaw', None)
+        heading = 0. if yaw is None else abs(math.atan2(
+            math.sin(yaw-math.atan2(tangent[1],tangent[0])),
+            math.cos(yaw-math.atan2(tangent[1],tangent[0]))))
+        centre = self._lane_point(1, ahead[0][1], index)
+        aligned = centre is not None and distance(ego, centre) <= .75 and heading <= math.radians(12.)
+        if along >= LENGTH+8. and aligned:
+            self.s11_merge_tracks = {}
+            self.s11_r1_merge_complete = True
+            return None
+        tracks = getattr(self, 's11_merge_tracks', {})
+        now = stamp
+        if now is not None:
+            tracks = {k:q for k,q in tracks.items() if 0. <= now-q[0] <= .8}
+        else:
+            tracks = {}
+        for o in obstacles:
+            if o.road_surface or o.predicted:
+                continue
+            key = o.track_id if o.track_id > 0 else ('position',round(o.x),round(o.y))
+            previous = tracks.get(key)
+            measured = o.measurement_stamp if o.measurement_stamp > 0. else now
+            if measured is None or now is None or not 0. <= now-measured <= .3:
+                continue
+            motion_floor = None
+            speed = (o.vx*TANGENT[0]+o.vy*TANGENT[1]) if o.velocity_reliable else None
+            side_speed = (-o.vx*TANGENT[1]+o.vy*TANGENT[0]) if o.velocity_reliable else None
+            if previous is not None and .05 <= measured-previous[0] <= .6:
+                old_along = s11_entry_coordinates((previous[1].x,previous[1].y))[0]
+                estimate = (s11_entry_coordinates((o.x,o.y))[0]-old_along)/(measured-previous[0])
+                if 1. <= estimate <= 35.:
+                    speed = estimate
+                    if (previous[2] is not None and previous[2] > 1.
+                            and abs(estimate-previous[2]) <= max(3.,.3*estimate)):
+                        motion_floor = max(0.,min(estimate,previous[2])-2.)
+                    old_side = s11_entry_coordinates((previous[1].x,previous[1].y))[1]
+                    side_estimate = (s11_entry_coordinates((o.x,o.y))[1]-old_side)/(measured-previous[0])
+                    # Reject abrupt face/association jumps, not genuine convergence.
+                    if abs(side_estimate) <= 3.:
+                        side_speed = side_estimate
+            if previous is not None and measured == previous[0]:
+                speed, side_speed, motion_floor = previous[2], previous[3], previous[4]
+            tracks[key] = (measured,o,speed,side_speed,motion_floor)
+        self.s11_merge_tracks = tracks
+        # R1's actual saved centre at the join, rather than a fixed NPC centre box.
+        join = min(path, key=lambda q:abs(s11_entry_coordinates(q)[0]-LENGTH))
+        join_side = s11_entry_coordinates(join)[1]
+        entry_distance = max(0., LENGTH-along-self.front_extent)
+        ego_in = entry_distance/max(v,30./3.6)
+        ego_out = max(0.,LENGTH+12.-along+self.rear_extent)/max(v,30./3.6)
+        cap = float('inf')
+        for measured,o,speed,side_speed,motion_floor in tracks.values():
+            corners = o.corners()
+            # Only this merge controller treats a confirmed vehicle-sized return
+            # as a partial body. Do not alter global detections or tiny clutter.
+            if o.confirmed and max(o.length,o.width) >= .6 and min(o.length,o.width) >= .3:
+                half_l, half_w = max(o.length,4.5)/2., max(o.width,1.9)/2.
+                co, si = math.cos(o.yaw), math.sin(o.yaw)
+                corners = [(o.x+co*x-si*y,o.y+si*x+co*y)
+                           for x,y in ((half_l,half_w),(half_l,-half_w),
+                                       (-half_l,-half_w),(-half_l,half_w))]
+            corners = [s11_entry_coordinates(q) for q in corners]
+            front = max(q[0] for q in corners)
+            rear = min(q[0] for q in corners)
+            age = max(0., now-measured)
+            low, high = ((max(0.,speed-2.),speed+2.) if speed is not None and speed > 1.
+                         else (0.,25.))
+            front += high*age
+            rear += low*age
+            if rear > LENGTH+12.+self.margin or front < LENGTH-65.:
+                continue
+            actor_in = max(0., LENGTH-5.-front)/max(high,1.)
+            actor_out = (max(0.,LENGTH+12.-rear)/low if low > .5 else float('inf'))
+            # Test lateral occupancy at the SAME future times as the arrival
+            # overlap. Current lateral separation cannot exclude a converging car.
+            overlap_in = max(0.,ego_in-.8,actor_in)
+            overlap_out = min(ego_out+.8,actor_out,4.)
+            if overlap_in > overlap_out:
+                continue
+            lateral_low = min(q[1] for q in corners)
+            lateral_high = max(q[1] for q in corners)
+            if side_speed is not None:
+                shifts = [max(-1.5,min(1.5,side_speed*(age+t)))
+                          for t in (overlap_in,overlap_out)]
+                lateral_low += min(shifts)
+                lateral_high += max(shifts)
+            band = self.half_width+self.margin+.5
+            if lateral_low > join_side+band or lateral_high < join_side-band:
+                continue
+            if actor_in <= ego_out+.8 and actor_out+.8 >= ego_in:
+                target = (entry_distance/(actor_out+.8)*3.6 if math.isfinite(actor_out) else 30.)
+                immediate = max(30.,target)
+                planned = self._s11_merge_timed_cap(entry_distance,v,actor_out+.8,immediate)
+                cap = min(cap,planned)
+        self.active_lane = 1 if self.route_lanes[index] != 1 else None
+        self.effective_preferred_lane = 3
+        self.obstacle_horizon_path = path_prefix(path,self.highway_obstacle_horizon_m)
+        # Keep ordinary front protection and the saved R1 end envelope as well.
+        following = obstacles
+        if now is not None:
+            # Keep the merge timing cap, but do not let a false stationary
+            # leader cancel the gradual plan when fresh movement is confirmed.
+            following = []
+            for o in obstacles:
+                q = tracks.get(o.track_id)
+                if (q is not None and q[4] is not None and q[4] > 0.
+                        and o.confirmed and not o.predicted
+                        and 0. <= now-q[0] <= .2 and abs(o.vx)+abs(o.vy) < .1):
+                    o = replace(o,vx=q[4]*TANGENT[0],vy=q[4]*TANGENT[1],
+                                velocity_reliable=True)
+                following.append(o)
+        lead = self._lead(path,ego,following,self.highway_obstacle_horizon_m)
+        normal = min(self._idm_cap(v,desired,lead),self._highway_predictive_cap(path,v,following))
+        if math.isinf(cap):
+            normal = self._s11_merge_recovery_cap(path,v,desired,lead,following,normal)
+        cap = min(cap,normal)
+        return self._decision('TAILING' if cap < desired*3.6 else 'LANE_WAIT',path,cap,lead,
+                              's11_r1_merge_yield' if cap < desired*3.6 else 's11_r1_merge_align')
+
+    def _s11_entry_observation_ready(self, ego_xy, stamp):
+        """Entry-specific observation window, not a general lane-change delay.
+
+        This is an ROI/fresh-scan prerequisite, not proof of unoccluded space.
+        Keep the entry within the extended 65 m ROI with 10 m reserve.
+        """
+        along, lateral = s11_entry_coordinates(ego_xy)
+        in_approach = -100. <= along <= LENGTH+10. and abs(lateral) <= 8.
+        if not in_approach:
+            self.s11_entry_scan_start = None
+            self.s11_entry_scan_last = None
+            self.s11_entry_scan_count = 0
+            return True
+        visible = s11_entry_monitor_active(ego_xy) and LENGTH-along <= 55.
+        last = getattr(self, 's11_entry_scan_last', None)
+        if not visible or stamp is None or (last is not None and (stamp < last or stamp-last > .4)):
+            self.s11_entry_scan_start = None
+            self.s11_entry_scan_last = None
+            self.s11_entry_scan_count = 0
+            return False
+        if stamp != last:
+            self.s11_entry_scan_last = stamp
+            self.s11_entry_scan_count = getattr(self, 's11_entry_scan_count', 0)+1
+            if getattr(self, 's11_entry_scan_start', None) is None:
+                self.s11_entry_scan_start = stamp
+        return (self.s11_entry_scan_count >= 3
+                and stamp-self.s11_entry_scan_start >= .2)
+
+    def _s11_close_merge_reason(self, index, ego_xy, lane, available, v, candidate, obstacles):
+        """Additional margin only for nearby bodies in the destination corridor."""
+        tangent = self._tangent(index)
+        centre = self._lateral_offset(index, ego_xy, available[lane])
+        duration = min(6., candidate['length']/max(v, 30./3.6))
+        for o in obstacles:
+            if o.road_surface or (not o.confirmed and o.radius < .35):
+                continue
+            offsets = [((x-ego_xy[0])*tangent[0]+(y-ego_xy[1])*tangent[1],
+                        -(x-ego_xy[0])*tangent[1]+(y-ego_xy[1])*tangent[0])
+                       for x,y in o.corners()]
+            longs, lats = zip(*offsets)
+            band = self.half_width+self.margin+.25
+            if min(lats) > centre+band or max(lats) < centre-band:
+                continue
+            # Labels can flicker during entry: physical body positions govern.
+            if min(longs) < self.front_extent+1. and max(longs) > -self.rear_extent-1.:
+                return 's11_wait_side_clearance'
+            gap = -self.rear_extent-max(longs)
+            if gap <= 0.:
+                continue
+            reliable = o.confirmed and o.velocity_reliable and not o.predicted
+            # A confirmed unknown/zero track is not proof that a rear car is stopped.
+            known_zero = o.kind == 'static' and reliable
+            if (not reliable or (abs(o.vx)+abs(o.vy) < .1 and not known_zero)) and gap < 20.:
+                return 's11_wait_rear_motion'
+            if reliable:
+                closing = max(0., o.vx*tangent[0]+o.vy*tangent[1]-v)
+                if gap < 25. and gap-closing*duration < self.lane_change_gap_m+1.:
+                    return 's11_wait_rear_margin'
+        return ''
+
+    def _s11_rear_acceleration_cap(self, index, ego_xy, path, v, upper, obstacles):
+        """Prefer acceleration only when it improves a measured rear conflict.
+
+        Check a gradual 1 m/s^2 acceleration, not an instantaneous speed jump.
+        Front/side objects, map, following and geometry limits remain binding.
+        """
+        if not math.isfinite(upper) or upper <= v*3.6+1.:
+            return None
+        tangent = self._tangent(index)
+        rear = []
+        for o in obstacles:
+            along = [(x-ego_xy[0])*tangent[0]+(y-ego_xy[1])*tangent[1]
+                     for x,y in o.corners()]
+            closing = o.vx*tangent[0]+o.vy*tangent[1]-v
+            if (not o.road_surface and o.confirmed and o.velocity_reliable
+                    and not o.predicted and max(along) < -self.rear_extent
+                    and closing > .5):
+                rear.append(o)
+        if not rear:
+            return None
+        baseline = self._highway_path_conflict(path, v, rear)
+        if baseline is None:
+            return None
+        others = [o for o in obstacles if all(o is not r for r in rear)]
+        target = upper/3.6
+        if self._highway_path_conflict(path, v, others, target_speed=target) is not None:
+            return None
+        accelerated = self._highway_path_conflict(path, v, rear, target_speed=target)
+        # A delayed overlap is risk reduction, not proof of collision avoidance.
+        if accelerated is None or accelerated[0] >= baseline[0]+.05:
+            return upper
+        return None
+
     def _s11_forward_transition(self, index, ego_xy, v, v0, progress,
                                 ahead, available, obstacles, edge_cap):
         """Finish the approved increasing-lane change, never steer back."""
@@ -1386,10 +1829,16 @@ class LocalAvoidancePlanner:
         self.active_lane = lane if lane != self.route_lanes[index] else None
         self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
         lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
-        cap = min(edge_cap, self._idm_cap(v, v0, lead),
-                  self._highway_predictive_cap(path, v, obstacles))
+        upper = min(edge_cap, v0*3.6, self._idm_cap(v, v0, lead))
         if transition.get('speed_cap_kmh') is not None:
-            cap = min(cap, transition['speed_cap_kmh'])
+            upper = min(upper, transition['speed_cap_kmh'])
+        rear_accel = self._s11_rear_acceleration_cap(
+            index, ego_xy, path, v, upper, obstacles)
+        if rear_accel is not None:
+            self.highway_emergency = True
+            return self._decision(transition['state'], path, rear_accel, lead,
+                                  's11_rear_risk_accelerate')
+        cap = min(upper, self._highway_predictive_cap(path, v, obstacles))
         reason = ('s11_centerline_capture'
                   if progress >= transition['start']+transition['length'] else 's11_forward_only')
         return self._decision(transition['state'], path, cap, lead, reason)
@@ -1595,6 +2044,9 @@ class LocalAvoidancePlanner:
         for lane in leaders:
             if abs(lane-current) != 1 or (forward_only and lane != current+1):
                 continue
+            if forward_only and current == 1 and not getattr(self, 's11_entry_ready', True):
+                waiting = 's11_wait_entry_observation'
+                continue
             if (forward_only and self.highway_change_end is not None
                     and 0. <= progress-self.highway_change_end < 5.):
                 waiting = 's11_centerline_hold'
@@ -1690,6 +2142,46 @@ class LocalAvoidancePlanner:
             if change is None:
                 waiting = waiting or 'lane_change_no_room'
                 continue
+            if forward_only:
+                candidate, candidate_path, _ = change
+                close_reason = self._s11_close_merge_reason(
+                    index, ego_xy, lane, available, v, candidate, obstacles)
+                if close_reason:
+                    waiting = close_reason
+                    continue
+                # Near the join, do not combine a misaligned entry with a
+                # lateral maneuver beside traffic. No alignment wait on empty roads.
+                along, lateral = s11_entry_coordinates(ego_xy)
+                yaw = getattr(self, 's11_ego_yaw', None)
+                nearby = any(not o.road_surface and distance(ego_xy, (o.x,o.y)) < 20.
+                             for o in obstacles)
+                if current == 1 and abs(along-LENGTH) < 12. and abs(lateral) < 8. and nearby:
+                    tangent = self._tangent(index)
+                    error = (abs(math.atan2(math.sin(yaw-math.atan2(tangent[1],tangent[0])),
+                                           math.cos(yaw-math.atan2(tangent[1],tangent[0]))))
+                             if yaw is not None else 0.)
+                    if error > math.radians(12.):
+                        waiting = 's11_wait_entry_alignment'
+                        continue
+                candidate_lead = self._lead(candidate_path, ego_xy, obstacles, horizon)
+                previous_transition, previous_edge = self.transition, self.lane_end_imminent
+                try:
+                    self.transition = candidate
+                    candidate_edge = self._highway_lane_end_cap(ahead, available)
+                finally:
+                    self.transition, self.lane_end_imminent = previous_transition, previous_edge
+                start_cap = min(v0*3.6, candidate_edge,
+                    self._idm_cap(v, v0, candidate_lead),
+                    self._highway_predictive_cap(candidate_path, v, obstacles),
+                    candidate['speed_cap_kmh'] if candidate['speed_cap_kmh'] is not None else float('inf'))
+                post_merge_r2 = (current == 1 and lane == 2
+                                 and getattr(self, 's11_r1_merge_complete', False))
+                # A safe moving departure need not already offer +5 km/h.
+                # Keep the no-deceleration check and all swept-path/gap tests.
+                required = min(v0*3.6, v*3.6+(.5 if post_merge_r2 else 5.))
+                if start_cap < required-1e-6 or start_cap < v*3.6-.5:
+                    waiting = 'wait_acceleration_room'
+                    continue
             if best is None or incentive > best[0]:
                 best = (incentive, lane, toward, change)
         self.highway_gain_since = {k:v for k,v in getattr(self, 'highway_gain_since', {}).items()

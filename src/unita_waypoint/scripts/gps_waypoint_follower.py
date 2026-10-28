@@ -309,6 +309,10 @@ class GPSWaypointFollower:
             '~sector11_lane_change_accel_gain', 1.))
         self.sector11_lane_change_accel_rate = float(rospy.get_param(
             '~sector11_lane_change_accel_rate', .5))
+        self.sector11_post_change_accel_s = float(rospy.get_param(
+            '~sector11_post_change_accel_s', 1.))
+        if not math.isfinite(self.sector11_post_change_accel_s) or not 0. <= self.sector11_post_change_accel_s <= 5.:
+            raise ValueError('invalid S11 post-change acceleration duration')
         if (not math.isfinite(self.sector11_lane_change_accel_gain)
                 or not 1. <= self.sector11_lane_change_accel_gain <= 3.
                 or not math.isfinite(self.sector11_lane_change_accel_rate)
@@ -1233,6 +1237,27 @@ class GPSWaypointFollower:
             decision.speed_cap_kmh, getattr(self, 'guard_speed_limit', None),
             getattr(self, 'avoidance_speed_kmh', None)))
 
+    def s11_acceleration_phase(self, now):
+        """Boost during the maneuver and for one second after real completion."""
+        if not self.simulator_s11_floor_active():
+            self.s11_last_accel_transition = None
+            self.s11_accel_until = 0.
+            self.s11_last_change_end = None
+            return False
+        planner = getattr(self, 'local_planner', None)
+        transition = getattr(planner, 'transition', None)
+        end = getattr(planner, 'highway_change_end', None)
+        active = (transition is not None and transition.get('state') in
+                  ('LANE_CHANGING', 'RETURNING', 'OVERTAKING'))
+        if (getattr(self, 's11_last_accel_transition', None) is not None
+                and end is not None and end != getattr(self, 's11_last_change_end', None)):
+            self.s11_accel_until = now+getattr(self, 'sector11_post_change_accel_s', 1.)
+        self.s11_last_accel_transition = dict(transition) if active else None
+        self.s11_last_change_end = end
+        if transition is not None and not active:
+            self.s11_accel_until = 0.
+        return active or now < getattr(self, 's11_accel_until', 0.)
+
     def publish_control(
         self,
         steering,
@@ -1295,15 +1320,15 @@ class GPSWaypointFollower:
             limit = getattr(planner, 'avoidance_brake_limit', .35) if soft else 1.
             sample = getattr(self, 'obstacle_stamp', None) if getattr(self, 'enable_local_avoidance', False) else None
             restart_rate = getattr(planner, 'restart_accel_rate', .5)
+            if s11_no_stop:
+                restart_rate = 1.0
             if (roundabout_release
                     and 0. <= self.current_speed_kmh < 5. and velocity > 0.):
                 # Use the confirmed gap promptly: shorten the initial throttle
                 # ramp after yielding, while retaining PID demand and braking.
                 restart_rate = max(restart_rate, 1.)
-            transition = getattr(planner, 'transition', None)
-            if (s11_no_stop and transition is not None
-                    and transition.get('state') in ('LANE_CHANGING', 'RETURNING', 'OVERTAKING')
-                    and velocity > self.current_speed_kmh and output > 0.):
+            acceleration_phase = self.s11_acceleration_phase(now)
+            if (acceleration_phase and velocity > self.current_speed_kmh and output > 0.):
                 # Increase positive pedal response only. Never raise the final
                 # speed target or replace a brake/coast demand with acceleration.
                 output = min(1., output*getattr(self, 'sector11_lane_change_accel_gain', 1.))

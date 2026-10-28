@@ -1,0 +1,179 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -921,14 +921,14 @@
+             self.highway_observation_stamp = observation_stamp
+             entry_slowdown = self.s11_entry_guard.update(
+                 self.sectors[index], self.current_lane, ego_xy, obstacles)
+-            if entry_slowdown and self.transition is None and self.current_lane == 1:
++            if entry_slowdown and self.transition is None:
+                 # Delay new lateral maneuvers until the guarded entry is passed.
+-                path = self._path(ahead, ego_xy, 1, progress)
+-                self.active_lane = 1 if base != 1 else None
++                path = self._path(ahead, ego_xy, self.current_lane, progress)
++                self.active_lane = self.current_lane if base != self.current_lane else None
+                 self.obstacle_horizon_path = path_prefix(path, self.highway_obstacle_horizon_m)
+                 self.highway_emergency = False
+                 self.effective_preferred_lane = 3
+-                self.preference_reason = 's11_entry_hold_r1'
++                self.preference_reason = 's11_entry_hold_lane'
+                 return self._decision('TAILING', path, 30., reason='s11_entry_slowdown')
+             decision = self._plan_highway(index, ego_xy, speed_mps, obstacles,
+                                          desired_speed_mps, ahead, progress, available)
+@@ -1764,6 +1764,23 @@
+             if change is None:
+                 waiting = waiting or 'lane_change_no_room'
+                 continue
++            if forward_only:
++                candidate, candidate_path, _ = change
++                candidate_lead = self._lead(candidate_path, ego_xy, obstacles, horizon)
++                previous_transition, previous_edge = self.transition, self.lane_end_imminent
++                try:
++                    self.transition = candidate
++                    candidate_edge = self._highway_lane_end_cap(ahead, available)
++                finally:
++                    self.transition, self.lane_end_imminent = previous_transition, previous_edge
++                start_cap = min(v0*3.6, candidate_edge,
++                    self._idm_cap(v, v0, candidate_lead),
++                    self._highway_predictive_cap(candidate_path, v, obstacles),
++                    candidate['speed_cap_kmh'] if candidate['speed_cap_kmh'] is not None else float('inf'))
++                required = min(v0*3.6, v*3.6+5.)
++                if start_cap < required-1e-6 or start_cap < v*3.6-.5:
++                    waiting = 'wait_acceleration_room'
++                    continue
+             if best is None or incentive > best[0]:
+                 best = (incentive, lane, toward, change)
+         self.highway_gain_since = {k:v for k,v in getattr(self, 'highway_gain_since', {}).items()
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -309,6 +309,10 @@
+             '~sector11_lane_change_accel_gain', 1.))
+         self.sector11_lane_change_accel_rate = float(rospy.get_param(
+             '~sector11_lane_change_accel_rate', .5))
++        self.sector11_post_change_accel_s = float(rospy.get_param(
++            '~sector11_post_change_accel_s', 1.))
++        if not math.isfinite(self.sector11_post_change_accel_s) or not 0. <= self.sector11_post_change_accel_s <= 5.:
++            raise ValueError('invalid S11 post-change acceleration duration')
+         if (not math.isfinite(self.sector11_lane_change_accel_gain)
+                 or not 1. <= self.sector11_lane_change_accel_gain <= 3.
+                 or not math.isfinite(self.sector11_lane_change_accel_rate)
+@@ -1233,6 +1237,27 @@
+             decision.speed_cap_kmh, getattr(self, 'guard_speed_limit', None),
+             getattr(self, 'avoidance_speed_kmh', None)))
+ 
++    def s11_acceleration_phase(self, now):
++        """Boost during the maneuver and for one second after real completion."""
++        if not self.simulator_s11_floor_active():
++            self.s11_last_accel_transition = None
++            self.s11_accel_until = 0.
++            self.s11_last_change_end = None
++            return False
++        planner = getattr(self, 'local_planner', None)
++        transition = getattr(planner, 'transition', None)
++        end = getattr(planner, 'highway_change_end', None)
++        active = (transition is not None and transition.get('state') in
++                  ('LANE_CHANGING', 'RETURNING', 'OVERTAKING'))
++        if (getattr(self, 's11_last_accel_transition', None) is not None
++                and end is not None and end != getattr(self, 's11_last_change_end', None)):
++            self.s11_accel_until = now+getattr(self, 'sector11_post_change_accel_s', 1.)
++        self.s11_last_accel_transition = dict(transition) if active else None
++        self.s11_last_change_end = end
++        if transition is not None and not active:
++            self.s11_accel_until = 0.
++        return active or now < getattr(self, 's11_accel_until', 0.)
++
+     def publish_control(
+         self,
+         steering,
+@@ -1300,10 +1325,8 @@
+                 # Use the confirmed gap promptly: shorten the initial throttle
+                 # ramp after yielding, while retaining PID demand and braking.
+                 restart_rate = max(restart_rate, 1.)
+-            transition = getattr(planner, 'transition', None)
+-            if (s11_no_stop and transition is not None
+-                    and transition.get('state') in ('LANE_CHANGING', 'RETURNING', 'OVERTAKING')
+-                    and velocity > self.current_speed_kmh and output > 0.):
++            acceleration_phase = self.s11_acceleration_phase(now)
++            if (acceleration_phase and velocity > self.current_speed_kmh and output > 0.):
+                 # Increase positive pedal response only. Never raise the final
+                 # speed target or replace a brake/coast demand with acceleration.
+                 output = min(1., output*getattr(self, 'sector11_lane_change_accel_gain', 1.))
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -128,6 +128,7 @@
+     <param name="sector11_max_cruise_brake" value="0.65"/>
+     <param name="sector11_lane_change_accel_gain" value="1.5"/>
+     <param name="sector11_lane_change_accel_rate" value="2.0"/>
++    <param name="sector11_post_change_accel_s" value="1.0"/>
+     <param name="sector11_brake_rise_rate" value="1.0"/>
+     <param name="sector11_brake_deadband_kmh" value="1.0"/>
+     <param name="rear_extent_m" value="0.790"/>
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_accel_start_hold.py
+@@ -0,0 +1,67 @@
++import unittest
++from unittest.mock import MagicMock, patch
++import test_s11_lane_change_accel as pedals
++import test_s11_entry_slowdown as entry
++import test_highway_planner as f
++
++
++class AccelStartHoldTests(unittest.TestCase):
++    def test_small_following_speed_increment_defers_lane_change(self):
++        p=f.planner(s11_forward_only=True)
++        p._idm_cap=MagicMock(return_value=61.8)
++        d=p.plan(60,(60.,0.),60./3.6,[],desired_speed_mps=100./3.6)
++        self.assertIsNone(p.transition)
++        self.assertEqual(d.reason,'wait_acceleration_room')
++        p._idm_cap.return_value=70.
++        d=p.plan(60,(60.,0.),60./3.6,[],desired_speed_mps=100./3.6)
++        self.assertEqual(p.transition['target'],2)
++        self.assertGreaterEqual(d.speed_cap_kmh,65.)
++
++    def test_map_limit_does_not_require_exceeding_limit_to_change(self):
++        p=f.planner(s11_forward_only=True)
++        p.plan(60,(60.,0.),60./3.6,[],desired_speed_mps=60./3.6)
++        self.assertIsNotNone(p.transition)
++
++    def test_entry_latch_holds_r2_without_returning_to_r1(self):
++        p=entry.planner();p.s11_entry_guard.active=True
++        d=p.plan(60,entry.point(0.,3.6),30./3.6,[],desired_speed_mps=100./3.6)
++        self.assertIsNone(p.transition)
++        self.assertEqual(p.current_lane,2)
++        self.assertEqual(d.speed_cap_kmh,30.)
++        self.assertTrue(all(abs(entry.f.core.s11_entry_coordinates(x)[1]-3.6)<1e-6 for x in d.path))
++
++    def test_boost_continues_for_exactly_one_second_after_completion(self):
++        n=pedals.LaneChangeAccelerationTests().follower()
++        n.sector11_post_change_accel_s=1.
++        n.local_planner.highway_change_end=None
++        self.assertTrue(n.s11_acceleration_phase(10.))
++        n.local_planner.transition=None;n.local_planner.highway_change_end=100.
++        self.assertTrue(n.s11_acceleration_phase(11.))
++        self.assertTrue(n.s11_acceleration_phase(11.999))
++        self.assertFalse(n.s11_acceleration_phase(12.))
++        self.assertFalse(n.s11_acceleration_phase(12.1))
++
++    def test_post_completion_pedal_uses_fast_ramp_and_brake_still_wins(self):
++        n=pedals.LaneChangeAccelerationTests().follower()
++        n.local_planner.highway_change_end=None
++        with patch('gps_waypoint_follower.time.monotonic',return_value=10.):n.publish_control(0.,80.)
++        n.local_planner.transition=None;n.local_planner.highway_change_end=100.
++        with patch('gps_waypoint_follower.time.monotonic',return_value=10.05):n.publish_control(0.,80.)
++        self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,.2)
++        n.speed_pid.update.return_value=-1.
++        with patch('gps_waypoint_follower.time.monotonic',return_value=10.1):n.publish_control(0.,30.)
++        self.assertEqual(n.ctrl_pub.publish.call_args.args[0].accel,0.)
++        self.assertGreater(n.ctrl_pub.publish.call_args.args[0].brake,0.)
++
++    def test_dropout_or_sector_exit_does_not_create_tail_boost(self):
++        n=pedals.LaneChangeAccelerationTests().follower()
++        n.local_planner.highway_change_end=None
++        n.s11_acceleration_phase(10.)
++        n.local_planner.transition=None
++        self.assertFalse(n.s11_acceleration_phase(10.1))
++        n.s11_accel_until=20.;n.route_sectors=[12]
++        self.assertFalse(n.s11_acceleration_phase(10.2))
++        self.assertEqual(n.s11_accel_until,0.)
++
++
++if __name__=='__main__':unittest.main()

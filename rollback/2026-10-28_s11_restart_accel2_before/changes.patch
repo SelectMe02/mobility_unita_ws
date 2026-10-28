@@ -1,0 +1,36 @@
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -1320,6 +1320,8 @@
+             limit = getattr(planner, 'avoidance_brake_limit', .35) if soft else 1.
+             sample = getattr(self, 'obstacle_stamp', None) if getattr(self, 'enable_local_avoidance', False) else None
+             restart_rate = getattr(planner, 'restart_accel_rate', .5)
++            if s11_no_stop:
++                restart_rate = 2.0
+             if (roundabout_release
+                     and 0. <= self.current_speed_kmh < 5. and velocity > 0.):
+                 # Use the confirmed gap promptly: shorten the initial throttle
+--- a/src/unita_waypoint/test/test_s11_lane_change_accel.py
++++ b/src/unita_waypoint/test/test_s11_lane_change_accel.py
+@@ -34,11 +34,11 @@
+                 n.publish_control(0.,80.)
+         self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,1.)
+ 
+-    def test_other_sectors_cancellation_and_no_transition_keep_old_ramp(self):
++    def test_s11_general_ramp_is_fast_and_other_sectors_keep_old_ramp(self):
+         for state,sector in ((None,11),('CANCELLING',11),('LANE_CHANGING',9),('LANE_CHANGING',12)):
+             n=self.follower(state,sector)
+             n.publish_control(0.,80.)
+-            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,.025)
++            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,.1 if sector==11 else .025)
+ 
+     def test_braking_cancels_throttle_without_delay(self):
+         n=self.follower()
+@@ -54,7 +54,7 @@
+         for demand,target in ((0.,80.),(.2,60.),(.2,55.)):
+             n=self.follower();n.speed_pid.update.return_value=demand
+             n.publish_control(0.,target)
+-            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,0. if demand==0. else .025)
++            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,0. if demand==0. else .1)
+             self.assertEqual(n.requested_target_speed_kmh,target)
+ 
+ 

@@ -25,6 +25,8 @@ from perception_debug import xyz_cloud
 from ground_segmentation import (rotation_rpy, normalized_quaternion, quaternion_at,
                                  level_rotation, segment_ground)
 
+from local_avoidance_core import (s11_entry_monitor_active as entry_monitor_active,
+                                  S11_ENTRY_FRONT_RANGE_M as ENTRY_FRONT_RANGE_M)
 
 def road_obstacle_mask(points, front_range=55., rear_range=55., side_range=12.,
                        half_width=.946, front_extent=3.845, rear_extent=.790,
@@ -433,7 +435,7 @@ class LidarObstacles:
             if not self.imus or stamp > self.imus[-1][0]:
                 self.imus.append((stamp, orientation))
 
-    def filter_ground(self, raw, stamp, side_range=None):
+    def filter_ground(self, raw, stamp, side_range=None, front_range=None):
         points = raw @ self.body_from_lidar.T + [self.lidar_x, self.lidar_y, self.lidar_z]
         with self.lock:
             samples = list(self.imus)
@@ -445,7 +447,7 @@ class LidarObstacles:
         if q is not None:
             rotation, status['roll_deg'], status['pitch_deg'] = level_rotation(q, self.body_from_imu)
             points = points @ rotation.T
-        eligible = road_roi_mask(points, self.front_range, self.rear_range,
+        eligible = road_roi_mask(points, self.front_range if front_range is None else front_range, self.rear_range,
                                  self.side_range if side_range is None else side_range,
                                  self.half_width, self.front_extent, self.rear_extent)
         near = eligible & (np.abs(points[:, 0]) < 12.) & (np.abs(points[:, 1]) < 3.)
@@ -585,8 +587,12 @@ class LidarObstacles:
         points = np.asarray(list(point_cloud2.read_points(
             msg, field_names=('x', 'y', 'z'), skip_nans=True)), dtype=float)
         points = points.reshape((-1, 3))
+        entry_active = entry_monitor_active(pose[:2])
+        front_range = max(self.front_range, ENTRY_FRONT_RANGE_M) if entry_active else self.front_range
         points, ground, mask, status = self.filter_ground(
-            points, stamp, self.roundabout_side_range if roundabout_active else None)
+            points, stamp, self.roundabout_side_range if roundabout_active else None,
+            front_range=front_range)
+        status.update(s11_entry_monitor_active=entry_active, effective_front_range_m=front_range)
         self.last_filter_wall = time.monotonic()
         status['cloud_age_s'] = age
         status['filter_processing_s'] = time.monotonic()-filter_start

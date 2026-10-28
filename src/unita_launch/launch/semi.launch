@@ -127,7 +127,8 @@
     <param name="sector11_brake_gain" value="0.04"/>
     <param name="sector11_max_cruise_brake" value="0.65"/>
     <param name="sector11_lane_change_accel_gain" value="1.5"/>
-    <param name="sector11_lane_change_accel_rate" value="2.0"/>
+    <param name="sector11_lane_change_accel_rate" value="1.0"/>
+    <param name="sector11_post_change_accel_s" value="1.0"/>
     <param name="sector11_brake_rise_rate" value="1.0"/>
     <param name="sector11_brake_deadband_kmh" value="1.0"/>
     <param name="rear_extent_m" value="0.790"/>

@@ -1,0 +1,107 @@
+{
+  "limitation": "Open-loop replay at recorded ego poses, sampled about 10 Hz; route tangent approximates ego yaw. Not collision or closed-loop validation.",
+  "runs": [
+    {
+      "run": "run_20261028_202123",
+      "old": {
+        "first_r2": {
+          "t": 22.02,
+          "x": 67.03,
+          "y": 36.3,
+          "target": 40.346681594848626
+        },
+        "first_r3": {
+          "t": 26.95,
+          "x": 71.0,
+          "y": -15.05,
+          "target": 52.087646484375
+        },
+        "first_slow": {
+          "t": 11.01,
+          "y": 143.89,
+          "speed": 82.13,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 25,
+          "s11_r1_merge_yield": 17
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 13.41,
+          "x": 65.41,
+          "y": 112.02,
+          "target": 33.55029525951611
+        },
+        "first_r3": {
+          "t": 26.6,
+          "x": 70.94,
+          "y": -11.35,
+          "target": 50.68634033203125
+        },
+        "first_slow": {
+          "t": 11.01,
+          "y": 143.89,
+          "speed": 82.13,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 25,
+          "s11_r1_merge_yield": 17
+        }
+      }
+    },
+    {
+      "run": "run_20261028_202203",
+      "old": {
+        "first_r2": {
+          "t": 20.32,
+          "x": 66.99,
+          "y": 53.51,
+          "target": 43.76803588867187
+        },
+        "first_r3": {
+          "t": 25.18,
+          "x": 70.92,
+          "y": 0.13,
+          "target": 54.5174674987793
+        },
+        "first_slow": {
+          "t": 10.72,
+          "y": 149.08,
+          "speed": 76.26,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 20,
+          "s11_r1_merge_yield": 24
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 14.62,
+          "x": 66.09,
+          "y": 103.3,
+          "target": 31.979109633776076
+        },
+        "first_r3": {
+          "t": 25.01,
+          "x": 70.95,
+          "y": 1.79,
+          "target": 53.9859390258789
+        },
+        "first_slow": {
+          "t": 10.72,
+          "y": 149.08,
+          "speed": 76.26,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 20,
+          "s11_r1_merge_yield": 24
+        }
+      }
+    }
+  ]
+}

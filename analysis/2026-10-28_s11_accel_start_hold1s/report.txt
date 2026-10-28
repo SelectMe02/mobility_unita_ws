@@ -1,0 +1,9 @@
+Source: run_20261028_185236, /waypoint_debug/control_decision in rosbag.
+At +8.302s R1->R2: current 67.88, target 76.99 km/h, accel 0.8095, brake 0.
+During the change the entry/prediction cap subsequently reduces target to 30 km/h.
+At +18.503s R2->R3: current 29.88, target 31.75 km/h, accel 0.1468.
+Small target margin and later speed caps explain weak acceleration despite existing gain 1.5 and rate 2.0/s.
+Changes: require candidate speed cap >= current +5 km/h (bounded by map target), and no more than 0.5 km/h below current; wait in current lane while entry slowdown is latched; retain stronger pedal response for 1.0s after detected completion in S11.
+Existing speed caps/braking still override acceleration. Lane-change start may be later. Does not guarantee sustained acceleration when hazards appear after approval.
+Validation: 48 S11 tests, 49 highway tests, 23 driving stability tests passed. AST/XML parsed; reverse patch applicability checked separately.
+Limitation: recorded-data inspection and unit tests, no closed-loop MORAI validation of revised code.

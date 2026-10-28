@@ -1,0 +1,371 @@
+{
+  "limitation": "Open-loop replay at recorded ego poses, sampled about 10 Hz; route tangent approximates ego yaw. Not collision or closed-loop validation.",
+  "runs": [
+    {
+      "run": "run_20261028_200046",
+      "old": {
+        "first_r2": {
+          "t": 9.78,
+          "x": 62.27,
+          "y": 173.52,
+          "target": 82.90542602539061
+        },
+        "first_r3": {
+          "t": 17.99,
+          "x": 70.73,
+          "y": 67.85,
+          "target": 76.02846527099608
+        },
+        "first_slow": {
+          "t": 10.72,
+          "y": 154.08,
+          "speed": 77.26,
+          "reason": "s11_forward_only"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 11,
+          "s11_wait_rear_motion": 3
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 14.57,
+          "x": 67.89,
+          "y": 110.66,
+          "target": 45.31197616585105
+        },
+        "first_slow": {
+          "t": 11.07,
+          "y": 146.47,
+          "speed": 71.33,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 25,
+          "s11_r1_merge_yield": 31
+        }
+      }
+    },
+    {
+      "run": "run_20261028_200113",
+      "old": {
+        "first_r2": {
+          "t": 10.34,
+          "x": 62.97,
+          "y": 152.78,
+          "target": 90.01298522949219
+        },
+        "first_r3": {
+          "t": 17.98,
+          "x": 70.89,
+          "y": 43.06,
+          "target": 71.53847885131836
+        },
+        "first_slow": {
+          "t": 12.32,
+          "y": 114.05,
+          "speed": 57.71,
+          "reason": "s11_forward_only"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 10,
+          "s11_wait_rear_motion": 5
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 15.37,
+          "x": 69.16,
+          "y": 76.59,
+          "target": 46.326179504394524
+        },
+        "first_slow": {
+          "t": 10.83,
+          "y": 141.85,
+          "speed": 79.59,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 25,
+          "s11_r1_merge_yield": 14,
+          "s11_wait_rear_motion": 8
+        }
+      }
+    },
+    {
+      "run": "run_20261028_200147",
+      "old": {
+        "first_r2": {
+          "t": 10.37,
+          "x": 62.65,
+          "y": 158.16,
+          "target": 84.37970733642578
+        },
+        "first_r3": {
+          "t": 18.91,
+          "x": 70.79,
+          "y": 51.57,
+          "target": 77.66425323486328
+        },
+        "first_slow": {
+          "t": 10.65,
+          "y": 152.41,
+          "speed": 74.14,
+          "reason": "s11_forward_only"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 10,
+          "s11_wait_rear_motion": 1
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 18.46,
+          "x": 70.83,
+          "y": 59.52,
+          "target": 72.59082794189453
+        },
+        "first_slow": {
+          "t": 10.76,
+          "y": 149.82,
+          "speed": 74.17,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 18,
+          "s11_r1_merge_yield": 32,
+          "s11_wait_rear_motion": 14,
+          "s11_wait_rear_margin": 1
+        }
+      }
+    },
+    {
+      "run": "run_20261028_200225",
+      "old": {
+        "first_r2": {
+          "t": 23.57,
+          "x": 67.25,
+          "y": -42.53,
+          "target": 47.27490234375
+        },
+        "first_r3": null,
+        "first_slow": {
+          "t": 5.55,
+          "y": 245.14,
+          "speed": 50.27,
+          "reason": "highway_idm"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 10,
+          "s11_wait_rear_motion": 9
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 23.57,
+          "x": 67.25,
+          "y": -42.53,
+          "target": 47.27490234375
+        },
+        "first_r3": null,
+        "first_slow": {
+          "t": 5.55,
+          "y": 245.14,
+          "speed": 50.27,
+          "reason": "highway_idm"
+        },
+        "waits": {
+          "s11_r1_merge_align": 27,
+          "s11_r1_merge_yield": 12,
+          "s11_wait_rear_motion": 9
+        }
+      }
+    },
+    {
+      "run": "run_20261028_200310",
+      "old": {
+        "first_r2": {
+          "t": 14.3,
+          "x": 67.9,
+          "y": 92.16,
+          "target": 47.47624969482421
+        },
+        "first_r3": {
+          "t": 19.35,
+          "x": 70.89,
+          "y": 36.58,
+          "target": 71.02235794067384
+        },
+        "first_slow": {
+          "t": 13.1,
+          "y": 106.08,
+          "speed": 48.39,
+          "reason": "merge_zone_yield"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 10
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 14.3,
+          "x": 67.9,
+          "y": 92.16,
+          "target": 47.47624969482421
+        },
+        "first_r3": {
+          "t": 19.35,
+          "x": 70.89,
+          "y": 36.58,
+          "target": 71.02235794067384
+        },
+        "first_slow": {
+          "t": 13.1,
+          "y": 106.08,
+          "speed": 48.39,
+          "reason": "merge_zone_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 27,
+          "s11_r1_merge_yield": 13
+        }
+      }
+    },
+    {
+      "run": "run_20261028_200357",
+      "old": {
+        "first_r2": {
+          "t": 9.52,
+          "x": 62.27,
+          "y": 173.71,
+          "target": 85.01882934570312
+        },
+        "first_r3": {
+          "t": 17.77,
+          "x": 70.79,
+          "y": 70.26,
+          "target": 74.78298950195311
+        },
+        "first_slow": {
+          "t": 10.37,
+          "y": 156.12,
+          "speed": 75.76,
+          "reason": "s11_forward_only"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 11
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 14.42,
+          "x": 67.64,
+          "y": 112.34,
+          "target": 45.92022522255431
+        },
+        "first_slow": {
+          "t": 10.77,
+          "y": 148.15,
+          "speed": 65.08,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 28,
+          "s11_r1_merge_yield": 30
+        }
+      }
+    },
+    {
+      "run": "run_20261028_200435",
+      "old": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 21.68,
+          "x": 70.18,
+          "y": 0.33,
+          "target": 41.987961854169356
+        },
+        "first_slow": {
+          "t": 19.18,
+          "y": 21.65,
+          "speed": 32.11,
+          "reason": "merge_zone_yield"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 10,
+          "s11_wait_rear_motion": 7,
+          "s11_wait_rear_margin": 4
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 21.68,
+          "x": 70.18,
+          "y": 0.33,
+          "target": 41.987961854169356
+        },
+        "first_slow": {
+          "t": 11.18,
+          "y": 142.41,
+          "speed": 73.72,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 27,
+          "s11_r1_merge_yield": 12,
+          "s11_wait_rear_margin": 4
+        }
+      }
+    },
+    {
+      "run": "run_20261028_200517",
+      "old": {
+        "first_r2": {
+          "t": 11.33,
+          "x": 64.02,
+          "y": 134.81,
+          "target": 79.67872619628906
+        },
+        "first_r3": {
+          "t": 23.58,
+          "x": 70.95,
+          "y": -10.98,
+          "target": 57.461570739746094
+        },
+        "first_slow": {
+          "t": 11.08,
+          "y": 139.26,
+          "speed": 71.04,
+          "reason": "merge_zone_yield"
+        },
+        "waits": {
+          "s11_wait_entry_observation": 11
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": {
+          "t": 23.58,
+          "x": 70.95,
+          "y": -10.98,
+          "target": 57.461570739746094
+        },
+        "first_slow": {
+          "t": 9.93,
+          "y": 163.16,
+          "speed": 75.51,
+          "reason": "s11_r1_merge_yield"
+        },
+        "waits": {
+          "s11_r1_merge_align": 25,
+          "s11_r1_merge_yield": 16
+        }
+      }
+    }
+  ]
+}

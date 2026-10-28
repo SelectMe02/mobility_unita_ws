@@ -1,0 +1,69 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -1513,6 +1513,24 @@
+             return lead
+         return None
+ 
++    def _s11_merge_recovery_cap(self, path, v, desired, lead, obstacles, normal):
++        """Recover low merge speed without a tiny per-frame following target."""
++        if (lead is None or v*3.6 > 45. or normal <= v*3.6+.5
++                or not lead[1].confirmed or not lead[1].velocity_reliable
++                or lead[1].predicted):
++            return normal
++        gap = lead[0]-self.front_extent
++        if gap < max(12.,1.2*v) or lead[2] < max(1.,v-1.):
++            return normal
++        comfortable = self._relative_speed_limit(gap,lead[2],
++                             self.idm_comfort_decel_mps2,self.idm_min_gap_m)*3.6
++        target = min(desired*3.6,v*3.6+10.,comfortable,
++                     self._highway_collision_speed(gap,lead[2])*3.6)
++        if (target > normal and self._highway_path_conflict(
++                path,v,obstacles,target_speed=target/3.6) is None):
++            return target
++        return normal
++
+     def _s11_r1_merge(self, index, ego, v, desired, ahead, progress, obstacles, stamp):
+         """Local R1 merge occupancy control; no lane-label assumption for traffic.
+ 
+@@ -1647,6 +1665,8 @@
+                 following.append(o)
+         lead = self._lead(path,ego,following,self.highway_obstacle_horizon_m)
+         normal = min(self._idm_cap(v,desired,lead),self._highway_predictive_cap(path,v,following))
++        if math.isinf(cap):
++            normal = self._s11_merge_recovery_cap(path,v,desired,lead,following,normal)
+         cap = min(cap,normal)
+         return self._decision('TAILING' if cap < desired*3.6 else 'LANE_WAIT',path,cap,lead,
+                               's11_r1_merge_yield' if cap < desired*3.6 else 's11_r1_merge_align')
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_merge_speed_recovery.py
+@@ -0,0 +1,30 @@
++import unittest
++import test_highway_planner as f
++
++class MergeSpeedRecoveryTests(unittest.TestCase):
++    def setUp(self):
++        self.p=f.planner(s11_forward_only=True)
++        self.path=[(float(x),0.) for x in range(80)]
++
++    def cap(self,car,normal=31.9,v=30./3.6,others=()):
++        return self.p._s11_merge_recovery_cap(self.path,v,100./3.6,
++                  (car.x,car,car.vx),[car]+list(others),normal)
++
++    def test_clear_moving_front_gap_allows_meaningful_recovery_target(self):
++        self.assertAlmostEqual(self.cap(f.car(30.,1,10.)),40.)
++
++    def test_close_or_stationary_front_still_limits_speed(self):
++        self.assertEqual(self.cap(f.car(8.,1,10.)),31.9)
++        self.assertEqual(self.cap(f.car(30.,1,0.)),31.9)
++
++    def test_uncertain_motion_and_brake_demand_not_overridden(self):
++        car=f.car(30.,1,10.);car.velocity_reliable=False
++        self.assertEqual(self.cap(car),31.9)
++        car.velocity_reliable=True
++        self.assertEqual(self.cap(car,normal=28.),28.)
++        self.assertEqual(self.cap(car,normal=52.,v=50./3.6),52.)
++
++    def test_other_obstacle_blocks_acceleration(self):
++        self.assertEqual(self.cap(f.car(30.,1,10.),others=[f.car(15.,1,0.)]),31.9)
++
++if __name__=='__main__':unittest.main()

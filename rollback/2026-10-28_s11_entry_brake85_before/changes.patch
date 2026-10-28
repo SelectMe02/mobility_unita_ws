@@ -1,0 +1,165 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -23,7 +23,7 @@
+     along,lateral=s11_entry_coordinates(point)
+     # Start watching up to 40 m before the user's approach point; a 28 m
+     # braking window alone is too short for the recorded ~85 km/h arrival.
+-    return -40. <= along <= LENGTH+10. and abs(lateral) <= 6.
++    return -40. <= along <= LENGTH+20. and abs(lateral) <= 6.
+ 
+ 
+ class EntryGuard:
+@@ -44,10 +44,11 @@
+             if o.road_surface:
+                 continue
+             along,lateral=s11_entry_coordinates((o.x,o.y))
+-            if abs(along-LENGTH)>10. or abs(lateral)>2.3:
+-                continue
+-            if o.lane_stable and o.lane_sector==11 and o.raceline in (2,3) and not o.lane_boundary_crossing:
+-                continue
++            if abs(along-LENGTH)>20. or abs(lateral)>4.2:
++                continue
++            # Entry-side faces can be labelled R2 before the full vehicle
++            # enters R1 (18:22 bag). Geometry at this narrow entry overrides
++            # that label within 4.2 m; farther R2/R3 traffic stays excluded.
+             self.active=True
+             self.blocker=o
+             return True
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -314,6 +314,11 @@
+                 or not math.isfinite(self.sector11_lane_change_accel_rate)
+                 or not 0. < self.sector11_lane_change_accel_rate <= 10.):
+             raise ValueError('invalid S11 lane-change acceleration settings')
++        self.sector11_entry_brake = CruiseBrake(
++            gain=float(rospy.get_param('~sector11_entry_brake_gain', .08)),
++            max_brake=float(rospy.get_param('~sector11_entry_max_brake', .85)),
++            rise_rate=float(rospy.get_param('~sector11_entry_brake_rise_rate', 3.)),
++            deadband_kmh=1.)
+         self.sector11_cruise_brake = None
+         if rospy.get_param('~sector11_smooth_braking', False):
+             self.sector11_cruise_brake = CruiseBrake(
+@@ -1259,6 +1264,20 @@
+             output = self.speed_pid.update(
+                 velocity, self.current_speed_kmh, dt)
+             cruise_brake = getattr(self, 'sector11_cruise_brake', None)
++            entry_brake = getattr(self, 'sector11_entry_brake', None)
++            entry_slowdown = (s11_no_stop and entry_brake is not None
++                and getattr(self, 'lane_change_reason', '').startswith('s11_entry_slowdown'))
++            if entry_slowdown:
++                if cruise_brake is not None:
++                    cruise_brake.reset()
++                cruise_brake = entry_brake
++                # A falling speed target must not be weakened by PID integral
++                # history or derivative transients while the entry is occupied.
++                overspeed = max(0., self.current_speed_kmh-velocity-1.)
++                if overspeed > 0.:
++                    output = min(output, -min(entry_brake.max_brake, entry_brake.gain*overspeed))
++            elif entry_brake is not None:
++                entry_brake.reset()
+             smooth = (cruise_brake is not None and velocity > 0.
+                       and self.sector11_cruise_braking_allowed())
+             if smooth:
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -124,6 +124,9 @@
+     <!-- Simulator-only S11 floor also overrides blocked/stale-input stops. -->
+     <param name="simulator_s11_no_stop" value="$(arg simulator_s11_no_stop)"/>
+     <param name="sector11_smooth_braking" value="true"/>
++    <param name="sector11_entry_max_brake" value="0.85"/>
++    <param name="sector11_entry_brake_rise_rate" value="3.0"/>
++    <param name="sector11_entry_brake_gain" value="0.08"/>
+     <param name="sector11_brake_gain" value="0.04"/>
+     <param name="sector11_max_cruise_brake" value="0.65"/>
+     <param name="sector11_lane_change_accel_gain" value="1.5"/>
+--- a/src/unita_waypoint/test/test_s11_entry_slowdown.py
++++ b/src/unita_waypoint/test/test_s11_entry_slowdown.py
+@@ -48,11 +48,10 @@
+         self.assertNotEqual(d.reason,'s11_entry_slowdown')
+ 
+     def test_other_lane_road_and_outside_region_do_not_trigger(self):
+-        for o in (npc(3.6),npc(7.2),npc(road_surface=True),
+-                  npc(lane_stable=True,lane_sector=11,raceline=2,lane_boundary_crossing=False)):
++        for o in (npc(4.3),npc(7.2),npc(road_surface=True)):
+             p=planner();p.plan(60,point(0.),20.,[o],desired_speed_mps=25.)
+             self.assertFalse(p.s11_entry_guard.active)
+-        o=npc();o.x,o.y=point(f.core.LENGTH+15.)
++        o=npc();o.x,o.y=point(f.core.LENGTH+25.)
+         self.assertFalse(f.core.EntryGuard().update(11,1,point(0.),[o]))
+ 
+     def test_new_or_occluded_npc_keeps_30_until_entry_passed(self):
+@@ -61,7 +60,7 @@
+         d=p.plan(90,point(30.),10.,[],desired_speed_mps=25.)
+         self.assertEqual(d.speed_cap_kmh,30.)
+         self.assertIsNone(p.transition)
+-        p.plan(100,point(40.),10.,[],desired_speed_mps=25.)
++        p.plan(110,point(50.),10.,[],desired_speed_mps=25.)
+         self.assertFalse(p.s11_entry_guard.active)
+         self.assertIsNotNone(p.transition)
+         self.assertEqual(p.transition['target'],2)
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_entry_brake.py
+@@ -0,0 +1,63 @@
++import unittest
++from pathlib import Path
++from unittest.mock import MagicMock,patch
++import xml.etree.ElementTree as ET
++import test_s11_min30 as fixture
++import test_s11_entry_slowdown as entry
++from pedal_guard import CruiseBrake
++
++
++class EntryBrakeTests(unittest.TestCase):
++    def follower(self):
++        n=fixture.S11Min30Tests().follower()
++        node=ET.parse(Path(__file__).resolve().parents[2]/'unita_launch/launch/semi.launch').find("node[@name='gps_waypoint_follower']")
++        def param(name):return float(node.find("param[@name='%s']"%name).get('value'))
++        n.sector11_entry_brake=CruiseBrake(gain=param('sector11_entry_brake_gain'),
++            max_brake=param('sector11_entry_max_brake'),rise_rate=param('sector11_entry_brake_rise_rate'))
++        n.lane_change_reason='s11_entry_slowdown'
++        return n
++
++    def test_entry_reaches_85_percent_within_point3_seconds_even_with_pid_accel(self):
++        n=self.follower();n.current_speed_kmh=83.
++        n.speed_pid.update=MagicMock(return_value=1.)
++        for i in range(6):
++            with patch('gps_waypoint_follower.time.monotonic',return_value=10.+i*.05):n.publish_control(0.,30.)
++            cmd=n.ctrl_pub.publish.call_args.args[0]
++            self.assertAlmostEqual(cmd.brake,min(.85,.15*(i+1)))
++            self.assertEqual(cmd.accel,0.)
++
++    def test_braking_tapers_and_releases_at_31(self):
++        n=self.follower();n.sector11_entry_brake.brake=.85
++        n.speed_pid.update=MagicMock(return_value=-1.)
++        for speed,brake in ((40.,.72),(35.,.32),(32.,.08),(31.,0.),(30.,0.),(29.,0.)):
++            n.current_speed_kmh=speed;n.publish_control(0.,0.)
++            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].brake,brake)
++            self.assertEqual(n.requested_target_speed_kmh,30.)
++
++    def test_entry_brake_does_not_leak_into_normal_s11_or_other_sector(self):
++        for reason,sector in (('s11_forward_only',11),('s11_entry_slowdown',10)):
++            n=self.follower();n.sector11_entry_brake.brake=.85
++            n.lane_change_reason=reason;n.route_sectors=[sector]
++            n.speed_pid.update=MagicMock(return_value=0.)
++            n.publish_control(0.,60.)
++            self.assertEqual(n.sector11_entry_brake.brake,0.)
++            self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake,0.)
++
++    def test_bag_r2_edge_detection_triggers_before_entry(self):
++        p=entry.planner()
++        o=entry.npc(lane_stable=True,lane_sector=11,raceline=2,lane_boundary_crossing=False)
++        o.x,o.y=67.,144.4
++        d=p.plan(44,entry.point(-16.),77.54/3.6,[o],desired_speed_mps=100./3.6)
++        self.assertEqual(d.reason,'s11_entry_slowdown')
++        self.assertEqual(d.speed_cap_kmh,30.)
++        self.assertIsNone(p.transition)
++
++    def test_latch_extends_past_old_release_point(self):
++        p=entry.planner()
++        p.plan(60,entry.point(0.),20.,[entry.npc()],desired_speed_mps=25.)
++        d=p.plan(103,entry.point(43.),10.,[],desired_speed_mps=25.)
++        self.assertEqual(d.reason,'s11_entry_slowdown')
++        self.assertEqual(d.speed_cap_kmh,30.)
++
++
++if __name__=='__main__':unittest.main()

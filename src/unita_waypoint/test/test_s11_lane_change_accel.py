@@ -19,7 +19,7 @@ class LaneChangeAccelerationTests(unittest.TestCase):
     def test_positive_pedal_demand_is_amplified_with_faster_ramp(self):
         for state in ('LANE_CHANGING','RETURNING','OVERTAKING'):
             n = self.follower(state)
-            for step,expected in enumerate((.1,.2,.3,.3)):
+            for step,expected in enumerate((.05,.1,.15,.2)):
                 with patch('gps_waypoint_follower.time.monotonic',return_value=10.+step*.05):
                     n.publish_control(0.,80.)
                 cmd=n.ctrl_pub.publish.call_args.args[0]
@@ -27,18 +27,18 @@ class LaneChangeAccelerationTests(unittest.TestCase):
                 self.assertEqual(cmd.brake,0.)
                 self.assertEqual(n.requested_target_speed_kmh,80.)
 
-    def test_full_demand_reaches_one_in_half_second(self):
+    def test_full_demand_reaches_one_in_one_second(self):
         n=self.follower();n.speed_pid.update.return_value=1.
-        for step in range(10):
+        for step in range(20):
             with patch('gps_waypoint_follower.time.monotonic',return_value=10.+step*.05):
                 n.publish_control(0.,80.)
         self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,1.)
 
-    def test_other_sectors_cancellation_and_no_transition_keep_old_ramp(self):
+    def test_s11_general_ramp_is_fast_and_other_sectors_keep_old_ramp(self):
         for state,sector in ((None,11),('CANCELLING',11),('LANE_CHANGING',9),('LANE_CHANGING',12)):
             n=self.follower(state,sector)
             n.publish_control(0.,80.)
-            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,.025)
+            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,.05 if sector==11 else .025)
 
     def test_braking_cancels_throttle_without_delay(self):
         n=self.follower()
@@ -54,7 +54,7 @@ class LaneChangeAccelerationTests(unittest.TestCase):
         for demand,target in ((0.,80.),(.2,60.),(.2,55.)):
             n=self.follower();n.speed_pid.update.return_value=demand
             n.publish_control(0.,target)
-            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,0. if demand==0. else .025)
+            self.assertAlmostEqual(n.ctrl_pub.publish.call_args.args[0].accel,0. if demand==0. else .05)
             self.assertEqual(n.requested_target_speed_kmh,target)
 
 

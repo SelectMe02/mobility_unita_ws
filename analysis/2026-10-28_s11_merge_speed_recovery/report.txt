@@ -1,0 +1,5 @@
+Local low-speed recovery target
+Only in existing R1 merge controller after merge occupancy cap clears; speed<=45 km/h, following already allows positive acceleration, fresh/reliable non-predicted confirmed leader, gap>=max(12m,1.2*v), leader>=v-1m/s. Target limited to current+10km/h, map target, comfortable relative-speed limit and collision-speed limit. Accelerating swept-path check must pass. Pedal settings unchanged.
+Cause: existing following controller outputs current+about1.9km/h per frame, producing weak pedal demand at~30km/h even after risk clears.
+Replay204637 at13.28s target31.89->40.02km/h. Recorded-input replay only; actual speed/path remain original, so do not infer live travel time or collision avoidance. Entry uncertainty still restricts acceleration, and not every slow frame is removed.
+Tests87 S11+49 highway passed. Reverse patch checked.

@@ -1,0 +1,99 @@
+{
+  "limitation": "Open-loop replay at recorded ego poses, sampled about 10 Hz; route tangent approximates ego yaw. Not collision or closed-loop validation.",
+  "runs": [
+    {
+      "run": "run_20261028_204120",
+      "old": {
+        "first_r2": null,
+        "first_r3": null,
+        "first_slow": {
+          "t": 10.13,
+          "y": 166.67,
+          "speed": 71.91,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": null,
+        "waits": {
+          "s11_r1_merge_align": 18,
+          "s11_r1_merge_yield": 32
+        }
+      },
+      "new": {
+        "first_r2": null,
+        "first_r3": null,
+        "first_slow": {
+          "t": 10.13,
+          "y": 166.67,
+          "speed": 71.91,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": null,
+        "waits": {
+          "s11_r1_merge_align": 18,
+          "s11_r1_merge_yield": 32
+        }
+      }
+    },
+    {
+      "run": "run_20261028_204147",
+      "old": {
+        "first_r2": {
+          "t": 14.92,
+          "x": 65.33,
+          "y": 114.8,
+          "target": 31.89255299232173
+        },
+        "first_r3": {
+          "t": 20.02,
+          "x": 70.73,
+          "y": 61.56,
+          "target": 53.32830047607422
+        },
+        "first_slow": {
+          "t": 10.43,
+          "y": 161.3,
+          "speed": 66.92,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": {
+          "t": 14.92,
+          "y": 114.8,
+          "target": 31.89255299232173
+        },
+        "waits": {
+          "s11_r1_merge_align": 17,
+          "s11_r1_merge_yield": 39
+        }
+      },
+      "new": {
+        "first_r2": {
+          "t": 14.92,
+          "x": 65.33,
+          "y": 114.8,
+          "target": 31.89255299232173
+        },
+        "first_r3": {
+          "t": 20.02,
+          "x": 70.73,
+          "y": 61.56,
+          "target": 53.32830047607422
+        },
+        "first_slow": {
+          "t": 10.43,
+          "y": 161.3,
+          "speed": 66.92,
+          "reason": "s11_r1_merge_yield"
+        },
+        "reaccel": {
+          "t": 13.43,
+          "y": 127.03,
+          "target": 32.097169377733245
+        },
+        "waits": {
+          "s11_r1_merge_align": 17,
+          "s11_r1_merge_yield": 39
+        }
+      }
+    }
+  ]
+}
