@@ -51,6 +51,15 @@ def update_motion(previous, stamp, bounds, threshold=.8):
             if abs(candidate) > 2.5*max(errors[axis], errors[axis+2]):
                 velocity[axis] = candidate
     reliable = bool(np.max(noise) <= .25)
+    # Broad returns changing visible face are not evidence of translation.
+    # Small pedestrian footprints retain the existing motion thresholds.
+    if len(history) >= 2:
+        previous_size = np.asarray(history[-2][3:5]) - np.asarray(history[-2][1:3])
+        current_size = np.asarray(bounds[2:]) - np.asarray(bounds[:2])
+        if (max(np.max(previous_size), np.max(current_size)) > 1.
+                and np.max(np.abs(current_size-previous_size)) > .35
+                and np.linalg.norm(velocity) > 1e-6):
+            reliable = False
     # Keep the fitted observation separate from the velocity accepted for
     # collision prediction. One noisy scan must not move a static obstacle
     # into the adjacent lane while its motion classification stays static.
@@ -62,6 +71,17 @@ def update_motion(previous, stamp, bounds, threshold=.8):
                     and stamp-trusted_stamp <= .4 else np.zeros(2))
     state.update(vx=float(velocity[0]), vy=float(velocity[1]), velocity_reliable=reliable)
     speed = float(np.linalg.norm(velocity))
+    broad = max(bounds[2]-bounds[0], bounds[3]-bounds[1]) > 1.
+    static_footprint = broad and (previous.get('static_footprint', False)
+                                 or (previous.get('motion_kind') == 'static'
+                                     and previous.get('still_scans', 0) >= 2
+                                     and not previous.get('prediction_confirmed', False)
+                                     and math.hypot(previous.get('candidate_vx', 0.),
+                                                    previous.get('candidate_vy', 0.)) < .05))
+    # A previously stationary broad surface needs sustained translation;
+    # two adjacent face shifts must not move it into the passing lane.
+    motion_scans_required = 4 if static_footprint else 2
+    state['static_footprint'] = static_footprint
     if previous.get('motion_threshold', threshold) != threshold:
         # A live setting change applies to the same observed track immediately.
         state.update(motion_kind='dynamic' if reliable and speed > threshold+1e-6 else 'static',
@@ -69,7 +89,7 @@ def update_motion(previous, stamp, bounds, threshold=.8):
     elif reliable and speed > threshold+1e-6:
         state['moving_scans'] += 1
         state['still_scans'] = 0
-        if state['moving_scans'] >= 2:
+        if state['moving_scans'] >= motion_scans_required:
             state['motion_kind'] = 'dynamic'
     elif reliable and speed <= .5*threshold:
         state['still_scans'] += 1
@@ -113,9 +133,10 @@ def update_motion(previous, stamp, bounds, threshold=.8):
                 (state['prediction_consistent_scans']+1 if same_direction else 1)
                 if speed > 1e-6 else 0)
             state['prediction_still_scans'] = 0
-            if (state['prediction_moving_scans'] >= 2 or
-                    state['prediction_consistent_scans'] >= 4):
+            if (state['prediction_moving_scans'] >= motion_scans_required or
+                    state['prediction_consistent_scans'] >= (6 if static_footprint else 4)):
                 state['prediction_confirmed'] = True
+                state['static_footprint'] = False
                 # A confirmed 0.36 m/s mover must not immediately satisfy
                 # the ordinary 0.4 m/s stop test on its next observation.
                 state['prediction_stop_threshold'] = .5*min(threshold, speed)

@@ -1,0 +1,32 @@
+{
+  "rollback_request": "2026-10-28 S9 로터리 등속 예측 출발 적용 전으로 롤백",
+  "modified_files": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower.py"
+  ],
+  "added_files": [
+    "src/unita_waypoint/test/test_s9_roundabout_prediction.py"
+  ],
+  "note": "Reverse change.patch only; snapshots preserve existing unrelated changes. User selected 0.5 s time margin.",
+  "validation": {
+    "s9_tests": 16,
+    "driving_stability_tests": 23,
+    "roundabout_tests": 21,
+    "isolated_sectors": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "closed_loop_test": false
+  }
+}

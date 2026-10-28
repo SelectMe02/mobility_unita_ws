@@ -1,0 +1,27 @@
+{
+  "restore_files": [
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py",
+    "src/leo_avoidance/scripts/route_avoidance_node.py",
+    "src/leo_avoidance/test/test_route_avoidance.py",
+    "src/unita_waypoint/test/test_candidate_hold_local.py",
+    "src/unita_waypoint/test/test_predictive_safety_local.py"
+  ],
+  "new_files": [
+    "src/unita_waypoint/test/test_pedestrian_release_local.py"
+  ],
+  "before_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "0bd4f73b017737f5b6dc91cc057519c147388ce20f24a1acd54872e938b35277",
+    "src/leo_avoidance/scripts/route_avoidance_node.py": "21cb10dafbc4f26a20a414d5dacd7517f9928bc7c39e243f97d904b7edeabfe4",
+    "src/leo_avoidance/test/test_route_avoidance.py": "60e2275da18e879cb3c349ff51ca299a78a10cc58e4aa552bbf9cc8c04f3536f",
+    "src/unita_waypoint/test/test_candidate_hold_local.py": "03598838bd7b0c885688272ba396cc2ad17ff94c538fab9a35d43e6cce3a1ec9",
+    "src/unita_waypoint/test/test_predictive_safety_local.py": "1c185dc4009612881be3dd714a9fb9839c26d13af8c5bcb9c694ef2e249494a7"
+  },
+  "after_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "5810b6ee34f66cc6f4d8b7af9015ebd52883eb2e2e1d48722f3c913a47547a8f",
+    "src/leo_avoidance/scripts/route_avoidance_node.py": "617c4559106cd6c99d8b2723de74e3df73575c533f1f59761d0bc3131e1e280f",
+    "src/leo_avoidance/test/test_route_avoidance.py": "cee7b689de761d6be28797c2be1b115434d23e8d195d4a27f84a46acb4903901",
+    "src/unita_waypoint/test/test_candidate_hold_local.py": "070ef2721541ae601fafd8913644562789b644acb5cbc07ca6ac44333fc22255",
+    "src/unita_waypoint/test/test_predictive_safety_local.py": "282845edb7ac00913adbb68a070a5f69c1b87badf081c804a3621e6701ecd4ad",
+    "src/unita_waypoint/test/test_pedestrian_release_local.py": "ab4336007858afda519bb6122f6c2577c90ee1f53c8dfb44c819f72779476a10"
+  }
+}

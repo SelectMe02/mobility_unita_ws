@@ -1,0 +1,16 @@
+{
+  "restore_files": [
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py"
+  ],
+  "new_files": [
+    "src/leo_avoidance/test/test_s4_swept_replan.py"
+  ],
+  "description": "S4 실제 차체 경로 검사·진입 시점/오프셋 후보 탐색·진입 공간 보존 감속 적용 직전. 직전 S4 장애물 기억 처리는 유지.",
+  "before_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "084db177023785fda9e0bb87353454f13126ac81ca523f029a2d6bfbc9604a44"
+  },
+  "after_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "e033ce111efa957607e0082a27355e6152b3034ad33ae0e226e2885fa8de2148",
+    "src/leo_avoidance/test/test_s4_swept_replan.py": "735e5e973a34e8de30fd95a0423bddb1da91458dfd3ded4dd5afac60fb35ee2a"
+  }
+}

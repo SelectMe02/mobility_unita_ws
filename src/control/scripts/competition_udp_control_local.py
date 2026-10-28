@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """UDP-only SIM interface; explicitly requests AutoMode even from Manual."""
+import json
 import ipaddress
 import math
 import socket
@@ -48,6 +49,11 @@ class CompetitionUDPControl:
         self.enabled = True
         self.was_active = False
         self.last_state = None
+        self.simulator_s11_no_stop = bool(rospy.get_param('~simulator_s11_no_stop', False))
+        self.s11_sector = None
+        self.s11_command = None
+        self.s11_speed_kmh = 30.
+        self.s11_steering = 0.
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((rospy.get_param('~bind_ip', '0.0.0.0'), local_port))
         self.status_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -64,11 +70,61 @@ class CompetitionUDPControl:
             rospy.Subscriber(rospy.get_param('~gps_topic', '/gps'), GPSMessage, self.gps_callback, queue_size=1)]
         if self.heading_source == 'imu':
             self.subscribers.append(rospy.Subscriber('/imu', Imu, self.imu_callback, queue_size=1))
+        if self.simulator_s11_no_stop:
+            self.subscribers.extend([
+                rospy.Subscriber('/waypoint_debug/tracking_state', String,
+                                 self.s11_tracking_callback, queue_size=1),
+                rospy.Subscriber('/semi/raceline_ctrl_cmd', CtrlCmd,
+                                 self.s11_command_callback, queue_size=1)])
         self.enable_service = rospy.Service('~set_enabled', SetBool, self.set_enabled)
         rospy.on_shutdown(self.stopped.set)
         rospy.loginfo('COMPETITION UDP: SIM=%s:%d, Ego status listen=%d, heading=%s, ctrl_mode=2, gear=%d; NO ROS bridge/service',
                       *self.destination, status_port, self.heading_source, self.encoder.gear)
         rospy.loginfo('Automatic takeover enabled. Stop this launch or call ~set_enabled false to return to keyboard mode.')
+
+    def s11_tracking_callback(self, message):
+        try:
+            sector = json.loads(message.data)['sector']
+        except (ValueError, TypeError, KeyError):
+            return
+        with self.lock:
+            if sector != self.s11_sector:
+                self.s11_command = None
+            self.s11_sector = sector
+
+    def s11_command_callback(self, message):
+        try:
+            packet = self.encoder.encode(message.longlCmdType, message.velocity,
+                                         message.acceleration, message.accel,
+                                         message.brake, message.steering)
+        except ValueError:
+            return
+        with self.lock:
+            if self.s11_sector == 11:
+                self.s11_command = (packet, time.monotonic())
+                self.s11_steering = message.steering
+
+    def simulator_s11_packet(self, packet, state, now):
+        """Final MORAI-only override, including guard/watchdog stop packets.
+
+        Retain the last known sector during sensor loss; a new sector report
+        ends this policy. Manual disable and shutdown still release control.
+        Caller holds self.lock.
+        """
+        if not getattr(self, 'simulator_s11_no_stop', False) or self.s11_sector != 11:
+            return packet, state
+        speed_fresh = self.freshness.fresh(now)
+        if speed_fresh and self.s11_command is not None and now-self.s11_command[1] <= .5:
+            return self.s11_command[0], 'SENDING: simulator S11 minimum 30 km/h'
+        error = 30.-self.s11_speed_kmh
+        accel = min(.3, max(0., .08*error))
+        # Match semi.launch's stronger S11 pedal envelope; retain the
+        # 31 km/h release threshold and stale-speed brake suppression.
+        brake = min(.40, max(0., .04*(-error-1.))) if speed_fresh else 0.
+        if not speed_fresh:
+            accel = .2  # No sustained braking from a frozen speed sample in this SIM policy.
+        return (self.encoder.encode(1, 0., 0., accel, brake, self.s11_steering),
+                'SENDING: simulator S11 minimum 30 km/h fallback')
 
     def set_enabled(self, request):
         with self.lock:
@@ -125,6 +181,7 @@ class CompetitionUDPControl:
             received = time.monotonic()
             with self.lock:
                 changed = self.freshness.update(status.stamp, received)
+                self.s11_speed_kmh = abs(status.speed_kmh)
             self.mode_pub.publish(UInt8(data=status.mode))
             self.speed_pub.publish(Float64(data=abs(status.speed_kmh)))
             self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m'.format(
@@ -154,9 +211,11 @@ class CompetitionUDPControl:
                             packet, state = self.watchdog.select(time.monotonic(), rospy.Time.now().to_sec(), self.encoder.stop())
                             # No mode gate: AutoMode=2 is explicitly requested even
                             # when the last reported mode was Manual.
+                            packet, state = self.simulator_s11_packet(packet, state, time.monotonic())
                             self.sock.sendto(packet, self.destination)
                         elif self.was_active:
                             packet, state = self.encoder.stop(), 'BRAKE: missing/stale/frozen Ego UDP status'
+                            packet, state = self.simulator_s11_packet(packet, state, time.monotonic())
                             self.sock.sendto(packet, self.destination)
                         else:
                             # Until the correct Publisher is verified, do not force

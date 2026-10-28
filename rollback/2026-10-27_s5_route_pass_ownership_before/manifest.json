@@ -1,0 +1,31 @@
+{
+  "head": "969787468394df7d3980719093d4d4c6c088a343",
+  "restore_files": [
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py",
+    "src/leo_avoidance/scripts/route_avoidance_node.py",
+    "src/unita_launch/launch/semi.launch",
+    "src/unita_waypoint/test/test_tracking_debug.py"
+  ],
+  "new_files": [
+    "src/unita_waypoint/test/test_route_pass_ownership_local.py",
+    "src/leo_avoidance/test/test_pass_dropout.py"
+  ],
+  "note": "Restore only listed files; preserve unrelated changes. semi.launch contains competition IP 192.168.0.1.",
+  "before_sha256": {
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py": "2648ae4cb7ba7f368c1206c950a4630545fe6b762a8338c1b7c9599546cdaee9",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py": "43a600607660d895a26d749f62e9ce3f239a077e53591151466071961aab7c89",
+    "src/leo_avoidance/scripts/route_avoidance_node.py": "b4f3b6757a14427e915906f3e7a1d50719662aa36bcd978863d0793eb8f79fe8",
+    "src/unita_launch/launch/semi.launch": "5b1c37ba4f4c494537ae0293d8f73c49c935379f7310ac84bf6350ad804889bb",
+    "src/unita_waypoint/test/test_tracking_debug.py": "b696a375832a9ca2cdf0b099b2ff6f30008ace3360e2e400b4a0774a643dd4a7"
+  },
+  "after_sha256": {
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py": "9c98834950fdbfcb17fbb1c5627d08615dca92a60f3efcdf3b9c1cdcde1c0a04",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py": "20caf22b1d66cbf03a4c4edf05783f6ca7c8bc262510130851d87c7c6d42dc3f",
+    "src/leo_avoidance/scripts/route_avoidance_node.py": "a6adb0545a33b4b95b9cfd7162d48bae530289469bc0c08085f355df2e343421",
+    "src/unita_launch/launch/semi.launch": "5b1c37ba4f4c494537ae0293d8f73c49c935379f7310ac84bf6350ad804889bb",
+    "src/unita_waypoint/test/test_tracking_debug.py": "aa24c9eeceffa649f964b91d463055f908fa92636decf05ae5af7a93e041137c",
+    "src/unita_waypoint/test/test_route_pass_ownership_local.py": "184b968c64be495edef7ef7b1d16b96622468d14e17de5bf598473300f200a44",
+    "src/leo_avoidance/test/test_pass_dropout.py": "83188ecf7eb6e6da7cc38f232151f34e91b2967cb142f3ffbbc72d35f0693d06"
+  }
+}

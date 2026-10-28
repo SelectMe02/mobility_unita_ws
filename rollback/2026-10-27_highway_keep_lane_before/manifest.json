@@ -1,0 +1,19 @@
+{
+  "restore_files": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/test/test_highway_planner.py"
+  ],
+  "new_files": [
+    "src/unita_waypoint/test/test_highway_keep_lane.py"
+  ],
+  "description": "고주로 차로 유지 우선 강화 전: 선호 차로 단독 변경 억제, 이동 선행차 추월 이득/지속 조건",
+  "before_sha256": {
+    "src/unita_waypoint/scripts/local_avoidance_core.py": "370f6bad1294bc9e3dc6f0bd6fcb68abaa1173d643a4e70f8b74f28f96b4d85e",
+    "src/unita_waypoint/test/test_highway_planner.py": "ccbfdd563e47d47816c8923cccd37deb76c299ac72823d40ae7ba62e93af2659"
+  },
+  "after_sha256": {
+    "src/unita_waypoint/scripts/local_avoidance_core.py": "ef92686b098799fbff4874332f6b0780323fba49c6a391154e1dfe48ebf7c898",
+    "src/unita_waypoint/test/test_highway_planner.py": "89e51a617c33465f1018ec972d78fb4fa3fff95d998b63bd89729742c67c6e86",
+    "src/unita_waypoint/test/test_highway_keep_lane.py": "ecda0b4282288a8256e4a14fc48fc2a7cd055ce34045d5383beb1985b3a477d2"
+  }
+}

@@ -302,6 +302,9 @@ class GPSWaypointFollower:
             float(rospy.get_param("~pid_ki", 0.002)),
             float(rospy.get_param("~pid_kd", 0.01)),
             float(rospy.get_param("~pid_integral_limit", 20.0)))
+        # MORAI-only policy: override all S11 stop requests with a 30 km/h target.
+        self.simulator_s11_no_stop = bool(rospy.get_param(
+            "~simulator_s11_no_stop", False))
         self.sector11_cruise_brake = None
         if rospy.get_param('~sector11_smooth_braking', False):
             self.sector11_cruise_brake = CruiseBrake(
@@ -964,6 +967,12 @@ class GPSWaypointFollower:
         rospy.loginfo("Velocity profile ready: planned %.1f..%.1f km/h",
                       min(self.speed_profile), max(self.speed_profile))
 
+    def simulator_s11_floor_active(self):
+        sectors = getattr(self, 'route_sectors', [])
+        index = getattr(self, 'current_waypoint_index', -1)
+        return (getattr(self, 'simulator_s11_no_stop', False)
+                and 0 <= index < len(sectors) and sectors[index] == 11)
+
     def sector_speed_floor(self, target_kmh):
         """Sector 11 (planner.min_speed_sectors): keep moving and speed up
         while changing lanes, unless something is directly ahead.
@@ -972,6 +981,8 @@ class GPSWaypointFollower:
         (its speed sets the cap) or the very end of a dropped lane may still
         lower the target below it.
         """
+        if self.simulator_s11_floor_active():
+            return max(30., target_kmh)
         planner = getattr(self, 'local_planner', None)
         decision = getattr(self, 'last_decision', None)
         sectors = getattr(self, 'route_sectors', [])
@@ -1188,7 +1199,9 @@ class GPSWaypointFollower:
     # ================================================================
 
     def sector11_cruise_braking_allowed(self):
-        """Smooth highway following unless collision, lane-end or external gates win."""
+        """Smooth highway following; MORAI no-stop mode includes all S11 caps."""
+        if self.simulator_s11_floor_active():
+            return True
         sectors = getattr(self, 'route_sectors', [])
         index = getattr(self, 'current_waypoint_index', -1)
         planner = getattr(self, 'local_planner', None)
@@ -1216,12 +1229,20 @@ class GPSWaypointFollower:
         steering,
         velocity
     ):
+        s11_no_stop = self.simulator_s11_floor_active()
+        if s11_no_stop:
+            velocity = max(30., velocity)
         cmd = CtrlCmd()
         cmd.steering = steering
         cmd.acceleration = 0.0
         self.last_steering = steering
 
-        if self.longitudinal_control_mode == "pid":
+        if s11_no_stop and self.current_speed_kmh is None:
+            cmd.longlCmdType = 1
+            cmd.velocity = 0.
+            cmd.accel, cmd.brake = .2, 0.
+            self.pedal_reason = 's11_no_speed_feedback'
+        elif self.longitudinal_control_mode == "pid":
             now = time.monotonic()
             dt = (1.0 / self.control_rate if self.last_pid_update is None
                   else now - self.last_pid_update)
@@ -1237,6 +1258,15 @@ class GPSWaypointFollower:
                 cruise_brake.reset()
             if not hasattr(self, 'pedal_guard'):
                 self.pedal_guard = PedalGuard()
+            if s11_no_stop:
+                if self.pedal_guard.holding:
+                    self.pedal_guard.release(now-min(max(dt, 0.), 1./self.control_rate))
+                if self.current_speed_kmh <= 31.:
+                    # Release braking before the floor, including PID integral
+                    # windup from a preceding stop or high-speed deceleration.
+                    if output < 0.:
+                        self.speed_pid.reset()
+                    output = max(output, min(1., .08*max(0., velocity-self.current_speed_kmh)))
             planner = getattr(self, 'local_planner', None)
             roundabout_release = getattr(self, 'lane_change_reason', '') in (
                 'roundabout_gap_accepted', 'roundabout_rolling_entry')
@@ -1244,7 +1274,14 @@ class GPSWaypointFollower:
                     and self.pedal_guard.holding):
                 # The roundabout guard has already confirmed distinct clear
                 # LiDAR scans. Do not repeat PedalGuard's generic clear hold.
-                self.pedal_guard.release(now)
+                sectors = getattr(self, 'route_sectors', [])
+                index = getattr(self, 'current_waypoint_index', -1)
+                s9 = 0 <= index < len(sectors) and sectors[index] == 9
+                # Account for this control tick on S9 release. Releasing at
+                # exactly now otherwise gives command() dt=0 and delays the
+                # first positive throttle until the next control cycle.
+                release_time = now-min(max(dt, 0.), 1./self.control_rate) if s9 else now
+                self.pedal_guard.release(release_time)
             soft = getattr(self, 'lane_change_reason', '') == 'transition_slowing'
             limit = getattr(planner, 'avoidance_brake_limit', .35) if soft else 1.
             sample = getattr(self, 'obstacle_stamp', None) if getattr(self, 'enable_local_avoidance', False) else None
@@ -1469,6 +1506,21 @@ class GPSWaypointFollower:
         publisher.publish(msg)
 
     def publish_full_stop(self):
+        if self.simulator_s11_floor_active():
+            # Keep steering along the saved route when possible; retain the
+            # last steering if the stop was caused by unavailable geometry.
+            steering = getattr(self, 'last_steering', 0.)
+            if getattr(self, 'path_ready', False):
+                target = self.find_lookahead_point()
+                if target is not None:
+                    _, local_x, local_y, ld = target
+                    steering = self.calculate_steering(local_x, local_y, ld)
+            self.publish_control(steering, 30.)
+            self.publish_tracking_state()
+            publisher = getattr(self, 'target_speed_pub', None)
+            if publisher is not None:
+                publisher.publish(Float64(data=30.))
+            return
         self.publish_local_path([])
         self.requested_target_speed_kmh = 0.
         cruise_brake = getattr(self, 'sector11_cruise_brake', None)
@@ -1649,12 +1701,14 @@ class GPSWaypointFollower:
             self.last_decision = decision
             if decision.path:
                 self.publish_local_path(decision.path)
-            if decision.state == 'BLOCKED':
+            if decision.state == 'BLOCKED' and not self.simulator_s11_floor_active():
                 self.stop_reason = 'planner_blocked:' + decision.reason
                 self.publish_full_stop()
                 return
             if decision.path:
-                target = self.local_target(decision.path)
+                local_target = self.local_target(decision.path)
+                if local_target is not None or not self.simulator_s11_floor_active():
+                    target = local_target
                 if target is None:
                     self.stop_reason = 'local_path_no_forward_target:' + decision.reason
                     self.publish_full_stop()
@@ -1745,6 +1799,8 @@ class GPSWaypointFollower:
                 target_speed_kmh = 0.0
             else:
                 target_speed_kmh = min(target_speed_kmh, self.guard_speed_limit)
+        if self.simulator_s11_floor_active():
+            target_speed_kmh = max(30., target_speed_kmh)
         if target_speed_kmh <= .01:
             self.stop_reason = ('guard_speed_zero_or_stale' if self.guard_limit_topic
                                 and (self.guard_limit_received is None

@@ -1,0 +1,103 @@
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -124,9 +124,9 @@
+     <!-- Simulator-only S11 floor also overrides blocked/stale-input stops. -->
+     <param name="simulator_s11_no_stop" value="$(arg simulator_s11_no_stop)"/>
+     <param name="sector11_smooth_braking" value="true"/>
+-    <param name="sector11_brake_gain" value="0.02"/>
+-    <param name="sector11_max_cruise_brake" value="0.22"/>
+-    <param name="sector11_brake_rise_rate" value="0.3"/>
++    <param name="sector11_brake_gain" value="0.04"/>
++    <param name="sector11_max_cruise_brake" value="0.40"/>
++    <param name="sector11_brake_rise_rate" value="1.0"/>
+     <param name="sector11_brake_deadband_kmh" value="1.0"/>
+     <param name="rear_extent_m" value="0.790"/>
+     <param name="lane_change_gap_m" value="3.0"/>
+--- a/src/control/scripts/competition_udp_control_local.py
++++ b/src/control/scripts/competition_udp_control_local.py
+@@ -118,7 +118,9 @@
+             return self.s11_command[0], 'SENDING: simulator S11 minimum 30 km/h'
+         error = 30.-self.s11_speed_kmh
+         accel = min(.3, max(0., .08*error))
+-        brake = min(.22, max(0., .02*(-error-1.))) if speed_fresh else 0.
++        # Match semi.launch's stronger S11 pedal envelope; retain the
++        # 31 km/h release threshold and stale-speed brake suppression.
++        brake = min(.40, max(0., .04*(-error-1.))) if speed_fresh else 0.
+         if not speed_fresh:
+             accel = .2  # No sustained braking from a frozen speed sample in this SIM policy.
+         return (self.encoder.encode(1, 0., 0., accel, brake, self.s11_steering),
+--- a/src/control/test/test_s11_no_stop_udp.py
++++ b/src/control/test/test_s11_no_stop_udp.py
+@@ -58,3 +58,18 @@
+         n.s11_sector = 11
+         n.simulator_s11_no_stop = False
+         self.assertEqual(n.simulator_s11_packet(b'stop', 'BRAKE', 10.1), (b'stop', 'BRAKE'))
++
++    def test_fallback_matches_launch_braking_strength(self):
++        import xml.etree.ElementTree as ET
++        launch = Path(__file__).resolve().parents[2] / 'unita_launch/launch/semi.launch'
++        node = ET.parse(launch).find("node[@name='gps_waypoint_follower']")
++        gain = float(node.find("param[@name='sector11_brake_gain']").get('value'))
++        maximum = float(node.find("param[@name='sector11_max_cruise_brake']").get('value'))
++        n = self.controller()
++        for speed, expected in ((60., .40), (40., .36), (35., .16), (31., 0.), (30., 0.)):
++            with self.subTest(speed=speed):
++                n.s11_speed_kmh = speed
++                n.simulator_s11_packet(b'stop', 'BRAKE', 11.)
++                brake = n.encoder.encode.call_args.args[4]
++                self.assertAlmostEqual(brake, expected)
++                self.assertAlmostEqual(brake, min(maximum, gain*max(0., speed-31.)))
+--- a/src/unita_waypoint/test/test_s11_min30.py
++++ b/src/unita_waypoint/test/test_s11_min30.py
+@@ -86,6 +86,51 @@
+             self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
+             self.assertEqual(n.requested_target_speed_kmh, 0.)
+ 
++    def stronger_brake(self):
++        import xml.etree.ElementTree as ET
++        from pathlib import Path
++        from pedal_guard import CruiseBrake
++        launch = Path(__file__).resolve().parents[2] / 'unita_launch/launch/semi.launch'
++        node = ET.parse(launch).find("node[@name='gps_waypoint_follower']")
++        def param(name):
++            return float(node.find("param[@name='%s']" % name).get('value'))
++        return CruiseBrake(gain=param('sector11_brake_gain'),
++                           max_brake=param('sector11_max_cruise_brake'),
++                           rise_rate=param('sector11_brake_rise_rate'),
++                           deadband_kmh=param('sector11_brake_deadband_kmh'))
++
++    def test_stronger_brake_reaches_40_percent_in_point4_seconds(self):
++        from unittest.mock import patch
++        from pedal_guard import CruiseBrake
++        n = self.follower()
++        n.sector11_cruise_brake = self.stronger_brake()
++        n.speed_pid.update = MagicMock(return_value=-1.)
++        old = CruiseBrake(gain=.02, max_brake=.22, rise_rate=.3)
++        for step in range(8):
++            with patch('gps_waypoint_follower.time.monotonic', return_value=10.+step*.05):
++                n.publish_control(0., 30.)
++            cmd = n.ctrl_pub.publish.call_args.args[0]
++            previous = -old.shape(-1., 60., 30., .05)
++            self.assertAlmostEqual(cmd.brake, .05*(step+1))
++            self.assertGreater(cmd.brake, previous)
++            self.assertEqual(cmd.accel, 0.)
++        self.assertAlmostEqual(previous, .12)
++        self.assertEqual(n.requested_target_speed_kmh, 30.)
++
++    def test_stronger_brake_still_releases_at_floor_with_negative_pid(self):
++        n = self.follower()
++        n.sector11_cruise_brake = self.stronger_brake()
++        n.sector11_cruise_brake.brake = .4
++        n.speed_pid.update = MagicMock(return_value=-1.)
++        for speed, expected in ((40., .36), (35., .16), (32., .04), (31., 0.), (30., 0.), (29., 0.)):
++            n.current_speed_kmh = speed
++            n.publish_control(0., 0.)
++            cmd = n.ctrl_pub.publish.call_args.args[0]
++            self.assertAlmostEqual(cmd.brake, expected)
++            self.assertEqual(n.requested_target_speed_kmh, 30.)
++            if speed < 30.:
++                self.assertGreater(cmd.accel, 0.)
++
+ 
+ if __name__ == '__main__':
+     unittest.main()

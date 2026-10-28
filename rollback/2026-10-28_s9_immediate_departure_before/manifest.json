@@ -1,0 +1,19 @@
+{
+  "rollback_request": "2026-10-28 S9 선행차 통과 직후 즉시 출발 수정 전으로 롤백",
+  "modified_files": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower.py"
+  ],
+  "added_files": [
+    "src/unita_waypoint/test/test_s9_immediate_departure.py"
+  ],
+  "validation": {
+    "new_tests": 6,
+    "driving_stability_tests": 23,
+    "roundabout_tests": 21,
+    "replay_final_release_before": "15:12:43.795",
+    "replay_final_release_after": "15:12:43.697",
+    "pedal_release_tick_saved_s": 0.05,
+    "closed_loop_simulation": false
+  }
+}

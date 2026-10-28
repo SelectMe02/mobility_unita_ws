@@ -96,7 +96,9 @@ class MotionEstimatorTests(unittest.TestCase):
                 confirmed = [i for i, value in enumerate(results) if value['prediction_confirmed']]
                 self.assertTrue(confirmed)
                 first = confirmed[0]
-                self.assertEqual(results[first]['prediction_consistent_scans'], 4)
+                # Broad footprints initially judged stationary require a
+                # longer consistent run; sustained real motion still wins.
+                self.assertEqual(results[first]['prediction_consistent_scans'], 6)
                 self.assertEqual(results[first-1]['vy'], 0.)
                 for value in results[first:]:
                     self.assertTrue(value['prediction_confirmed'])

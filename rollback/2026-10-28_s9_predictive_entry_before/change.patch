@@ -1,0 +1,441 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -114,6 +114,159 @@
+     obstacle_kind: str = ''
+     obstacle_distance_m: float = float('inf')
+     reason: str = ''
++
++
++class S9RoundaboutPrediction:
++    """Short-horizon constant arc-speed model, private to the S9 entry guard.
++
++    Raw measured positions (not the global track velocity or an NPC setting)
++    drive this fit. Uncertain/stale tracks cannot grant an entry window.
++    """
++    gap_s = .5
++    position_margin_m = .5
++    departure_delay_s = .4
++    departure_accel_mps2 = 1.5
++
++    def __init__(self):
++        self.tracks = []
++        self.stamp = None
++        self.active = False
++        self.debug = {}
++
++    def update(self, stamp, observations):
++        if stamp is None or not math.isfinite(stamp):
++            self.debug = dict(reason='missing_observation_time')
++            return False
++        if self.stamp is not None and stamp < self.stamp:
++            self.__init__()
++        if stamp == self.stamp:
++            return True
++        self.stamp = stamp
++        # Nearby fragments of one vehicle share a longitudinal envelope. A
++        # merged envelope larger than a car is kept as an uncertain blocker.
++        groups = []
++        for s, half, measured in sorted(observations):
++            if not measured:
++                continue
++            if groups and s-groups[-1][-1][0] < 2.5:
++                groups[-1].append((s, half))
++            else:
++                groups.append([(s, half)])
++        used = set()
++        for group in groups:
++            lo = min(s-h for s, h in group)
++            hi = max(s+h for s, h in group)
++            centre, half = (lo+hi)/2., max(2.3, (hi-lo)/2.)
++            matches = []
++            for i, track in enumerate(self.tracks):
++                dt = stamp-track['t']
++                prediction = track['s']+track['v']*dt
++                if i not in used and 0. < dt <= 1.2 and abs(centre-prediction) <= 2.5:
++                    matches.append((abs(centre-prediction), i))
++            # A tiny visible face inside the predicted vehicle body cannot
++            # locate its centre. Keep the last full observation (and its age)
++            # instead of treating that face as a second stopped vehicle.
++            if hi-lo < 1.4 and any(
++                    0. <= stamp-t['t'] <= .4
++                    and abs(centre-(t['s']+t['v']*(stamp-t['t']))) <= t['half']+1.
++                    for t in self.tracks):
++                continue
++            if matches:
++                _, i = min(matches)
++                track = self.tracks[i]
++            else:
++                i = len(self.tracks)
++                track = dict(history=[], v=0.)
++                self.tracks.append(track)
++            used.add(i)
++            history = [(t, s) for t, s in track['history'] if stamp-t <= 1.2]
++            history.append((stamp, centre))
++            v, error, reliable = 0., 1., False
++            if len(history) >= 4 and stamp-history[0][0] >= .3:
++                ts = [t-history[0][0] for t, _ in history]
++                mean_t = sum(ts)/len(ts)
++                mean_s = sum(s for _, s in history)/len(history)
++                denominator = sum((t-mean_t)**2 for t in ts)
++                v = sum((t-mean_t)*(s-mean_s) for t, (_, s) in zip(ts, history))/denominator
++                error = max(abs(s-mean_s-v*(t-mean_t)) for t, (_, s) in zip(ts, history))
++                reliable = 1. < v < 15. and error <= .75 and half <= 3.3
++            track.update(s=centre, half=half, t=stamp, history=history,
++                         v=max(0., v), error=error, reliable=reliable)
++        return True
++
++    def window(self, conflict, radius, distance_to_front, speed, target, ego_length):
++        """Return a speed cap only if the complete ego occupancy fits a gap."""
++        now = self.stamp
++        blocks, uncertain = [], False
++        retained = []
++        for track in self.tracks:
++            age = now-track['t']
++            # Only a measured rear beyond the conflict can retire a track.
++            if track['s']-track['half'] > conflict+radius+self.position_margin_m:
++                continue
++            retained.append(track)
++            if age > .4 or not track['reliable']:
++                uncertain = True
++                continue
++            v = track['v']
++            s = track['s']+v*age
++            uncertainty = self.position_margin_m+track['error']+age
++            slow, fast = max(.5, v-.8), v+.8
++            start = max(0., (conflict-radius-s-track['half']-uncertainty)/fast)
++            end = max(0., (conflict+radius-s+track['half']+uncertainty)/slow)
++            blocks.append((start, end))
++        self.tracks = retained
++        self.debug = dict(reason='uncertain_track' if uncertain else 'window_check',
++                          speeds_kmh=[round(t['v']*3.6, 2) for t in retained],
++                          gap_s=self.gap_s, occupancy=blocks)
++        if uncertain:
++            return None
++        if not blocks:
++            self.debug['reason'] = 'cleared_window'
++            return max(0., target)*3.6
++        target = min(max(target, .1), 10./3.6)
++        speed = max(0., speed)
++        d = max(0., distance_to_front)
++        # Startup delay + acceleration-limited arrival; never divide the
++        # stopped ego distance by its eventual cruise target.
++        def arrival(distance, fast=False):
++            delay = (0. if fast else self.departure_delay_s) if speed < .5 else 0.
++            acceleration = 3. if fast else self.departure_accel_mps2
++            v0 = min(speed, target)
++            ramp = max(0., (target*target-v0*v0)/(2.*acceleration))
++            if distance <= ramp:
++                return delay+(math.sqrt(v0*v0+2.*acceleration*distance)-v0)/acceleration
++            return delay+(target-v0)/acceleration+(distance-ramp)/target
++        # Follow the leading occupant rather than wait for its disappearance.
++        # The speed cap stretches our approach to its conservative rear ETA.
++        ordered = sorted(blocks)
++        if ordered and ordered[0][0] <= arrival(d, fast=True)+self.gap_s:
++            target = min(target, d/max(.1, ordered[0][1]+self.gap_s+.3))
++        if target < .2:
++            self.debug['reason'] = 'no_approach_room'
++            return None
++        if speed > target+.2:
++            # Do not assume instantaneous deceleration to a scheduled cap.
++            # The ordinary yield envelope slows the ego before a rolling
++            # prediction can take ownership.
++            self.debug['reason'] = 'approach_too_fast'
++            return None
++        entry = arrival(d, fast=True)
++        exit_time = arrival(d+2.*radius+ego_length)
++        previous_end = 0.
++        for start, end in sorted(blocks):
++            if end+self.gap_s <= entry:
++                previous_end = max(previous_end, end+self.gap_s)
++                continue
++            if start >= exit_time+self.gap_s:
++                continue
++            self.debug.update(reason='occupied_window', ego_entry_s=entry, ego_exit_s=exit_time)
++            return None
++        # Cap the approach so it cannot arrive earlier than the preceding
++        # rear clears, even if actual acceleration beats the nominal model.
++        cap = target if previous_end <= 0. else min(target, d/previous_end)
++        self.debug.update(reason='predicted_window', ego_entry_s=entry, ego_exit_s=exit_time)
++        return cap*3.6
+ 
+ 
+ class LocalAvoidancePlanner:
+@@ -285,6 +438,7 @@
+         self.roundabout_actor_eta_s = None
+         self.roundabout_yield_seen = False
+         self.roundabout_gap_accepted = False
++        self.s9_prediction = S9RoundaboutPrediction()
+         self.roundabout_conflict_arc = None
+         self.roundabout_actor_conflict_progress = None
+         if self.roundabout_conflict_point is not None:
+@@ -605,6 +759,7 @@
+         """
+         if (self.roundabout_conflict_arc is None
+                 or self.sectors[index] != self.roundabout_sector):
++            self.s9_prediction = S9RoundaboutPrediction()
+             self.roundabout_state = 'OUTSIDE'
+             self.roundabout_clear_votes = 0
+             self.roundabout_last_clear_stamp = None
+@@ -620,12 +775,69 @@
+         elif to_conflict > self.total_length/2.:
+             to_conflict -= self.total_length
+         if to_conflict > self.roundabout_monitor_distance_m:
++            self.s9_prediction = S9RoundaboutPrediction()
+             self.roundabout_state = 'OUTSIDE'
+             self.roundabout_clear_votes = 0
+             self.roundabout_last_clear_stamp = None
+             self.roundabout_yield_seen = False
+             self.roundabout_gap_accepted = False
+             return None
++        # Hard scope: only the configured S9 rotary, inside its approach and
++        # until the ego rear clears it. All other sectors use the old logic.
++        if (self.sectors[index] == 9 and self.roundabout_sector == 9
++                and to_conflict >= -self.rear_extent-self.roundabout_conflict_radius_m):
++            observations, other = [], []
++            points = self.roundabout_approach_points
++            for obstacle in obstacles:
++                if obstacle.road_surface:
++                    continue
++                projection = project_polyline((obstacle.x, obstacle.y), points)
++                if projection is None:
++                    other.append(obstacle)
++                    continue
++                lateral, actor_progress, tangent = projection
++                # Extend the exit tangent so a departing rear is not pinned
++                # to the last vertex of the saved circulating polyline.
++                extra = ((obstacle.x-points[-1][0])*tangent[0]
++                         +(obstacle.y-points[-1][1])*tangent[1])
++                last_progress = sum(distance(a, b) for a, b in zip(points, points[1:]))
++                if extra > 0. and actor_progress >= last_progress-1e-6:
++                    actor_progress += extra
++                if lateral > self.roundabout_approach_width_m*.5+obstacle.radius:
++                    other.append(obstacle)
++                    continue
++                half = max(abs((x-obstacle.x)*tangent[0]+(y-obstacle.y)*tangent[1])
++                           for x, y in obstacle.corners())
++                observations.append((actor_progress, half, not obstacle.predicted))
++            fresh = self.s9_prediction.update(observation_stamp, observations)
++            if self.roundabout_yield_seen and any(t['reliable'] for t in self.s9_prediction.tracks):
++                self.s9_prediction.active = True
++            if self.s9_prediction.active:
++                cap = (self.s9_prediction.window(self.roundabout_actor_conflict_progress,
++                    self.roundabout_conflict_radius_m, to_conflict-self.front_extent,
++                    ego_speed_mps, desired_speed_mps or 10./3.6,
++                    self.front_extent+self.rear_extent) if fresh else None)
++                if cap is not None:
++                    self.roundabout_state = 'PREDICTED_ENTRY'
++                    self.roundabout_gap_accepted = False
++                    self.roundabout_threat_id = None
++                    # Non-circulating objects still use the normal path cap.
++                    lead_obstacles = (obstacles if self.s9_prediction.debug.get('reason') == 'cleared_window'
++                                      else other)
++                    lead = self._lead(current_path, self.route[index], lead_obstacles)
++                    lead_cap = float('inf') if lead is None else self._stop_cap(lead[0], lead[2])
++                    return self._decision('ROUNDABOUT_ENTRY', current_path,
++                        min(edge_cap, cap, lead_cap), lead, 's9_predicted_entry')
++                self.roundabout_state = 'YIELD'
++                self.roundabout_clear_votes = 0
++                self.roundabout_gap_accepted = False
++                return self._decision('ROUNDABOUT_YIELD', current_path,
++                    min(edge_cap, self._stop_cap(max(0., to_conflict-self.roundabout_conflict_radius_m))),
++                    reason='s9_prediction_hold')
++        else:
++            if self.s9_prediction.active and to_conflict < -self.rear_extent-self.roundabout_conflict_radius_m:
++                self.roundabout_clear_votes = self.roundabout_clear_scans
++            self.s9_prediction = S9RoundaboutPrediction()
+         # After yielding, two independent clear observations release braking
+         # promptly. Keep the configured confirmation on the initial approach.
+         clear_scans = (min(2, self.roundabout_clear_scans)
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -1240,6 +1240,11 @@
+             planner = getattr(self, 'local_planner', None)
+             roundabout_release = getattr(self, 'lane_change_reason', '') in (
+                 'roundabout_gap_accepted', 'roundabout_rolling_entry')
++            sectors = getattr(self, 'route_sectors', [])
++            index = getattr(self, 'current_waypoint_index', -1)
++            roundabout_release = roundabout_release or (
++                0 <= index < len(sectors) and sectors[index] == 9
++                and getattr(self, 'lane_change_reason', '') == 's9_predicted_entry')
+             if (roundabout_release and velocity > 0.
+                     and self.pedal_guard.holding):
+                 # The roundabout guard has already confirmed distinct clear
+@@ -1320,6 +1325,7 @@
+             roundabout_ego_eta_s=finite(getattr(planner, 'roundabout_ego_eta_s', None)),
+             roundabout_actor_eta_s=finite(getattr(planner, 'roundabout_actor_eta_s', None)),
+             roundabout_gap_accepted=getattr(planner, 'roundabout_gap_accepted', False),
++            s9_prediction=getattr(getattr(planner, 's9_prediction', None), 'debug', {}),
+             transition=getattr(planner, 'transition', None), obstacles=obstacles,
+             gap_blocker=(dict(x=planner.gap_blocker[0].x, y=planner.gap_blocker[0].y,
+                               front_gap_m=planner.gap_blocker[1])
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s9_roundabout_prediction.py
+@@ -0,0 +1,168 @@
++"""S9 entry timing, uncertain traffic and strict sector-isolation regressions."""
++import importlib.util
++import math
++from pathlib import Path
++import sys
++import unittest
++from types import SimpleNamespace
++from unittest.mock import MagicMock, patch
++
++ROOT = Path(__file__).resolve().parents[3]
++SCRIPTS = ROOT / 'src/unita_waypoint/scripts'
++sys.path.insert(0, str(SCRIPTS))
++import local_avoidance_core as core
++
++
++def model(speed=5.):
++    p = core.S9RoundaboutPrediction()
++    for i in range(7):
++        p.update(10.+i*.1, [(10.+speed*i*.1, 2.3, True)])
++    return p
++
++
++class S9PredictionTests(unittest.TestCase):
++    def test_speed_comes_from_observed_arc_displacement(self):
++        for speed in (3., 5., 7.):
++            p = model(speed)
++            self.assertTrue(p.tracks[0]['reliable'])
++            self.assertAlmostEqual(p.tracks[0]['v'], speed)
++
++    def test_repeat_scan_does_not_confirm_velocity(self):
++        p = core.S9RoundaboutPrediction()
++        for _ in range(10):
++            p.update(1., [(10., 2.3, True)])
++        self.assertFalse(p.tracks[0]['reliable'])
++        self.assertEqual(len(p.tracks[0]['history']), 1)
++
++    def test_predict_before_measured_rear_clears(self):
++        p = model()
++        self.assertLess(p.tracks[0]['s']-2.3, 20.+3.5)
++        cap = p.window(20., 3.5, 8., 0., 8., 4.635)
++        self.assertIsNotNone(cap)
++        self.assertGreater(cap, 0.)
++        self.assertLessEqual(cap, 10.)
++        end = p.debug['occupancy'][0][1]
++        self.assertGreaterEqual(p.debug['ego_entry_s'], end+.5)
++
++    def test_close_following_vehicle_blocks_full_ego_occupancy(self):
++        p = core.S9RoundaboutPrediction()
++        for i in range(7):
++            p.update(10.+i*.1, [(10.+5.*i*.1, 2.3, True),
++                                (-3.+5.*i*.1, 2.3, True)])
++        self.assertIsNone(p.window(20., 3.5, 8., 0., 8., 4.635))
++
++    def test_stopped_and_uncertain_obstacles_do_not_grant_departure(self):
++        for speed in (0., .2):
++            p = model(speed)
++            self.assertIsNone(p.window(20., 3.5, 8., 0., 8., 4.635))
++
++    def test_dropout_holds_and_reassociation_uses_observed_speed(self):
++        p = model()
++        p.update(11.1, [])
++        self.assertIsNone(p.window(20., 3.5, 8., 0., 8., 4.635))
++        p.update(11.2, [(16., 2.3, True)])
++        self.assertEqual(len(p.tracks), 1)
++        self.assertAlmostEqual(p.tracks[0]['v'], 5.)
++        self.assertIsNotNone(p.window(20., 3.5, 8., 0., 8., 4.635))
++
++    def test_speed_change_cancels_constant_speed_prediction(self):
++        p = model()
++        for i in range(1, 13):
++            p.update(10.6+i*.1, [(13., 2.3, True)])
++        self.assertIsNone(p.window(20., 3.5, 8., 0., 8., 4.635))
++
++    def test_fast_ego_cannot_assume_instant_braking(self):
++        p = model()
++        self.assertIsNone(p.window(20., 3.5, 4., 8., 8., 4.635))
++
++    def test_missing_timestamp_and_time_reset(self):
++        p = model()
++        self.assertFalse(p.update(None, []))
++        p.update(1., [(10., 2.3, True)])
++        self.assertFalse(p.tracks[0]['reliable'])
++
++    def test_observation_loss_does_not_retire_vehicle(self):
++        p = model()
++        p.update(20., [])
++        self.assertIsNone(p.window(20., 3.5, 8., 0., 8., 4.635))
++        self.assertEqual(len(p.tracks), 1)
++
++    def test_measured_clear_rear_returns_to_normal_speed(self):
++        p = model()
++        self.assertEqual(p.window(0., 3.5, 8., 0., 8., 4.635), 28.8)
++        self.assertFalse(p.tracks)
++
++    def test_other_sectors_match_prechange_planner(self):
++        path = ROOT / 'rollback/2026-10-28_s9_predictive_entry_before/src/unita_waypoint/scripts/local_avoidance_core.py'
++        spec = importlib.util.spec_from_file_location('s9_before', path)
++        before = importlib.util.module_from_spec(spec)
++        sys.modules[spec.name] = before
++        spec.loader.exec_module(before)
++        route = [(float(x), 0.) for x in range(101)]
++        for sector in range(1, 15):
++            if sector == 9:
++                continue
++            planners = [m.LocalAvoidancePlanner(route, [sector]*len(route), {},
++                roundabout_conflict_point=(30., 0.),
++                roundabout_approach_points=[(30., 30.), (30., 0.), (45., 0.)])
++                for m in (before, core)]
++            for i in range(8):
++                decisions = []
++                for m, p in zip((before, core), planners):
++                    obstacles = [] if i % 2 else [m.Obstacle(20., 0., 1.)]
++                    decisions.append(p.plan(10, (10., 0.), 2., obstacles,
++                                            desired_speed_mps=5., observation_stamp=10.+i*.1))
++                self.assertEqual(vars(decisions[0]), vars(decisions[1]), sector)
++            self.assertFalse(planners[1].s9_prediction.tracks)
++
++    def test_s9_outside_monitor_does_not_start_predictor(self):
++        p = core.LocalAvoidancePlanner([(float(x), 0.) for x in range(101)], [9]*101, {},
++            roundabout_conflict_point=(70., 0.),
++            roundabout_approach_points=[(70., 30.), (70., 0.), (85., 0.)])
++        p.plan(0, (0., 0.), 2., [], observation_stamp=1.)
++        self.assertIsNone(p.s9_prediction.stamp)
++
++    def test_path_obstacle_still_stops_predicted_entry(self):
++        p = core.LocalAvoidancePlanner([(float(x), 0.) for x in range(101)], [9]*101, {},
++            roundabout_conflict_point=(30., 0.),
++            roundabout_approach_points=[(30., 30.), (30., 0.), (45., 0.)])
++        p.s9_prediction = model()
++        p.s9_prediction.active = True
++        p.roundabout_yield_seen = True
++        decision = p.plan(10, (10., 0.), 0., [core.Obstacle(13., 0., 1.)],
++                          desired_speed_mps=5., observation_stamp=10.6)
++        self.assertEqual(decision.speed_cap_kmh, 0.)
++
++    def test_leaving_s9_discards_prediction_history(self):
++        p = core.LocalAvoidancePlanner([(float(x), 0.) for x in range(101)], [8]*101, {},
++            roundabout_conflict_point=(30., 0.),
++            roundabout_approach_points=[(30., 30.), (30., 0.), (45., 0.)])
++        p.s9_prediction = model()
++        p.s9_prediction.active = True
++        p.plan(10, (10., 0.), 0., [], desired_speed_mps=5., observation_stamp=10.7)
++        self.assertFalse(p.s9_prediction.tracks)
++        self.assertFalse(p.s9_prediction.active)
++
++    def test_pedal_release_is_scoped_to_sector9(self):
++        from gps_waypoint_follower import GPSWaypointFollower
++        from pedal_guard import PedalGuard
++        for sector in (8, 9, 10):
++            n = GPSWaypointFollower.__new__(GPSWaypointFollower)
++            n.longitudinal_control_mode, n.control_rate = 'pid', 20.
++            n.last_pid_update, n.current_speed_kmh = 1., 0.
++            n.speed_pid = MagicMock()
++            n.speed_pid.update.return_value = 1.
++            n.ctrl_pub, n.sector11_cruise_brake = MagicMock(), None
++            n.lane_change_reason = 's9_predicted_entry'
++            n.local_planner = SimpleNamespace(clear_hold_s=.4, restart_accel_rate=.5)
++            n.route_sectors, n.current_waypoint_index = [sector], 0
++            n.pedal_guard = PedalGuard()
++            n.pedal_guard.stop(1.)
++            with patch('gps_waypoint_follower.time.monotonic', return_value=1.1):
++                n.publish_control(0., 5.)
++            cmd = n.ctrl_pub.publish.call_args.args[0]
++            self.assertEqual(cmd.brake, 0. if sector == 9 else 1.)
++
++
++if __name__ == '__main__':
++    unittest.main()

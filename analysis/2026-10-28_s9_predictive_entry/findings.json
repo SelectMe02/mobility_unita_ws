@@ -1,0 +1,32 @@
+{
+  "run": "run_20261028_151228",
+  "first_sustained_predicted_approach": "15:12:42.195",
+  "old_final_departure_permission": "15:12:43.795",
+  "advance_vs_final_departure_s": 1.6,
+  "gap_s": 0.5,
+  "estimated_npc_speed_at_release_kmh": 20.56,
+  "initial_approach_cap_kmh": 5.017,
+  "scope": "Only sector 9 AND roundabout_sector=9, within mapped roundabout monitor distance until ego rear clears conflict. Global perception and other sector controls unchanged.",
+  "validation": {
+    "s9_tests": 16,
+    "driving_stability_tests": 23,
+    "roundabout_tests": 21,
+    "isolated_sectors": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "closed_loop_test": false
+  },
+  "limitations": "Replay fixes recorded ego pose/speed. Not a simulated counterfactual trajectory or a collision-free guarantee. Constant-speed estimates are rechecked on every observation; unknown/stale tracks hold entry. Missing tracks fail closed and may require further perception tuning in different runs."
+}

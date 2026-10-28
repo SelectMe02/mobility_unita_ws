@@ -1,0 +1,420 @@
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower.py
+@@ -302,6 +302,9 @@
+             float(rospy.get_param("~pid_ki", 0.002)),
+             float(rospy.get_param("~pid_kd", 0.01)),
+             float(rospy.get_param("~pid_integral_limit", 20.0)))
++        # MORAI-only policy: override all S11 stop requests with a 30 km/h target.
++        self.simulator_s11_no_stop = bool(rospy.get_param(
++            "~simulator_s11_no_stop", False))
+         self.sector11_cruise_brake = None
+         if rospy.get_param('~sector11_smooth_braking', False):
+             self.sector11_cruise_brake = CruiseBrake(
+@@ -964,6 +967,12 @@
+         rospy.loginfo("Velocity profile ready: planned %.1f..%.1f km/h",
+                       min(self.speed_profile), max(self.speed_profile))
+ 
++    def simulator_s11_floor_active(self):
++        sectors = getattr(self, 'route_sectors', [])
++        index = getattr(self, 'current_waypoint_index', -1)
++        return (getattr(self, 'simulator_s11_no_stop', False)
++                and 0 <= index < len(sectors) and sectors[index] == 11)
++
+     def sector_speed_floor(self, target_kmh):
+         """Sector 11 (planner.min_speed_sectors): keep moving and speed up
+         while changing lanes, unless something is directly ahead.
+@@ -972,6 +981,8 @@
+         (its speed sets the cap) or the very end of a dropped lane may still
+         lower the target below it.
+         """
++        if self.simulator_s11_floor_active():
++            return max(30., target_kmh)
+         planner = getattr(self, 'local_planner', None)
+         decision = getattr(self, 'last_decision', None)
+         sectors = getattr(self, 'route_sectors', [])
+@@ -1188,7 +1199,9 @@
+     # ================================================================
+ 
+     def sector11_cruise_braking_allowed(self):
+-        """Smooth highway following unless collision, lane-end or external gates win."""
++        """Smooth highway following; MORAI no-stop mode includes all S11 caps."""
++        if self.simulator_s11_floor_active():
++            return True
+         sectors = getattr(self, 'route_sectors', [])
+         index = getattr(self, 'current_waypoint_index', -1)
+         planner = getattr(self, 'local_planner', None)
+@@ -1216,12 +1229,20 @@
+         steering,
+         velocity
+     ):
++        s11_no_stop = self.simulator_s11_floor_active()
++        if s11_no_stop:
++            velocity = max(30., velocity)
+         cmd = CtrlCmd()
+         cmd.steering = steering
+         cmd.acceleration = 0.0
+         self.last_steering = steering
+ 
+-        if self.longitudinal_control_mode == "pid":
++        if s11_no_stop and self.current_speed_kmh is None:
++            cmd.longlCmdType = 1
++            cmd.velocity = 0.
++            cmd.accel, cmd.brake = .2, 0.
++            self.pedal_reason = 's11_no_speed_feedback'
++        elif self.longitudinal_control_mode == "pid":
+             now = time.monotonic()
+             dt = (1.0 / self.control_rate if self.last_pid_update is None
+                   else now - self.last_pid_update)
+@@ -1237,6 +1258,15 @@
+                 cruise_brake.reset()
+             if not hasattr(self, 'pedal_guard'):
+                 self.pedal_guard = PedalGuard()
++            if s11_no_stop:
++                if self.pedal_guard.holding:
++                    self.pedal_guard.release(now-min(max(dt, 0.), 1./self.control_rate))
++                if self.current_speed_kmh <= 31.:
++                    # Release braking before the floor, including PID integral
++                    # windup from a preceding stop or high-speed deceleration.
++                    if output < 0.:
++                        self.speed_pid.reset()
++                    output = max(output, min(1., .08*max(0., velocity-self.current_speed_kmh)))
+             planner = getattr(self, 'local_planner', None)
+             roundabout_release = getattr(self, 'lane_change_reason', '') in (
+                 'roundabout_gap_accepted', 'roundabout_rolling_entry')
+@@ -1476,6 +1506,21 @@
+         publisher.publish(msg)
+ 
+     def publish_full_stop(self):
++        if self.simulator_s11_floor_active():
++            # Keep steering along the saved route when possible; retain the
++            # last steering if the stop was caused by unavailable geometry.
++            steering = getattr(self, 'last_steering', 0.)
++            if getattr(self, 'path_ready', False):
++                target = self.find_lookahead_point()
++                if target is not None:
++                    _, local_x, local_y, ld = target
++                    steering = self.calculate_steering(local_x, local_y, ld)
++            self.publish_control(steering, 30.)
++            self.publish_tracking_state()
++            publisher = getattr(self, 'target_speed_pub', None)
++            if publisher is not None:
++                publisher.publish(Float64(data=30.))
++            return
+         self.publish_local_path([])
+         self.requested_target_speed_kmh = 0.
+         cruise_brake = getattr(self, 'sector11_cruise_brake', None)
+@@ -1656,12 +1701,14 @@
+             self.last_decision = decision
+             if decision.path:
+                 self.publish_local_path(decision.path)
+-            if decision.state == 'BLOCKED':
++            if decision.state == 'BLOCKED' and not self.simulator_s11_floor_active():
+                 self.stop_reason = 'planner_blocked:' + decision.reason
+                 self.publish_full_stop()
+                 return
+             if decision.path:
+-                target = self.local_target(decision.path)
++                local_target = self.local_target(decision.path)
++                if local_target is not None or not self.simulator_s11_floor_active():
++                    target = local_target
+                 if target is None:
+                     self.stop_reason = 'local_path_no_forward_target:' + decision.reason
+                     self.publish_full_stop()
+@@ -1752,6 +1799,8 @@
+                 target_speed_kmh = 0.0
+             else:
+                 target_speed_kmh = min(target_speed_kmh, self.guard_speed_limit)
++        if self.simulator_s11_floor_active():
++            target_speed_kmh = max(30., target_speed_kmh)
+         if target_speed_kmh <= .01:
+             self.stop_reason = ('guard_speed_zero_or_stale' if self.guard_limit_topic
+                                 and (self.guard_limit_received is None
+--- a/src/control/scripts/competition_udp_control_local.py
++++ b/src/control/scripts/competition_udp_control_local.py
+@@ -1,5 +1,6 @@
+ #!/usr/bin/env python3
+ """UDP-only SIM interface; explicitly requests AutoMode even from Manual."""
++import json
+ import ipaddress
+ import math
+ import socket
+@@ -48,6 +49,11 @@
+         self.enabled = True
+         self.was_active = False
+         self.last_state = None
++        self.simulator_s11_no_stop = bool(rospy.get_param('~simulator_s11_no_stop', False))
++        self.s11_sector = None
++        self.s11_command = None
++        self.s11_speed_kmh = 30.
++        self.s11_steering = 0.
+         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+         self.sock.bind((rospy.get_param('~bind_ip', '0.0.0.0'), local_port))
+         self.status_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+@@ -64,11 +70,59 @@
+             rospy.Subscriber(rospy.get_param('~gps_topic', '/gps'), GPSMessage, self.gps_callback, queue_size=1)]
+         if self.heading_source == 'imu':
+             self.subscribers.append(rospy.Subscriber('/imu', Imu, self.imu_callback, queue_size=1))
++        if self.simulator_s11_no_stop:
++            self.subscribers.extend([
++                rospy.Subscriber('/waypoint_debug/tracking_state', String,
++                                 self.s11_tracking_callback, queue_size=1),
++                rospy.Subscriber('/semi/raceline_ctrl_cmd', CtrlCmd,
++                                 self.s11_command_callback, queue_size=1)])
+         self.enable_service = rospy.Service('~set_enabled', SetBool, self.set_enabled)
+         rospy.on_shutdown(self.stopped.set)
+         rospy.loginfo('COMPETITION UDP: SIM=%s:%d, Ego status listen=%d, heading=%s, ctrl_mode=2, gear=%d; NO ROS bridge/service',
+                       *self.destination, status_port, self.heading_source, self.encoder.gear)
+         rospy.loginfo('Automatic takeover enabled. Stop this launch or call ~set_enabled false to return to keyboard mode.')
++
++    def s11_tracking_callback(self, message):
++        try:
++            sector = json.loads(message.data)['sector']
++        except (ValueError, TypeError, KeyError):
++            return
++        with self.lock:
++            if sector != self.s11_sector:
++                self.s11_command = None
++            self.s11_sector = sector
++
++    def s11_command_callback(self, message):
++        try:
++            packet = self.encoder.encode(message.longlCmdType, message.velocity,
++                                         message.acceleration, message.accel,
++                                         message.brake, message.steering)
++        except ValueError:
++            return
++        with self.lock:
++            if self.s11_sector == 11:
++                self.s11_command = (packet, time.monotonic())
++                self.s11_steering = message.steering
++
++    def simulator_s11_packet(self, packet, state, now):
++        """Final MORAI-only override, including guard/watchdog stop packets.
++
++        Retain the last known sector during sensor loss; a new sector report
++        ends this policy. Manual disable and shutdown still release control.
++        Caller holds self.lock.
++        """
++        if not getattr(self, 'simulator_s11_no_stop', False) or self.s11_sector != 11:
++            return packet, state
++        speed_fresh = self.freshness.fresh(now)
++        if speed_fresh and self.s11_command is not None and now-self.s11_command[1] <= .5:
++            return self.s11_command[0], 'SENDING: simulator S11 minimum 30 km/h'
++        error = 30.-self.s11_speed_kmh
++        accel = min(.3, max(0., .08*error))
++        brake = min(.22, max(0., .02*(-error-1.))) if speed_fresh else 0.
++        if not speed_fresh:
++            accel = .2  # No sustained braking from a frozen speed sample in this SIM policy.
++        return (self.encoder.encode(1, 0., 0., accel, brake, self.s11_steering),
++                'SENDING: simulator S11 minimum 30 km/h fallback')
+ 
+     def set_enabled(self, request):
+         with self.lock:
+@@ -125,6 +179,7 @@
+             received = time.monotonic()
+             with self.lock:
+                 changed = self.freshness.update(status.stamp, received)
++                self.s11_speed_kmh = abs(status.speed_kmh)
+             self.mode_pub.publish(UInt8(data=status.mode))
+             self.speed_pub.publish(Float64(data=abs(status.speed_kmh)))
+             self.ego_pub.publish(String(data='mode={} gear={} speed={:.2f}km/h yaw={:.2f}deg steer={:.2f}deg wheelbase={:.3f}m'.format(
+@@ -154,9 +209,11 @@
+                             packet, state = self.watchdog.select(time.monotonic(), rospy.Time.now().to_sec(), self.encoder.stop())
+                             # No mode gate: AutoMode=2 is explicitly requested even
+                             # when the last reported mode was Manual.
++                            packet, state = self.simulator_s11_packet(packet, state, time.monotonic())
+                             self.sock.sendto(packet, self.destination)
+                         elif self.was_active:
+                             packet, state = self.encoder.stop(), 'BRAKE: missing/stale/frozen Ego UDP status'
++                            packet, state = self.simulator_s11_packet(packet, state, time.monotonic())
+                             self.sock.sendto(packet, self.destination)
+                         else:
+                             # Until the correct Publisher is verified, do not force
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -25,8 +25,8 @@
+   <!-- Map Tuner point IDs (S12-S13 tollgate, 30 km/h in the project file):
+        follow the waypoints only, no obstacle avoidance there. -->
+   <arg name="waypoint_only_point_ids" default="3496-3572"/>
+-  <!-- S11 cruising target floor; obstacle/lane-end stops and stale-input
+-       braking still take priority. Saved Map Debug settings may override it. -->
++  <!-- MORAI S11: all stop requests become a 30 km/h target. -->
++  <arg name="simulator_s11_no_stop" default="true"/>
+   <arg name="sector11_min_speed_kmh" default="30.0"/>
+   <!-- Highway (S11 = CP10-CP11) compact following + MOBIL lane changes, Raceline 3
+        preferred, no lane-change speed precondition; collision protection wins.
+@@ -67,6 +67,7 @@
+     <param name="morai_ip" value="$(arg morai_ip)"/>
+     <param name="morai_port" value="$(arg morai_port)"/>
+     <param name="status_port" value="$(arg status_port)"/>
++    <param name="simulator_s11_no_stop" value="$(arg simulator_s11_no_stop)"/>
+     <param name="heading_source" value="imu"/>
+     <param name="steering_sign" value="1.0"/>
+     <param name="max_steering_deg" value="$(arg max_steering_deg)"/>
+@@ -120,7 +121,8 @@
+     <param name="roundabout_ego_lead_gap_s" value="1.4"/>
+     <param name="roundabout_ego_lead_min_speed_kmh" value="2.5"/>
+     <param name="roundabout_obstacle_monitor_radius_m" value="35.0"/>
+-    <!-- S11 cruise and ordinary following: smooth brake; imminent hazards bypass. -->
++    <!-- Simulator-only S11 floor also overrides blocked/stale-input stops. -->
++    <param name="simulator_s11_no_stop" value="$(arg simulator_s11_no_stop)"/>
+     <param name="sector11_smooth_braking" value="true"/>
+     <param name="sector11_brake_gain" value="0.02"/>
+     <param name="sector11_max_cruise_brake" value="0.22"/>
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s11_min30.py
+@@ -0,0 +1,91 @@
++"""MORAI S11 no-stop policy at the final command boundary."""
++import unittest
++from unittest.mock import MagicMock
++import test_driving_stability as stability
++from pedal_guard import PedalGuard
++
++
++class S11Min30Tests(unittest.TestCase):
++    def follower(self, sector=11):
++        n = stability.StabilityTests().cruise_follower(sector)
++        n.simulator_s11_no_stop = True
++        n.publish_tracking_state = MagicMock()
++        n.publish_local_path = MagicMock()
++        n.target_speed_pub = MagicMock()
++        return n
++
++    def test_all_lower_targets_are_clamped_in_both_control_modes(self):
++        for mode in ('pid', 'velocity'):
++            for target in (0., 5., 29., 30., 50.):
++                n = self.follower()
++                n.longitudinal_control_mode = mode
++                n.publish_control(.1, target)
++                self.assertEqual(n.requested_target_speed_kmh, max(30., target))
++                cmd = n.ctrl_pub.publish.call_args.args[0]
++                self.assertEqual(cmd.steering, .1)
++                if mode == 'velocity':
++                    self.assertEqual(cmd.velocity, max(30., target))
++
++    def test_stop_requests_keep_moving_and_track_available_route(self):
++        for reason in ('planner_blocked', 'obstacle_perception_stale',
++                       'gps_or_heading_stale', 'guard_speed_zero_or_stale',
++                       'no_forward_waypoint', 'goal_reached'):
++            n = self.follower()
++            n.stop_reason = reason
++            n.path_ready = True
++            n.find_lookahead_point = MagicMock(return_value=(0, 5., 1., 5.1))
++            n.calculate_steering = MagicMock(return_value=.15)
++            n.publish_full_stop()
++            self.assertEqual(n.requested_target_speed_kmh, 30.)
++            self.assertEqual(n.ctrl_pub.publish.call_args.args[0].steering, .15)
++            self.assertLess(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
++            n.publish_tracking_state.assert_called_once_with()
++
++    def test_no_feedback_preserves_competition_pedal_format(self):
++        for speed in (None, 60.):
++            n = self.follower()
++            n.current_speed_kmh = speed
++            n.stop_reason = 'speed_feedback_stale'
++            n.publish_full_stop()
++            cmd = n.ctrl_pub.publish.call_args.args[0]
++            self.assertEqual(cmd.longlCmdType, 1)
++            self.assertEqual(n.requested_target_speed_kmh, 30.)
++            if speed is None:
++                self.assertEqual(cmd.brake, 0.)
++                self.assertGreater(cmd.accel, 0.)
++
++    def test_brake_releases_near_floor_even_with_windup_and_previous_hold(self):
++        for speed in (0., 20., 29., 30., 31.):
++            n = self.follower()
++            n.current_speed_kmh = speed
++            n.speed_pid.update = MagicMock(return_value=-1.)
++            n.pedal_guard = PedalGuard()
++            n.pedal_guard.stop(0.)
++            n.last_decision.state = 'BLOCKED'
++            n.local_planner.lane_end_imminent = True
++            n.publish_control(0., 0.)
++            cmd = n.ctrl_pub.publish.call_args.args[0]
++            self.assertEqual(cmd.brake, 0.)
++            self.assertFalse(n.pedal_guard.holding)
++            if speed < 30.:
++                self.assertGreater(cmd.accel, 0.)
++
++    def test_caps_and_runtime_floor_cannot_lower_30(self):
++        n = self.follower()
++        n.last_decision.speed_cap_kmh = 0.
++        n.local_planner.sector_min_speed_kmh = 0.
++        n.local_planner.lane_end_imminent = True
++        self.assertEqual(n.sector_speed_floor(0.), 30.)
++        self.assertEqual(n.sector_speed_floor(55.), 55.)
++
++    def test_other_sectors_and_disabled_option_retain_full_stop(self):
++        for sector, enabled in ((9, True), (10, True), (12, True), (11, False)):
++            n = self.follower(sector)
++            n.simulator_s11_no_stop = enabled
++            n.publish_full_stop()
++            self.assertEqual(n.ctrl_pub.publish.call_args.args[0].brake, 1.)
++            self.assertEqual(n.requested_target_speed_kmh, 0.)
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/src/control/test/test_s11_no_stop_udp.py
+@@ -0,0 +1,60 @@
++import sys
++import threading
++import unittest
++from pathlib import Path
++from unittest.mock import MagicMock
++from types import SimpleNamespace
++sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
++from competition_udp_control_local import CompetitionUDPControl
++
++
++class S11UDPTests(unittest.TestCase):
++    def controller(self):
++        n = CompetitionUDPControl.__new__(CompetitionUDPControl)
++        n.simulator_s11_no_stop = True
++        n.s11_sector = 11
++        n.s11_command = (b'cruise', 10.)
++        n.s11_speed_kmh, n.s11_steering = 60., .1
++        n.encoder = MagicMock()
++        n.encoder.encode.return_value = b'fallback'
++        n.freshness = MagicMock()
++        n.freshness.fresh.return_value = True
++        n.lock = threading.Lock()
++        return n
++
++    def test_guard_and_watchdog_stops_yield_to_fresh_follower(self):
++        n = self.controller()
++        self.assertEqual(n.simulator_s11_packet(b'stop', 'BRAKE', 10.1)[0], b'cruise')
++
++    def test_fallback_decelerates_but_releases_at_floor(self):
++        n = self.controller()
++        for speed in (60., 31., 30., 20.):
++            n.s11_speed_kmh = speed
++            self.assertEqual(n.simulator_s11_packet(b'stop', 'BRAKE', 11.)[0], b'fallback')
++            args = n.encoder.encode.call_args.args
++            self.assertEqual(args[0], 1)
++            self.assertEqual(args[5], .1)
++            self.assertEqual(args[4] > 0., speed > 31.)
++            self.assertEqual(args[3] > 0., speed < 30.)
++
++    def test_frozen_speed_cannot_keep_braking(self):
++        n = self.controller()
++        n.freshness.fresh.return_value = False
++        n.simulator_s11_packet(b'stop', 'BRAKE', 10.1)
++        args = n.encoder.encode.call_args.args
++        self.assertEqual((args[3], args[4]), (.2, 0.))
++
++    def test_sector_entry_discards_previous_sector_command(self):
++        n = self.controller()
++        n.s11_sector = 10
++        n.s11_tracking_callback(SimpleNamespace(data='{"sector":11}'))
++        self.assertIsNone(n.s11_command)
++        self.assertEqual(n.simulator_s11_packet(b'stop', 'BRAKE', 10.1)[0], b'fallback')
++
++    def test_sector_exit_and_disabled_policy_restore_original_packet(self):
++        n = self.controller()
++        n.s11_tracking_callback(SimpleNamespace(data='{"sector":12}'))
++        self.assertEqual(n.simulator_s11_packet(b'stop', 'BRAKE', 10.1), (b'stop', 'BRAKE'))
++        n.s11_sector = 11
++        n.simulator_s11_no_stop = False
++        self.assertEqual(n.simulator_s11_packet(b'stop', 'BRAKE', 10.1), (b'stop', 'BRAKE'))

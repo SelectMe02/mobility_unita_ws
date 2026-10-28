@@ -1,0 +1,12 @@
+{
+  "restore_files": [
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py"
+  ],
+  "new_files": [],
+  "before_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "e033ce111efa957607e0082a27355e6152b3034ad33ae0e226e2885fa8de2148"
+  },
+  "after_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "0f053abdb27bf0873b12be221d018369e1eaafb544601888a33d4287feabb43f"
+  }
+}

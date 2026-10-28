@@ -1,0 +1,10 @@
+{
+  "restore_files": [
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py",
+    "src/leo_avoidance/scripts/route_avoidance_node.py",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py",
+    "src/leo_avoidance/test/test_s4_retained_pass.py"
+  ],
+  "new_files": []
+}

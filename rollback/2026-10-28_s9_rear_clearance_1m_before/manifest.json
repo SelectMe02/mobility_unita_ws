@@ -1,0 +1,20 @@
+{
+  "rollback_request": "2026-10-28 S9 로터리 통과 여유 1m 조정 전으로 롤백",
+  "modified_files": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py"
+  ],
+  "added_files": [
+    "src/unita_waypoint/test/test_s9_rear_clearance.py"
+  ],
+  "validation": {
+    "new_tests": 5,
+    "immediate_departure_tests": 6,
+    "driving_stability_tests": 23,
+    "roundabout_tests": 21,
+    "recorded_replay_run": "run_20261028_154846",
+    "release_before": "15:49:02.718",
+    "release_after": "15:49:02.368",
+    "earlier_s": 0.35,
+    "closed_loop_test": false
+  }
+}

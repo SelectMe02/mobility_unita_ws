@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(rospkg.RosPack().get_path('unita_waypoint')) / 'scri
 from lane_corridor import LaneCorridor, SectorLaneFilter
 from obstacle_motion import box_bounds, update_motion
 from perception_debug import PerceptionDebug
+from leo_avoidance.road_points import RoadPointConfig, obstacle_points
 
 
 def road_obstacle_mask(points, front_range=55., rear_range=55., side_range=12.,
@@ -92,6 +93,29 @@ def object_circles(group, pose=None):
     return result
 
 
+class S5Lane2ObservationZone(SectorLaneFilter):
+    """Only the lane-2 span starting in S5, including its continuation."""
+    def __init__(self, geometry):
+        super().__init__(geometry, sector=5)
+        lanes = {lane['sector']: lane for lane in geometry['lanes']
+                 if lane['raceline'] == 2 and lane['points']}
+        if self.corridor is None or 5 not in lanes:
+            self.corridor = None
+            return
+        sector = 5
+        while sector + 1 in lanes:
+            sector += 1
+        bounds = []
+        for endpoint in (lanes[5]['points'][0], lanes[sector]['points'][-1]):
+            endpoint = np.asarray(endpoint, dtype=float)
+            fraction = np.clip(np.sum((endpoint-self._starts)*self._vectors, axis=1)
+                               / self._squared, 0., 1.)
+            projected = self._starts + fraction[:, None]*self._vectors
+            closest = int(np.argmin(np.sum((projected-endpoint)**2, axis=1)))
+            bounds.append(self._arc[closest] + fraction[closest]*math.sqrt(self._squared[closest]))
+        self._start, self._end = bounds
+
+
 class LidarObstacles:
     def __init__(self):
         self.lidar_x = float(rospy.get_param('~lidar_to_rear_x_m', 1.4))
@@ -115,6 +139,9 @@ class LidarObstacles:
         self.next_id = 1
         self.lane_corridor = None
         self.sector_lane_filter = None
+        self.ground_sector_filters = ()
+        self.outside_observation_zone = None
+        self.was_outside_observation = False
         self.pub = rospy.Publisher('/waypoint_debug/obstacles', String, queue_size=1)
         self.debug = PerceptionDebug('/leo/waypoint_debug', 'ground_status')
         rospy.Subscriber('/waypoint_debug/lane_geometry', String,
@@ -130,16 +157,24 @@ class LidarObstacles:
             geometry = json.loads(message.data)
             corridor = LaneCorridor(geometry)
             sector_filter = SectorLaneFilter(geometry)
+            ground_filters = tuple(SectorLaneFilter(geometry, sector=sector)
+                                   for sector in (4, 5, 6))
+            outside_zone = S5Lane2ObservationZone(geometry)
         except (ValueError, KeyError, TypeError, OverflowError) as error:
             rospy.logwarn_throttle(5., 'Invalid lane geometry: %s', error)
             with self.lock:
                 self.lane_corridor = None
                 self.sector_lane_filter = None
+                self.ground_sector_filters = ()
+                self.outside_observation_zone = None
                 self.tracks.clear()
             return
         with self.lock:
             self.lane_corridor = corridor
             self.sector_lane_filter = sector_filter
+            self.ground_sector_filters = ground_filters
+            self.outside_observation_zone = outside_zone
+            self.was_outside_observation = False
             self.tracks.clear()
             # Keep all three lane strips in view when a wider layout is used.
             self.side_range = max(self.side_range, 3.*corridor.width)
@@ -242,6 +277,8 @@ class LidarObstacles:
             msg = self.pending
             corridor = self.lane_corridor
             sector_filter = getattr(self, 'sector_lane_filter', None)
+            ground_filters = getattr(self, 'ground_sector_filters', ())
+            outside_zone = getattr(self, 'outside_observation_zone', None)
         if msg is None:
             if debug is not None:
                 debug.clear_if_stale()
@@ -267,6 +304,7 @@ class LidarObstacles:
                 debug.clear('waiting_pose', msg.header)
             return
         original_corridor = corridor
+        observe_outside = outside_zone is not None and outside_zone.active(pose[:2])
         s12_filter_active = sector_filter is not None and sector_filter.active(pose[:2])
         if s12_filter_active:
             corridor = sector_filter.corridor
@@ -276,6 +314,20 @@ class LidarObstacles:
         points = np.asarray(list(point_cloud2.read_points(
             msg, field_names=('x', 'y', 'z'), skip_nans=True)), dtype=float)
         points = points.reshape((-1, 3))
+        raw_points = points
+        ground_filter_active = any(f.active(pose[:2]) for f in ground_filters)
+        if ground_filter_active:
+            # Reuse route avoidance's local-ground filter, in LiDAR coordinates.
+            # Sector selectors only enable it; never narrow the passing lanes.
+            points = obstacle_points(raw_points, RoadPointConfig(
+                lidar_to_rear_x_m=self.lidar_x,
+                x_range_m=(-self.rear_range-self.lidar_x,
+                           self.front_range-self.lidar_x),
+                half_width_m=self.side_range,
+                front_extent_m=self.front_extent, rear_extent_m=self.rear_extent,
+                half_width_body_m=self.half_width))
+        debug_points = raw_points + [self.lidar_x, self.lidar_y, self.lidar_z]
+        points = points.copy()
         points[:, 0] += self.lidar_x
         points[:, 1] += self.lidar_y
         points[:, 2] += self.lidar_z
@@ -288,12 +340,16 @@ class LidarObstacles:
                                   pose[1]+s*xy[:, 0]+c*xy[:, 1]))
         # Drop roadside returns before clustering so a fence cannot enlarge
         # or merge with a car that is actually inside a mapped lane.
-        inside = corridor.contains(map_xy)
+        inside = (np.ones(len(map_xy), dtype=bool) if observe_outside
+                  else corridor.contains(map_xy))
         capture_debug = debug is not None and debug.active()
         debug_selected = points[mask][inside] if capture_debug else None
         debug_counts = dict(candidate_points=int(mask.sum()),
                            lane_removed_points=int((~inside).sum()),
                            other_removed_points=int((~mask).sum()),
+                           local_ground_filter_active=ground_filter_active,
+                           s5_lane2_outside_observation=observe_outside,
+                           ground_height_roi_removed_points=len(raw_points)-len(points),
                            s12_filter_active=s12_filter_active,
                            lane_filter_width_m=corridor.width)
         xy = xy[inside]
@@ -302,28 +358,34 @@ class LidarObstacles:
         found = []
         for group in clusters(xy):
             found.extend(object_circles(group, pose))
-        mask = corridor.contains([o[:2] for o in found])
+        mask = (np.ones(len(found), dtype=bool) if observe_outside
+                else corridor.contains([o[:2] for o in found]))
         found = [o for o, inside in zip(found, mask) if inside]
         with self.lock:
             if self.lane_corridor is not original_corridor:
                 return
-            if s12_filter_active:
+            if s12_filter_active or (getattr(self, 'was_outside_observation', False)
+                                    and not observe_outside):
                 inside = corridor.contains([(track['x'], track['y'])
                                             for track in self.tracks.values()])
                 self.tracks = {key: track for (key, track), keep
                                in zip(self.tracks.items(), inside) if keep}
             tracked = self._update_tracks(found, stamp)
-            tracked = corridor.filter_obstacles(tracked)
+            if not observe_outside:
+                tracked = corridor.filter_obstacles(tracked)
+            self.was_outside_observation = observe_outside
             # Expired predictions and vehicles leaving the lane are discarded
             # from tracking as well as from the published obstacle stream.
             keep = {o['id'] for o in tracked}
             self.tracks = {key: value for key, value in self.tracks.items() if key in keep}
         if debug is not None:
             if capture_debug:
-                debug.publish(points, debug_selected, msg.header, pose,
+                debug.publish(debug_points, debug_selected, msg.header, pose,
                               mode='local_filtered',
                               debug_point_stage='lane_filtered_input',
-                              filter_summary='고정 높이·자차·거리 → 저장 차선 → 군집·추적 (IMU 노면 평면 없음)',
+                              filter_summary=('격자 노면 높이 → 고정 높이·자차·거리 → 저장 차선 → 군집·추적'
+                                              if ground_filter_active else
+                                              '고정 높이·자차·거리 → 저장 차선 → 군집·추적 (IMU 노면 평면 없음)'),
                               imu_corrected=False, obstacle_min_height_m=.22,
                               obstacle_max_height_m=2.6, detected_obstacles=len(found),
                               tracked_obstacles=len(tracked), **debug_counts)

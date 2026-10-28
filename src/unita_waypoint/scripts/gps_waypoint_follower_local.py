@@ -853,14 +853,21 @@ class GPSWaypointFollower:
             # that a static-looking state contains no simultaneous threat.
             traffic_cap = data.get('traffic_speed_cap_kmh', cap)
             traffic_cap = float('inf') if traffic_cap is None else float(traffic_cap)
+            pass_active = data.get('pass_active', data.get('state') == 'PASSING')
+            static_pass_managed = data.get('static_pass_managed', False)
             if (not all(math.isfinite(v) for point in path for v in point)
-                    or math.isnan(cap) or math.isnan(traffic_cap) or traffic_cap < 0.):
+                    or math.isnan(cap) or cap < 0.
+                    or math.isnan(traffic_cap) or traffic_cap < 0.
+                    or not isinstance(pass_active, bool)
+                    or not isinstance(static_pass_managed, bool)):
                 raise ValueError('non-finite route avoidance output')
         except (ValueError, KeyError, TypeError):
             self.route_avoidance = None
             return
         self.route_avoidance = dict(path=path, speed_cap_kmh=cap,
                                     traffic_speed_cap_kmh=traffic_cap,
+                                    pass_active=pass_active,
+                                    static_pass_managed=static_pass_managed,
                                     state=data.get('state', ''),
                                     reason=data.get('reason', ''))
         self.route_avoidance_received = time.monotonic()
@@ -1524,11 +1531,22 @@ class GPSWaypointFollower:
                 rospy.logwarn_throttle(2., 'Obstacle perception missing/stale')
                 return
             planning_obstacles = self.obstacles
-            decision = self.local_planner.plan(
-                self.current_waypoint_index, position,
-                (self.current_speed_kmh or 0.)/3.6, planning_obstacles,
-                ego_yaw=self.current_yaw, force_r1=force_r1)
+            route_pass_owns = bool(route_avoidance and plan['path'] and not force_r1
+                and (plan.get('static_pass_managed', False) or (
+                    plan.get('pass_active', plan['state'] == 'PASSING')
+                    and not self.local_planner_owns_steering())))
+            if route_pass_owns:
+                decision = self.local_planner.check_route_pass(
+                    plan['path'], (self.current_speed_kmh or 0.)/3.6,
+                    planning_obstacles,
+                    sector=self.local_planner.sectors[self.current_waypoint_index])
+            else:
+                decision = self.local_planner.plan(
+                    self.current_waypoint_index, position,
+                    (self.current_speed_kmh or 0.)/3.6, planning_obstacles,
+                    ego_yaw=self.current_yaw, force_r1=force_r1)
             self.debug_trace.update(local_plan_trace(self.local_planner, decision, planning_obstacles))
+            self.debug_trace['route_pass_owns'] = route_pass_owns
             if route_avoidance:
                 self.debug_trace['planner_mode'] = 'route_and_local_avoidance'
             preference = (self.local_planner.effective_preferred_lane,
@@ -1547,7 +1565,7 @@ class GPSWaypointFollower:
             local_speed_cap = decision.speed_cap_kmh
             # During handoff, only the R1 path may steer. Otherwise keep the
             # existing route/local saved-lane steering ownership.
-            local_steers = bool(decision.path) and (
+            local_steers = bool(decision.path) and not route_pass_owns and (
                 force_r1 or not (route_avoidance and plan['path'])
                 or self.local_planner_owns_steering())
             if (force_r1 or not local_steers

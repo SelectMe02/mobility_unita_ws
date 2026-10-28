@@ -166,16 +166,21 @@ class _Pass:
     end_s: float
     offset_m: float
     block_first_s: float
+    quintic: bool = False
+
+    def blend(self, t):
+        t = max(0., min(1., t))
+        return t*t*t*(10.-15.*t+6.*t*t) if self.quintic else smoothstep(t)
 
     def offset_at(self, s):
         if s <= self.ramp_start_s or s >= self.end_s:
             return 0.
         if s < self.full_s:
-            return self.offset_m * smoothstep(
+            return self.offset_m * self.blend(
                 (s - self.ramp_start_s) / max(self.full_s - self.ramp_start_s, 1e-6))
         if s <= self.hold_end_s:
             return self.offset_m
-        return self.offset_m * (1. - smoothstep(
+        return self.offset_m * (1. - self.blend(
             (s - self.hold_end_s) / max(self.end_s - self.hold_end_s, 1e-6)))
 
 
@@ -213,17 +218,58 @@ class RouteAvoidance:
         self.crosswalk_hold = None  # crosswalk start currently occupied on the route
         self.pedestrian_hold_ranges = []
         self.pedestrian_hold = None
+        self.pedestrian_holds = []
+        self.observation_time = 0.
         self.person_d = {}  # track id -> route offsets at the previous two updates
         self.lane_changes = sorted(lane_changes, key=lambda v: v['start_s'])
         self.active = None
         self.last_s = None
+        self.static_pass_zone = None
+        self.pass_speed_25_ranges = []
+        self.static_memory = []
+        self.static_pass_managed = False
 
     def reset(self):
         self.active = None
         self.last_s = None
         self.crosswalk_hold = None
         self.pedestrian_hold = None
+        self.pedestrian_holds = []
+        self.observation_time = 0.
         self.person_d = {}
+        self.static_memory = []
+        self.static_pass_managed = False
+
+    def set_static_pass_zone(self, start, full_start, full_end, end, offset):
+        """Explicit saved S4 R2 corridor; approach/return stay within S4."""
+        if not start < full_start < full_end < end or abs(offset) < 2.:
+            raise ValueError('invalid S4 saved pass corridor')
+        self.static_pass_zone = (start, full_start, full_end, end, offset)
+
+    def _retain_static_blocks(self, items, s_ego):
+        zone = self.static_pass_zone
+        self.static_pass_managed = bool(zone and zone[0] <= s_ego <= zone[3])
+        if not self.static_pass_managed:
+            self.static_memory = []
+            return items
+        # Never interpret absence as free space. Keep a measured footprint
+        # until the rear bumper has passed it. Dynamic tracks remain live.
+        cfg = self.config
+        self.static_memory = [o for o in self.static_memory
+                              if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m]
+        for o in items:
+            if (o['moving'] or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
+                    or not zone[1] <= o['s'] <= zone[2]):
+                continue
+            match = next((h for h in self.static_memory
+                          if abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
+            if match is None:
+                self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True))
+            else:
+                low, high = min(match['s']-match['l'], o['s']-o['l']), max(match['s']+match['l'], o['s']+o['l'])
+                match['s'], match['l'] = (low+high)/2., (high-low)/2.
+                match['r'] = max(match['r'], o['r']+abs(o['d']-match['d']))
+        return items + [dict(o) for o in self.static_memory]
 
     def set_pedestrian_hold_ranges(self, ranges):
         """[(start_s, end_s)] on the base lap where crossing pedestrians are held."""
@@ -302,37 +348,87 @@ class RouteAvoidance:
         cfg = self.config
         return o['r'] <= cfg.pedestrian_half_m and o['l'] <= cfg.pedestrian_half_m
 
-    def _note_pedestrian(self, o, binding=True):
+    def _hold_match(self, hold, o):
+        dt = max(0., self.observation_time-hold.get('seen_at', self.observation_time))
+        if dt > 3.01 or abs(o['s']-hold['s']) > 1.5:
+            return False
+        vd = hold.get('vd', 0.)
+        expected = hold['d'] + vd*dt
+        if abs(o['d']-expected) > 1.5 + .3*dt:
+            return False
+        if o['id'] not in hold['ids']:
+            if abs(vd) > .2 and (o['d']-hold['d'])*vd < -.2:
+                return False
+            if abs(o['v_d']) > .2 and o['v_d']*vd < -.2:
+                return False
+        return True
+
+    def _note_pedestrian(self, o, binding=True, tentative=False):
         """Start or refresh the pedestrian hold for a mover that made Ego yield.
 
-        Only a person-sized mover whose position really moved toward the
+        Only a person-sized candidate whose position really moved toward the
         route over the last two updates, in the direction of its estimated
         velocity, starts a hold. Roadside clutter with a stale velocity or a
         single jump does not. A predicted crossing must also demand braking
-        now (binding).
+        now (binding). Tentative S5 candidates use measured approach without
+        requiring the velocity classifier, and retain the stop through loss.
         """
         cfg = self.config
+        for existing in self.pedestrian_holds:
+            if self._hold_match(existing, o):
+                return
+        previous_hold = self.pedestrian_hold
+        self.pedestrian_hold = None
         if (not binding or not self._person_sized(o)
                 or max(o['r'], o['l']) < cfg.pedestrian_min_half_m
                 or not any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
                 or (abs(o['v_s']) >= cfg.moving_speed_mps
                     and abs(o['v_s']) >= 2. * abs(o['v_d']))):
+            self.pedestrian_hold = previous_hold
             return  # traffic along the lane is not a crossing pedestrian
         history = self.person_d.get(o['id'], ())
         if self.pedestrian_hold is None:
             path = list(history) + [o['d']]
-            if len(path) < 3 or any(
-                    abs(a) - abs(b) < cfg.pedestrian_approach_m or o['v_d'] * (b - a) <= 0.
+            if tentative:
+                path = path[-2:]
+            if len(path) < (2 if tentative else 3) or any(
+                    abs(a) - abs(b) < (max(.25, cfg.pedestrian_approach_m)
+                                       if tentative else cfg.pedestrian_approach_m)
+                    or (not tentative and o['v_d'] * (b - a) <= 0.)
                     for a, b in zip(path, path[1:])):
+                self.pedestrian_hold = previous_hold
                 return
         if self.pedestrian_hold is None:
             self.pedestrian_hold = dict(ids=set(), s=o['s'], d=o['d'], l=o['l'],
                                         cap=math.inf, full_brake=False,
                                         clear_scans=0, static_scans=0,
-                                        lost_scans=0, near=True)
+                                        lost_scans=0, near=True,
+                                        confirmed_crossing=not tentative,
+                                        entry_side=math.copysign(1., o['d']))
+            if tentative:
+                self.pedestrian_hold.update(tentative=True, entry_side=math.copysign(1., o['d']),
+                                            approach_scans=1, stationary_scans=0,
+                                            initial_d=o['d'], last_r=o['r'], last_l=o['l'])
+        self.pedestrian_hold.update(seen_at=self.observation_time, vd=o['v_d'])
         self.pedestrian_hold['ids'].add(o['id'])
+        self.pedestrian_holds.append(self.pedestrian_hold)
 
     def _pedestrian_hold_cap(self, items, speed, s_ego, front_s, offset_at):
+        remaining = []
+        used = set()
+        for hold in self.pedestrian_holds:
+            self.pedestrian_hold = hold
+            cap = self._single_pedestrian_hold_cap(
+                [o for o in items if o['id'] not in used], speed, s_ego, front_s, offset_at)
+            if hold.get('seen_at') == self.observation_time and 'observed_id' in hold:
+                used.add(hold['observed_id'])
+            if cap is not None:
+                remaining.append((cap, hold))
+        self.pedestrian_holds = [h for _, h in remaining]
+        self.pedestrian_hold = min(remaining, key=lambda entry: entry[0])[1] if remaining else None
+        return min((cap for cap, _ in remaining), default=None)
+
+    def _single_pedestrian_hold_cap(self, items, speed, s_ego, front_s, offset_at):
         """Speed cap while a crossing pedestrian is held, or None.
 
         A momentary velocity dropout or track loss does not release it; only
@@ -344,12 +440,18 @@ class RouteAvoidance:
         if hold is None:
             return None
         cfg = self.config
-        near = [o for o in items if self._person_sized(o) and (
-            o['id'] in hold['ids']
-            or (abs(o['s'] - hold['s']) <= cfg.pedestrian_adopt_m
-                and abs(o['d'] - hold['d']) <= cfg.pedestrian_adopt_m))]
+        near = [o for o in items if self._person_sized(o) and self._hold_match(hold, o)]
         if near:
             o = min(near, key=lambda o: math.hypot(o['s'] - hold['s'], o['d'] - hold['d']))
+            previous_d, previous_s = hold['d'], hold['s']
+            dt = self.observation_time-hold.get('seen_at', self.observation_time)
+            measured_vd = ((o['d']-previous_d)/dt if dt > .05 else hold.get('vd', 0.))
+            if abs(o['v_d']) > .2:
+                hold['vd'] = o['v_d']
+            elif not hold.get('tentative') and .2 < abs(measured_vd) <= 4.5:
+                hold['vd'] = measured_vd
+            hold['seen_at'] = self.observation_time
+            hold['observed_id'] = o['id']
             hold['ids'].add(o['id'])
             hold.update(s=o['s'], d=o['d'], l=o['l'], lost_scans=0)
             lateral = abs(o['d'] - offset_at(o['s']))
@@ -358,18 +460,54 @@ class RouteAvoidance:
             hold['static_scans'] = (0 if o['moving'] or in_band
                                     else hold['static_scans'] + 1)
             occupied = hold['near']
+            if hold.get('tentative'):
+                delta = abs(previous_d)-abs(o['d'])
+                consistent = (abs(o['r']-hold['last_r']) < .15
+                              and abs(o['l']-hold['last_l']) < .15
+                              and abs(o['s']-previous_s) < .5)
+                hold['approach_scans'] = (hold['approach_scans']+1
+                    if consistent and delta >= .1 else 0)
+                hold['stationary_scans'] = (hold['stationary_scans']+1
+                    if consistent and lateral > cfg.band(o['r']) + .3 and not o['moving']
+                    and abs(o['d']-previous_d) < .1 else 0)
+                hold.update(last_r=o['r'], last_l=o['l'])
+                # Candidate slowdown is reversible. Confirmed path occupancy
+                # or sustained approach upgrades it to a persistent hazard.
+                confirmed = (in_band or (o['moving'] and o['d']*o['v_d'] < 0.)
+                             or (hold['approach_scans'] >= 2
+                                 and abs(hold['initial_d'])-abs(o['d']) >= .4))
+                if confirmed:
+                    hold.update(tentative=False, confirmed_crossing=True)
+                elif hold['stationary_scans'] >= 4:
+                    self.pedestrian_hold = None
+                    return None
+                occupied = True
+                hold['static_scans'] = 0
+            if hold.get('confirmed_crossing'):
+                relative_d = o['d']-offset_at(o['s'])
+                outside = abs(relative_d) > cfg.band(o['r']) + .2
+                outward = relative_d*hold.get('vd', 0.) > .1
+                occupied = not (outside and outward)
         else:
             # Unseen (e.g. right at the bumper): still where it was last seen.
             hold['lost_scans'] += 1
             occupied = (hold['near']
                         and hold['lost_scans'] < cfg.pedestrian_lost_release_scans)
+            if hold.get('tentative') or hold.get('confirmed_crossing'):
+                occupied = True
         hold['clear_scans'] = 0 if occupied else hold['clear_scans'] + 1
         if (hold['s'] + hold['l'] < s_ego
-                or hold['clear_scans'] >= cfg.pedestrian_release_scans
+                or hold['clear_scans'] >= (3 if hold.get('confirmed_crossing') else cfg.pedestrian_release_scans)
                 or hold['static_scans'] >= cfg.pedestrian_static_release_scans):
             self.pedestrian_hold = None
             return None
         ahead = hold['s'] - hold['l'] - front_s
+        if hold.get('tentative'):
+            # A candidate outside the path limits approach speed, without
+            # permanently latching a zero cap from one noisy displacement.
+            hold['cap'] = min(10./3.6, stopping_speed(max(0., ahead-cfg.stop_gap_m),
+                                                    cfg.brake_mps2, cfg.reaction_s))
+            return hold['cap']
         stop = (0. if ahead <= 0. else
                 stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s))
         if hold['full_brake'] or stop + .3 < speed:
@@ -393,13 +531,94 @@ class RouteAvoidance:
                 return False, o
         return True, None
 
+    def _s4_swept_check(self, profile, items, s_ego, speed):
+        """Check oriented ego body against obstacle rectangles on the route.
+
+        Sample the complete entry, hold and return, including rear overhang.
+        A small sampling allowance is added to the existing safety margin.
+        """
+        cfg = self.config
+        peak = 0.
+        for s in np.arange(s_ego, profile.end_s + .26, .25):
+            d = profile.offset_at(s)
+            left, right = profile.offset_at(s-.05), profile.offset_at(s+.05)
+            slope = (right-left)/.1
+            curvature = abs((right-2*d+left)/.0025)/(1+slope*slope)**1.5
+            peak = max(peak, curvature)
+            if peak > .14:
+                return False, None, s, peak
+            angle = math.atan(slope)
+            c, sn = math.cos(angle), math.sin(angle)
+            half_l = (cfg.front_extent_m+cfg.rear_extent_m)/2.+.15
+            half_w = cfg.vehicle_half_width_m+cfg.side_margin_m+.15
+            center = (cfg.front_extent_m-cfg.rear_extent_m)/2.
+            es, ed = s+c*center, d+sn*center
+            t = max(0., s-s_ego)/max(speed, 1.)
+            for o in items:
+                ds, dd = o['s']+o['v_s']*t-es, o['d']+o['v_d']*t-ed
+                ol, ow = o['l'], o['r']
+                if (abs(ds) <= half_l*abs(c)+half_w*abs(sn)+ol
+                        and abs(dd) <= half_l*abs(sn)+half_w*abs(c)+ow
+                        and abs(ds*c+dd*sn) <= half_l+ol*abs(c)+ow*abs(sn)
+                        and abs(-ds*sn+dd*c) <= half_w+ol*abs(sn)+ow*abs(c)):
+                    return False, o, s, peak
+        return True, None, profile.end_s, peak
+
+    def _s4_candidate(self, items, s_ego, speed, block_first, last_end):
+        start, full_start, full_end, end, offset = self.static_pass_zone
+        hold = last_end+self.config.rear_extent_m+self.config.post_gap_m
+        # Full R2 is preferred; partial offsets stay inside the same saved
+        # corridor and can avoid a harmless object farther into that lane.
+        for scale in (1., .85, .65, .5):
+            for full in np.linspace(max(full_start, block_first-self.config.front_extent_m-2.),
+                                    min(full_end, last_end), 5):
+                for length in (14., 11., 8.):
+                    ramp_start = max(start, s_ego, full-length)
+                    hold_end = max(hold, full)
+                    end_s = min(end, hold_end+14.)
+                    if full-ramp_start < 2. or end_s-hold_end < 2. or hold_end > full_end:
+                        continue
+                    candidate = _Pass(ramp_start, full, hold_end, end_s,
+                                      offset*scale, block_first, True)
+                    # First bound curvature without spending time on objects.
+                    if not self._s4_swept_check(candidate, [], s_ego, speed)[0]:
+                        continue
+                    # Check both current speed and the intended low pass speed.
+                    safe = all(self._s4_swept_check(candidate, items, s_ego, v)[0]
+                               for v in (speed, min(speed, 3.)))
+                    if safe:
+                        # Prefer a slightly later entry without compressing
+                        # the curve: preserve its length and the return anchor.
+                        for delay in (2., 1.):
+                            shifted = replace(candidate, ramp_start_s=ramp_start+delay,
+                                              full_s=full+delay)
+                            if (shifted.full_s <= min(hold_end, full_end)
+                                    and all(self._s4_swept_check(shifted, items, s_ego, v)[0]
+                                            for v in (speed, min(speed, 3.)))):
+                                return shifted
+                        # A small S4-only timing adjustment: retain the proven
+                        # full-offset/return anchors and delay entry by 1 m.
+                        # If the shorter entry cannot pass the same checks,
+                        # keep the original safe candidate.
+                        delayed = replace(candidate, ramp_start_s=ramp_start+1.)
+                        if (full-delayed.ramp_start_s >= 2.
+                                and all(self._s4_swept_check(delayed, items, s_ego, v)[0]
+                                        for v in (speed, min(speed, 3.)))):
+                            return delayed
+                        return candidate
+        return None
+
     def update(self, ego_xy, ego_speed_mps, obstacles, stop_line_distance_m=None,
-               stop_line_permitted=True):
+               stop_line_permitted=True, stamp=None):
         """Return the offset path (map points), a speed cap and the state."""
+        self.observation_time = (float(stamp) if stamp is not None else self.observation_time + .1)
         cfg = self.config
         speed = max(0., ego_speed_mps if math.isfinite(ego_speed_mps) else 0.)
         s_ego, _ = self._locate_ego(*ego_xy)
+        if any(a <= s_ego < b for a, b in self.pass_speed_25_ranges):
+            cfg = replace(cfg, pass_speed_kmh=25.)
         items = self._to_route(obstacles, s_ego)
+        items = self._retain_static_blocks(items, s_ego)
         front_s = s_ego + cfg.front_extent_m
         state, reason = 'FOLLOW', 'clear'
         cap = math.inf
@@ -418,21 +637,36 @@ class RouteAvoidance:
             # A further block soon after the current one extends the hold.
             for o in blocks:
                 if o['s'] - o['l'] <= self.active.hold_end_s + cfg.merge_gap_m:
+                    needed_hold = o['s'] + o['l'] + cfg.rear_extent_m + cfg.post_gap_m
+                    if self.static_pass_managed and needed_hold > self.active.hold_end_s:
+                        minimum_return = math.sqrt(5.8*abs(self.active.offset_m)/.14)
+                        if (needed_hold > self.static_pass_zone[2]
+                                or needed_hold+minimum_return > self.static_pass_zone[3]):
+                            cap = 0.  # No safe return inside the saved S4 corridor.
+                            continue
                     self.active.hold_end_s = max(
                         self.active.hold_end_s,
-                        o['s'] + o['l'] + cfg.rear_extent_m + cfg.post_gap_m)
+                        needed_hold)
                     self.active.end_s = max(self.active.end_s,
                                             self.active.hold_end_s + cfg.ramp_out_m)
+                    if self.static_pass_managed:
+                        self.active.end_s = min(self.active.end_s, self.static_pass_zone[3])
             clear, blocker = self._lane_clear(items, self.active.offset_m, s_ego,
                                               self.active.end_s, speed)
+            if self.static_pass_managed:
+                clear, blocker, hit_s, _ = self._s4_swept_check(self.active, items, s_ego, speed)
+                if not clear:
+                    cap = min(cap, stopping_speed(hit_s-s_ego, cfg.brake_mps2, cfg.reaction_s))
             beside = front_s >= self.active.block_first_s - cfg.pre_gap_m
-            if not clear and not beside:
+            protected_pass = self.static_pass_managed or any(a <= s_ego <= b for a, b in self.pedestrian_hold_ranges)
+            if not clear and not beside and not protected_pass:
                 self.active = None
                 offset_now = 0.
                 reason = 'pass lane blocked at s+%.1f m; return and wait' % (
                     blocker['s'] - s_ego)
             elif not clear:
-                gap = blocker['s'] - blocker['l'] - front_s - cfg.stop_gap_m
+                gap = (blocker['s'] - blocker['l'] - front_s - cfg.stop_gap_m
+                       if blocker is not None else 0.)
                 cap = min(cap, stopping_speed(gap, cfg.brake_mps2, cfg.reaction_s))
                 state, reason = 'PASSING', 'pass lane obstacle ahead; slowing'
             else:
@@ -453,12 +687,22 @@ class RouteAvoidance:
             full = max(s_ego + cfg.min_ramp_in_m, full_s) if creep else full_s
             hold_end, end_s = max(hold_end, full), max(end_s, full + cfg.ramp_out_m)
             offsets = self.pass_offsets(ramp_start, end_s)
+            if self.static_pass_managed:
+                offsets = []  # S4 searches swept paths below, not lane strips.
             clear, blocker, pass_offset = False, None, None
             for offset in offsets:
                 clear, blocker = self._lane_clear(items, offset, s_ego, end_s, speed)
                 if clear:
                     pass_offset = offset
                     break
+            s4_candidate = None
+            if self.static_pass_managed:
+                s4_candidate = self._s4_candidate(items, s_ego, speed, block_first_s, last_end)
+                clear = s4_candidate is not None
+                if clear:
+                    ramp_start, full = s4_candidate.ramp_start_s, s4_candidate.full_s
+                    hold_end, end_s = s4_candidate.hold_end_s, s4_candidate.end_s
+                    pass_offset, creep = s4_candidate.offset_m, False
             stop_line_in_pass = (stop_line_distance_m is not None
                                  and not stop_line_permitted
                                  and 0. <= stop_line_distance_m
@@ -467,7 +711,7 @@ class RouteAvoidance:
             side = lambda offset: 'left' if offset > 0 else 'right'
             if clear and not stop_line_in_pass and (not creep or speed < .3):
                 self.active = _Pass(ramp_start, full, hold_end, end_s,
-                                    pass_offset, block_first_s)
+                                    pass_offset, block_first_s, self.static_pass_managed)
                 offset_now = self.active.offset_at(s_ego)
                 state = 'PASSING'
                 reason = ('pulling out to the %s lane from behind a static block' if creep
@@ -477,23 +721,39 @@ class RouteAvoidance:
                     cap = min(cap, 7. / 3.6)
             else:
                 cap = min(cap, stopping_speed(gap, cfg.brake_mps2, cfg.reaction_s))
+                if self.static_pass_managed:
+                    # Preserve entry room while waiting, instead of consuming
+                    # it until only the bumper stopping gap remains.
+                    needed_offset = max(.5, cfg.band(first['r'])-abs(first['d']))
+                    entry = full_s-math.sqrt(5.8*needed_offset/.14)
+                    cap = min(cap, stopping_speed(entry-s_ego-1., cfg.brake_mps2, cfg.reaction_s))
                 if stop_line_in_pass:
                     traffic_cap = min(traffic_cap, cap)
                 if not offsets:
-                    state, reason = 'WAIT_SOLID_LINE', 'solid line beside the block; waiting'
+                    state, reason = ('WAIT_PASS', 'S4 saved corridor has insufficient pass room') if self.static_pass_managed else ('WAIT_SOLID_LINE', 'solid line beside the block; waiting')
                 else:
                     state = 'WAIT_PASS'
                     reason = ('red stop line inside the pass' if stop_line_in_pass else
                               '%s lane occupied at s+%.1f m' % (side(offsets[-1]), blocker['s'] - s_ego)
                               if blocker is not None else 'too close to pull out; slowing')
+                if self.static_pass_managed and not stop_line_in_pass:
+                    state, reason = 'WAIT_PASS', 'S4 no collision-free swept path; preserving entry room'
         if self.active is not None:
             cap = min(cap, cfg.pass_speed_kmh / 3.6)
+            if self.active.quintic:
+                length = min(self.active.full_s-self.active.ramp_start_s,
+                             self.active.end_s-self.active.hold_end_s)
+                curvature_bound = 5.8*abs(self.active.offset_m)/max(length*length, .01)
+                cap = min(cap, 25./3.6, math.sqrt(3.1/max(curvature_bound, .001)))
 
         def offset_at(s):
             return self.active.offset_at(s) if self.active else 0.
 
         # Anything static left on the planned path must still be stoppable for.
         for o in items:
+            if (self.static_pass_managed and self.active is not None
+                    and o['s']-o['l'] <= self.active.end_s+cfg.front_extent_m):
+                continue  # Complete oriented body check above owns this path.
             if o['moving'] or not self._in_band(o, offset_at(o['s'])):
                 continue
             ahead = o['s'] - o['l'] - front_s
@@ -540,6 +800,14 @@ class RouteAvoidance:
                     cap, state = stop, 'CROSSWALK_STOP'
                     reason = (reason_here if occupied else
                               'crosswalk cleared; completing the stop')
+
+        # In the configured S5 pedestrian zone, measured lateral approach
+        # can justify braking before the track's dynamic label is confirmed.
+        if self.active is None:
+            for o in items:
+                if (0. < o['s'] - front_s < 35. and abs(o['d']) < 5.
+                        and not o['moving']):
+                    self._note_pedestrian(o, tentative=True)
 
         # Movers: lead traffic in the path and predicted crossings.
         for o in items:

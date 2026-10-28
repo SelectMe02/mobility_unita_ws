@@ -49,7 +49,7 @@ def load_sector_lane_filter(waypoint_file):
 def pedestrian_hold_points(waypoint_file, sector):
     """Map points bounding the pedestrian hold zone, or None.
 
-    Starts at the sector's first raceline-1 point (its checkpoint) and runs to
+    Starts at the sector's first raceline-2 point and runs to
     the end of raceline 2 that continues from that sector, which reaches past
     the next checkpoint.
     """
@@ -58,13 +58,34 @@ def pedestrian_hold_points(waypoint_file, sector):
     sectors = {int(item['number']): item for item in load_project(waypoint_file)['sectors']}
     if sector not in sectors:
         raise ValueError('pedestrian hold sector %d is not in the project' % sector)
-    start = sectors[sector]['racelines']['1'][0]
+    if not sectors[sector]['racelines'].get('2'):
+        return None
+    start = sectors[sector]['racelines']['2'][0]
     end = sectors[sector]['racelines']['1'][-1]
     number = sector
     while sectors.get(number, {}).get('racelines', {}).get('2'):
         end = sectors[number]['racelines']['2'][-1]
         number += 1
     return (float(start['x']), float(start['y'])), (float(end['x']), float(end['y']))
+
+
+def configure_s4_static_pass(planner, waypoint_file):
+    if Path(waypoint_file).suffix.lower() != '.json':
+        return
+    sector = next((s for s in load_project(waypoint_file)['sectors']
+                   if int(s['number']) == 4), None)
+    if not sector or not sector['racelines'].get('2'):
+        return
+    route = planner.route
+    project = lambda p: route.project(float(p['x']), float(p['y']), 0, len(route.lengths))
+    lane = [project(p) for p in sector['racelines']['2']]
+    offset = float(np.median([p[1] for p in lane]))
+    if max(abs(p[1]-offset) for p in lane) > .35:
+        raise ValueError('S4 R2 is not a parallel corridor')
+    start_s = project(sector['racelines']['1'][0])[0]
+    end_s = project(sector['racelines']['1'][-1])[0]
+    planner.set_static_pass_zone(max(start_s, lane[0][0]-18.),
+                                lane[0][0], lane[-1][0], end_s, offset)
 
 
 class RouteAvoidanceNode:
@@ -95,6 +116,16 @@ class RouteAvoidanceNode:
                     crosswalks.append((stop['s'] + float(rospy.get_param('~crosswalk_start_m', 1.)),
                                        stop['s'] + float(rospy.get_param('~crosswalk_end_m', 10.))))
         self.planner = RouteAvoidance(points, config, lane_changes, crosswalks)
+        configure_s4_static_pass(self.planner, waypoint_file)
+        if Path(waypoint_file).suffix.lower() == '.json':
+            for sector in load_project(waypoint_file)['sectors']:
+                if int(sector['number']) in (4, 5, 6):
+                    line = sector['racelines']['1']
+                    route = self.planner.route
+                    bounds = [route.project(float(p['x']), float(p['y']), 0,
+                                            len(route.lengths))[0]
+                              for p in (line[0], line[-1])]
+                    self.planner.pass_speed_25_ranges.append(tuple(bounds))
         # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.
         route = self.planner.route
         self.planner.ignored_s_ranges = []
@@ -189,6 +220,8 @@ class RouteAvoidanceNode:
         if not isinstance(hold, dict):
             return None
         return dict(s=round(hold['s'], 1), d=round(hold['d'], 2),
+                    phase='candidate' if hold.get('tentative') else 'confirmed',
+                    active_hazards=len(self.planner.pedestrian_holds),
                     ids=sorted(int(i) for i in hold['ids']),
                     cap_kmh=None if math.isinf(hold['cap']) else round(hold['cap'] * 3.6, 2),
                     full_brake=hold['full_brake'], clear_scans=hold['clear_scans'],
@@ -436,7 +469,7 @@ class RouteAvoidanceNode:
                          or signal.get('release_stable') is True)
         decision = self.planner.update((x0, y0), speed, obstacles,
                                        stop_line_distance_m=stop_line,
-                                       stop_line_permitted=permitted)
+                                       stop_line_permitted=permitted, stamp=stamp)
         cap = decision.speed_cap_mps
         output = String(data=json.dumps(dict(
             stamp=stamp, state=decision.state, reason=decision.reason,
@@ -444,6 +477,10 @@ class RouteAvoidanceNode:
             traffic_speed_cap_kmh=(None if math.isinf(decision.traffic_speed_cap_mps)
                                    else round(decision.traffic_speed_cap_mps * 3.6, 2)),
             offset_m=round(decision.offset_now_m, 2),
+            # A traffic yield may replace PASSING in the displayed state;
+            # ownership lasts through the retained pass's return ramp.
+            pass_active=self.planner.active is not None,
+            static_pass_managed=self.planner.static_pass_managed,
             pedestrian_hold=self.pedestrian_hold_status(),
             path=[[round(x, 3), round(y, 3)] for x, y in decision.path],
             obstacles=[dict(s=round(o['s'], 1), d=round(o['d'], 2), r=round(o['r'], 2),

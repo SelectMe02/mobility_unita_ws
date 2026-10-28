@@ -1,0 +1,18 @@
+{
+  "restore_files": [
+    "src/unita_waypoint/scripts/lidar_obstacles_local.py",
+    "src/unita_waypoint/package.xml"
+  ],
+  "new_files": [
+    "src/unita_waypoint/test/test_s45_ground_filter_local.py"
+  ],
+  "before_sha256": {
+    "src/unita_waypoint/scripts/lidar_obstacles_local.py": "ba258531e9c13c1b6d084c4b621a89ba98dcefea4d9a2699131d63585408488d",
+    "src/unita_waypoint/package.xml": "1efed3f8a970bbf9386d5ccd041ce83a69898f759e294cb8d33242ef9b995447"
+  },
+  "after_sha256": {
+    "src/unita_waypoint/scripts/lidar_obstacles_local.py": "3d3a6a573a8afb700d412e00b1f42b7a13158ec6d433e8623056b7503b4f2f45",
+    "src/unita_waypoint/package.xml": "af7cdb43f46cb57946718fcf03806c86b2f4f28a9476fb187098daa2e9d33b5c",
+    "src/unita_waypoint/test/test_s45_ground_filter_local.py": "2111ed72595122229f64c0b2a121174cf6fe6b1f5b3ce6cac60cc3ad1fcee14c"
+  }
+}

@@ -81,6 +81,7 @@
   <exec_depend>pluginlib</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
+  <exec_depend>leo_avoidance</exec_depend>
   <exec_depend>rosbag</exec_depend>
   <exec_depend>rosnode</exec_depend>
   <exec_depend>rviz</exec_depend>

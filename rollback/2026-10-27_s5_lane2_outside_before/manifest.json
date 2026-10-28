@@ -1,0 +1,8 @@
+{
+  "restore_files": [
+    "src/unita_waypoint/scripts/lidar_obstacles_local.py"
+  ],
+  "new_files": [
+    "src/unita_waypoint/test/test_s5_outside_local.py"
+  ]
+}

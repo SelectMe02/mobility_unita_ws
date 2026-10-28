@@ -1,0 +1,15 @@
+{
+  "validation": {
+    "new_tests": 5,
+    "immediate_departure_tests": 6,
+    "driving_stability_tests": 23,
+    "roundabout_tests": 21,
+    "recorded_replay_run": "run_20261028_154846",
+    "release_before": "15:49:02.718",
+    "release_after": "15:49:02.368",
+    "earlier_s": 0.35,
+    "closed_loop_test": false
+  },
+  "change": "S9 only, after yielding below 5 km/h: fresh full vehicle rear measured beyond conflict+1m (rear half extent at least 2.3m); approaching traffic retains old margin. Full path following cap applies on both initial and latched S9 departure.",
+  "limits": "Replay holds recorded ego poses/speeds fixed; does not establish actual trajectory or collision-free operation."
+}

@@ -18,6 +18,9 @@ CRUISE = 100./3.6
 
 
 def planner(highway=True, r3_end=None, r2_end=None, sector_10_until=0, **kwargs):
+    # Legacy R3 preference fixtures still exercise collision/merge behavior.
+    # The production default keep-lane policy has its own regression suite.
+    kwargs.setdefault('highway_keep_lane_priority', False)
     route = [(float(i), 0.) for i in range(ROAD)]
     ends = {2: r2_end or ROAD, 3: r3_end or ROAD}
     lanes = {n: [(float(i), LANE_Y[n]) for i in range(ends[n])] for n in (2, 3)}
@@ -155,6 +158,9 @@ class HighwayPlannerTests(unittest.TestCase):
         self.assertEqual(decision.reason, 'mobil_unsafe')
         decision = p.plan(0, (0., LANE_Y[3]), 15., [leader, car(-50., 2, 15.)],
                           desired_speed_mps=CRUISE)
+        self.assertEqual(decision.reason, 'confirm_lane_gain')
+        decision = p.plan(0, (0., LANE_Y[3]), 15., [leader, car(-50., 2, 15.)],
+                          desired_speed_mps=CRUISE, observation_stamp=.5)
         self.assertEqual(decision.state, 'OVERTAKING')
 
     def test_slightly_slower_leader_is_followed_in_r3(self):
@@ -186,6 +192,9 @@ class HighwayPlannerTests(unittest.TestCase):
         p = planner()
         leader = car(45., 3, 12.)
         decision = p.plan(0, (0., LANE_Y[3]), 20., [leader], desired_speed_mps=CRUISE)
+        self.assertEqual(decision.reason, 'confirm_lane_gain')
+        decision = p.plan(0, (0., LANE_Y[3]), 20., [leader],
+                          desired_speed_mps=CRUISE, observation_stamp=.5)
         self.assertEqual(decision.state, 'OVERTAKING')
         intruder = car(-9., 2, 32.)
         for step in range(p.cancel_confirm_scans):

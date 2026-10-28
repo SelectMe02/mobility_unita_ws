@@ -1,0 +1,7 @@
+이번 S11 제동 강화 변경만 롤백해줘. 최소 목표 속도 30km/h와 기존 정지 금지 정책 및 다른 변경은 유지하고, rollback/2026-10-28_s11_stronger_brake_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_stronger_brake_before/changes.patch
+git apply -R rollback/2026-10-28_s11_stronger_brake_before/changes.patch
+
+적용/롤백 후 semi.launch 재시작 필요.

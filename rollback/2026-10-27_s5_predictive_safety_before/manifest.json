@@ -1,0 +1,25 @@
+{
+  "restore_files": [
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py",
+    "src/unita_waypoint/scripts/obstacle_motion.py",
+    "src/unita_waypoint/test/test_obstacle_motion.py"
+  ],
+  "new_files": [
+    "src/unita_waypoint/test/test_predictive_safety_local.py"
+  ],
+  "before_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "4fc7691d5f4a1ce491e9d331f8470262653f05aadb994f08b4b4854fb84c6527",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py": "20caf22b1d66cbf03a4c4edf05783f6ca7c8bc262510130851d87c7c6d42dc3f",
+    "src/unita_waypoint/scripts/obstacle_motion.py": "e9851b761f05ff6f94e9c8dc0c63f77bd2e44eb010484d8b7b8cb159f48adf99",
+    "src/unita_waypoint/test/test_obstacle_motion.py": "f4bc1c8df980949fea76ac038358231d9762f403123bba655d6d9f2ede3366b2"
+  },
+  "after_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "7fa7b1dbd0e69038689798d44b13b2d430c88afb07749fc11ce63daffa67b5b9",
+    "src/unita_waypoint/scripts/local_avoidance_core_local.py": "e5ce266d807ff41cd7b61145854bf482e094172caf590dc8215946311cd9b253",
+    "src/unita_waypoint/scripts/obstacle_motion.py": "3e868e048e53318a9b6014b0d063b58d24718b64ecad66deb858273b8a0540f7",
+    "src/unita_waypoint/test/test_obstacle_motion.py": "965326aa0506aae2de844d521cc0d43014b8a27d25b7ab6e6a7a90e410f569eb",
+    "src/unita_waypoint/test/test_predictive_safety_local.py": "1c185dc4009612881be3dd714a9fb9839c26d13af8c5bcb9c694ef2e249494a7"
+  },
+  "note": "Restore only this safety change; preserve earlier S4/S5 ground filter, S5 lane2 outside observation, route ownership and network settings."
+}

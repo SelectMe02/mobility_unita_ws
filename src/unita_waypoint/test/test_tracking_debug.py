@@ -119,7 +119,12 @@ class TrackingDebugTests(unittest.TestCase):
                 # route obstacle cap; only a known static path wait may yield.
                 self.assertEqual(follower.commands[-1][1], 12.)
                 self.assertEqual(state['route_reason'], 'route_obstacle')
-                self.assertEqual(state['planner_reason'], 'local_obstacle')
+                self.assertEqual(state['planner_reason'],
+                                 'local_obstacle' if local_owns else 'selected_route_pass')
+                if local_owns:
+                    follower.local_planner.plan.assert_called_once()
+                else:
+                    follower.local_planner.plan.assert_not_called()
 
     def test_waypoint_only_zone_reports_bypassed_avoidance(self):
         fixture, follower = self.make_follower(leo_tests)

@@ -393,7 +393,7 @@ class LocalAvoidancePlanner:
             velocity = obstacle.vx*tangent[0]+obstacle.vy*tangent[1]
             closing = max(0., velocity-speed_mps)
             gap = -longitudinal-self.rear_extent-obstacle.radius-self.margin
-            duration = length/max(min(speed_mps, self.pass_speed_kmh/3.6), 1.)
+            duration = length/max(min(speed_mps, self.effective_pass_speed_kmh/3.6), 1.)
             if (obstacle.kind == 'unknown' or
                     gap < self.min_rear_gap + closing*self.rear_headway_s or
                     (closing > .1 and gap/closing < duration+self.reaction_s)):
@@ -401,8 +401,11 @@ class LocalAvoidancePlanner:
         return True, None, float('inf')
 
     def _collision_free(self, path, obstacles, speed_mps, horizon_s=None):
+        return math.isinf(self._collision_distance(path, obstacles, speed_mps, horizon_s))
+
+    def _collision_distance(self, path, obstacles, speed_mps, horizon_s=None):
         if len(path) < 2:
-            return False
+            return 0.
         travelled = 0.
         for a, b in zip(path, path[1:]):
             length = distance(a, b)
@@ -416,7 +419,7 @@ class LocalAvoidancePlanner:
                 point = (a[0]+ratio*(b[0]-a[0]), a[1]+ratio*(b[1]-a[1]))
                 t = (travelled+ratio*length)/max(speed_mps, 1.)
                 if horizon_s is not None and t > horizon_s:
-                    return True
+                    return float('inf')
                 for obstacle in obstacles:
                     ox = obstacle.x+obstacle.vx*t-point[0]
                     oy = obstacle.y+obstacle.vy*t-point[1]
@@ -425,9 +428,9 @@ class LocalAvoidancePlanner:
                     lx = max(-self.rear_extent-longitudinal, 0., longitudinal-self.front_extent)
                     ly = max(0., abs(lateral)-self.half_width)
                     if math.hypot(lx, ly) < obstacle.radius+self.margin:
-                        return False
+                        return travelled+ratio*length
             travelled += length
-        return True
+        return float('inf')
 
     def _stop_cap(self, clearance, lead_speed=0.):
         bumper_gap = clearance-self.front_extent-self.margin
@@ -442,7 +445,35 @@ class LocalAvoidancePlanner:
         return Decision(state, path, cap, threat[1].kind if threat else '',
                         threat[0] if threat else float('inf'), reason)
 
+    @property
+    def effective_pass_speed_kmh(self):
+        return 25. if getattr(self, 'pass_sector', None) in (4, 5, 6) else self.pass_speed_kmh
+
+    def check_route_pass(self, path, speed_mps, obstacles, sector=None):
+        """Check the selected route pass, without initiating a saved-R1 return.
+
+        Re-evaluate on every scan, including while stopped. An obsolete
+        offset correction must not veto a different, collision-free path.
+        Keep the old state until the selected path has passed validation.
+        """
+        self.pass_sector = sector
+        collision_distance = self._collision_distance(path, obstacles, speed_mps)
+        stopping_distance = speed_mps*self.reaction_s + speed_mps**2/(2.*self.decel)
+        if collision_distance <= max(1., stopping_distance):
+            return self._decision('BLOCKED', path, 0., reason='route_pass_obstructed')
+        if math.isfinite(collision_distance):
+            cap = self._stop_cap(collision_distance)
+            if cap <= 0.:
+                return self._decision('BLOCKED', path, 0., reason='route_pass_obstructed')
+            self.reset_for_r1_handoff()
+            return self._decision('PASSING', path, min(self.effective_pass_speed_kmh, cap),
+                                  reason='route_pass_obstacle_ahead')
+        self.reset_for_r1_handoff()
+        return self._decision('PASSING', path, self.effective_pass_speed_kmh,
+                              reason='selected_route_pass')
+
     def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, force_r1=False):
+        self.pass_sector = self.sectors[index]
         if force_r1 and self.transition is not None and self.transition['target'] != 1:
             self.reset_for_r1_handoff()
         # See lane endings early enough to decelerate before merging back.
@@ -488,7 +519,7 @@ class LocalAvoidancePlanner:
             span = self._span(self.current_lane, ahead)
             if span < ahead[-1][2]:
                 merge = self._merge_length(available[self.current_lane], available[1], speed_mps)
-                edge_cap = math.sqrt((self.pass_speed_kmh/3.6)**2 +
+                edge_cap = math.sqrt((self.effective_pass_speed_kmh/3.6)**2 +
                                      2.*self.decel*max(0., span-merge-8.))*3.6
                 if self.finish_priority_active:
                     edge_cap = min(edge_cap, self._stop_cap(span))
@@ -503,13 +534,13 @@ class LocalAvoidancePlanner:
             else:
                 path = self._path(ahead, ego_xy, lane, progress, self.transition)
                 remaining = max(0., self.transition['start']+self.transition['length']-progress)
-                check_time = remaining/max(min(speed_mps, self.pass_speed_kmh/3.6), 1.)
+                check_time = remaining/max(min(speed_mps, self.effective_pass_speed_kmh/3.6), 1.)
                 check_time += self.reaction_s+self.rear_headway_s
                 if (not path or distance(path[0], path[-1]) < 8. or
                         not self._collision_free(path, obstacles,
-                                                 min(speed_mps, self.pass_speed_kmh/3.6), check_time)):
+                                                 min(speed_mps, self.effective_pass_speed_kmh/3.6), check_time)):
                     return self._decision('BLOCKED', path, 0., reason='transition_obstructed')
-                return self._decision(self.transition['state'], path, self.pass_speed_kmh)
+                return self._decision(self.transition['state'], path, self.effective_pass_speed_kmh)
 
         current = self.current_lane
         # Off every saved lane (e.g. past the end of R2): R1 is the way back.
@@ -535,7 +566,7 @@ class LocalAvoidancePlanner:
             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
         candidates = list(dict.fromkeys(candidates))
         waiting = 'unconfirmed_obstacle' if unconfirmed_s5 else ''
-        slow_enough = (speed_mps <= self.pass_speed_kmh/3.6+1.
+        slow_enough = (speed_mps <= self.effective_pass_speed_kmh/3.6+1.
                        or self._any_speed_lane_change(index))
         for lane in candidates:
             if lane not in available:
@@ -578,9 +609,9 @@ class LocalAvoidancePlanner:
             checked = obstacles if changing else [o for o in obstacles if
                 (o.x-ego_xy[0])*tangent[0]+(o.y-ego_xy[1])*tangent[1] >= 0.]
             if not self._collision_free(path if changing else path[:2], checked,
-                                        min(speed_mps, self.pass_speed_kmh/3.6)
+                                        min(speed_mps, self.effective_pass_speed_kmh/3.6)
                                         if changing else speed_mps,
-                                        length/max(min(speed_mps, self.pass_speed_kmh/3.6), 1.)
+                                        length/max(min(speed_mps, self.effective_pass_speed_kmh/3.6), 1.)
                                         +self.reaction_s+self.rear_headway_s if changing else None):
                 waiting = 'predicted_path_occupied'
                 continue
@@ -588,10 +619,10 @@ class LocalAvoidancePlanner:
             self.transition = transition
             if changing:
                 self.departed_preferred = lane != preferred
-                return self._decision(state, path, self.pass_speed_kmh, threat)
+                return self._decision(state, path, self.effective_pass_speed_kmh, threat)
             if lane == preferred:
                 self.departed_preferred = False
-            cap = self.pass_speed_kmh if waiting == 'slowing_for_lane_change' else float('inf')
+            cap = self.effective_pass_speed_kmh if waiting == 'slowing_for_lane_change' else float('inf')
             cap = min(cap, edge_cap)
             state = ('LANE_WAIT' if waiting else 'OVERTAKING' if self.departed_preferred else 'RACELINE')
             return self._decision(state, path if lane != 1 or distance(ego_xy, available[1]) > .35 else [],
@@ -610,10 +641,10 @@ class LocalAvoidancePlanner:
             ahead_obstacles = [o for o in obstacles if
                                (o.x-ego_xy[0])*tangent[0]+(o.y-ego_xy[1])*tangent[1] >= 0.]
             if not self._collision_free(hold, ahead_obstacles,
-                                        min(max(speed_mps, 1.), self.pass_speed_kmh/3.6),
+                                        min(max(speed_mps, 1.), self.effective_pass_speed_kmh/3.6),
                                         self.reaction_s+self.rear_headway_s):
                 return self._decision('TAILING', hold, 0., reason='return_blocked_waiting')
-            return self._decision('LANE_WAIT', hold, self.pass_speed_kmh,
+            return self._decision('LANE_WAIT', hold, self.effective_pass_speed_kmh,
                                   reason='return_blocked_holding_offset')
 
         # Keep the actual lane while waiting for a merge gap; never snap to R1.
@@ -622,7 +653,7 @@ class LocalAvoidancePlanner:
             cap = self._stop_cap(threat[0], threat[2])
             cap = min(cap, edge_cap)
             if not slow_enough and len(available) > 1 and not unconfirmed_s5:
-                cap = min(cap, self.pass_speed_kmh)
+                cap = min(cap, self.effective_pass_speed_kmh)
             return self._decision('TAILING', current_path if current != 1 else [], cap,
                                   threat, waiting)
         return self._decision('BLOCKED', current_path, 0., reason=waiting or 'saved_path_ends')

@@ -5,6 +5,7 @@ All geometry and speed limits belong to this vehicle and its saved map.
 """
 from dataclasses import dataclass
 import math
+import time
 
 
 def distance(a, b):
@@ -145,7 +146,8 @@ class LocalAvoidancePlanner:
                  roundabout_time_gap_s=2.5,
                  roundabout_clear_scans=3,
                  roundabout_ego_lead_gap_s=1.4,
-                 roundabout_ego_lead_min_speed_kmh=2.5):
+                 roundabout_ego_lead_min_speed_kmh=2.5,
+                 highway_keep_lane_priority=True):
         self.route = list(route)
         self.sectors = list(sectors)
         # Raceline each route point was taken from (S11 may be driven on R3).
@@ -227,6 +229,7 @@ class LocalAvoidancePlanner:
         # lane, quintic lane changes whose length adapts to the free space
         # instead of a speed precondition, and no planner standstill.
         self.highway_sectors = tuple(int(s) for s in highway_sectors)
+        self.highway_keep_lane_priority = bool(highway_keep_lane_priority)
         self.idm_time_gap_s = idm_time_gap_s
         self.idm_min_gap_m = idm_min_gap_m
         self.idm_accel_mps2 = idm_accel_mps2
@@ -650,7 +653,12 @@ class LocalAvoidancePlanner:
             self.roundabout_state = 'ENTRY_CLEAR'
             self.roundabout_threat_id = None
             self.roundabout_ego_eta_s = self.roundabout_actor_eta_s = None
-            return self._decision('ROUNDABOUT_ENTRY', current_path, edge_cap,
+            entry_cap = edge_cap
+            if self.sectors[index] == 9 and self.roundabout_sector == 9:
+                lead = self._lead(current_path, current_path[0] if current_path else self.route[index], obstacles)
+                if lead is not None:
+                    entry_cap = min(entry_cap, self._stop_cap(lead[0], lead[2]))
+            return self._decision('ROUNDABOUT_ENTRY', current_path, entry_cap,
                                   reason='roundabout_gap_accepted')
 
         self.roundabout_state = 'APPROACH'
@@ -668,6 +676,7 @@ class LocalAvoidancePlanner:
                         else self.roundabout_time_gap_s)
         threat = None
         threat_eta = None
+        measured_yielded_car_clear = False
         for obstacle in obstacles:
             if obstacle.road_surface:
                 continue
@@ -679,7 +688,35 @@ class LocalAvoidancePlanner:
             if lateral > self.roundabout_approach_width_m*.5+obstacle.radius:
                 continue
             remaining = self.roundabout_actor_conflict_progress-actor_progress
+            # S9 low-speed departure: after yielding, a freshly measured
+            # full vehicle rear may clear the exit side with 1 m extra room.
+            # Keep the original 3.5 m zone for approaching cars, fragments,
+            # stale/predicted observations and every other sector.
+            rear_extent = max(2.3, max(abs((x-obstacle.x)*tangent[0]
+                                         +(y-obstacle.y)*tangent[1])
+                                     for x, y in obstacle.corners()))
+            fast_rear_clear = (
+                self.sectors[index] == 9 and self.roundabout_sector == 9
+                and self.roundabout_yield_seen and ego_speed_mps <= 5./3.6
+                and obstacle.length >= 3. and obstacle.width >= .8
+                and not obstacle.predicted and observation_stamp is not None
+                and 0. <= observation_stamp-obstacle.measurement_stamp <= .2
+                and remaining < -1.-rear_extent)
+            if fast_rear_clear:
+                if obstacle.track_id == self.roundabout_threat_id:
+                    measured_yielded_car_clear = True
+                continue
             if remaining < -self.roundabout_conflict_radius_m-obstacle.radius:
+                # S9 only: a fresh measured rear beyond the existing merge
+                # boundary is direct clearance evidence. A missing track is
+                # not evidence and still needs the usual clear scans.
+                if (self.sectors[index] == 9 and self.roundabout_sector == 9
+                        and self.roundabout_yield_seen
+                        and obstacle.track_id == self.roundabout_threat_id
+                        and not obstacle.predicted
+                        and observation_stamp is not None
+                        and 0. <= observation_stamp-obstacle.measurement_stamp <= .2):
+                    measured_yielded_car_clear = True
                 continue                 # already clear of the merge
             if obstacle.velocity_reliable:
                 actor_speed = obstacle.vx*tangent[0]+obstacle.vy*tangent[1]
@@ -718,6 +755,8 @@ class LocalAvoidancePlanner:
             return self._decision('ROUNDABOUT_YIELD', current_path, cap,
                                   (clearance, threat, 0.), 'roundabout_conflict')
 
+        if measured_yielded_car_clear:
+            clear_scans = 1
         self.roundabout_threat_id = None
         distinct_scan = (observation_stamp is None
                          or observation_stamp != self.roundabout_last_clear_stamp)
@@ -729,7 +768,12 @@ class LocalAvoidancePlanner:
             self.roundabout_state = 'ENTRY_CLEAR'
             if self.roundabout_yield_seen and ego_speed_mps <= .5:
                 self.roundabout_gap_accepted = True
-                return self._decision('ROUNDABOUT_ENTRY', current_path, edge_cap,
+                entry_cap = edge_cap
+                if self.sectors[index] == 9 and self.roundabout_sector == 9:
+                    lead = self._lead(current_path, current_path[0] if current_path else self.route[index], obstacles)
+                    if lead is not None:
+                        entry_cap = min(entry_cap, self._stop_cap(lead[0], lead[2]))
+                return self._decision('ROUNDABOUT_ENTRY', current_path, entry_cap,
                                       reason='roundabout_gap_accepted')
             return None
         # This only has an effect if the car reaches the entry before the
@@ -802,6 +846,7 @@ class LocalAvoidancePlanner:
         requested = self._requested_lane(index, ego_xy, ego_yaw)
         self.highway_active = self.sectors[index] in self.highway_sectors
         if self.highway_active:
+            self.highway_observation_stamp = observation_stamp
             return self._plan_highway(index, ego_xy, speed_mps, obstacles,
                                       desired_speed_mps, ahead, progress, available)
         self.preference_reason = 'priority_interval' if requested != self.preferred_lane else 'default_lane'
@@ -1161,6 +1206,51 @@ class LocalAvoidancePlanner:
         duration = 2.*self._highway_length(3.6, v)/max(v, 1.)
         return gap-max(0., v-lead_v)*duration > self.idm_min_gap_m+self.lane_change_gap_m
 
+    def _highway_path_conflict(self, path, speed, obstacles):
+        """Predict oriented body overlap at matching times (four-second horizon)."""
+        if len(path) < 2:
+            return None
+        objects = [(o, o.corners(), o.velocity()) for o in obstacles if not o.road_surface]
+        travelled = 0.
+        for a, b in zip(path, path[1:]):
+            length = distance(a, b)
+            if length < 1e-6:
+                continue
+            tx, ty = (b[0]-a[0])/length, (b[1]-a[1])/length
+            steps = max(1, math.ceil(length/min(.5, max(speed, 1.)*.1)))
+            for k in range(steps+1):
+                along = travelled + length*k/steps
+                t = along/max(speed, 1.)
+                if t > 4.:
+                    return None
+                x, y = a[0]+tx*length*k/steps, a[1]+ty*length*k/steps
+                ego = [(x+tx*u-ty*w, y+ty*u+tx*w)
+                       for u,w in ((self.front_extent+self.margin,self.half_width+self.margin),
+                                   (self.front_extent+self.margin,-self.half_width-self.margin),
+                                   (-self.rear_extent-self.margin,-self.half_width-self.margin),
+                                   (-self.rear_extent-self.margin,self.half_width+self.margin))]
+                for o,corners,(vx,vy) in objects:
+                    other = [(cx+vx*t,cy+vy*t) for cx,cy in corners]
+                    axes = [(tx,ty),(-ty,tx),(math.cos(o.yaw),math.sin(o.yaw)),
+                            (-math.sin(o.yaw),math.cos(o.yaw))]
+                    if all(not (max(px*ax+py*ay for px,py in ego) < min(px*ax+py*ay for px,py in other)
+                                or max(px*ax+py*ay for px,py in other) < min(px*ax+py*ay for px,py in ego))
+                           for ax,ay in axes):
+                        return t, o, along
+            travelled += length
+        return None
+
+    def _highway_predictive_cap(self, path, speed, obstacles):
+        conflict = self._highway_path_conflict(path, speed, obstacles)
+        if conflict is None:
+            return float('inf')
+        t, obstacle, along = conflict
+        if t < 1.:
+            self.highway_emergency = True
+            return 0.
+        # Re-evaluate each scan; reduce closing speed before lane labels change.
+        return max(0., speed-self.idm_comfort_decel_mps2*self.idm_command_horizon_s)*3.6
+
     def _highway_change(self, ahead, ego_xy, progress, current, lane, available,
                         obstacles, v, v0):
         """Quintic change, shortened (and slowed) until nothing on the swept
@@ -1179,6 +1269,9 @@ class LocalAvoidancePlanner:
             path = self._path(ahead, ego_xy, lane, progress, transition)
             speed = self._length_speed(lateral, length)
             if len(path) >= 2:
+                if self._highway_path_conflict(path, v, obstacles) is not None:
+                    length = max(minimum, length*.85) if length > minimum+1e-6 else minimum-1.
+                    continue
                 lead = self._lead(path, ego_xy, obstacles, self.highway_obstacle_horizon_m)
                 if lead is None or min(v, speed) <= self._highway_collision_speed(
                         lead[0]-self.front_extent, lead[2]):
@@ -1271,7 +1364,8 @@ class LocalAvoidancePlanner:
             # end). Without it, slowing behind the target leader is the way.
             source_room = (source in available and self._span(source, ahead)
                            >= min(ahead[-1][2]-1e-6, 2.*transition['length']))
-            abort = danger is not None or hazard or (leader is not None and source_room)
+            predictive = self._highway_path_conflict(path, v, obstacles)
+            abort = danger is not None or hazard or predictive is not None or (leader is not None and source_room)
             self.cancel_votes = self.cancel_votes+1 if abort else 0
             fraction = (progress-transition['start'])/max(transition['length'], 1e-6)
             if abort or leader is not None:
@@ -1280,11 +1374,20 @@ class LocalAvoidancePlanner:
                 reason = ('lane_change_hazard_ahead' if hazard else
                           'lane_change_gap_hold' if danger is not None else
                           'lane_change_target_leader')
-                back = (self.cancel_votes >= self.cancel_confirm_scans and source in available
+                keep_cap = min(self._idm_cap(v, v0, lead),
+                               self._idm_cap(v, v0, leader),
+                               self._highway_predictive_cap(path, v, obstacles))
+                # Slowing cannot establish a safe gap to an approaching rear
+                # vehicle. In that case still evaluate the checked return path.
+                gentle_keep = (danger is None and keep_cap >= max(
+                    0., v-self.idm_comfort_decel_mps2*self.idm_command_horizon_s)*3.6
+                    and self._highway_path_conflict(
+                        path, min(v, keep_cap/3.6), obstacles) is None)
+                back = (not gentle_keep and self.cancel_votes >= self.cancel_confirm_scans and source in available
                         and (hazard or fraction <= self.cancel_max_progress)
                         and self._gap_blocker(index, ego_xy, available, source, tracked) is None)
                 change = (self._highway_change(ahead, ego_xy, progress, lane, source, available,
-                                               tracked, v, v0) if back else None)
+                                               obstacles, v, v0) if back else None)
                 if change is not None:
                     # Abort: steer back to the lane we left.
                     self.transition = transition = dict(change[0], state='CANCELLING')
@@ -1301,7 +1404,8 @@ class LocalAvoidancePlanner:
         self.active_lane = lane if lane != self.route_lanes[index] else None
         self.obstacle_horizon_path = path_prefix(path, horizon)
         lead = self._lead(path, ego_xy, obstacles, horizon)
-        cap = min(edge_cap, self._idm_cap(v, v0, lead))
+        cap = min(edge_cap, self._idm_cap(v, v0, lead),
+                  self._highway_predictive_cap(path, v, obstacles))
         if leader is not None and lane == transition['target'] and transition['state'] != 'CANCELLING':
             # Still heading into the target lane: keep a speed its leader allows.
             cap = min(cap, self._idm_cap(v, v0, leader))
@@ -1408,6 +1512,14 @@ class LocalAvoidancePlanner:
         merge_zone = bool(drops) and min(drops) <= self.highway_merge_zone_m
         self.merge_zone_active = merge_zone
         best, waiting, yield_speed = None, '', None
+        cutin_cap = self._highway_predictive_cap(current_path, v, obstacles)
+        tangent = self._tangent(index)
+        cutins = [o for o in obstacles
+                  if ((o.x-ego_xy[0])*(-tangent[1])+(o.y-ego_xy[1])*tangent[0])
+                     * (-o.velocity()[0]*tangent[1]+o.velocity()[1]*tangent[0]) < -.2]
+        cutin_conflict = self._highway_path_conflict(current_path, v, cutins)
+        keep_cap = self._idm_cap(v, v0, threat)
+        eligible_gains = set()
         for lane in leaders:
             if abs(lane-current) != 1:
                 continue
@@ -1462,13 +1574,49 @@ class LocalAvoidancePlanner:
                 # Near the drop a pass gains nothing and may not get back.
                 waiting = 'merge_zone_keep'
                 continue
+            if not mandatory and not ending:
+                if cutin_conflict is not None:
+                    waiting = 'cutin_keep_lane'
+                    continue
+                target_v = vehicles[lane][1] if vehicles.get(lane) else v0
+                current_v = threat[2] if threat else v0
+                if self.highway_keep_lane_priority:
+                    # Preference is a tie-breaker, not a reason to leave a
+                    # usable lane. Ending lanes/mandatory merges bypass this.
+                    if threat is None:
+                        waiting = 'keep_lane_no_passing_need'
+                        continue
+                    if current_v > .5:
+                        if (current_v >= v0-3. and keep_cap >= max(0., v-2.)*3.6):
+                            waiting = 'comfortable_following'
+                            continue
+                        if target_v-current_v < 3.:
+                            waiting = 'insufficient_passing_gain'
+                            continue
+                if threat and keep_cap >= (v-1.)*3.6 and target_v-current_v < 2.:
+                    waiting = 'comfortable_following'
+                    continue
+                if threat and threat[2] > .5 and (not toward or self.highway_keep_lane_priority):
+                    eligible_gains.add(lane)
+                    stamp = getattr(self, 'highway_observation_stamp', None)
+                    now = (stamp if stamp is not None else time.monotonic()
+                           if self.highway_keep_lane_priority else progress/max(v, 1.))
+                    gains = getattr(self, 'highway_gain_since', {})
+                    since = gains.get(lane, now)
+                    gains[lane] = since if now >= since else now
+                    self.highway_gain_since = gains
+                    if now-gains[lane] < (1.2 if self.highway_keep_lane_priority else .4):
+                        waiting = 'confirm_lane_gain'
+                        continue
             change = self._highway_change(ahead, ego_xy, progress, current, lane, available,
-                                          tracked, v, v0)
+                                          obstacles, v, v0)
             if change is None:
                 waiting = waiting or 'lane_change_no_room'
                 continue
             if best is None or incentive > best[0]:
                 best = (incentive, lane, toward, change)
+        self.highway_gain_since = {k:v for k,v in getattr(self, 'highway_gain_since', {}).items()
+                                   if k in eligible_gains}
         if best is not None:
             _, lane, toward, (transition, path, lead) = best
             state = ('RETURNING' if toward and self.departed_preferred
@@ -1487,7 +1635,8 @@ class LocalAvoidancePlanner:
             # Track confirmation controls lane selection, not collision braking
             # on the actual path (including this first scan of a new change).
             lead = self._lead(path, ego_xy, obstacles, horizon)
-            cap = min(edge_cap, self._idm_cap(v, v0, lead))
+            cap = min(edge_cap, self._idm_cap(v, v0, lead),
+                      self._highway_predictive_cap(path, v, obstacles))
             if transition['speed_cap_kmh'] is not None:
                 cap = min(cap, transition['speed_cap_kmh'])
             return self._decision(state, path, cap, lead or threat, 'mobil_gain')
@@ -1499,7 +1648,7 @@ class LocalAvoidancePlanner:
             self.departed_preferred = False
         path = (current_path if len(current_path) >= 2 and
                 (current != base or distance(ego_xy, available[base]) > .35) else [])
-        cap = min(edge_cap, self._idm_cap(v, v0, threat))
+        cap = min(edge_cap, self._idm_cap(v, v0, threat), cutin_cap)
         if yield_speed is not None and yield_speed < v:
             # Gentle: never ask for more than the yield deceleration now (km/h cap).
             cap = min(cap, 3.6*max(yield_speed, v-self.highway_merge_yield_decel_mps2

@@ -435,13 +435,12 @@ def test_pedestrian_hold_releases_after_the_person_is_seen_clear():
     avoid = hold_planner()
     approach(avoid, 128., 0., 140., -1.3, -1.0, 1.5)
     assert avoid.pedestrian_hold is not None
-    # Still within band + margin on the far side: keep waiting.
-    for _ in range(6):
-        assert avoid.update((128., 0.), 0., [person(140., 2.5, vy=1.5)]).state == 'YIELD'
-    # Clear by the margin for five updates in a row, then drive on.
-    states = [avoid.update((128., 0.), 0., [person(140., 3.5, vy=1.5)]).state
-              for _ in range(5)]
-    assert states[:4] == ['YIELD'] * 4 and states[4] == 'FOLLOW'
+    # Advance the observation clock for the crossing, then require three
+    # measured clear observations beyond the vehicle envelope.
+    avoid.observation_time += 2.
+    states = [avoid.update((128., 0.), 0., [person(140., 2.5, vy=1.5)]).state
+              for _ in range(3)]
+    assert states == ['YIELD', 'YIELD', 'FOLLOW']
     assert avoid.pedestrian_hold is None
 
 
@@ -497,9 +496,13 @@ def test_person_unseen_at_the_bumper_keeps_the_stop_until_seen_clear():
     assert states[-1] == 'FOLLOW'
 
 
-def test_person_last_seen_clear_then_lost_releases_normally():
+def test_person_last_seen_clear_then_lost_requires_observed_clearance():
     avoid = hold_planner()
     approach(avoid, 128., 0., 140., -1.3, -1.0, 1.5)
+    avoid.observation_time += 2.
     avoid.update((128., 0.), 0., [person(140., 3.5, vy=1.5)])
     states = [avoid.update((128., 0.), 0., []).state for _ in range(4)]
-    assert states[-1] == 'FOLLOW'
+    assert states[-1] == 'YIELD'
+    for _ in range(5):
+        decision = avoid.update((128., 0.), 0., [person(140., 3.5, vy=1.5)])
+    assert decision.state == 'FOLLOW'

@@ -1,0 +1,22 @@
+{
+  "restore_files": [
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py",
+    "src/leo_avoidance/scripts/route_avoidance_node.py",
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py"
+  ],
+  "new_files": [
+    "src/leo_avoidance/test/test_s4_retained_pass.py"
+  ],
+  "description": "S4 CP4 직전 저장 R2 기반 정적 장애물 기억·우회 유지·완만한 복귀 적용 직전. 고주로 변경 포함 기존 작업 유지.",
+  "before_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "5810b6ee34f66cc6f4d8b7af9015ebd52883eb2e2e1d48722f3c913a47547a8f",
+    "src/leo_avoidance/scripts/route_avoidance_node.py": "617c4559106cd6c99d8b2723de74e3df73575c533f1f59761d0bc3131e1e280f",
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py": "9c98834950fdbfcb17fbb1c5627d08615dca92a60f3efcdf3b9c1cdcde1c0a04"
+  },
+  "after_sha256": {
+    "src/leo_avoidance/src/leo_avoidance/route_avoidance.py": "084db177023785fda9e0bb87353454f13126ac81ca523f029a2d6bfbc9604a44",
+    "src/leo_avoidance/scripts/route_avoidance_node.py": "47080dcb8c3f6645733a1b26206a547563616fdc84c61b4fc8051ae87cd6ffe3",
+    "src/unita_waypoint/scripts/gps_waypoint_follower_local.py": "f67a06fc2fd41ed003426b7b3dd41493ef226d28a2df19374b1018410057f3f2",
+    "src/leo_avoidance/test/test_s4_retained_pass.py": "04cd74300533eaceb24c60e8ceff417e9600abf15c4a644101ac33240f76b87e"
+  }
+}

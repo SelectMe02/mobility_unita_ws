@@ -1,0 +1,4716 @@
+{
+  "151228": [
+    {
+      "time": "2026-10-28T15:12:38.495+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 33.32497787475586,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.16167420148992642,
+      "before": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": false,
+        "cap": 37.42092790401092
+      },
+      "after": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": false,
+        "cap": 37.42092790401092
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.546+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 32.99848175048828,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.15132382922475462,
+      "before": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": false,
+        "cap": 36.89889328173832
+      },
+      "after": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": false,
+        "cap": 36.89889328173832
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.596+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 32.4987678527832,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.07656637881359737,
+      "before": {
+        "state": "APPROACH",
+        "votes": 2,
+        "yielded": false,
+        "cap": 36.548459532490945
+      },
+      "after": {
+        "state": "APPROACH",
+        "votes": 2,
+        "yielded": false,
+        "cap": 36.548459532490945
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.647+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 32.23720932006836,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.10424360224015243,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.695+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 32.11372375488281,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.1191013119513537,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.746+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 31.916669845581055,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.09185870490631284,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.795+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 31.768762588500977,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.08796983931763439,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.846+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 31.482418060302734,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.03830321503132847,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.899+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 31.279279708862305,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.04051918786924904,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.946+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 31.031641006469727,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.00743589750276679,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:38.995+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.869836807250977,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.014028476155628918,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.045+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.724693298339844,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.0063729899589029665,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.095+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.62494468688965,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.007319322727135157,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.148+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.537010192871094,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.0036062648035020857,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.196+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.472211837768555,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.0016124784733631617,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.244+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.389488220214844,
+      "recorded_accel": 0.008515509979462967,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.295+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.311845779418945,
+      "recorded_accel": 0.012881988522440003,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.345+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 30.235610961914062,
+      "recorded_accel": 0.018935717683282144,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": false,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.398+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 30.187957763671875,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.03041583937049527,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 29.41369600822385
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 29.41369600822385
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.446+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 30.17336654663086,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.03535640663570162,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 29.41369600822385
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 29.41369600822385
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.496+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 30.168582916259766,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.12328390066506688,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 28.338026685920962
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 28.338026685920962
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.546+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 30.165084838867188,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.12344025761139135,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 28.338026685920962
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 28.338026685920962
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.600+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 30.080507278442383,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.15576067174247837,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 27.661918261812655
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 27.661918261812655
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.646+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 29.882190704345703,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.16874863660821904,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 26.98097000538993
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 26.98097000538993
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.696+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 29.67287254333496,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.189371343287034,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 26.51865228909243
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 26.51865228909243
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.745+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 29.283796310424805,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.15854371292123137,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 26.049297437495945
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 26.049297437495945
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.796+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 29.014026641845703,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.22116032080068063,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 25.33133815516618
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 25.33133815516618
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.848+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 28.461837768554688,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.16378540427623206,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 24.842880621201886
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 24.842880621201886
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.896+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 28.334178924560547,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.2730567506789418,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 24.340168103654726
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 24.340168103654726
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.946+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 27.863075256347656,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.22910694431107137,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 23.577574907790968
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 23.577574907790968
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:39.996+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 27.367338180541992,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.20535924838710143,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 23.31870177243599
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 23.31870177243599
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.046+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 26.66203498840332,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.17188027061640782,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 22.52710944591259
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 22.52710944591259
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.098+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 26.315792083740234,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.2399218257299503,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 22.258006613877363
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 22.258006613877363
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.148+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 25.732086181640625,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.21041388647196674,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 21.426570921555655
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 21.426570921555655
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.196+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 25.597341537475586,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.3108806858792472,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 21.145841124691234
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 21.145841124691234
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.247+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 24.89212417602539,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.2132864665277394,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 20.284440940364686
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 20.284440940364686
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.295+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 24.730039596557617,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.32954143919056517,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 19.99052578529835
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 19.99052578529835
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.347+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 23.641054153442383,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.1130183951931667,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 19.386698525803375
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 19.386698525803375
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.396+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 23.11812973022461,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.2006901659452744,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 19.08138173230312
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 19.08138173230312
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.446+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 23.11812973022461,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.3832717002852751,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 18.140543245224354
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 18.140543245224354
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.496+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 22.211950302124023,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.20428220008024722,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 17.818046771512584
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 17.818046771512584
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.549+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 22.211950302124023,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.35733402751792176,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 17.158532043018702
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 17.158532043018702
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.596+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 21.025785446166992,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.07639094897620766,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 16.82106077798295
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 16.82106077798295
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.646+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 20.308134078979492,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.17575915959341495,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 16.129417468271914
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 16.129417468271914
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.695+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 19.38998031616211,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.09061747680048127,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 15.774670602755315
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 15.774670602755315
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.749+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 18.811168670654297,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.15185561129442593,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 15.41354754268914
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 15.41354754268914
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.796+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 18.344867706298828,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.15194704390670202,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 15.045691585109294
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 15.045691585109294
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.846+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 17.95770835876465,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.23638716127906242,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.897610885696754
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.897610885696754
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.896+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 17.454620361328125,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.17209037659238452,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.897610885696754
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.897610885696754
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.947+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 17.02437400817871,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.21822221464651567,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.090214540726695
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.090214540726695
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:40.998+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 16.32632827758789,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.11444845804003811,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.090214540726695
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 13.090214540726695
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.046+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 15.738494873046875,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.1463631602181965,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 12.243507905755001
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 12.243507905755001
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.097+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 14.963679313659668,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.08977118111691693,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 11.803489264327633
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 11.803489264327633
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.147+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 14.211823463439941,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.06690909811500911,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 11.351120507789268
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 11.351120507789268
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.197+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 13.872185707092285,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.1619942724563225,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 10.885299398889975
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 10.885299398889975
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.246+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 13.314740180969238,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.15287492879149278,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 9.889403979238264
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 9.889403979238264
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.296+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 12.940059661865234,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.16032710174555193,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 9.889403979238264
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 9.889403979238264
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.348+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 12.601727485656738,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.18468245885909126,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 9.37393692955885
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 9.37393692955885
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.396+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 11.926741600036621,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.09735289893069074,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 8.838292288896758
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 8.838292288896758
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.449+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 11.481717109680176,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.16351522709971586,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 8.279896946889155
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 8.279896946889155
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.496+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 11.027585983276367,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.16506032334544155,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 7.69557948216852
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 7.69557948216852
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.546+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 10.252277374267578,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.04017082117706938,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 7.69557948216852
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 7.69557948216852
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.596+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 9.79296875,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.1707214353117269,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 6.432099546536121
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 6.432099546536121
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.646+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 9.09782600402832,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.06734401603133358,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 6.432099546536121
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 6.432099546536121
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.698+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 8.969593048095703,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.2275084695040327,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 5.741033338638502
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 5.741033338638502
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.745+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 8.251736640930176,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.040980936719716504,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 5.741033338638502
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 5.741033338638502
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.796+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 8.056236267089844,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.20064426480549874,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 4.9988593179064065
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 4.9988593179064065
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.846+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 7.120123386383057,
+      "recorded_accel": 0.02361561526837802,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 4.9988593179064065
+      },
+      "after": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 4.9988593179064065
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.897+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 6.721189975738525,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.11783827293990748,
+      "before": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 4.192219816516568
+      },
+      "after": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 4.192219816516568
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.948+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 6.176451206207275,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.0488403480932848,
+      "before": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 4.192219816516568
+      },
+      "after": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 4.192219816516568
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:41.995+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 6.02515983581543,
+      "recorded_accel": 0.0235825885029044,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.045+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 5.633530139923096,
+      "recorded_accel": 0.04847878450527787,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.096+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 5.491760730743408,
+      "recorded_accel": 0.07370421399537008,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.147+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 5.509925842285156,
+      "recorded_accel": 0.0995846510049887,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.195+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 5.542317867279053,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.3580188609257738,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 1.0936981613781425
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 1.0936981613781425
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.245+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 5.61931848526001,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.3733445148875188,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 1.0936981613781425
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 1.0936981613781425
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.296+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 5.200565814971924,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.346+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 4.257232666015625,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.397+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 2.657552480697632,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.446+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 2.657552480697632,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.495+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 1.3961877822875977,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.546+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.3514005243778229,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.596+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.1095488891005516,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.648+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.09463602304458618,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.696+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.15955007076263428,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.746+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.18343539535999298,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.796+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.1674956977367401,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.849+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.10346227139234543,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.895+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.0688253790140152,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.958+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.02502368576824665,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:42.995+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.0036976379342377186,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.047+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.01591588743031025,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.099+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.021844783797860146,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.146+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.022800646722316742,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.196+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.017986563965678215,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.246+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.01362827979028225,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.296+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.009068912826478481,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.349+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.0029377429746091366,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.395+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.00012863599113188684,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.445+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.002946622436866164,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.495+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.003802682040259242,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.546+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.003549920627847314,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.598+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.002828853437677026,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.646+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.0015227587427943945,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "YIELD",
+        "votes": 0,
+        "yielded": true,
+        "cap": 0.0
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.697+09:00",
+      "recorded_state": "YIELD",
+      "recorded_speed_kmh": 0.000318919395795092,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.746+09:00",
+      "recorded_state": "APPROACH",
+      "recorded_speed_kmh": 0.0003161856147926301,
+      "recorded_accel": 0.0,
+      "recorded_brake": 1.0,
+      "before": {
+        "state": "APPROACH",
+        "votes": 1,
+        "yielded": true,
+        "cap": 0.0
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.795+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.0009096009889617562,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.848+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.0010825060307979584,
+      "recorded_accel": 0.05327962900628336,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.896+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.0001959844958037138,
+      "recorded_accel": 0.10081450702273287,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.946+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.019431665539741516,
+      "recorded_accel": 0.15154762999736704,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:43.996+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.09659707546234131,
+      "recorded_accel": 0.20093714800896123,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.048+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.22961081564426422,
+      "recorded_accel": 0.2535955070052296,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.095+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.3437269926071167,
+      "recorded_accel": 0.3005263930244837,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.146+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.592738926410675,
+      "recorded_accel": 0.35128596902359277,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.196+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 0.899147093296051,
+      "recorded_accel": 0.40126521402271464,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.247+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 1.1468373537063599,
+      "recorded_accel": 0.45134878501994535,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.298+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 1.5659745931625366,
+      "recorded_accel": 0.5034136590256821,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.347+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 1.7181686162948608,
+      "recorded_accel": 0.5521508399979211,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.396+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 1.8900153636932373,
+      "recorded_accel": 0.6009896169998683,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.446+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 2.423996925354004,
+      "recorded_accel": 0.6509304479986895,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.499+09:00",
+      "recorded_state": "ENTRY_CLEAR",
+      "recorded_speed_kmh": 2.805905342102051,
+      "recorded_accel": 0.7042966950102709,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "ENTRY_CLEAR",
+        "votes": 2,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "ENTRY_CLEAR",
+        "votes": 1,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.547+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 3.4344706535339355,
+      "recorded_accel": 0.7277444495121017,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.596+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 3.8908469676971436,
+      "recorded_accel": 0.7527161855105078,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.646+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 4.631738662719727,
+      "recorded_accel": 0.7777059485088103,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.696+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 5.443129539489746,
+      "recorded_accel": 0.8027895835111849,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.749+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 6.278735637664795,
+      "recorded_accel": 0.8289609865169041,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.796+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 6.84813928604126,
+      "recorded_accel": 0.8526619835174643,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.846+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 7.7404608726501465,
+      "recorded_accel": 0.8777136980061186,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.895+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 8.346667289733887,
+      "recorded_accel": 0.9021555135113886,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.950+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 9.283821105957031,
+      "recorded_accel": 0.9290619775129016,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:44.996+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 9.92628002166748,
+      "recorded_accel": 0.9529135685152141,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.045+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 10.903504371643066,
+      "recorded_accel": 0.977515549006057,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.096+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 11.56828498840332,
+      "recorded_accel": 1.0,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.145+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 12.57720947265625,
+      "recorded_accel": 1.0,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.201+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 13.627626419067383,
+      "recorded_accel": 0.9609103521144239,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.245+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 14.662933349609375,
+      "recorded_accel": 0.7713633708177065,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.296+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 15.382299423217773,
+      "recorded_accel": 0.7907266686529015,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.347+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 16.340320587158203,
+      "recorded_accel": 0.6721165941138281,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.400+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 16.851449966430664,
+      "recorded_accel": 0.698064107114402,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.447+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 17.5806884765625,
+      "recorded_accel": 0.5279128210779802,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.496+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 18.00242042541504,
+      "recorded_accel": 0.5526530415766231,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.547+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 18.571624755859375,
+      "recorded_accel": 0.48101053260224513,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.596+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 18.842283248901367,
+      "recorded_accel": 0.5056977050980052,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.648+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 19.258949279785156,
+      "recorded_accel": 0.3889380650221356,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.696+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 19.484453201293945,
+      "recorded_accel": 0.4042184230218172,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.746+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 19.884817123413086,
+      "recorded_accel": 0.3402616043685296,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.797+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 19.965566635131836,
+      "recorded_accel": 0.36543467986568,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.846+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 20.05337142944336,
+      "recorded_accel": 0.38962284056094293,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.899+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 20.328054428100586,
+      "recorded_accel": 0.33314368211638795,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.946+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 20.328054428100586,
+      "recorded_accel": 0.35722368760532847,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:45.996+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 20.60618019104004,
+      "recorded_accel": 0.30881357130315,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.046+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 20.68859100341797,
+      "recorded_accel": 0.3338991688059162,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.099+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 20.876447677612305,
+      "recorded_accel": 0.30787578146571803,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.146+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.03306770324707,
+      "recorded_accel": 0.298764208772617,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.196+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.129487991333008,
+      "recorded_accel": 0.30487296087832666,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.248+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.23897933959961,
+      "recorded_accel": 0.2949370699805566,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.296+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.3441219329834,
+      "recorded_accel": 0.28589850139691797,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.348+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.400646209716797,
+      "recorded_accel": 0.2929290577907061,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.397+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.511320114135742,
+      "recorded_accel": 0.2725374860819755,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.447+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.565074920654297,
+      "recorded_accel": 0.28042056319546244,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.497+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.661495208740234,
+      "recorded_accel": 0.30565154869410033,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.546+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.73872184753418,
+      "recorded_accel": 0.3036294526931859,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.598+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.837087631225586,
+      "recorded_accel": 0.32970836069891524,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.646+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 21.904354095458984,
+      "recorded_accel": 0.3534897591993475,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.696+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 22.09237289428711,
+      "recorded_accel": 0.3331826300477563,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.746+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 22.204734802246094,
+      "recorded_accel": 0.35819043603851,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.798+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 22.36191177368164,
+      "recorded_accel": 0.3586253637891077,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.846+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 22.526823043823242,
+      "recorded_accel": 0.3796403658598062,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.895+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 22.64836311340332,
+      "recorded_accel": 0.4045752533675038,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.947+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 22.830141067504883,
+      "recorded_accel": 0.3899709437681702,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:46.996+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.068496704101562,
+      "recorded_accel": 0.3216606193072812,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.049+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.2309513092041,
+      "recorded_accel": 0.2892281344484132,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.096+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.451427459716797,
+      "recorded_accel": 0.24555148041949693,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.145+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.568632125854492,
+      "recorded_accel": 0.20672946224121846,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.194+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.72260093688965,
+      "recorded_accel": 0.14674330872378694,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.249+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.807321548461914,
+      "recorded_accel": 0.12047029330234518,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.296+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.925540924072266,
+      "recorded_accel": 0.14394425129240854,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.346+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.998022079467773,
+      "recorded_accel": 0.16892681029231763,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.396+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.032617568969727,
+      "recorded_accel": 0.19387439929370312,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.445+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.10943031311035,
+      "recorded_accel": 0.21867971379789533,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.497+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.164867401123047,
+      "recorded_accel": 0.24473725429517226,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.545+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.263301849365234,
+      "recorded_accel": 0.2687654483011226,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.596+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.329002380371094,
+      "recorded_accel": 0.2939027552925051,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.645+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.44111442565918,
+      "recorded_accel": 0.3187326498005074,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.696+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.527206420898438,
+      "recorded_accel": 0.3439165857994464,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.747+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.676685333251953,
+      "recorded_accel": 0.3696474203020568,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.796+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.676685333251953,
+      "recorded_accel": 0.3940268517903984,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.847+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.822412490844727,
+      "recorded_accel": 0.41433876659346575,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.896+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.963138580322266,
+      "recorded_accel": 0.40483582475857444,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.949+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.0804500579834,
+      "recorded_accel": 0.40172614782527916,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:47.996+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.272653579711914,
+      "recorded_accel": 0.3696658159836287,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.046+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.398529052734375,
+      "recorded_accel": 0.37407220498656957,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.096+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.585309982299805,
+      "recorded_accel": 0.3476939192615645,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.148+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.723121643066406,
+      "recorded_accel": 0.347841683131693,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.195+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.883590698242188,
+      "recorded_accel": 0.32863142410910523,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.246+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.0024471282959,
+      "recorded_accel": 0.32934595742115086,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.295+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.167150497436523,
+      "recorded_accel": 0.3070230902272001,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.348+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.285356521606445,
+      "recorded_accel": 0.30876351570216687,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.396+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.445756912231445,
+      "recorded_accel": 0.2845642237687878,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.446+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.60016632080078,
+      "recorded_accel": 0.27610393032531255,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.496+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.707868576049805,
+      "recorded_accel": 0.2764948305457724,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.548+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.857685089111328,
+      "recorded_accel": 0.25806293083146825,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.598+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.001455307006836,
+      "recorded_accel": 0.24683328940089555,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.646+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.14053726196289,
+      "recorded_accel": 0.2352590152015746,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.695+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.226451873779297,
+      "recorded_accel": 0.24072212183410152,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.746+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.310422897338867,
+      "recorded_accel": 0.23498752343596588,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.797+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.420866012573242,
+      "recorded_accel": 0.22065011581250119,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.848+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.478477478027344,
+      "recorded_accel": 0.22758278544508379,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.895+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.548206329345703,
+      "recorded_accel": 0.21478242955376162,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.946+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.582000732421875,
+      "recorded_accel": 0.15883066682416672,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:48.995+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.62234115600586,
+      "recorded_accel": 0.15427662474354592,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.046+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.6514949798584,
+      "recorded_accel": 0.09153864105051214,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.097+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.64459991455078,
+      "recorded_accel": 0.03429643774281495,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.146+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.61382293701172,
+      "recorded_accel": 0.04167498976153217,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.196+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.52482032775879,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.006473044377159683,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.246+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.361387252807617,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.11883741284171379,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.298+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 27.26412010192871,
+      "recorded_accel": 0.0,
+      "recorded_brake": 0.1256156246622604,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.346+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.686559677124023,
+      "recorded_accel": 0.02128445330505739,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.396+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 26.225910186767578,
+      "recorded_accel": 0.03214767775270277,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.446+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.71106719970703,
+      "recorded_accel": 0.057178465757799606,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.496+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.509937286376953,
+      "recorded_accel": 0.03597280828327363,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.548+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.317462921142578,
+      "recorded_accel": 0.04811898410034884,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.597+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.317462921142578,
+      "recorded_accel": 0.01109250675114809,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.646+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 25.07147979736328,
+      "recorded_accel": 0.03611748675218324,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.695+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.832454681396484,
+      "recorded_accel": 0.060750253755096406,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.747+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.665502548217773,
+      "recorded_accel": 0.08612349874790298,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.798+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.4083251953125,
+      "recorded_accel": 0.11181117825078318,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.846+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.283498764038086,
+      "recorded_accel": 0.11963905527080199,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.895+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.11064910888672,
+      "recorded_accel": 0.1430986435215293,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.947+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.012353897094727,
+      "recorded_accel": 0.1350439564382603,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:49.998+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.886974334716797,
+      "recorded_accel": 0.15028293421984007,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.045+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.82850456237793,
+      "recorded_accel": 0.14322714876262757,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.096+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.72176170349121,
+      "recorded_accel": 0.16073788236273778,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.146+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.71464729309082,
+      "recorded_accel": 0.14158050600479788,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.196+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.682096481323242,
+      "recorded_accel": 0.1494569416700087,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.248+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.725208282470703,
+      "recorded_accel": 0.17242976268375512,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.298+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.77570343017578,
+      "recorded_accel": 0.1974428876905631,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.346+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.800132751464844,
+      "recorded_accel": 0.2102970764824197,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.396+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.874008178710938,
+      "recorded_accel": 0.23440052878350778,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.448+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 23.956809997558594,
+      "recorded_accel": 0.26049576328142376,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.496+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.05767250061035,
+      "recorded_accel": 0.25288234127850856,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.546+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.155189514160156,
+      "recorded_accel": 0.2780537887801428,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.597+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.30599021911621,
+      "recorded_accel": 0.30002739153833086,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.646+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.402544021606445,
+      "recorded_accel": 0.3031429410923346,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.697+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.569265365600586,
+      "recorded_accel": 0.31413444846351185,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.746+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.732666015625,
+      "recorded_accel": 0.3358411877482099,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.796+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.847076416015625,
+      "recorded_accel": 0.33741792826431455,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    },
+    {
+      "time": "2026-10-28T15:12:50.845+09:00",
+      "recorded_state": "COMMITTED",
+      "recorded_speed_kmh": 24.964168548583984,
+      "recorded_accel": 0.362118516272587,
+      "recorded_brake": 0.0,
+      "before": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      },
+      "after": {
+        "state": "COMMITTED",
+        "votes": 3,
+        "yielded": true,
+        "cap": null
+      }
+    }
+  ]
+}

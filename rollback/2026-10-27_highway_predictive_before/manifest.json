@@ -1,0 +1,19 @@
+{
+  "restore_files": [
+    "src/unita_waypoint/scripts/local_avoidance_core.py",
+    "src/unita_waypoint/test/test_highway_planner.py"
+  ],
+  "new_files": [
+    "src/unita_waypoint/test/test_highway_predictive.py"
+  ],
+  "description": "고주로(S11) 시간별 차체 충돌 검사, 끼어들기 감속, 차로 유지 우선, 안전 복귀 검사 적용 전",
+  "before_sha256": {
+    "src/unita_waypoint/scripts/local_avoidance_core.py": "65ccf4830aed384850eda458164260ae4d463b0482ac65bc9118014488595d19",
+    "src/unita_waypoint/test/test_highway_planner.py": "48410f3a5c550b2f17a1fd7ff110c3ba0d1d3e10f5391c38d949ee366019011e"
+  },
+  "after_sha256": {
+    "src/unita_waypoint/scripts/local_avoidance_core.py": "370f6bad1294bc9e3dc6f0bd6fcb68abaa1173d643a4e70f8b74f28f96b4d85e",
+    "src/unita_waypoint/test/test_highway_planner.py": "ccbfdd563e47d47816c8923cccd37deb76c299ac72823d40ae7ba62e93af2659",
+    "src/unita_waypoint/test/test_highway_predictive.py": "b2b5f9c8fd52fba42a48da4fa43f67623adde82750aae7bfbbefbd2f19c737c8"
+  }
+}
