@@ -99,14 +99,14 @@ class S11Min30Tests(unittest.TestCase):
                            rise_rate=param('sector11_brake_rise_rate'),
                            deadband_kmh=param('sector11_brake_deadband_kmh'))
 
-    def test_stronger_brake_reaches_40_percent_in_point4_seconds(self):
+    def test_stronger_brake_reaches_65_percent_in_point65_seconds(self):
         from unittest.mock import patch
         from pedal_guard import CruiseBrake
         n = self.follower()
         n.sector11_cruise_brake = self.stronger_brake()
         n.speed_pid.update = MagicMock(return_value=-1.)
         old = CruiseBrake(gain=.02, max_brake=.22, rise_rate=.3)
-        for step in range(8):
+        for step in range(13):
             with patch('gps_waypoint_follower.time.monotonic', return_value=10.+step*.05):
                 n.publish_control(0., 30.)
             cmd = n.ctrl_pub.publish.call_args.args[0]
@@ -114,13 +114,13 @@ class S11Min30Tests(unittest.TestCase):
             self.assertAlmostEqual(cmd.brake, .05*(step+1))
             self.assertGreater(cmd.brake, previous)
             self.assertEqual(cmd.accel, 0.)
-        self.assertAlmostEqual(previous, .12)
+        self.assertAlmostEqual(previous, .195)
         self.assertEqual(n.requested_target_speed_kmh, 30.)
 
     def test_stronger_brake_still_releases_at_floor_with_negative_pid(self):
         n = self.follower()
         n.sector11_cruise_brake = self.stronger_brake()
-        n.sector11_cruise_brake.brake = .4
+        n.sector11_cruise_brake.brake = .65
         n.speed_pid.update = MagicMock(return_value=-1.)
         for speed, expected in ((40., .36), (35., .16), (32., .04), (31., 0.), (30., 0.), (29., 0.)):
             n.current_speed_kmh = speed

@@ -1,0 +1,7 @@
+이번 S11 브레이크 0.65·차선 변경 가속 강화 변경만 롤백해줘. 브레이크 상한은 기존 0.40으로 되돌리고, 최소 목표 속도 30km/h와 기존 중심선 추종·R3 단방향 변경은 유지해줘. rollback/2026-10-28_s11_brake65_accel_before/changes.patch만 역적용해줘.
+
+cd /home/unita/unita_ws
+git apply --check -R rollback/2026-10-28_s11_brake65_accel_before/changes.patch
+git apply -R rollback/2026-10-28_s11_brake65_accel_before/changes.patch
+
+적용 및 롤백 후 semi.launch 재시작 필요.

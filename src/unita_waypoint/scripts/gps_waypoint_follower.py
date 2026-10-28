@@ -305,6 +305,15 @@ class GPSWaypointFollower:
         # MORAI-only policy: override all S11 stop requests with a 30 km/h target.
         self.simulator_s11_no_stop = bool(rospy.get_param(
             "~simulator_s11_no_stop", False))
+        self.sector11_lane_change_accel_gain = float(rospy.get_param(
+            '~sector11_lane_change_accel_gain', 1.))
+        self.sector11_lane_change_accel_rate = float(rospy.get_param(
+            '~sector11_lane_change_accel_rate', .5))
+        if (not math.isfinite(self.sector11_lane_change_accel_gain)
+                or not 1. <= self.sector11_lane_change_accel_gain <= 3.
+                or not math.isfinite(self.sector11_lane_change_accel_rate)
+                or not 0. < self.sector11_lane_change_accel_rate <= 10.):
+            raise ValueError('invalid S11 lane-change acceleration settings')
         self.sector11_cruise_brake = None
         if rospy.get_param('~sector11_smooth_braking', False):
             self.sector11_cruise_brake = CruiseBrake(
@@ -1291,6 +1300,15 @@ class GPSWaypointFollower:
                 # Use the confirmed gap promptly: shorten the initial throttle
                 # ramp after yielding, while retaining PID demand and braking.
                 restart_rate = max(restart_rate, 1.)
+            transition = getattr(planner, 'transition', None)
+            if (s11_no_stop and transition is not None
+                    and transition.get('state') in ('LANE_CHANGING', 'RETURNING', 'OVERTAKING')
+                    and velocity > self.current_speed_kmh and output > 0.):
+                # Increase positive pedal response only. Never raise the final
+                # speed target or replace a brake/coast demand with acceleration.
+                output = min(1., output*getattr(self, 'sector11_lane_change_accel_gain', 1.))
+                restart_rate = max(restart_rate,
+                    getattr(self, 'sector11_lane_change_accel_rate', .5))
             accel, brake, pedal_state = self.pedal_guard.command(output, now, sample,
                 getattr(planner, 'clear_hold_s', .4), restart_rate, limit)
             self.pedal_reason = ('clearance_confirmation' if pedal_state == 'clearance_confirmation'

@@ -66,7 +66,7 @@ class S11UDPTests(unittest.TestCase):
         gain = float(node.find("param[@name='sector11_brake_gain']").get('value'))
         maximum = float(node.find("param[@name='sector11_max_cruise_brake']").get('value'))
         n = self.controller()
-        for speed, expected in ((60., .40), (40., .36), (35., .16), (31., 0.), (30., 0.)):
+        for speed, expected in ((60., .65), (40., .36), (35., .16), (31., 0.), (30., 0.)):
             with self.subTest(speed=speed):
                 n.s11_speed_kmh = speed
                 n.simulator_s11_packet(b'stop', 'BRAKE', 11.)

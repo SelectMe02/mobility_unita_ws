@@ -120,7 +120,7 @@ class CompetitionUDPControl:
         accel = min(.3, max(0., .08*error))
         # Match semi.launch's stronger S11 pedal envelope; retain the
         # 31 km/h release threshold and stale-speed brake suppression.
-        brake = min(.40, max(0., .04*(-error-1.))) if speed_fresh else 0.
+        brake = min(.65, max(0., .04*(-error-1.))) if speed_fresh else 0.
         if not speed_fresh:
             accel = .2  # No sustained braking from a frozen speed sample in this SIM policy.
         return (self.encoder.encode(1, 0., 0., accel, brake, self.s11_steering),
