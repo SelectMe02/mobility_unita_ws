@@ -1,0 +1,169 @@
+{
+  "first_new_evidence": 211.07908487319946,
+  "first_recorded_cap": 211.27837252616882,
+  "limitation": "Rounded published obstacle coordinates and received-time pose; not raw tracker replay or closed-loop stopping verification.",
+  "samples": [
+    {
+      "t": 208.11615681648254,
+      "d": 3.91,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 208.3759400844574,
+      "d": 3.91,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 208.57531094551086,
+      "d": 3.88,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 208.7164328098297,
+      "d": 3.91,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 208.8144748210907,
+      "d": 3.88,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 208.9136290550232,
+      "d": 3.86,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.01714515686035,
+      "d": 3.85,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.11490297317505,
+      "d": 3.83,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.31736874580383,
+      "d": 3.82,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.42070698738098,
+      "d": 3.8,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.51690673828125,
+      "d": 3.79,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.61711764335632,
+      "d": 3.8,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.71560645103455,
+      "d": 3.88,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.81300282478333,
+      "d": 3.88,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 209.91712951660156,
+      "d": 3.83,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 210.11803197860718,
+      "d": 3.69,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 210.27943205833435,
+      "d": 3.68,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 210.37377309799194,
+      "d": 3.68,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 210.47300958633423,
+      "d": 3.52,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 210.57556223869324,
+      "d": 3.36,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 210.68046522140503,
+      "d": 3.16,
+      "new_early": false,
+      "recorded_cap": null
+    },
+    {
+      "t": 211.07908487319946,
+      "d": 2.34,
+      "new_early": true,
+      "recorded_cap": null
+    },
+    {
+      "t": 211.17914509773254,
+      "d": 2.08,
+      "new_early": true,
+      "recorded_cap": null
+    },
+    {
+      "t": 211.27837252616882,
+      "d": 1.78,
+      "new_early": true,
+      "recorded_cap": 0.0
+    },
+    {
+      "t": 211.41867876052856,
+      "d": 1.85,
+      "new_early": true,
+      "recorded_cap": 0.0
+    },
+    {
+      "t": 211.51804971694946,
+      "d": 1.61,
+      "new_early": true,
+      "recorded_cap": 0.0
+    },
+    {
+      "t": 211.61776089668274,
+      "d": 1.2,
+      "new_early": true,
+      "recorded_cap": 0.0
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Only tentative off-path pedestrian candidates: require inward translation of both lateral box faces before admission; require predicted temporal crossing overlap before applying longitudinal stop cap. Near-body candidates and confirmed crossings retain existing handling. Recorded 22:23:19 shape change is a regression test, not closed-loop simulation.

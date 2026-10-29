@@ -1,0 +1,224 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -560,10 +560,50 @@
+                 and abs(o['l']-hold['l']) <= .15
+                 and abs(o['r']-hold.get('last_r', self.config.pedestrian_half_m)) <= .15)
+ 
++    @staticmethod
++    def _candidate_translation(a, b):
++        """Lateral translation supported by both faces, not box growth.
++
++        Samples are (time, s, d, half_length, half_width). Unknown motion
++        is distinct from a measured stationary object.
++        """
++        dt = b[0]-a[0]
++        if not .05 <= dt <= .5 or abs(b[1]-a[1]) > .5:
++            return None
++        delta = b[2]-a[2]
++        growth = abs(b[4]-a[4])
++        if (abs(b[3]-a[3]) > .15 or growth > .15
++                or growth > max(.025, .5*abs(delta))):
++            return None
++        vd = delta/dt
++        return vd if abs(vd) <= 4.5 else None
++
++    def _candidate_velocity(self, hold):
++        vd = hold.get('vd', 0.)
++        age = self.observation_time-hold.get('velocity_at', hold.get('seen_at', self.observation_time))
++        if age <= .5:
++            return vd
++        # Retain a possible occluded crossing at the body; never extrapolate
++        # an old roadside candidate across the entire road indefinitely.
++        band = self.config.band(hold.get('last_r', self.config.pedestrian_half_m))+.3
++        projected = hold['d']+vd*.5
++        if hold['d']*projected > 0. and min(abs(hold['d']), abs(projected)) > band:
++            return 0.
++        return vd
++
+     def _hold_match(self, hold, o):
+         dt = max(0., self.observation_time-hold.get('seen_at', self.observation_time))
+         if abs(o['s']-hold['s']) > 1.5:
+             return False
++        if hold.get('tentative') and not hold.get('confirmed_crossing'):
++            # Same-ID observations must be able to correct stale velocity.
++            # A new ID needs local, recent evidence, not a long extrapolation.
++            if o['id'] in hold['ids']:
++                return abs(o['d']-hold['d']) <= 1.5
++            if dt > .5 or abs(o['d']-hold['d']) > .75:
++                return False
++            if o['d']*hold['d'] < 0. and min(abs(o['d']), abs(hold['d'])) > .5:
++                return False
+         if dt > 3.01:
+             # A stale velocity must not extrapolate indefinitely. Reconnect
+             # only a measured person close to the last occupied footprint;
+@@ -598,7 +638,10 @@
+                     or abs(a[1]-b[1]) > .5
+                     or abs(a[3]-b[3]) > .15 or abs(a[4]-b[4]) > .15):
+                 return None
+-            rates.append((b[2]-a[2])/dt)
++            rate = self._candidate_translation(a, b)
++            if rate is None:
++                return None
++            rates.append(rate)
+         vd = sum(rates)/len(rates)
+         if not .4 <= abs(vd) <= 4.5 or abs(rates[0]-rates[1]) > 1.5:
+             return None
+@@ -641,12 +684,8 @@
+             samples = self.s4_motion_history.get(o['id'], [])[-2:]
+             if len(samples) == 2:
+                 a, b = samples
+-                # Both lateral faces must translate inward. One expanding
+-                # face moving the centre is not evidence of a walking object.
+-                direction = -math.copysign(1., o['d'])
+-                lower = ((b[2]-b[4])-(a[2]-a[4]))*direction
+-                upper = ((b[2]+b[4])-(a[2]+a[4]))*direction
+-                if min(lower, upper) < .05:
++                vd = self._candidate_translation(a, b)
++                if vd is None or o['d']*vd >= 0. or abs(vd) < .4:
+                     self.pedestrian_hold = previous_hold
+                     return
+         history = self.person_d.get(o['id'], ())
+@@ -678,10 +717,10 @@
+                 a, b = measured
+                 dt = b[0]-a[0]
+                 if .05 <= dt <= .25:
+-                    vd = (b[2]-a[2])/dt
+-                    if .4 <= abs(vd) <= 4.5 and o['d']*vd < 0.:
++                    vd = self._candidate_translation(a, b)
++                    if vd is not None and .4 <= abs(vd) <= 4.5 and o['d']*vd < 0.:
+                         approach_vd = vd
+-        self.pedestrian_hold.update(seen_at=self.observation_time,
++        self.pedestrian_hold.update(seen_at=self.observation_time, velocity_at=self.observation_time,
+                                     vd=o['v_d'] if approach_vd is None else approach_vd)
+         self.pedestrian_hold['ids'].add(o['id'])
+         self.pedestrian_holds.append(self.pedestrian_hold)
+@@ -713,14 +752,28 @@
+         if hold is None:
+             return None
+         cfg = self.config
+-        near = [o for o in items if self._held_person_sized(hold, o) and self._hold_match(hold, o)]
++        near = [o for o in items if self._hold_match(hold, o) and (
++            self._held_person_sized(hold, o)
++            or (hold.get('tentative') and not hold.get('confirmed_crossing')
++                and o['id'] in hold['ids']
++                and abs(o['d']-offset_at(o['s'])) > cfg.band(o['r'])+.3))]
++        # A growing same-ID roadside box is still an observation. It must
++        # invalidate old candidate motion instead of looking like track loss.
+         if near:
+             o = min(near, key=lambda o: math.hypot(o['s'] - hold['s'], o['d'] - hold['d']))
+             previous_d, previous_s = hold['d'], hold['s']
+             dt = self.observation_time-hold.get('seen_at', self.observation_time)
+             fresh = 0. < dt <= .5
+             measured_vd = ((o['d']-previous_d)/dt if dt > .05 else hold.get('vd', 0.))
+-            if abs(o['v_d']) > .2:
++            if hold.get('tentative') and not hold.get('confirmed_crossing'):
++                if fresh:
++                    rate = self._candidate_translation(
++                        (self.observation_time-dt, previous_s, previous_d,
++                         hold.get('last_l', hold['l']), hold.get('last_r', o['r'])),
++                        (self.observation_time, o['s'], o['d'], o['l'], o['r']))
++                    hold['vd'] = 0. if rate is None else rate
++                    hold['velocity_at'] = self.observation_time
++            elif abs(o['v_d']) > .2:
+                 hold['vd'] = o['v_d']
+             elif not hold.get('tentative') and .2 < abs(measured_vd) <= 4.5:
+                 hold['vd'] = measured_vd
+@@ -736,7 +789,10 @@
+             occupied = hold['near']
+             if hold.get('tentative'):
+                 delta = abs(previous_d)-abs(o['d'])
+-                consistent = (abs(o['r']-hold['last_r']) < .15
++                consistent = (self._candidate_translation(
++                    (self.observation_time-dt, previous_s, previous_d, hold['last_l'], hold['last_r']),
++                    (self.observation_time, o['s'], o['d'], o['l'], o['r'])) is not None
++                              and abs(o['r']-hold['last_r']) < .15
+                               and abs(o['l']-hold['last_l']) < .15
+                               and abs(o['s']-previous_s) < .5)
+                 hold['approach_scans'] = (hold['approach_scans']+1
+@@ -779,7 +835,7 @@
+                 # when its last measured approach could still reach us.
+                 relative = hold['d']-offset_at(hold['s'])
+                 band = cfg.band(hold.get('last_r', cfg.pedestrian_half_m))
+-                vd = hold.get('vd', 0.)
++                vd = self._candidate_velocity(hold)
+                 approaching = relative*vd < -.1
+                 soon = approaching and abs(relative)-abs(vd)*.8 <= band+.3
+                 if (self.observation_time-hold['seen_at'] >= .6
+@@ -825,7 +881,7 @@
+             relative = hold['d']-offset_at(hold['s'])
+             band = cfg.band(hold.get('last_r', cfg.pedestrian_half_m))
+             if abs(relative) > band+.3:
+-                vd = hold.get('vd', 0.)
++                vd = self._candidate_velocity(hold)
+                 approaching = relative*vd < 0. and abs(vd) >= .2
+                 arrival = max(0., ahead)/max(speed, 3.)
+                 entry = max(0., (abs(relative)-band)/max(abs(vd), .01))
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -808,3 +808,66 @@
+         p.pedestrian_hold=h;p.observation_time=10.1
+         cap=p._single_pedestrian_hold_cap([],6.4,442.2,446.045,lambda s:0.)
+         assert (cap == 0.) if expect_brake else math.isinf(cap)
++
++
++def test_recorded_223140_shape_growth_does_not_create_four_mps_candidate():
++    p = planner(); p.set_pedestrian_hold_ranges([(0., 100.)])
++    for i, (s, d, r, l) in enumerate([
++            (14.7, -3.49, .25, .30),
++            (14.938794, -3.08407654, .58189747, .56387565)]):
++        result = p.update((10., 0.), 6.4,
++            [RouteObstacle(s, d, r, half_length=l, track_id=3)], stamp=1.+i*.1)
++    assert p.pedestrian_hold is None
++    assert math.isinf(result.speed_cap_mps)
++
++
++def test_candidate_motion_refreshes_on_stationary_and_outward_observations():
++    for delta in (0., -.12):
++        p = hold_planner(); h = candidate_boundary_hold()
++        h.update(vd=4.0636, stationary_scans=0)
++        p.pedestrian_hold = h; p.observation_time = 10.1
++        o = boundary_observation(d=h['d']+delta)
++        o.update(r=h['last_r'], l=h['last_l'], s=h['s'], v_d=0., moving=False)
++        cap = p._single_pedestrian_hold_cap([o], 6.4, 442.2, 446.045, lambda s: 0.)
++        assert math.isinf(cap)
++        assert abs(h['vd']-delta/.1) < 1e-6
++        assert h['velocity_at'] == 10.1
++
++
++def test_same_id_shape_growth_invalidates_velocity_instead_of_becoming_lost():
++    p = hold_planner(); h = candidate_boundary_hold()
++    h.update(d=-3.54, last_r=.18, last_l=.30, l=.30, vd=4.0636)
++    p.pedestrian_hold = h; p.observation_time = 10.1
++    o = boundary_observation(d=-3.10)
++    o.update(r=.74585, l=.64942, s=h['s'], v_d=0., moving=False)
++    cap = p._single_pedestrian_hold_cap([o], 6.4, 442.2, 446.045, lambda s: 0.)
++    assert math.isinf(cap)
++    assert h['vd'] == 0. and h['lost_scans'] == 0
++    assert h['seen_at'] == 10.1
++    assert not h['confirmed_crossing']
++
++
++def test_tentative_association_cannot_jump_to_opposite_roadside():
++    p = hold_planner(); h = candidate_boundary_hold()
++    h.update(d=-3.54, vd=4.0636)
++    p.observation_time = 12.8
++    o = boundary_observation(d=7.86)
++    o.update(id=21, s=h['s'])
++    assert not p._hold_match(h, o)
++    # Same-ID nearby observations can correct the bad extrapolation.
++    o.update(id=33, d=-3.5)
++    assert p._hold_match(h, o)
++    p.observation_time = 10.1
++    o.update(id=54, d=-3.4)
++    assert p._hold_match(h, o)
++
++
++def test_distant_stale_candidate_velocity_expires_but_near_crossing_is_retained():
++    p = hold_planner(); h = candidate_boundary_hold()
++    h.update(d=-4., vd=1., velocity_at=10.)
++    p.observation_time = 10.6
++    assert p._candidate_velocity(h) == 0.
++    h.update(d=-2., vd=2.)
++    assert p._candidate_velocity(h) == 2.
++    h.update(d=-4., vd=1., velocity_at=10.5)
++    assert p._candidate_velocity(h) == 1.

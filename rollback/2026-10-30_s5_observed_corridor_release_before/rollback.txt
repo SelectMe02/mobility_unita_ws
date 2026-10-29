@@ -1,0 +1,1 @@
+이번 S5 보행자 정지 기억의 관측된 주행 공간 기반 해제·현재 점유 및 횡단 위험 해제 차단 수정만 롤백해줘. 기존 S4 회피와 S5 최초 돌발 장애물 제동·옆 차량 대응·트레일링, final/extreme 설정은 유지하고 rollback/2026-10-30_s5_observed_corridor_release_before/changes.patch만 역적용해줘.

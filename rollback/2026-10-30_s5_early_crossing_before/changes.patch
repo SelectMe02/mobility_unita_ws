@@ -1,0 +1,93 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -656,6 +656,46 @@
+                 and leave >= max(0., arrival-cfg.arrival_before_s)):
+             return vd
+         return None
++
++    def _interrupted_crossing_approach(self, o, speed, front_s):
++        """Short-gap, shape-tolerant evidence for immediate braking only.
++
++        Never creates a persistent pedestrian hold or changes classification.
++        Both lateral faces must translate toward the route across at least
++        three observations; expansion of just one face cannot qualify.
++        """
++        cfg = self.config
++        h = [v for v in self.s4_motion_history.get(o['id'], [])
++             if 0. <= self.observation_time-v[0] <= .65]
++        if len(h) < 3 or self.observation_time-h[-1][0] > .2:
++            return False
++        a, b = h[0], h[-1]
++        span = b[0]-a[0]
++        if (not .2 <= span <= .65 or a[2]*b[2] <= 0.
++                or max(v[1] for v in h)-min(v[1] for v in h) > .8
++                or max(v[3] for v in h)-min(v[3] for v in h) > .4
++                or any(not .05 <= y[0]-x[0] <= .4 or
++                       abs(y[2])-abs(x[2]) > .1 for x, y in zip(h, h[1:]))):
++            return False
++        direction = -math.copysign(1., b[2])
++        displacement = (b[2]-a[2])*direction
++        common = min(((b[2]-b[4])-(a[2]-a[4]))*direction,
++                     ((b[2]+b[4])-(a[2]+a[4]))*direction)
++        if displacement < .35 or common < max(.25, .5*displacement):
++            return False
++        rate = common/span  # lower common-edge speed, not centre jump speed
++        if not .6 <= rate <= 4.5:
++            return False
++        ahead = o['s']-o['l']-front_s
++        v = max(speed, 3.)
++        arrival = max(0., ahead)/v
++        band = cfg.band(o['r'])
++        entry = max(0., (abs(o['d'])-band)/rate)
++        leave = (abs(o['d'])+band)/rate
++        horizon = v*cfg.reaction_s+v*v/(2.*cfg.brake_mps2)+v+cfg.stop_gap_m
++        return (0. < ahead <= horizon
++                and entry <= min(cfg.predict_s, arrival+cfg.arrival_after_s)
++                and leave >= max(0., arrival-cfg.arrival_before_s))
+ 
+     def _note_pedestrian(self, o, binding=True, tentative=False, approach_vd=None):
+         """Start or refresh the pedestrian hold for a mover that made Ego yield.
+@@ -1357,7 +1397,8 @@
+             for o in items:
+                 if (any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
+                         and o['l'] <= .6 and o['r'] <= 1.2
+-                        and self._early_pedestrian_approach(o, speed, front_s) is not None):
++                        and (self._early_pedestrian_approach(o, speed, front_s) is not None
++                             or self._interrupted_crossing_approach(o, speed, front_s))):
+                     stop = stopping_speed(o['s']-o['l']-front_s-cfg.stop_gap_m,
+                                           cfg.brake_mps2, cfg.reaction_s)
+                     traffic_cap = min(traffic_cap, stop)
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -940,3 +940,31 @@
+     p.update((0.,0.),0.,[RouteObstacle(15.,-1.,.4,vy=2.,dynamic=True,track_id=10),
+                          RouteObstacle(20.,0.,.4,track_id=11)],stamp=1.)
+     assert p.active is None
++
++
++def test_interrupted_crossing_approach_accepts_recorded_shape_and_scan_gap():
++    p=hold_planner();p.observation_time=211.079
++    p.s4_motion_history[231]=[(210.473,452.9,3.52,.30,.20,False),
++        (210.576,452.4,3.36,.62,.34,False),(210.680,452.1,3.16,.29,.41,False),
++        (211.079,452.8,2.34,.39,.57,False)]
++    o=dict(id=231,s=452.8,d=2.34,l=.39,r=.57)
++    assert p._early_pedestrian_approach(o,6.55,448.) is None
++    assert p._interrupted_crossing_approach(o,6.55,448.)
++    assert p.pedestrian_hold is None
++
++
++def test_interrupted_crossing_rejects_shape_growth_departure_and_stale_input():
++    p=hold_planner();p.observation_time=1.4
++    for values in [[(-3.5,.2),(-3.3,.4),(-3.1,.6)],
++                   [(-3.,.3),(-3.,.3),(-3.,.3)],
++                   [(-3.,.3),(-3.3,.3),(-3.6,.3)]]:
++        p.s4_motion_history[1]=[(1.+i*.2,15.,d,.3,r,False) for i,(d,r) in enumerate(values)]
++        o=dict(id=1,s=15.,d=values[-1][0],l=.3,r=values[-1][1])
++        assert not p._interrupted_crossing_approach(o,6.,9.)
++    p.s4_motion_history[1]=[(1.,15.,3.4,.3,.3,False),(1.2,15.,3.,.3,.3,False),
++                             (1.4,15.,2.6,.3,.3,False)]
++    o=dict(id=1,s=15.,d=2.6,l=.3,r=.3)
++    assert p._interrupted_crossing_approach(o,6.,9.)
++    assert not p._interrupted_crossing_approach(dict(o,s=90.),6.,9.)
++    p.observation_time=1.7
++    assert not p._interrupted_crossing_approach(o,6.,9.)

@@ -36,6 +36,7 @@ class CompetitionUDPControl:
         if not math.isfinite(self.yaw_offset) or not math.isfinite(self.rate) or not 1 <= self.rate <= 200:
             raise ValueError('invalid yaw offset / send rate (1..200 Hz)')
         self.encoder = CompetitionCommandEncoder(
+            release_to_keyboard=bool(rospy.get_param('~release_to_keyboard', True)),
             gear=int(rospy.get_param('~gear', 4)),
             max_steering_deg=float(rospy.get_param('~max_steering_deg', 40.0)),
             steering_sign=float(rospy.get_param('~steering_sign', 1)),
@@ -130,7 +131,7 @@ class CompetitionUDPControl:
         with self.lock:
             self.enabled = request.data
             self.watchdog.set_command(None, time.monotonic())
-        return SetBoolResponse(success=True, message='UDP takeover enabled' if request.data else 'UDP takeover disabled; releasing to keyboard')
+        return SetBoolResponse(success=True, message='UDP takeover enabled' if request.data else 'UDP takeover disabled; exit policy applied')
 
     def command_callback(self, message):
         try:
@@ -227,7 +228,9 @@ class CompetitionUDPControl:
                                 self.sock.sendto(self.encoder.stop(), self.destination)
                                 self.sock.sendto(self.encoder.release(), self.destination)
                             self.was_active = False
-                        state = 'PAUSED: competition takeover disabled; keyboard mode requested'
+                        state = ('PAUSED: competition takeover disabled; keyboard mode requested'
+                                 if self.encoder.release_to_keyboard else
+                                 'PAUSED: competition takeover disabled; AutoMode brake sent')
                 self.status_pub.publish(String(data=state))
                 if state != self.last_state:
                     rospy.loginfo('%s', state)

@@ -1,0 +1,1 @@
+이번 extreme.launch 추가·55km/h 구간의 extreme 전용 59km/h 지도·음영구간 30km/h 속도 정책과 PASSING 상태 판정 변경만 롤백해줘. 기존 final.launch와 원본 지도 및 S4/S5 등 기존 주행 기능은 유지하고 rollback/2026-10-29_extreme_launch_before/changes.patch만 역적용해줘.

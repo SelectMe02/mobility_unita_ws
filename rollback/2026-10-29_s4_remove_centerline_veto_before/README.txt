@@ -1,0 +1,1 @@
+Removed S4 centreline-range veto only; obstacle, curvature and raw LiDAR checks retained. R2 end-return trigger advanced 6m (339.9059 -> 333.9059). Recorded 21:44:23 stopped scan/pose: original return now passes to path end. No closed-loop simulation performed.

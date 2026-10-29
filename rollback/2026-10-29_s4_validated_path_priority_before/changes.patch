@@ -1,0 +1,160 @@
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -495,6 +495,8 @@
+             # ownership lasts through the retained pass's return ramp.
+             pass_active=self.planner.active is not None,
+             static_pass_managed=self.planner.static_pass_managed,
++            s4_body_validated=bool(self.planner.static_pass_managed
++                                  and self.s4_fallback.status.get('body_validated', False)),
+             s4_fallback_mode=self.s4_fallback.mode,
+             s4_tracking=(dict(self.s4_fallback.status, fallback_mode=self.s4_fallback.mode)
+                          if self.planner.static_pass_managed else None),
+--- a/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
++++ b/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
+@@ -114,6 +114,7 @@
+         else:
+             path = decision.path  # Retain the plan for inspection while stopped.
+         self.status = dict(source=source, state='TRACKING' if cap > .1 else 'STOP',
++                           body_validated=bool(profile is not None and room > .05),
+                            safe_distance_m=round(room, 2), reason=reason)
+         return replace(decision, state='PASSING', path=path, speed_cap_mps=cap,
+                        offset_now_m=profile.offset_at(s) if profile else decision.offset_now_m,
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
+@@ -25,7 +25,7 @@
+ import numpy as np
+ from scipy.spatial import cKDTree
+ 
+-from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
++from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle, Decision
+ from avoidance_runtime import RuntimeSettings
+ from tracking_debug import local_plan_trace, saved_route_window, tracking_debug_fields
+ from lane_corridor import LaneCorridor, project_lane_geometry
+@@ -855,11 +855,13 @@
+             traffic_cap = float('inf') if traffic_cap is None else float(traffic_cap)
+             pass_active = data.get('pass_active', data.get('state') == 'PASSING')
+             static_pass_managed = data.get('static_pass_managed', False)
++            body_validated = data.get('s4_body_validated', False)
+             if (not all(math.isfinite(v) for point in path for v in point)
+                     or math.isnan(cap) or cap < 0.
+                     or math.isnan(traffic_cap) or traffic_cap < 0.
+                     or not isinstance(pass_active, bool)
+-                    or not isinstance(static_pass_managed, bool)):
++                    or not isinstance(static_pass_managed, bool)
++                    or not isinstance(body_validated, bool)):
+                 raise ValueError('non-finite route avoidance output')
+         except (ValueError, KeyError, TypeError):
+             self.route_avoidance = None
+@@ -868,6 +870,7 @@
+                                     traffic_speed_cap_kmh=traffic_cap,
+                                     pass_active=pass_active,
+                                     static_pass_managed=static_pass_managed,
++                                    s4_body_validated=body_validated,
+                                     state=data.get('state', ''),
+                                     reason=data.get('reason', ''))
+         self.route_avoidance_received = time.monotonic()
+@@ -1551,7 +1554,18 @@
+                 and (plan.get('static_pass_managed', False) or (
+                     plan.get('pass_active', plan['state'] == 'PASSING')
+                     and not self.local_planner_owns_steering())))
+-            if route_pass_owns:
++            s4_validated = bool(route_pass_owns and plan.get('static_pass_managed', False)
++                and plan.get('s4_body_validated', False)
++                and self.local_planner.sectors[self.current_waypoint_index] == 4)
++            if s4_validated:
++                # This exact path/cap already passed current LiDAR, oriented
++                # body and corridor checks. Do not veto it using a second
++                # detector's circumscribed obstacle circles. Zero/traffic caps
++                # and stale-input stops remain binding below.
++                self.local_planner.reset_for_r1_handoff()
++                decision = Decision('PASSING', plan['path'], plan['speed_cap_kmh'],
++                                    reason='s4_validated_path')
++            elif route_pass_owns:
+                 decision = self.local_planner.check_route_pass(
+                     plan['path'], (self.current_speed_kmh or 0.)/3.6,
+                     planning_obstacles,
+@@ -1563,6 +1577,7 @@
+                     ego_yaw=self.current_yaw, force_r1=force_r1)
+             self.debug_trace.update(local_plan_trace(self.local_planner, decision, planning_obstacles))
+             self.debug_trace['route_pass_owns'] = route_pass_owns
++            self.debug_trace['s4_validated_path_owns'] = s4_validated
+             if route_avoidance:
+                 self.debug_trace['planner_mode'] = 'route_and_local_avoidance'
+             preference = (self.local_planner.effective_preferred_lane,
+--- a/src/unita_waypoint/scripts/local_avoidance_core_local.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core_local.py
+@@ -468,7 +468,12 @@
+         if collision_distance <= max(1., stopping_distance):
+             return self._decision('BLOCKED', path, 0., reason='route_pass_obstructed')
+         if math.isfinite(collision_distance):
+-            cap = self._stop_cap(collision_distance)
++            # S4's swept collision distance already includes the front/rear
++            # body and margin. Do not subtract that front extent a second time.
++            cap = (max(0., math.sqrt((self.decel*self.reaction_s)**2
++                       +2.*self.decel*max(0.,collision_distance-.25))
++                       -self.decel*self.reaction_s)*3.6 if sector == 4
++                   else self._stop_cap(collision_distance))
+             if cap <= 0.:
+                 return self._decision('BLOCKED', path, 0., reason='route_pass_obstructed')
+             self.reset_for_r1_handoff()
+--- a/src/unita_waypoint/test/test_route_pass_ownership_local.py
++++ b/src/unita_waypoint/test/test_route_pass_ownership_local.py
+@@ -11,6 +11,7 @@
+ class RoutePassOwnershipTests(ownership.ReturnOwnershipTests):
+     def passing(self):
+         obj = self.follower('PASSING', 20., 'passing static block')
++        obj.local_planner.sectors = [5]*len(obj.local_planner.sectors)
+         obj.local_planner.active_lane = None
+         obj.current_x, obj.current_y = 40., 1.6
+         path = [(40., 1.6), (43., 2.6)] + [(float(x), 3.5) for x in range(46, 110)]
+@@ -85,6 +86,50 @@
+             path=[(0., 0.), (1., 0.)], speed_cap_kmh=20., pass_active='false'))))
+         self.assertIsNone(obj.route_avoidance)
+ 
++    def validated(self):
++        obj = self.passing()
++        obj.local_planner.sectors = [4]*len(obj.local_planner.sectors)
++        plan = dict(obj.route_avoidance, static_pass_managed=True, s4_body_validated=True)
++        obj.route_avoidance_callback(String(data=json.dumps(plan)))
++        obj.obstacles = [module.Obstacle(48., 3.5, 1., kind='static')]
++        return obj
++
++    def test_s4_validated_path_not_vetoed_by_second_circle_check(self):
++        obj = self.validated()
++        self.run_loop(obj)
++        self.assertTrue(obj.debug_trace['s4_validated_path_owns'])
++        self.assertIsNone(obj.stop_reason)
++        self.assertEqual(obj.commands[-1][1],20.)
++
++    def test_s4_validated_zero_and_traffic_caps_still_stop(self):
++        for field in ('speed_cap_kmh','traffic_speed_cap_kmh'):
++            obj = self.validated()
++            obj.route_avoidance[field] = 0.
++            self.run_loop(obj)
++            self.assertEqual(obj.stop_reason,'planned_speed_zero')
++            self.assertFalse(obj.commands)
++
++    def test_s4_validation_never_overrides_stale_route_or_scan(self):
++        for field, reason in [('route_avoidance_received','route_avoidance_stale'),
++                              ('obstacle_received','obstacle_perception_stale')]:
++            obj=self.validated();setattr(obj,field,time.monotonic()-2.)
++            self.run_loop(obj)
++            self.assertEqual(obj.stop_reason,reason)
++
++    def test_s5_does_not_use_s4_validation_flag(self):
++        obj=self.validated()
++        obj.local_planner.sectors=[5]*len(obj.local_planner.sectors)
++        self.run_loop(obj)
++        self.assertFalse(obj.debug_trace['s4_validated_path_owns'])
++        self.assertEqual(obj.stop_reason,'planner_blocked:route_pass_obstructed')
++
++    def test_s4_body_distance_not_subtracted_twice(self):
++        obj=self.passing();p=obj.local_planner
++        p._collision_distance=lambda *args: 3.
++        result=p.check_route_pass([(0.,0.),(5.,0.)],0.,[],sector=4)
++        self.assertGreater(result.speed_cap_kmh,0.)
++        self.assertEqual(p.check_route_pass([(0.,0.),(5.,0.)],0.,[],sector=5).speed_cap_kmh,0.)
++
+ 
+ class S4ShortTargetTests(unittest.TestCase):
+     def test_short_forward_target_is_s4_opt_in(self):

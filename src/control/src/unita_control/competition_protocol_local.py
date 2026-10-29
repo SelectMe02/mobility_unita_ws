@@ -8,6 +8,10 @@ from .udp_protocol import CommandEncoder, decode_status_mode
 
 class CompetitionCommandEncoder(CommandEncoder):
     """Keep existing validation/scaling, explicitly request UDP AutoMode=2."""
+    def __init__(self, *args, release_to_keyboard=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.release_to_keyboard = release_to_keyboard
+
     def encode(self, cmd_type, velocity, acceleration, accel, brake, steering):
         # Regulation v1.2 permits pedal control only on the competition link.
         if cmd_type != 1:
@@ -21,7 +25,7 @@ class CompetitionCommandEncoder(CommandEncoder):
 
     def release(self):
         packet = bytearray(self.stop())
-        packet[30] = 1  # Keyboard mode, without a ROS Event service.
+        packet[30] = 1 if self.release_to_keyboard else 2
         return bytes(packet)
 
 

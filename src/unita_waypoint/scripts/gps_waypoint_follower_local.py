@@ -474,6 +474,8 @@ class GPSWaypointFollower:
         # Obstacles inside are ignored, and no avoidance runs while inside.
         self.waypoint_only_ranges = self.point_id_ranges(
             rospy.get_param('~waypoint_only_point_ids', ''))
+        self.r1_only_ranges = self.point_id_ranges(rospy.get_param('~r1_only_point_ids', ''))
+        self.crossing_yield_ranges = self.point_id_ranges('904-1079')
         if self.waypoint_only_ranges:
             self.route_tree = cKDTree(np.asarray(self.waypoints, dtype=float))
         if self.enable_local_avoidance:
@@ -1465,6 +1467,8 @@ class GPSWaypointFollower:
             self.find_nearest_waypoint()
 
         force_r1 = self.prepare_r1_handoff(now)
+        force_r1 = force_r1 or any(lo <= self.current_waypoint_index <= hi
+                                  for lo, hi in getattr(self, 'r1_only_ranges', []))
         self.debug_trace['r1_handoff_active'] = force_r1
         self.update_dynamic_lookahead()
 
@@ -1560,7 +1564,10 @@ class GPSWaypointFollower:
                 decision = self.local_planner.plan(
                     self.current_waypoint_index, position,
                     (self.current_speed_kmh or 0.)/3.6, planning_obstacles,
-                    ego_yaw=self.current_yaw, force_r1=force_r1)
+                    ego_yaw=self.current_yaw, force_r1=force_r1,
+                    crossing_yield=any(lo <= self.current_waypoint_index <= hi
+                        for lo, hi in getattr(self, 'crossing_yield_ranges', [])),
+                    stamp=now)
             self.debug_trace.update(local_plan_trace(self.local_planner, decision, planning_obstacles))
             self.debug_trace['route_pass_owns'] = route_pass_owns
             if route_avoidance:

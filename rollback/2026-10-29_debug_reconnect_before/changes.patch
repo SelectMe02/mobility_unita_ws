@@ -1,0 +1,300 @@
+--- a/src/unita_waypoint/scripts/map_debug.py
++++ b/src/unita_waypoint/scripts/map_debug.py
+@@ -52,7 +52,8 @@
+         reference_path = rospy.get_param('~waypoint_file', str(config / 'waypoints.csv'))
+         image_path = rospy.get_param('~image_file', str(config / 'kcity_map_sim.png'))
+         calibration_path = rospy.get_param('~calibration_file', str(config / 'map_tunner_calibration.yaml'))
+-        self.project_file = DEBUG_PROJECT_FILE.resolve()
++        self.project_file = Path(rospy.get_param('~project_file', str(DEBUG_PROJECT_FILE))).resolve()
++        self.follow_active_project = rospy.get_param('~follow_active_project', True)
+         self.project = load_project(self.project_file)
+         self.raceline_config = rospy.get_param('~raceline_config', str(config / 'raceline_layout.yaml'))
+         self.raceline_width_override = rospy.get_param('~raceline_width', None)
+@@ -158,7 +159,7 @@
+             rospy.Subscriber('/leo/waypoint_debug/'+suffix, kind, callback,
+                              callback_args='leo', queue_size=1)
+         self.update_perception_subscriptions('raceline')
+-        rospy.Timer(rospy.Duration(0.1), self.refresh)
++        rospy.Timer(rospy.Duration(0.1), self.refresh, reset=True)
+         self.log_project_counts()
+ 
+     def log_project_counts(self):
+@@ -173,10 +174,18 @@
+             return
+         self.next_project_check = now + 1.0
+         try:
+-            stamp = self.project_file.stat().st_mtime_ns
+-            if stamp == self.project_stamp:
+-                return
+-            project = load_project(self.project_file)
++            project_file = self.project_file
++            if getattr(self, 'follow_active_project', True):
++                try:
++                    active = rospy.get_param('/leo_waypoint_follower/waypoint_file', '')
++                except OSError:
++                    active = ''  # A stopped master must not block local map reloads.
++                if isinstance(active, str) and Path(active).suffix.lower() == '.json':
++                    project_file = Path(active).resolve()
++            stamp = project_file.stat().st_mtime_ns
++            if project_file == self.project_file and stamp == self.project_stamp:
++                return
++            project = load_project(project_file)
+             route, sectors = primary_route(project)
+             xy = np.asarray([(point['x'], point['y']) for point in route])
+             width = raceline_layout_settings(project, self.raceline_config)
+@@ -185,6 +194,7 @@
+             rospy.logwarn_throttle(5, 'Could not reload saved map project: %s', error)
+             return
+         self.project, self.route, self.sectors, self.xy = project, route, sectors, xy
++        self.project_file = project_file
+         self.project_stamp = stamp
+         self.saved_lane_corridor = corridor
+         if self.live_lane_geometry is None:
+--- a/src/unita_waypoint/launch/map_debug.launch
++++ b/src/unita_waypoint/launch/map_debug.launch
+@@ -3,7 +3,8 @@
+   <arg name="raceline_config" default="$(find unita_waypoint)/config/raceline_layout.yaml"/>
+   <arg name="raceline_width" default=""/>
+   <arg name="start_rviz" default="true"/>
+-  <arg name="project_file" default="/home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json"/>
++  <arg name="project_file" default="$(find unita_waypoint)/config/map_tunner_project.json"/>
++  <arg name="follow_active_project" default="true"/>
+   <arg name="waypoint_file" default="$(find unita_waypoint)/config/waypoints.csv"/>
+   <arg name="checkpoint_file" default="$(find unita_waypoint)/config/map_tunner_checkpoints.yaml"/>
+   <arg name="image_file" default="$(find unita_waypoint)/config/kcity_map_sim.png"/>
+@@ -19,10 +20,12 @@
+   <arg name="vehicle_rear_m" default="0.790"/>
+   <arg name="vehicle_half_width_m" default="0.946"/>
+   <arg name="vehicle_height_m" default="2.434"/>
+-  <node pkg="unita_waypoint" type="map_debug.py" name="map_debug" output="screen">
++  <node pkg="unita_waypoint" type="master_reconnecting_process.py" name="map_debug" output="screen"
++        args="unita_waypoint map_debug.py">
+     <param name="raceline_config" value="$(arg raceline_config)"/>
+     <param if="$(eval arg('raceline_width') != '')" name="raceline_width" value="$(arg raceline_width)" type="double"/>
+-    <param name="project_file" value="/home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json"/>
++    <param name="project_file" value="$(arg project_file)"/>
++    <param name="follow_active_project" value="$(arg follow_active_project)"/>
+     <param name="waypoint_file" value="$(arg waypoint_file)"/>
+     <param name="checkpoint_file" value="$(arg checkpoint_file)"/>
+     <param name="image_file" value="$(arg image_file)"/>
+@@ -37,8 +40,8 @@
+     <param name="vehicle_half_width_m" value="$(arg vehicle_half_width_m)"/>
+     <param name="vehicle_height_m" value="$(arg vehicle_height_m)" type="str"/>
+   </node>
+-  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="map_debug_rviz"
+-        args="-d $(find unita_waypoint)/config/map_debug.rviz" output="screen">
++  <node if="$(arg start_rviz)" pkg="unita_waypoint" type="master_reconnecting_process.py" name="map_debug_rviz"
++        args="rviz rviz -d $(find unita_waypoint)/config/map_debug.rviz" output="screen">
+     <env name="DISABLE_ROS1_EOL_WARNINGS" value="1"/>
+   </node>
+ </launch>
+--- a/src/unita_waypoint/CMakeLists.txt
++++ b/src/unita_waypoint/CMakeLists.txt
+@@ -234,6 +234,7 @@
+   scripts/30run.py
+   scripts/map_tunner.py
+   scripts/map_debug.py
++  scripts/master_reconnecting_process.py
+   scripts/map_waypoint_calibration.py
+   scripts/extract_stoplines.py
+   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+@@ -262,6 +263,7 @@
+   catkin_add_nosetests(test/test_extract_stoplines.py)
+   catkin_add_nosetests(test/test_map_tunner.py)
+   catkin_add_nosetests(test/test_map_debug.py)
++  catkin_add_nosetests(test/test_debug_reconnect.py)
+   catkin_add_nosetests(test/test_tracking_debug.py)
+   catkin_add_nosetests(test/test_raceline_selection.py)
+   catkin_add_nosetests(test/test_local_avoidance.py)
+--- a/src/unita_waypoint/test/test_map_debug.py
++++ b/src/unita_waypoint/test/test_map_debug.py
+@@ -30,7 +30,7 @@
+         save_project(self.path, self.saved)
+         with patch.object(map_debug, 'DEBUG_PROJECT_FILE', self.path), \
+                 patch.object(map_debug.rospy, 'get_param', side_effect=lambda name, default=None:
+-                          '/tmp/ignored_project_override.json' if name == '~project_file' else default), \
++                          str(self.path) if name == '~project_file' else default), \
+                 patch.object(map_debug.rospy, 'Publisher', return_value=MagicMock()), \
+                 patch.object(map_debug.rospy, 'Subscriber'), \
+                 patch.object(map_debug.rospy, 'Timer'), \
+@@ -45,6 +45,24 @@
+         with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(0)):
+             self.debug.publish_paths()
+         return self.debug.marker_pub.publish.call_args.args[0].markers
++
++    def test_active_launch_map_switches_both_directions_without_debug_restart(self):
++        import os
++        extreme = Path(self.folder.name) / 'extreme.json'
++        changed = copy.deepcopy(self.saved)
++        changed['sectors'][0]['racelines']['1'][0]['speed_kmh'] = 59
++        save_project(extreme, changed)
++        stamp = self.path.stat().st_mtime_ns
++        os.utime(extreme, ns=(stamp, stamp))
++        for path, expected in ((extreme, 59), (self.path, self.saved['sectors'][0]['racelines']['1'][0]['speed_kmh'])):
++            self.debug.next_project_check = 0.
++            with patch.object(map_debug.rospy, 'get_param', return_value=str(path)), \
++                    patch.object(self.debug, 'publish_paths') as publish, \
++                    patch.object(self.debug, 'log_project_counts'):
++                self.debug.reload_project_if_changed()
++            self.assertEqual(self.debug.project_file, path.resolve())
++            self.assertEqual(self.debug.project['sectors'][0]['racelines']['1'][0]['speed_kmh'], expected)
++            publish.assert_called_once()
+ 
+     def test_startup_uses_exact_saved_json_and_publishes_entire_raceline3(self):
+         self.assertEqual(self.debug.project, self.saved)
+@@ -99,9 +117,9 @@
+         self.assertEqual(line.points[0].x, self.saved['sectors'][10]['racelines']['3'][0]['x'])
+         self.test_save_reloads_appended_points_and_republishes()
+ 
+-    def test_debug_uses_fixed_project_even_when_ros_parameter_requests_another_file(self):
++    def test_debug_honors_project_parameter_and_keeps_original_default(self):
+         self.assertEqual(self.debug.project_file, self.path.resolve())
+-        # The production constant is the user's explicitly required path.
++        # Default stays on the original project until an active launch is detected.
+         self.assertEqual(str(map_debug.DEBUG_PROJECT_FILE),
+                          '/home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json')
+ 
+--- /dev/null
++++ b/src/unita_waypoint/scripts/master_reconnecting_process.py
+@@ -0,0 +1,105 @@
++#!/usr/bin/env python3
++"""Keep a debug process registered after the external ROS master restarts.
++
++No rospy node is created here. The child owns the original node name/topics.
++Only this debugger's private parameters are restored to a replacement master.
++"""
++import os
++import signal
++import subprocess
++import sys
++import threading
++import xmlrpc.client
++
++
++class TimeoutTransport(xmlrpc.client.Transport):
++    def make_connection(self, host):
++        connection = super().make_connection(host)
++        connection.timeout = 1.0
++        return connection
++
++
++def node_name(args, environment):
++    remaps = dict(arg.split(':=', 1) for arg in args if ':=' in arg)
++    namespace = remaps.get('__ns', environment.get('ROS_NAMESPACE', '/'))
++    return '/' + '/'.join(part for part in
++        (namespace.strip('/'), remaps.get('__name', 'debug_view').strip('/')) if part)
++
++
++class MasterRegistration:
++    def __init__(self, name):
++        self.name = name
++        self.identity = None
++        self.parameters = None
++
++    def observe(self, master):
++        code, _, pid = master.getPid(self.name)
++        if code != 1:
++            return False
++        code, _, run_id = master.getParam(self.name, '/run_id')
++        identity = (pid, run_id if code == 1 else None)
++        if self.identity is None:
++            code, _, values = master.getParam(self.name, self.name)
++            if code == 1 and isinstance(values, dict):
++                self.parameters = values
++            self.identity = identity
++            return False
++        if identity == self.identity:
++            return False
++        # Commit identity only after successful restoration; failures retry.
++        if self.parameters is not None:
++            code, message, _ = master.setParam(self.name, self.name, self.parameters)
++            if code != 1:
++                raise RuntimeError(message)
++        self.identity = identity
++        return True
++
++
++def stop_child(child):
++    if child is None or child.poll() is not None:
++        return
++    try:
++        os.killpg(child.pid, signal.SIGINT)
++        child.wait(timeout=3.)
++    except subprocess.TimeoutExpired:
++        os.killpg(child.pid, signal.SIGKILL)
++        child.wait()
++    except ProcessLookupError:
++        pass
++
++
++def main():
++    if len(sys.argv) < 3:
++        raise SystemExit('usage: master_reconnecting_process.py PACKAGE EXECUTABLE [arguments]')
++    command = ['rosrun'] + sys.argv[1:]
++    registration = MasterRegistration(node_name(sys.argv[3:], os.environ))
++    master = xmlrpc.client.ServerProxy(os.environ.get('ROS_MASTER_URI', 'http://localhost:11311'),
++                                      transport=TimeoutTransport())
++    stopped = threading.Event()
++    for sig in (signal.SIGINT, signal.SIGTERM):
++        signal.signal(sig, lambda *_: stopped.set())
++    child = None
++    try:
++        while not stopped.is_set():
++            try:
++                changed = registration.observe(master)
++                if changed:
++                    print('ROS master restarted; reconnecting ' + registration.name, flush=True)
++                    stop_child(child)
++                    child = None
++                if registration.identity is not None and child is None:
++                    child = subprocess.Popen(command, start_new_session=True)
++            except (OSError, xmlrpc.client.Error, RuntimeError) as error:
++                # Retain the viewer while the master is temporarily absent.
++                pass
++            if child is not None and child.poll() is not None:
++                # Respect an intentional RViz/window close or normal node exit.
++                return child.returncode
++            stopped.wait(.5)
++    finally:
++        stop_child(child)
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+--- /dev/null
++++ b/src/unita_waypoint/test/test_debug_reconnect.py
+@@ -0,0 +1,33 @@
++import importlib.util
++from pathlib import Path
++import unittest
++from unittest.mock import Mock
++
++path=Path(__file__).resolve().parents[1]/'scripts/master_reconnecting_process.py'
++spec=importlib.util.spec_from_file_location('debug_reconnect',path)
++module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
++
++class ReconnectTest(unittest.TestCase):
++    def test_master_restart_restores_only_debug_private_parameters(self):
++        master=Mock();master.getPid.return_value=(1,'',100)
++        master.getParam.side_effect=lambda caller,key: (1,'','run1' if key=='/run_id' else {'project_file':'test.json'})
++        watcher=module.MasterRegistration('/map_debug')
++        self.assertFalse(watcher.observe(master))
++        self.assertFalse(watcher.observe(master))
++        master.setParam.assert_not_called()
++        master.getPid.return_value=(1,'',101)
++        master.setParam.return_value=(1,'',0)
++        self.assertTrue(watcher.observe(master))
++        master.setParam.assert_called_once_with('/map_debug','/map_debug',{'project_file':'test.json'})
++        self.assertFalse(watcher.observe(master))
++
++    def test_unavailable_master_does_not_forget_identity(self):
++        master=Mock();master.getPid.return_value=(1,'',100);master.getParam.return_value=(1,'','run1')
++        watcher=module.MasterRegistration('/map_debug_rviz');watcher.observe(master)
++        master.getPid.side_effect=OSError('offline')
++        with self.assertRaises(OSError):watcher.observe(master)
++        self.assertEqual(watcher.identity,(100,'run1'))
++
++    def test_launch_name_and_namespace_preserved(self):
++        self.assertEqual(module.node_name(['__name:=map_debug','__log:=x'],{}),'/map_debug')
++        self.assertEqual(module.node_name(['__name:=map_debug','__ns:=/debug'],{}),'/debug/map_debug')

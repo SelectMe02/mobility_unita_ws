@@ -1,0 +1,149 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -20,6 +20,8 @@
+ 
+ @dataclass(frozen=True)
+ class RouteAvoidanceConfig:
++    s4_wheelbase_m: float = 3.0
++    s4_max_steering_rad: float = math.radians(29.)
+     vehicle_half_width_m: float = .946
+     side_margin_m: float = .4          # band half width = vehicle + margin + obstacle radius
+     front_extent_m: float = 3.845      # rear axle to front bumper
+@@ -836,6 +838,9 @@
+                 return False, o
+         return True, None
+ 
++    def s4_curvature_limit(self):
++        return math.tan(self.config.s4_max_steering_rad)/self.config.s4_wheelbase_m
++
+     def _s4_swept_check(self, profile, items, s_ego, speed, check_curvature=True):
+         """Check oriented ego body against obstacle rectangles on the route.
+ 
+@@ -850,7 +855,7 @@
+             slope = (right-left)/.1
+             curvature = abs((right-2*d+left)/.0025)/(1+slope*slope)**1.5
+             peak = max(peak, curvature)
+-            if check_curvature and peak > .14:
++            if check_curvature and peak > (self.s4_curvature_limit() if self.static_pass_managed else .14):
+                 return False, None, s, peak
+             angle = math.atan(slope)
+             c, sn = math.cos(angle), math.sin(angle)
+@@ -1016,7 +1021,7 @@
+                 if o['s'] - o['l'] <= self.active.hold_end_s + cfg.merge_gap_m:
+                     needed_hold = o['s'] + o['l'] + cfg.rear_extent_m + cfg.post_gap_m
+                     if self.static_pass_managed and needed_hold > self.active.hold_end_s:
+-                        minimum_return = math.sqrt(5.8*abs(self.active.offset_m)/.14)
++                        minimum_return = math.sqrt(5.8*abs(self.active.offset_m)/self.s4_curvature_limit())
+                         if (needed_hold > self.static_pass_zone[2]
+                                 or needed_hold+minimum_return > self.static_pass_zone[3]):
+                             cap = 0.  # No safe return inside the saved S4 corridor.
+@@ -1116,7 +1121,7 @@
+                     # Preserve entry room while waiting, instead of consuming
+                     # it until only the bumper stopping gap remains.
+                     needed_offset = max(.5, cfg.band(first['r'])-abs(first['d']))
+-                    entry = full_s-math.sqrt(5.8*needed_offset/.14)
++                    entry = full_s-math.sqrt(5.8*needed_offset/self.s4_curvature_limit())
+                     cap = min(cap, stopping_speed(entry-s_ego-1., cfg.brake_mps2, cfg.reaction_s))
+                 if stop_line_in_pass:
+                     traffic_cap = min(traffic_cap, cap)
+--- a/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
++++ b/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
+@@ -173,6 +173,13 @@
+             if returning is not None:
+                 return returning
+         normal_profile = self.anchored_route(planner, pose) if eligible else None
++        if normal_profile is not None:
++            clear, blocker, hit, peak = planner._s4_swept_check(
++                normal_profile, [], planner.last_s, speed)
++            if not clear and blocker is None:
++                repaired = self.reconnect_route(planner, decision, points, pose, speed)
++                if repaired is not None:
++                    normal_profile = repaired
+         local = (self.follow_prefix(planner, decision, normal_profile, points, pose,
+                                     speed, 'LOCAL_PATH') if normal_profile is not None else None)
+         if not self.ftg_enabled:
+@@ -292,6 +299,38 @@
+                            state='STOP', safe_distance_m=0., reason=reason)
+         return replace(decision, speed_cap_mps=0., reason='S4 '+reason)
+ 
++    def reconnect_route(self, planner, decision, points, pose, speed):
++        """Replace only the connection; preserve the chosen route after join."""
++        normal, s = planner.active, planner.last_s
++        if normal is None:
++            return None
++        lo, hi = planner.route.window(s-2., s+3.)
++        _, d, segment = planner.route.project(pose[0],pose[1],lo,hi)
++        tangent = planner.route.tangents[segment]
++        error = math.atan2(math.sin(pose[2]-math.atan2(tangent[1],tangent[0])),
++                           math.cos(pose[2]-math.atan2(tangent[1],tangent[0])))
++        for distance in (10.,12.,16.,20.,24.):
++            join = min(s+distance, normal.end_s)
++            if join-s < 2.:
++                continue
++            target = normal.offset_at(join)
++            slope = (normal.offset_at(join+.05)-normal.offset_at(join-.05))/.1
++            second = (normal.offset_at(join+.05)-2*target+normal.offset_at(join-.05))/.0025
++            curve = BPoly.from_derivatives([s,join],
++                    [[d,math.tan(error),0.],[target,slope,second]])
++            class Connection:
++                end_s = normal.end_s
++                def offset_at(self, a, curve=curve, join=join):
++                    if a >= join:
++                        return normal.offset_at(a)
++                    if a < s:
++                        return d+(a-s)*math.tan(error)
++                    return float(curve(a))
++            candidate = Connection()
++            if self.safe(planner,candidate,decision.obstacles,speed,points,pose):
++                return candidate
++        return None
++
+     def anchored_route(self, planner, pose):
+         normal, s = planner.active, planner.last_s
+         if normal is None or normal.end_s-s < 2.:
+--- a/src/leo_avoidance/test/test_s4_ftg_fallback.py
++++ b/src/leo_avoidance/test/test_s4_ftg_fallback.py
+@@ -216,3 +216,32 @@
+         self.assertFalse(p._s4_swept_check(profile,[obj],20.,0.)[0])
+         p.static_pass_managed=True;obj['d']=1.
+         self.assertFalse(p._s4_swept_check(profile,[obj],20.,0.)[0])
++
++class SteeringConnectionTests(unittest.TestCase):
++    def planner(self):
++        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
++        p.last_s=20.;p.static_pass_managed=True
++        return p
++
++    def test_s4_uses_configured_steering_capacity_and_slows_curve(self):
++        p=self.planner()
++        class Curve:
++            end_s=21.
++            def offset_at(self,s):return .08*(s-20.)**2
++        c=Curve()
++        self.assertAlmostEqual(p.s4_curvature_limit(),np.tan(np.radians(29.))/3.)
++        self.assertTrue(p._s4_swept_check(c,[],20.,0.)[0])
++        self.assertLess(p._s4_curve_speed(c,20.,0.)*3.6,17.)
++        p.static_pass_managed=False
++        self.assertFalse(p._s4_swept_check(c,[],20.,0.)[0])
++
++    def test_reconnection_preserves_tail_and_rejects_collision(self):
++        p=self.planner();p.active=Profile([20.,30.,60.],[-1.,0.,0.],[0.,0.,0.])
++        f=S4Fallback();pts=np.empty((0,3));d=Decision('PASSING',[],5.,'test')
++        c=f.reconnect_route(p,d,pts,(20.,-3.2,0.),0.)
++        self.assertIsNotNone(c)
++        self.assertAlmostEqual(c.offset_at(20.),-3.2)
++        self.assertEqual(c.offset_at(50.),p.active.offset_at(50.))
++        self.assertTrue(p._s4_swept_check(c,[],20.,0.)[0])
++        d.obstacles=[dict(s=21.,d=-3.2,l=1.,r=1.,id=1,moving=False,v_s=0.,v_d=0.)]
++        self.assertIsNone(f.reconnect_route(p,d,pts,(20.,-3.2,0.),0.))
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -239,6 +239,8 @@
+   </node>
+   <node pkg="leo_avoidance" type="route_avoidance_node.py" name="leo_route_avoidance"
+         output="screen" required="true">
++    <param name="s4_wheelbase_m" value="3.0"/>
++    <param name="s4_max_steering_rad" value="$(eval radians(arg('max_steering_deg')))"/>
+     <param name="r1_only_point_ids" value="$(arg r1_only_point_ids)"/>
+     <param name="waypoint_file" value="$(arg waypoint_file)"/>
+     <!-- Driving pose: stays fresh across the GPS-to-LiDAR handoff at the portal. -->

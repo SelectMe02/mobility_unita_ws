@@ -857,6 +857,10 @@ class DrivingStateNode:
             rospy.logwarn('Driving pose jump %.2f m: mode=%s previous=%s output=%s lidar_before_select=%s',
                           output_jump_m, mode, previous_output_pose, pose,
                           lidar_pose_before_select)
+        if (plan is not None and mode == DrivingState.BLACKOUT
+                and getattr(self.config, 'blackout_speed_policy', False)):
+            plan = replace(plan, speed_mps=min(plan.speed_mps,
+                self.config.blackout_max_speed_kmh / 3.6))
         avoidance_valid = (mode == DrivingState.BLACKOUT
                            and pose is not None
                            and plan is not None and plan.speed_mps > 0

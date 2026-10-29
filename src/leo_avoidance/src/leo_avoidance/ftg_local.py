@@ -17,6 +17,23 @@ from leo_avoidance.obstacle_tracker import ObstacleTracker
 
 @dataclass(frozen=True)
 class Config:
+    # Opt-in: final.launch keeps the original FTG behaviour.
+    blackout_speed_policy: bool = False
+    blackout_max_speed_kmh: float = 30.0
+    blackout_pending_speed_kmh: float = 28.0
+    blackout_passing_speed_kmh: float = 25.0
+    blackout_recovery_accel_mps2: float = 1.2
+    passing_voxel_m: float = .25
+    passing_cluster_link_m: float = .75
+    passing_min_voxels: int = 3
+    passing_confirm_scans: int = 2
+    passing_clear_scans: int = 3
+    passing_recovery_s: float = .4
+    passing_scan_gap_s: float = .3
+    passing_match_distance_m: float = 1.5
+    passing_wall_inset_m: float = .8
+    passing_gap_slow_width_m: float = 2.7
+    passing_gap_fast_width_m: float = 4.0
     lidar_to_rear_x_m: float = 1.4
     vehicle_half_width_m: float = 0.946
     side_margin_m: float = 0.4
@@ -103,6 +120,18 @@ class Config:
         values = tuple(value for value in vars(self).values() if isinstance(value, (float, int)))
         if not all(math.isfinite(value) for value in values):
             raise ValueError('non-finite avoidance parameter')
+        if (not 0 < self.blackout_max_speed_kmh <= 30.
+                or not 0 < self.blackout_passing_speed_kmh <= 25.
+                or not 0 < self.blackout_pending_speed_kmh <= 30.
+                or self.blackout_recovery_accel_mps2 <= 0
+                or self.passing_voxel_m <= 0 or self.passing_cluster_link_m <= 0
+                or self.passing_min_voxels < 3 or self.passing_confirm_scans < 2
+                or self.passing_clear_scans < 3 or self.passing_recovery_s < .3
+                or self.passing_scan_gap_s <= 0 or self.passing_match_distance_m <= 0
+                or self.passing_wall_inset_m < self.wall_point_tolerance_m
+                or self.passing_gap_slow_width_m <= 0
+                or self.passing_gap_fast_width_m <= self.passing_gap_slow_width_m):
+            raise ValueError('invalid blackout speed policy')
         if (self.vehicle_half_width_m <= 0 or self.side_margin_m < 0
                 or self.gap_target_inset_m < 0 or self.bearing_smoothing_tau_s < 0
                 or not 0 <= self.bubble_margin_m <= self.side_margin_m
@@ -227,6 +256,12 @@ class FollowTheGap:
         self._previous_bearing_yaw = None
         self.right_wall_target_clearance_m = None
         self.right_wall_filtered_clearance_m = None
+        self._policy_phase = 'WALL_FOLLOW'
+        self._policy_stamp = None
+        self._policy_candidates = []
+        self._policy_confirm = 0
+        self._policy_clear = 0
+        self._policy_recovery_since = None
         self.avoidance_active = False
         self.rear_confirm_scans = 0
         self.passing_side = 0
@@ -280,6 +315,12 @@ class FollowTheGap:
     def reset_wall_target(self):
         self.right_wall_target_clearance_m = None
         self.right_wall_filtered_clearance_m = None
+        self._policy_phase = 'WALL_FOLLOW'
+        self._policy_stamp = None
+        self._policy_candidates = []
+        self._policy_confirm = 0
+        self._policy_clear = 0
+        self._policy_recovery_since = None
         self.avoidance_active = False
         self.rear_confirm_scans = 0
         self.passing_side = 0
@@ -294,6 +335,59 @@ class FollowTheGap:
         self.wall_follow_drop_scans = 0
         self.wall_target_clear_count = 0
         self.wall_target_allowed = False
+
+    def _blackout_phase(self, obstacles, walls, bearing):
+        """Phase evidence only; unfiltered returns still own collision checks."""
+        cfg = self.config
+        front = cfg.front_bumper_from_rear_m-cfg.lidar_to_rear_x_m
+        eligible = obstacles[(obstacles[:, 0] > front)
+            & (obstacles[:, 0] <= cfg.wall_target_clear_front_m)
+            & self._inside_walls(obstacles, walls, cfg.passing_wall_inset_m)]
+        centers = []
+        for box in cluster_boxes(eligible, voxel_m=cfg.passing_voxel_m,
+                                 link_m=cfg.passing_cluster_link_m, oriented=True):
+            group = box[-1]
+            if len(np.unique(np.floor(group/cfg.passing_voxel_m), axis=0)) < cfg.passing_min_voxels:
+                continue
+            if self._swept_body_collision(group, bearing, cfg.wall_target_clear_front_m) is None:
+                continue
+            center = np.mean(group[:, :2], axis=0)
+            if self._ego_pose is not None:
+                x, y, yaw = self._ego_pose
+                c, sn = math.cos(yaw), math.sin(yaw)
+                cx = center[0]+cfg.lidar_to_rear_x_m
+                center = np.array([x+c*cx-sn*center[1], y+sn*cx+c*center[1]])
+            centers.append(center)
+        stamp = self._scan_stamp
+        if self._policy_stamp is not None and stamp <= self._policy_stamp:
+            return self._policy_phase  # repeated cloud cannot confirm/clear
+        consecutive = (self._policy_stamp is not None
+                       and stamp-self._policy_stamp <= cfg.passing_scan_gap_s)
+        matched = consecutive and any(np.linalg.norm(a-b) <= cfg.passing_match_distance_m
+                     for a in centers for b in self._policy_candidates)
+        self._policy_confirm = self._policy_confirm+1 if matched else int(bool(centers))
+        self._policy_clear = self._policy_clear+1 if consecutive and not centers else int(not centers)
+        self._policy_candidates, self._policy_stamp = centers, stamp
+        phase = self._policy_phase
+        if centers:
+            self._policy_recovery_since = None
+            if phase in ('PASSING', 'RECOVERY') or self._policy_confirm >= cfg.passing_confirm_scans:
+                phase = 'PASSING'
+            else:
+                phase = 'AVOID_PENDING'
+        elif phase == 'PASSING':
+            if self._policy_clear >= cfg.passing_clear_scans:
+                phase = 'RECOVERY'
+                self._policy_recovery_since = stamp
+        elif phase == 'RECOVERY':
+            if not consecutive:
+                self._policy_recovery_since = stamp
+            if stamp-self._policy_recovery_since >= cfg.passing_recovery_s:
+                phase = 'WALL_FOLLOW'
+        else:
+            phase = 'WALL_FOLLOW'
+        self._policy_phase = phase
+        return phase
 
     def _rear_obstacle_points(self, points):
         """Close returns within 15 degrees of straight behind the LiDAR."""
@@ -791,12 +885,26 @@ class FollowTheGap:
                 self._held_obstacle_cap = cap
                 self._obstacle_cap_until = now + self.config.obstacle_speed_hold_s
         target = plan.speed_mps
+        policy = self.config.blackout_speed_policy and wall_follow
+        if policy:
+            limits = {'AVOID_PENDING': self.config.blackout_pending_speed_kmh,
+                      'PASSING': self.config.blackout_passing_speed_kmh}
+            target = min(target, self.config.blackout_max_speed_kmh/3.6,
+                         limits.get(plan.avoidance_phase, self.config.blackout_max_speed_kmh)/3.6)
+            if plan.avoidance_phase == 'PASSING':
+                gap_fraction = float(np.clip((plan.gap_width_m-self.config.passing_gap_slow_width_m)
+                    / (self.config.passing_gap_fast_width_m-self.config.passing_gap_slow_width_m), 0., 1.))
+                target = min(target, self.config.near_obstacle_speed_mps + gap_fraction *
+                    (self.config.blackout_passing_speed_kmh/3.6-self.config.near_obstacle_speed_mps))
         if now < self._obstacle_cap_until:
             target = min(target, self._held_obstacle_cap)
         if self._last_speed_target is not None:
             # Bound acceleration even after a scan gap; never delay braking.
             dt = max(0., min(.25, now - self._last_speed_time))
-            target = min(target, self._last_speed_target + self.config.target_accel_mps2 * dt)
+            accel = (self.config.blackout_recovery_accel_mps2 if policy and
+                     plan.avoidance_phase in ('WALL_FOLLOW', 'RECOVERY')
+                     else self.config.target_accel_mps2)
+            target = min(target, self._last_speed_target + accel * dt)
         self._last_speed_time = now
         self._last_speed_target = target
         # A geometric go held at zero by a recent obstacle cap is still an
@@ -826,7 +934,8 @@ class FollowTheGap:
         gap_options = []
         swept_rejection = None
         swept_rejected_angles = 0
-        avoidance_phase = 'WALL_FOLLOW' if wall_follow else 'ROUTE'
+        avoidance_phase = (self._policy_phase if wall_follow and cfg.blackout_speed_policy
+                           else 'WALL_FOLLOW' if wall_follow else 'ROUTE')
         if not wall_follow:
             self.reset_wall_target()
         wall_follow_weight = float(wall_follow_weight) if wall_follow else 0.
@@ -998,11 +1107,32 @@ class FollowTheGap:
         self.passing_side = 0
         self.rear_confirm_scans = 0
         self.returning_to_heading = False
-        self.avoidance_active = bool(wall_follow and occupied)
-        self.wall_target_allowed = bool(wall_follow and not occupied
-                                       and wall is not None)
-        avoidance_phase = ('PASSING' if self.avoidance_active else
-                           'WALL_FOLLOW' if wall_follow else 'ROUTE')
+        if cfg.blackout_speed_policy and wall_follow:
+            # Assess the nominal wall-follow curve, not a map-drifted ray.
+            policy_bearing = preferred_bearing_rad
+            if wall is not None and not direction_trusted:
+                error = self.right_wall_target_clearance_m-self.right_wall_filtered_clearance_m
+                policy_bearing = float(np.clip(wall_heading + cfg.right_wall_offset_gain_rad_per_m *
+                    math.copysign(max(0., abs(error)-cfg.right_wall_clearance_tolerance_m), error),
+                    -cfg.right_wall_max_correction_rad, cfg.right_wall_max_correction_rad))
+            # Phase confirmation never delays braking. Even one return on
+            # the intended body path limits speed on its first scan.
+            stop_horizon = max(cfg.swept_path_horizon_m,
+                ego_speed_mps*cfg.reaction_s + ego_speed_mps**2/(2.*cfg.brake_mps2))
+            imminent = self._swept_body_collision(obstacles, policy_bearing, stop_horizon)
+            if imminent is not None:
+                self._current_obstacle_cap = min(self._current_obstacle_cap,
+                    self._safe_speed_for_clearance(max(0., imminent[1]-cfg.side_margin_m),
+                                                   cfg.reaction_s, cfg.brake_mps2))
+            avoidance_phase = self._blackout_phase(obstacles, wall_fits, policy_bearing)
+            self.avoidance_active = avoidance_phase == 'PASSING'
+            self.wall_target_allowed = wall is not None and avoidance_phase != 'PASSING'
+        else:
+            self.avoidance_active = bool(wall_follow and occupied)
+            self.wall_target_allowed = bool(wall_follow and not occupied
+                                           and wall is not None)
+            avoidance_phase = ('PASSING' if self.avoidance_active else
+                               'WALL_FOLLOW' if wall_follow else 'ROUTE')
         steering_limit_rad = cfg.max_target_bearing_rad
         if self.avoidance_active:
             wall_follow_weight = 0.
@@ -1230,7 +1360,8 @@ class FollowTheGap:
             # entire angular grid even though the near corridor is clear.
             # Creep only with a measured side wall and enough distance to
             # stop from the *current* speed. A near blocked road still stops.
-            if (wall_follow and self.wall_target_allowed and self.passing_side == 0
+            if (not cfg.blackout_speed_policy
+                    and wall_follow and self.wall_target_allowed and self.passing_side == 0
                     and wall is not None
                     and wall_clearance >= cfg.right_wall_min_clearance_m
                     and self._swept_body_collision(body_scan_points, float(np.clip(
@@ -1242,7 +1373,8 @@ class FollowTheGap:
                 # the provisional PASSING state so wall guidance resumes.
                 self.avoidance_active = False
                 self.rear_confirm_scans = 0
-                avoidance_phase = 'WALL_FOLLOW'
+                if not cfg.blackout_speed_policy:
+                    avoidance_phase = 'WALL_FOLLOW'
                 wall_follow_weight = 1.
                 bearing_rad = float(np.clip(
                     wall_bearing, -cfg.unwalled_route_bearing_limit_rad,
@@ -1324,7 +1456,7 @@ class FollowTheGap:
             # Brake while preserving a safe steering target. A zero-speed
             # plan suppresses the target publisher and loses that option.
             target_speed_mps = min(target_speed_mps, cfg.near_obstacle_speed_mps)
-        if wall_follow:
+        if wall_follow and not cfg.blackout_speed_policy:
             # Slow for alignment with the original mapped route at the exit.
             target_speed_mps = min(target_speed_mps,
                                    cfg.wall_follow_min_speed_mps + wall_follow_weight *

@@ -1,0 +1,152 @@
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -183,6 +183,8 @@
+         self.processed_epoch = 0
+         self.last_worker_ros_time = None
+         self.closed = False
++        self.drive_mode = None
++        self.route_reanchor_pending = False
+         self.pub = rospy.Publisher('/leo/route_avoidance', String, queue_size=1)
+         self.debug = PerceptionDebug('/leo/route_debug')
+         self.debug_lidar_z = float(rospy.get_param('~lidar_to_rear_z_m', 1.23))
+@@ -190,6 +192,7 @@
+                          String, self.on_lane_geometry, queue_size=1, buff_size=2 ** 22)
+         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
+                          PoseStamped, self.on_pose, queue_size=1)
++        rospy.Subscriber('/leo/driving_mode', String, self.on_drive_mode, queue_size=1)
+         rospy.Subscriber(rospy.get_param('~speed_topic', '/competition/ego_speed_kmh'),
+                          Float64, self.on_speed, queue_size=1)
+         rospy.Subscriber(rospy.get_param('~signal_status_topic', '/leo/signal_status'),
+@@ -252,6 +255,14 @@
+         self.tracker.tracks = kept
+         return removed
+ 
++    def on_drive_mode(self, message):
++        with self.lock:
++            previous = getattr(self, 'drive_mode', None)
++            self.drive_mode = message.data
++            if previous in ('BLACKOUT', 'HOLD') and message.data == 'GPS':
++                # Reanchor in the worker; keep live pedestrian/obstacle evidence.
++                self.route_reanchor_pending = True
++
+     def on_pose(self, message):
+         if message.header.frame_id != 'map':
+             return
+@@ -262,8 +273,14 @@
+             with self.lock:
+                 if self.closed:
+                     return
+-                if self.poses and stamp < self.poses[-1][0]:
+-                    self._reset_inputs_locked()
++                if self.poses:
++                    previous_stamp, previous_pose = self.poses[-1]
++                    dt = stamp - previous_stamp
++                    jump = math.hypot(p.x-previous_pose[0], p.y-previous_pose[1])
++                    # 60 m/s bound plus 5 m localization allowance. A scene
++                    # relocation invalidates both spatial tracks and progress.
++                    if dt < 0. or jump > 5. + 60.*max(0., dt):
++                        self._reset_inputs_locked()
+                 self.pose = ((p.x, p.y, yaw), time.monotonic())
+                 if not self.poses or stamp > self.poses[-1][0]:
+                     self.poses.append((stamp, (p.x, p.y, yaw)))
+@@ -342,6 +359,9 @@
+                 self.planner.reset()
+                 self.s4_fallback.reset()
+                 self.processed_epoch = self.input_epoch
++            if getattr(self, 'route_reanchor_pending', False):
++                self.planner.last_s = None
++                self.route_reanchor_pending = False
+             samples = list(self.poses)
+             retained = deque(maxlen=self.pending.maxlen)
+             selected = None
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -490,6 +490,21 @@
+         else:
+             lo, hi = self.route.window(self.last_s - 15., self.last_s + 40.)
+         s, d, _ = self.route.project(x, y, lo, hi)
++        # The signed lateral offset omits distance beyond a segment endpoint.
++        # Check the actual projected point before trusting the local window.
++        foot, _ = self.route.pose(s)
++        error = math.hypot(x-foot[0], y-foot[1])
++        if self.last_s is not None and error > 8.:
++            global_s, global_d, _ = self.route.project(x, y, 0, len(self.route.lengths))
++            global_foot, _ = self.route.pose(global_s)
++            global_error = math.hypot(x-global_foot[0], y-global_foot[1])
++            if global_error <= 4. and global_error+4. < error:
++                # A clearly wrong search window is not an obstacle stop.
++                # Normal tracking, including S4 offsets, stays in its window.
++                stamp = self.observation_time
++                self.reset()
++                self.observation_time = stamp
++                s, d = global_s, global_d
+         if self.loop_length is not None and s >= self.loop_length:
+             # Crossed the start line: continue on the first lap stretch.
+             s -= self.loop_length
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -1012,3 +1012,22 @@
+         o=dict(id=1,s=15.,d=values[-1][0],l=.3,r=values[-1][1],v_d=0.)
+         assert math.isinf(p._brief_approach_cap([o],6.,6.,10.,lambda s:0.))
+         assert not p._brief_approaches
++
++
++def test_route_window_reacquires_after_backward_scene_relocation():
++    p=planner();p.last_s=300.;p.observation_time=12.
++    s,d=p._locate_ego(40.,1.)
++    assert abs(s-40.)<1e-6 and abs(d-1.)<1e-6
++    assert p.observation_time==12.
++    decision=p.update((41.,1.),5.,[],stamp=12.1)
++    assert math.dist(decision.path[0],(41.,1.))<2.
++
++
++def test_route_window_preserves_normal_s4_offset_and_rejects_distant_snap():
++    p=planner();p.last_s=100.
++    sentinel=object();p.active=sentinel
++    p._locate_ego(105.,3.5)
++    assert p.active is sentinel
++    p.last_s=300.
++    p._locate_ego(40.,20.)
++    assert p.last_s>250.  # No nearby route: don't silently snap anywhere.
+--- a/src/leo_avoidance/test/test_route_pose_sync.py
++++ b/src/leo_avoidance/test/test_route_pose_sync.py
+@@ -34,6 +34,15 @@
+     obj.last_worker_ros_time = None
+     obj.closed = False
+     obj.tracker, obj.planner, obj.debug, obj.pub = (MagicMock() for _ in range(4))
++    obj.s4_fallback = MagicMock()
++    obj.s4_fallback.apply.side_effect = lambda planner, decision, *args: decision
++    obj.s4_fallback.mode = "route"
++    obj.s4_fallback.status = {}
++    obj.planner.last_s = None
++    obj.planner.active = None
++    obj.planner.pedestrian_holds = []
++    obj.planner.static_pass_managed = False
++    obj.planner.pedestrian_hold = None
+     return obj
+ 
+ 
+@@ -276,3 +285,23 @@
+     output = json.loads(obj.pub.publish.call_args[0][0].data)
+     assert output['speed_cap_kmh'] == 0.
+     assert output['traffic_speed_cap_kmh'] == 4.5
++
++
++def test_scene_relocation_invalidates_old_scan_and_progress_epoch():
++    obj=node()
++    with at(10.):
++        obj.on_pose(pose(10.,-107.85,-386.10,1.09))
++        obj.on_cloud(cloud(10.01))
++        obj.on_pose(pose(10.05,43.73,-476.44,-2.37))
++    assert obj.input_epoch==1
++    assert not obj.pending and len(obj.poses)==1
++
++
++def test_gps_return_reanchors_worker_without_clearing_hazard_memory():
++    obj=node();obj.s4_fallback=MagicMock()
++    obj.on_drive_mode(SimpleNamespace(data='BLACKOUT'))
++    obj.on_drive_mode(SimpleNamespace(data='GPS'))
++    obj.take_ready_scan(10.,10.)
++    assert obj.planner.last_s is None
++    obj.planner.reset.assert_not_called()
++    obj.tracker.reset.assert_not_called()

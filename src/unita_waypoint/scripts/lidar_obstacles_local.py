@@ -89,7 +89,9 @@ def object_circles(group, pose=None):
                                          pose[1]+s*part[:, 0]+c*part[:, 1]))
                 bounds = (*world.min(axis=0), *world.max(axis=0))
                 result.append((pose[0]+c*center[0]-s*center[1],
-                               pose[1]+s*center[0]+c*center[1], radius, bounds))
+                               pose[1]+s*center[0]+c*center[1], radius, bounds,
+                               dict(length=float(high[0]-low[0]),
+                                    width=float(high[1]-low[1]), yaw=float(pose[2]))))
     return result
 
 
@@ -214,6 +216,22 @@ class LidarObstacles:
             return samples[-1][1]
         return None
 
+    def _lane_evidence(self, x, y, shape, stamp, previous, confirmed):
+        corridor = getattr(self, 'lane_corridor', None)
+        if corridor is None:
+            return dict(raceline=0, lane_sector=0, lane_stable=False)
+        lane = corridor.label_box(x, y, shape['length'], shape['width'], shape['yaw'])
+        candidate = (lane['lane_sector'], lane['raceline'])
+        same = (candidate == previous.get('lane_candidate')
+                and previous.get('lane_label_confident', False)
+                and lane['lane_label_confident'])
+        hits = previous.get('lane_hits', 0)+1 if same else 1
+        since = previous.get('lane_since', stamp) if same else stamp
+        lane.update(lane_candidate=candidate, lane_hits=hits, lane_since=since,
+                    lane_stable=bool(confirmed and candidate[1] and lane['lane_label_confident']
+                                     and hits >= 3 and stamp-since+1e-9 >= .2))
+        return lane
+
     def _update_tracks(self, detections, stamp):
         self.tracks = {key: track for key, track in self.tracks.items()
                        if stamp - track['stamp'] < .8}
@@ -242,8 +260,14 @@ class LidarObstacles:
             motion = update_motion(previous, stamp, bounds,
                                    getattr(self, 'dynamic_speed_threshold_mps', .8))
             vx, vy = motion['vx'], motion['vy']
+            shape = (detection[4] if len(detection) > 4 else
+                     dict(length=0., width=2.*radius, yaw=0.))
+            first_seen = previous.get('first_seen', stamp)
+            confirmed = hits >= 3 and stamp-first_seen+1e-9 >= .2
+            lane = self._lane_evidence(x, y, shape, stamp, previous, confirmed)
             track = dict(x=x, y=y, radius=radius, **motion,
-                         hits=hits, stamp=stamp)
+                         hits=hits, stamp=stamp, first_seen=first_seen,
+                         confirmed=confirmed, **shape, **lane)
             self.tracks[key] = track
             used.add(key)
             result.append(dict(id=key, x=x, y=y, radius=radius, vx=vx, vy=vy,
@@ -252,17 +276,30 @@ class LidarObstacles:
                                prediction_confirmed=motion['prediction_confirmed'],
                                velocity_reliable=motion['velocity_reliable'],
                                motion_bounds=list(bounds), predicted=False,
-                               kind=motion['motion_kind']))
+                               kind=motion['motion_kind'], confirmed=confirmed,
+                               **shape, **lane))
         # Preserve a briefly occluded rear/side car instead of treating its
         # lane as clear immediately. Do not extend a stale measurement forever.
         for key, track in self.tracks.items():
             dt = stamp-track['stamp']
             if key not in used and 0. < dt <= .4:
                 reliable = track.get('velocity_reliable', False)
+                x = track['x']+(track['vx']*dt if reliable else 0.)
+                y = track['y']+(track['vy']*dt if reliable else 0.)
+                shape = {k: track[k] for k in ('length', 'width', 'yaw')}
+                corridor = getattr(self, 'lane_corridor', None)
+                lane = (corridor.label_box(x, y, **shape) if corridor is not None else
+                        dict(raceline=0, lane_sector=0, lane_label_confident=False))
+                lane['lane_stable'] = bool(track.get('lane_stable') and reliable
+                    and lane['lane_label_confident'] and (lane['lane_sector'], lane['raceline'])
+                    == (track.get('lane_sector'), track.get('raceline')))
                 result.append(dict(id=key, x=track['x']+(track['vx']*dt if reliable else 0.),
                                    y=track['y']+(track['vy']*dt if reliable else 0.),
                                    radius=track['radius']+.5*dt,
-                                   vx=track['vx'], vy=track['vy'], kind='unknown',
+                                   vx=track['vx'], vy=track['vy'],
+                                   kind=(track['motion_kind'] if reliable and lane['lane_stable']
+                                         and lane.get('lane_sector') == 5 else 'unknown'),
+                                   confirmed=track.get('confirmed', False), **shape, **lane,
                                    prediction_confirmed=track.get('prediction_confirmed', False),
                                    velocity_reliable=reliable, predicted=True))
         return result

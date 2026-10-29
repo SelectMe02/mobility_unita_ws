@@ -1,0 +1,12 @@
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -129,7 +129,8 @@
+                                             len(route.lengths))[0]
+                               for p in (line[0], line[-1])]
+                     self.planner.pass_speed_25_ranges.append(tuple(bounds))
+-                    self.planner.approach_continuity_ranges.append(tuple(bounds))
++                    if int(sector['number']) in (5, 6):
++                        self.planner.approach_continuity_ranges.append(tuple(bounds))
+                     if int(sector['number']) == 5:
+                         self.planner.vehicle_follow_ranges.append(tuple(bounds))
+         # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.

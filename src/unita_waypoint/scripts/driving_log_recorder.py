@@ -43,7 +43,10 @@ BAG_TOPICS = JSON_TOPICS + [
     '/waypoint_debug/obstacle_horizon', '/waypoint_debug/ground_points',
     '/waypoint_debug/obstacle_points', '/waypoint_debug/target_speed_kmh',
     '/waypoint_debug/current_speed_kmh', '/waypoint_debug/speed_zone',
-    '/waypoint_debug/path_curvature', '/rosout_agg', '/diagnostics']
+    '/waypoint_debug/path_curvature', '/rosout_agg', '/diagnostics',
+    '/leo/waypoint_debug/obstacles', '/leo/route_avoidance',
+    '/leo/waypoint_debug/local_path', '/leo/raw_ctrl_cmd',
+    '/leo/signal_status', '/leo/speed_limit_kmh', '/leo/driving_pose']
 
 
 def json_safe(value):

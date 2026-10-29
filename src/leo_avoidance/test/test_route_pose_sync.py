@@ -34,6 +34,15 @@ def node():
     obj.last_worker_ros_time = None
     obj.closed = False
     obj.tracker, obj.planner, obj.debug, obj.pub = (MagicMock() for _ in range(4))
+    obj.s4_fallback = MagicMock()
+    obj.s4_fallback.apply.side_effect = lambda planner, decision, *args: decision
+    obj.s4_fallback.mode = "route"
+    obj.s4_fallback.status = {}
+    obj.planner.last_s = None
+    obj.planner.active = None
+    obj.planner.pedestrian_holds = []
+    obj.planner.static_pass_managed = False
+    obj.planner.pedestrian_hold = None
     return obj
 
 
@@ -276,3 +285,23 @@ def test_static_wait_output_keeps_independent_traffic_speed_cap():
     output = json.loads(obj.pub.publish.call_args[0][0].data)
     assert output['speed_cap_kmh'] == 0.
     assert output['traffic_speed_cap_kmh'] == 4.5
+
+
+def test_scene_relocation_invalidates_old_scan_and_progress_epoch():
+    obj=node()
+    with at(10.):
+        obj.on_pose(pose(10.,-107.85,-386.10,1.09))
+        obj.on_cloud(cloud(10.01))
+        obj.on_pose(pose(10.05,43.73,-476.44,-2.37))
+    assert obj.input_epoch==1
+    assert not obj.pending and len(obj.poses)==1
+
+
+def test_gps_return_reanchors_worker_without_clearing_hazard_memory():
+    obj=node();obj.s4_fallback=MagicMock()
+    obj.on_drive_mode(SimpleNamespace(data='BLACKOUT'))
+    obj.on_drive_mode(SimpleNamespace(data='GPS'))
+    obj.take_ready_scan(10.,10.)
+    assert obj.planner.last_s is None
+    obj.planner.reset.assert_not_called()
+    obj.tracker.reset.assert_not_called()

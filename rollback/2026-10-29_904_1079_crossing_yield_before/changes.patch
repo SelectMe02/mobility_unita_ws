@@ -1,0 +1,117 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core_local.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core_local.py
+@@ -5,6 +5,7 @@
+ """
+ from dataclasses import dataclass
+ import math
++import time
+ 
+ 
+ def distance(a, b):
+@@ -478,8 +479,24 @@
+         return self._decision('PASSING', path, self.effective_pass_speed_kmh,
+                               reason='selected_route_pass')
+ 
+-    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, force_r1=False):
++    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, force_r1=False,
++             crossing_yield=False, stamp=None):
+         self.pass_sector = self.sectors[index]
++        # This memory only vetoes starting an overtake; it never holds a brake.
++        now = time.monotonic() if stamp is None else float(stamp)
++        recent = getattr(self, '_crossing_pass_veto', []) if crossing_yield else []
++        recent = [h for h in recent if 0. <= now-h[0] <= 2.]
++        tx, ty = self._tangent(index)
++        crossers = []
++        if crossing_yield:
++            for o in obstacles:
++                lateral = -ty*o.vx+tx*o.vy
++                longitudinal = tx*o.vx+ty*o.vy
++                if (o.kind == 'dynamic' and abs(lateral) >= .5
++                        and abs(lateral) > abs(longitudinal)):
++                    crossers.append(o)
++                    recent.append((now, o.x, o.y, o.vx, o.vy))
++        self._crossing_pass_veto = recent
+         if force_r1 and self.transition is not None and self.transition['target'] != 1:
+             self.reset_for_r1_handoff()
+         # See lane endings early enough to decelerate before merging back.
+@@ -606,15 +623,22 @@
+                              and threat[1].length >= 2.5
+                              and (threat[1].kind == 'dynamic' or
+                                   (threat[1].velocity_reliable and threat[2] >= .5)))
++        def recent_crosser(o):
++            return any(distance((o.x, o.y), (x+vx*(now-t), y+vy*(now-t))) <= 1.
++                       for t, x, y, vx, vy in recent)
++        crossing_threat = (crossing_yield and threat is not None
++                           and (any(threat[1] is o for o in crossers)
++                                or recent_crosser(threat[1])))
+         candidates = [preferred]
+         if current != preferred and not force_r1:
+             candidates.append(current)
+-        if follow_vehicle_s5:
++        if follow_vehicle_s5 or crossing_threat:
+             candidates = [current]
+         elif threat and not force_r1 and not unconfirmed_s5:
+             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
+         candidates = list(dict.fromkeys(candidates))
+-        waiting = ('s5_follow_vehicle' if follow_vehicle_s5 else
++        waiting = ('crossing_yield_no_overtake' if crossing_threat else
++                   's5_follow_vehicle' if follow_vehicle_s5 else
+                    'unconfirmed_obstacle' if unconfirmed_s5 else '')
+         slow_enough = (speed_mps <= self.effective_pass_speed_kmh/3.6+1.
+                        or self._any_speed_lane_change(index))
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
+@@ -475,6 +475,7 @@
+         self.waypoint_only_ranges = self.point_id_ranges(
+             rospy.get_param('~waypoint_only_point_ids', ''))
+         self.r1_only_ranges = self.point_id_ranges(rospy.get_param('~r1_only_point_ids', ''))
++        self.crossing_yield_ranges = self.point_id_ranges('904-1079')
+         if self.waypoint_only_ranges:
+             self.route_tree = cKDTree(np.asarray(self.waypoints, dtype=float))
+         if self.enable_local_avoidance:
+@@ -1563,7 +1564,10 @@
+                 decision = self.local_planner.plan(
+                     self.current_waypoint_index, position,
+                     (self.current_speed_kmh or 0.)/3.6, planning_obstacles,
+-                    ego_yaw=self.current_yaw, force_r1=force_r1)
++                    ego_yaw=self.current_yaw, force_r1=force_r1,
++                    crossing_yield=any(lo <= self.current_waypoint_index <= hi
++                        for lo, hi in getattr(self, 'crossing_yield_ranges', [])),
++                    stamp=now)
+             self.debug_trace.update(local_plan_trace(self.local_planner, decision, planning_obstacles))
+             self.debug_trace['route_pass_owns'] = route_pass_owns
+             if route_avoidance:
+--- /dev/null
++++ b/src/unita_waypoint/test/test_crossing_yield_interval_local.py
+@@ -0,0 +1,31 @@
++import unittest
++from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
++
++class CrossingIntervalTests(unittest.TestCase):
++    def planner(self):
++        return LocalAvoidancePlanner([(float(x),0.) for x in range(100)], [6]*100,
++            {2:[(float(x),-3.5) for x in range(100)]})
++
++    def test_dynamic_crossing_and_static_dropout_do_not_start_pass(self):
++        p=self.planner()
++        for t,kind,vy in [(0.,'dynamic',1.),(.1,'dynamic',1.),(.2,'static',0.)]:
++            d=p.plan(0,(0.,0.),0.,[Obstacle(10., .1+t, .5,vy=vy,kind=kind)],
++                     crossing_yield=True,stamp=t)
++            self.assertIsNone(p.transition)
++            self.assertNotIn(d.state,('OVERTAKING','LANE_CHANGING'))
++        d=p.plan(0,(0.,0.),0.,[],crossing_yield=True,stamp=.3)
++        self.assertEqual(d.state,'RACELINE')
++        self.assertGreater(d.speed_cap_kmh,0.)
++
++    def test_static_obstacle_still_passes_inside_and_outside_interval(self):
++        for enabled in (True,False):
++            p=self.planner()
++            p.plan(0,(0.,0.),0.,[Obstacle(18.,0.,.5,kind='static')],
++                   crossing_yield=enabled,stamp=0.)
++            self.assertIsNotNone(p.transition)
++
++    def test_leaving_interval_clears_veto_memory(self):
++        p=self.planner()
++        p.plan(0,(0.,0.),0.,[Obstacle(10.,0.,.5,vy=1.,kind='dynamic')],crossing_yield=True,stamp=0.)
++        p.plan(0,(0.,0.),0.,[],crossing_yield=False,stamp=.1)
++        self.assertEqual(p._crossing_pass_veto,[])

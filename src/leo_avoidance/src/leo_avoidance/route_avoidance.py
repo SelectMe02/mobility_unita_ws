@@ -20,6 +20,8 @@ from leo_avoidance.s4_path_search import search_offsets
 
 @dataclass(frozen=True)
 class RouteAvoidanceConfig:
+    s4_wheelbase_m: float = 3.0
+    s4_max_steering_rad: float = math.radians(29.)
     vehicle_half_width_m: float = .946
     side_margin_m: float = .4          # band half width = vehicle + margin + obstacle radius
     front_extent_m: float = 3.845      # rear axle to front bumper
@@ -230,6 +232,7 @@ class RouteAvoidance:
         self.route = RouteFrame(points)
         self.crosswalks = sorted(crosswalks)
         self.crosswalk_hold = None  # crosswalk start currently occupied on the route
+        self.approach_continuity_ranges = []
         self.pedestrian_hold_ranges = []
         self.pedestrian_hold = None
         self.pedestrian_holds = []
@@ -241,8 +244,10 @@ class RouteAvoidance:
         self.static_pass_zone = None
         self.pass_speed_25_ranges = []
         self.vehicle_follow_ranges = []  # S5 only: classify cars before static passing.
+        self.r1_only_ranges = []
         self.static_memory = []
         self.static_pass_managed = False
+        self._brief_approaches = {}
         self.s4_motion_history = {}
         self.s4_mobile_until = {}
         self._s4_search_after = -math.inf
@@ -257,6 +262,7 @@ class RouteAvoidance:
         self.person_d = {}
         self.static_memory = []
         self.static_pass_managed = False
+        self._brief_approaches = {}
         self.s4_motion_history = {}
         self.s4_mobile_until = {}
         self._s4_search_after = -math.inf
@@ -484,6 +490,21 @@ class RouteAvoidance:
         else:
             lo, hi = self.route.window(self.last_s - 15., self.last_s + 40.)
         s, d, _ = self.route.project(x, y, lo, hi)
+        # The signed lateral offset omits distance beyond a segment endpoint.
+        # Check the actual projected point before trusting the local window.
+        foot, _ = self.route.pose(s)
+        error = math.hypot(x-foot[0], y-foot[1])
+        if self.last_s is not None and error > 8.:
+            global_s, global_d, _ = self.route.project(x, y, 0, len(self.route.lengths))
+            global_foot, _ = self.route.pose(global_s)
+            global_error = math.hypot(x-global_foot[0], y-global_foot[1])
+            if global_error <= 4. and global_error+4. < error:
+                # A clearly wrong search window is not an obstacle stop.
+                # Normal tracking, including S4 offsets, stays in its window.
+                stamp = self.observation_time
+                self.reset()
+                self.observation_time = stamp
+                s, d = global_s, global_d
         if self.loop_length is not None and s >= self.loop_length:
             # Crossed the start line: continue on the first lap stretch.
             s -= self.loop_length
@@ -557,10 +578,50 @@ class RouteAvoidance:
                 and abs(o['l']-hold['l']) <= .15
                 and abs(o['r']-hold.get('last_r', self.config.pedestrian_half_m)) <= .15)
 
+    @staticmethod
+    def _candidate_translation(a, b):
+        """Lateral translation supported by both faces, not box growth.
+
+        Samples are (time, s, d, half_length, half_width). Unknown motion
+        is distinct from a measured stationary object.
+        """
+        dt = b[0]-a[0]
+        if not .05 <= dt <= .5 or abs(b[1]-a[1]) > .5:
+            return None
+        delta = b[2]-a[2]
+        growth = abs(b[4]-a[4])
+        if (abs(b[3]-a[3]) > .15 or growth > .15
+                or growth > max(.025, .5*abs(delta))):
+            return None
+        vd = delta/dt
+        return vd if abs(vd) <= 4.5 else None
+
+    def _candidate_velocity(self, hold):
+        vd = hold.get('vd', 0.)
+        age = self.observation_time-hold.get('velocity_at', hold.get('seen_at', self.observation_time))
+        if age <= .5:
+            return vd
+        # Retain a possible occluded crossing at the body; never extrapolate
+        # an old roadside candidate across the entire road indefinitely.
+        band = self.config.band(hold.get('last_r', self.config.pedestrian_half_m))+.3
+        projected = hold['d']+vd*.5
+        if hold['d']*projected > 0. and min(abs(hold['d']), abs(projected)) > band:
+            return 0.
+        return vd
+
     def _hold_match(self, hold, o):
         dt = max(0., self.observation_time-hold.get('seen_at', self.observation_time))
         if abs(o['s']-hold['s']) > 1.5:
             return False
+        if hold.get('tentative') and not hold.get('confirmed_crossing'):
+            # Same-ID observations must be able to correct stale velocity.
+            # A new ID needs local, recent evidence, not a long extrapolation.
+            if o['id'] in hold['ids']:
+                return abs(o['d']-hold['d']) <= 1.5
+            if dt > .5 or abs(o['d']-hold['d']) > .75:
+                return False
+            if o['d']*hold['d'] < 0. and min(abs(o['d']), abs(hold['d'])) > .5:
+                return False
         if dt > 3.01:
             # A stale velocity must not extrapolate indefinitely. Reconnect
             # only a measured person close to the last occupied footprint;
@@ -577,7 +638,133 @@ class RouteAvoidance:
                 return False
         return True
 
-    def _note_pedestrian(self, o, binding=True, tentative=False):
+    def _early_pedestrian_approach(self, o, speed, front_s):
+        """Small, consistently approaching object before velocity confirmation.
+
+        Only a predicted overlap near the stopping horizon earns an early
+        candidate; stationary, departing and distant objects do not.
+        """
+        cfg = self.config
+        h = self.s4_motion_history.get(o['id'], [])[-3:]
+        if len(h) < 3 or self.observation_time-h[-1][0] > .2:
+            return None
+        rates = []
+        for a, b in zip(h, h[1:]):
+            dt = b[0]-a[0]
+            if (not .05 <= dt <= .25 or a[2]*b[2] <= 0.
+                    or abs(a[2])-abs(b[2]) < .05
+                    or abs(a[1]-b[1]) > .5
+                    or abs(a[3]-b[3]) > .15 or abs(a[4]-b[4]) > .15):
+                return None
+            rate = self._candidate_translation(a, b)
+            if rate is None:
+                return None
+            rates.append(rate)
+        vd = sum(rates)/len(rates)
+        if not .4 <= abs(vd) <= 4.5 or abs(rates[0]-rates[1]) > 1.5:
+            return None
+        v = max(speed, 3.)  # evaluate a modest start speed while waiting at a signal
+        ahead = o['s']-o['l']-front_s
+        band = cfg.band(o['r'])
+        entry = max(0., (abs(o['d'])-band)/abs(vd))
+        leave = (abs(o['d'])+band)/abs(vd)
+        arrival = max(0., ahead)/v
+        horizon = v*cfg.reaction_s+v*v/(2.*cfg.brake_mps2)+v+cfg.stop_gap_m
+        if (0. < ahead <= horizon and entry <= min(3., arrival+cfg.arrival_after_s)
+                and leave >= max(0., arrival-cfg.arrival_before_s)):
+            return vd
+        return None
+
+    def _interrupted_crossing_approach(self, o, speed, front_s, max_gap=.4):
+        """Short-gap, shape-tolerant evidence for immediate braking only.
+
+        Never creates a persistent pedestrian hold or changes classification.
+        Both lateral faces must translate toward the route across at least
+        three observations; expansion of just one face cannot qualify.
+        """
+        cfg = self.config
+        h = [v for v in self.s4_motion_history.get(o['id'], [])
+             if 0. <= self.observation_time-v[0] <= .65]
+        if len(h) < 3 or self.observation_time-h[-1][0] > .2:
+            return False
+        a, b = h[0], h[-1]
+        span = b[0]-a[0]
+        if (not .2 <= span <= .65 or a[2]*b[2] <= 0.
+                or max(v[1] for v in h)-min(v[1] for v in h) > .8
+                or max(v[3] for v in h)-min(v[3] for v in h) > .4
+                or any(not .05 <= y[0]-x[0] <= max_gap or
+                       abs(y[2])-abs(x[2]) > .1 for x, y in zip(h, h[1:]))):
+            return False
+        direction = -math.copysign(1., b[2])
+        displacement = (b[2]-a[2])*direction
+        common = min(((b[2]-b[4])-(a[2]-a[4]))*direction,
+                     ((b[2]+b[4])-(a[2]+a[4]))*direction)
+        if displacement < .35 or common < max(.25, .5*displacement):
+            return False
+        rate = common/span  # lower common-edge speed, not centre jump speed
+        if not .6 <= rate <= 4.5:
+            return False
+        ahead = o['s']-o['l']-front_s
+        v = max(speed, 3.)
+        arrival = max(0., ahead)/v
+        band = cfg.band(o['r'])
+        entry = max(0., (abs(o['d'])-band)/rate)
+        leave = (abs(o['d'])+band)/rate
+        horizon = v*cfg.reaction_s+v*v/(2.*cfg.brake_mps2)+v+cfg.stop_gap_m
+        return (0. < ahead <= horizon
+                and entry <= min(cfg.predict_s, arrival+cfg.arrival_after_s)
+                and leave >= max(0., arrival-cfg.arrival_before_s))
+
+    def _brief_approach_cap(self, items, speed, s_ego, front_s, offset_at):
+        """Bounded evidence bridge; never renew from missing/uncertain scans.
+
+        Existing occupancy and pedestrian holds remain independent vetoes.
+        Only explicit S4/S5/S6 map ranges enable this extra early brake.
+        """
+        now, cfg = self.observation_time, self.config
+        if not any(a <= s_ego <= b for a, b in self.approach_continuity_ranges):
+            self._brief_approaches.clear()
+            return math.inf
+        memories = self._brief_approaches
+        for o in items:
+            if (o['l'] <= .6 and o['r'] <= 1.2
+                    and any(a <= o['s'] <= b for a, b in self.approach_continuity_ranges)
+                    and self._interrupted_crossing_approach(o, speed, front_s, max_gap=.55)):
+                sample = self.s4_motion_history[o['id']][-1][0]
+                old = memories.get(o['id'])
+                if old is None or sample > old['seen']:
+                    memories[o['id']] = dict(o, seen=sample, clear=0, checked=-math.inf)
+        cap = math.inf
+        for key, h in list(memories.items()):
+            age = now-h['seen']
+            if not 0. <= age <= .55 or h['s']+h['l'] < s_ego-cfg.rear_extent_m:
+                del memories[key]
+                continue
+            # Any current object can veto clearance, regardless of track ID.
+            risk = False
+            for o in items:
+                if not s_ego-cfg.rear_extent_m-o['l'] <= o['s'] <= h['s']+cfg.stop_gap_m:
+                    continue
+                d = o['d']-offset_at(o['s'])
+                band = cfg.band(o['r'])
+                history = self.s4_motion_history.get(o['id'], [])
+                inward = (len(history) >= 2 and now-history[-1][0] <= .2
+                          and abs(history[-1][2]) < abs(history[-2][2])-.02)
+                risk |= abs(d) <= band or inward or (d*o.get('v_d', 0.) < 0.
+                    and abs(d)-band <= abs(o['v_d'])*cfg.predict_s)
+            observer = getattr(self, 'clearance_observer', None)
+            if now > h['checked']:
+                h['clear'] = h['clear']+1 if (not risk and observer is not None
+                                             and observer(h, offset_at)) else 0
+                h['checked'] = now
+            if h['clear'] >= 2:
+                del memories[key]
+                continue
+            cap = min(cap, stopping_speed(h['s']-h['l']-front_s-cfg.stop_gap_m,
+                                          cfg.brake_mps2, cfg.reaction_s))
+        return cap
+
+    def _note_pedestrian(self, o, binding=True, tentative=False, approach_vd=None):
         """Start or refresh the pedestrian hold for a mover that made Ego yield.
 
         Only a person-sized candidate whose position really moved toward the
@@ -600,16 +787,24 @@ class RouteAvoidance:
                     and abs(o['v_s']) >= 2. * abs(o['v_d']))):
             self.pedestrian_hold = previous_hold
             return  # traffic along the lane is not a crossing pedestrian
+        if tentative and abs(o['d']) > cfg.band(o['r'])+.3:
+            samples = self.s4_motion_history.get(o['id'], [])[-2:]
+            if len(samples) == 2:
+                a, b = samples
+                vd = self._candidate_translation(a, b)
+                if vd is None or o['d']*vd >= 0. or abs(vd) < .4:
+                    self.pedestrian_hold = previous_hold
+                    return
         history = self.person_d.get(o['id'], ())
         if self.pedestrian_hold is None:
             path = list(history) + [o['d']]
             if tentative:
                 path = path[-2:]
-            if len(path) < (2 if tentative else 3) or any(
+            if approach_vd is None and (len(path) < (2 if tentative else 3) or any(
                     abs(a) - abs(b) < (max(.25, cfg.pedestrian_approach_m)
                                        if tentative else cfg.pedestrian_approach_m)
                     or (not tentative and o['v_d'] * (b - a) <= 0.)
-                    for a, b in zip(path, path[1:])):
+                    for a, b in zip(path, path[1:]))):
                 self.pedestrian_hold = previous_hold
                 return
         if self.pedestrian_hold is None:
@@ -623,7 +818,17 @@ class RouteAvoidance:
                 self.pedestrian_hold.update(tentative=True, entry_side=math.copysign(1., o['d']),
                                             approach_scans=1, stationary_scans=0,
                                             initial_d=o['d'], last_r=o['r'], last_l=o['l'])
-        self.pedestrian_hold.update(seen_at=self.observation_time, vd=o['v_d'])
+        if tentative and approach_vd is None:
+            measured = self.s4_motion_history.get(o['id'], [])[-2:]
+            if len(measured) == 2:
+                a, b = measured
+                dt = b[0]-a[0]
+                if .05 <= dt <= .25:
+                    vd = self._candidate_translation(a, b)
+                    if vd is not None and .4 <= abs(vd) <= 4.5 and o['d']*vd < 0.:
+                        approach_vd = vd
+        self.pedestrian_hold.update(seen_at=self.observation_time, velocity_at=self.observation_time,
+                                    vd=o['v_d'] if approach_vd is None else approach_vd)
         self.pedestrian_hold['ids'].add(o['id'])
         self.pedestrian_holds.append(self.pedestrian_hold)
 
@@ -654,14 +859,28 @@ class RouteAvoidance:
         if hold is None:
             return None
         cfg = self.config
-        near = [o for o in items if self._held_person_sized(hold, o) and self._hold_match(hold, o)]
+        near = [o for o in items if self._hold_match(hold, o) and (
+            self._held_person_sized(hold, o)
+            or (hold.get('tentative') and not hold.get('confirmed_crossing')
+                and o['id'] in hold['ids']
+                and abs(o['d']-offset_at(o['s'])) > cfg.band(o['r'])+.3))]
+        # A growing same-ID roadside box is still an observation. It must
+        # invalidate old candidate motion instead of looking like track loss.
         if near:
             o = min(near, key=lambda o: math.hypot(o['s'] - hold['s'], o['d'] - hold['d']))
             previous_d, previous_s = hold['d'], hold['s']
             dt = self.observation_time-hold.get('seen_at', self.observation_time)
             fresh = 0. < dt <= .5
             measured_vd = ((o['d']-previous_d)/dt if dt > .05 else hold.get('vd', 0.))
-            if abs(o['v_d']) > .2:
+            if hold.get('tentative') and not hold.get('confirmed_crossing'):
+                if fresh:
+                    rate = self._candidate_translation(
+                        (self.observation_time-dt, previous_s, previous_d,
+                         hold.get('last_l', hold['l']), hold.get('last_r', o['r'])),
+                        (self.observation_time, o['s'], o['d'], o['l'], o['r']))
+                    hold['vd'] = 0. if rate is None else rate
+                    hold['velocity_at'] = self.observation_time
+            elif abs(o['v_d']) > .2:
                 hold['vd'] = o['v_d']
             elif not hold.get('tentative') and .2 < abs(measured_vd) <= 4.5:
                 hold['vd'] = measured_vd
@@ -677,7 +896,10 @@ class RouteAvoidance:
             occupied = hold['near']
             if hold.get('tentative'):
                 delta = abs(previous_d)-abs(o['d'])
-                consistent = (abs(o['r']-hold['last_r']) < .15
+                consistent = (self._candidate_translation(
+                    (self.observation_time-dt, previous_s, previous_d, hold['last_l'], hold['last_r']),
+                    (self.observation_time, o['s'], o['d'], o['l'], o['r'])) is not None
+                              and abs(o['r']-hold['last_r']) < .15
                               and abs(o['l']-hold['last_l']) < .15
                               and abs(o['s']-previous_s) < .5)
                 hold['approach_scans'] = (hold['approach_scans']+1
@@ -714,6 +936,19 @@ class RouteAvoidance:
         else:
             # Unseen (e.g. right at the bumper): still where it was last seen.
             hold['lost_scans'] += 1
+            if hold.get('tentative') and not hold.get('confirmed_crossing'):
+                # A never-confirmed off-path candidate is not a hidden
+                # crossing pedestrian. Keep a short dropout bridge only
+                # when its last measured approach could still reach us.
+                relative = hold['d']-offset_at(hold['s'])
+                band = cfg.band(hold.get('last_r', cfg.pedestrian_half_m))
+                vd = self._candidate_velocity(hold)
+                approaching = relative*vd < -.1
+                soon = approaching and abs(relative)-abs(vd)*.8 <= band+.3
+                if (self.observation_time-hold['seen_at'] >= .6
+                        and abs(relative) > band+.3 and not soon):
+                    self.pedestrian_hold = None
+                    return None
             occupied = (hold['near']
                         and hold['lost_scans'] < cfg.pedestrian_lost_release_scans)
             if hold.get('tentative') or hold.get('confirmed_crossing'):
@@ -725,7 +960,22 @@ class RouteAvoidance:
                 hold['visible_clear_since'] = None
                 hold['visible_clear_scans'] = 0
             hold['clear_observation_stamp'] = self.observation_time
-            visible_clear = (fresh and speed <= .3 and observer is not None
+            # A clear old footprint alone cannot release an approaching
+            # second pedestrian, a stationary occupant, or a new track ID.
+            current_risk = False
+            for current in items:
+                if (current['s']+current['l'] < s_ego-cfg.rear_extent_m
+                        or current['s']-current['l'] > hold['s']+cfg.stop_gap_m):
+                    continue
+                lateral = current['d']-offset_at(current['s'])
+                band_now = cfg.band(current['r'])
+                velocity = current.get('v_d', 0.)
+                approaching_now = (lateral*velocity < 0. and
+                    abs(lateral)-abs(velocity)*cfg.predict_s <= band_now)
+                if abs(lateral) <= band_now or approaching_now:
+                    current_risk = True
+                    break
+            visible_clear = (not current_risk and fresh and speed <= .3 and observer is not None
                              and self.observation_time-hold.get('seen_at', self.observation_time) >= .6
                              and observer(hold, offset_at))
             if visible_clear:
@@ -750,6 +1000,21 @@ class RouteAvoidance:
             return None
         ahead = hold['s'] - hold['l'] - front_s
         if hold.get('tentative'):
+            relative = hold['d']-offset_at(hold['s'])
+            band = cfg.band(hold.get('last_r', cfg.pedestrian_half_m))
+            if abs(relative) > band+.3:
+                vd = self._candidate_velocity(hold)
+                approaching = relative*vd < 0. and abs(vd) >= .2
+                arrival = max(0., ahead)/max(speed, 3.)
+                entry = max(0., (abs(relative)-band)/max(abs(vd), .01))
+                leave = (abs(relative)+band)/max(abs(vd), .01)
+                overlap = (approaching and entry <= min(cfg.predict_s, arrival+cfg.arrival_after_s)
+                           and leave >= max(0., arrival-cfg.arrival_before_s))
+                if not overlap:
+                    # Preserve observation history without braking for a
+                    # longitudinal distance to something outside our path.
+                    hold['cap'] = math.inf
+                    return math.inf
             # A candidate outside the path limits approach speed, without
             # permanently latching a zero cap from one noisy displacement.
             hold['cap'] = min(10./3.6, stopping_speed(max(0., ahead-cfg.stop_gap_m),
@@ -778,6 +1043,9 @@ class RouteAvoidance:
                 return False, o
         return True, None
 
+    def s4_curvature_limit(self):
+        return math.tan(self.config.s4_max_steering_rad)/self.config.s4_wheelbase_m
+
     def _s4_swept_check(self, profile, items, s_ego, speed, check_curvature=True):
         """Check oriented ego body against obstacle rectangles on the route.
 
@@ -792,12 +1060,12 @@ class RouteAvoidance:
             slope = (right-left)/.1
             curvature = abs((right-2*d+left)/.0025)/(1+slope*slope)**1.5
             peak = max(peak, curvature)
-            if check_curvature and peak > .14:
+            if check_curvature and peak > (self.s4_curvature_limit() if self.static_pass_managed else .14):
                 return False, None, s, peak
             angle = math.atan(slope)
             c, sn = math.cos(angle), math.sin(angle)
             half_l = (cfg.front_extent_m+cfg.rear_extent_m)/2.+.15
-            half_w = cfg.vehicle_half_width_m+cfg.side_margin_m+.15
+            half_w = cfg.vehicle_half_width_m+(.15 if self.static_pass_managed else cfg.side_margin_m+.15)
             center = (cfg.front_extent_m-cfg.rear_extent_m)/2.
             es, ed = s+c*center, d+sn*center
             t = max(0., s-s_ego)/max(speed, 1.)
@@ -910,6 +1178,23 @@ class RouteAvoidance:
             cfg = replace(cfg, pass_speed_kmh=25.)
         items = self._to_route(obstacles, s_ego)
         items = self._retain_static_blocks(items, s_ego)
+        # Classification/ID dropout must not authorize passing a crosser.
+        # This short spatial history ONLY gates new paths, never braking.
+        now = self.observation_time
+        recent = [h for h in getattr(self, '_crossing_pass_history', [])
+                  if 0. <= now-h[0] <= 2.]
+        if self.static_pass_managed:
+            recent = []
+        else:
+            for o in items:
+                if (any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
+                        and abs(o['v_d']) >= .5 and abs(o['v_d']) > abs(o['v_s'])):
+                    recent.append((now, o['s'], o['d'], o['v_s'], o['v_d']))
+        self._crossing_pass_history = recent
+
+        r1_only = any(a <= s_ego <= b for a, b in self.r1_only_ranges)
+        if r1_only:
+            self.active = None
         front_s = s_ego + cfg.front_extent_m
         state, reason = 'FOLLOW', 'clear'
         cap = math.inf
@@ -921,7 +1206,32 @@ class RouteAvoidance:
 
         # Static blocks in Ego's own lane ahead of the bumper (or beside it while passing).
         follow_zone = any(a <= s_ego < b for a, b in self.vehicle_follow_ranges)
+        def recent_crossing_position(o):
+            for t, along, lateral, vs, vd in recent:
+                ds, dd = vs*(now-t), vd*(now-t)
+                length2 = ds*ds+dd*dd
+                alpha = max(0., min(1., ((o['s']-along)*ds+(o['d']-lateral)*dd)/length2)) if length2 > 1e-9 else 0.
+                if math.hypot(o['s']-along-alpha*ds, o['d']-lateral-alpha*dd) <= 1.:
+                    return True
+            return False
+
+        crossing_episode = (not self.static_pass_managed
+            and any(a <= s_ego <= b for a, b in self.pedestrian_hold_ranges)
+            and any(0. < along-front_s < 25.
+                    and min(lateral, lateral+vd*(now-t)) <= cfg.band(.6)
+                    and max(lateral, lateral+vd*(now-t)) >= -cfg.band(.6)
+                    for t, along, lateral, vs, vd in recent))
+
         def static_pass_candidate(o):
+            if crossing_episode:
+                return False  # a separate static fragment must not initiate a pass
+
+            # A brief static label must not turn a recent crosser into a pass.
+            if (not self.static_pass_managed
+                    and any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
+                    and (o['id'] in self.s4_mobile_until or recent_crossing_position(o)
+                         or any(self._hold_match(h, o) for h in self.pedestrian_holds))):
+                return False
             if not follow_zone or o['l'] < 1.25:
                 return True
             # Initial/dropout static labels must not start a car overtake.
@@ -950,7 +1260,7 @@ class RouteAvoidance:
                 if o['s'] - o['l'] <= self.active.hold_end_s + cfg.merge_gap_m:
                     needed_hold = o['s'] + o['l'] + cfg.rear_extent_m + cfg.post_gap_m
                     if self.static_pass_managed and needed_hold > self.active.hold_end_s:
-                        minimum_return = math.sqrt(5.8*abs(self.active.offset_m)/.14)
+                        minimum_return = math.sqrt(5.8*abs(self.active.offset_m)/self.s4_curvature_limit())
                         if (needed_hold > self.static_pass_zone[2]
                                 or needed_hold+minimum_return > self.static_pass_zone[3]):
                             cap = 0.  # No safe return inside the saved S4 corridor.
@@ -1010,6 +1320,8 @@ class RouteAvoidance:
             full = max(s_ego + cfg.min_ramp_in_m, full_s) if creep else full_s
             hold_end, end_s = max(hold_end, full), max(end_s, full + cfg.ramp_out_m)
             offsets = self.pass_offsets(ramp_start, end_s)
+            if r1_only:
+                offsets = []
             if self.static_pass_managed:
                 offsets = []  # S4 searches swept paths below, not lane strips.
             clear, blocker, pass_offset = False, None, None
@@ -1048,7 +1360,7 @@ class RouteAvoidance:
                     # Preserve entry room while waiting, instead of consuming
                     # it until only the bumper stopping gap remains.
                     needed_offset = max(.5, cfg.band(first['r'])-abs(first['d']))
-                    entry = full_s-math.sqrt(5.8*needed_offset/.14)
+                    entry = full_s-math.sqrt(5.8*needed_offset/self.s4_curvature_limit())
                     cap = min(cap, stopping_speed(entry-s_ego-1., cfg.brake_mps2, cfg.reaction_s))
                 if stop_line_in_pass:
                     traffic_cap = min(traffic_cap, cap)
@@ -1142,12 +1454,38 @@ class RouteAvoidance:
             for o in items:
                 if (0. < o['s'] - front_s < 35. and abs(o['d']) < 5.
                         and not o['moving']):
-                    self._note_pedestrian(o, tentative=True)
+                    self._note_pedestrian(o, tentative=True,
+                        approach_vd=self._early_pedestrian_approach(o, speed, front_s))
+
+        # Geometry-based early braking also covers fragmented/wide detections
+        # that cannot enter the strict person-sized hold. No persistent latch:
+        # only fresh, coherent approach and overlapping arrival times qualify.
+        if self.active is None and not self.static_pass_managed:
+            for o in items:
+                if (any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
+                        and o['l'] <= .6 and o['r'] <= 1.2
+                        and (self._early_pedestrian_approach(o, speed, front_s) is not None
+                             or self._interrupted_crossing_approach(o, speed, front_s))):
+                    stop = stopping_speed(o['s']-o['l']-front_s-cfg.stop_gap_m,
+                                          cfg.brake_mps2, cfg.reaction_s)
+                    traffic_cap = min(traffic_cap, stop)
+                    if stop < cap:
+                        cap, state, reason = stop, 'YIELD', 'measured crossing approach'
+
+        brief_cap = self._brief_approach_cap(items, speed, s_ego, front_s, offset_at)
+        traffic_cap = min(traffic_cap, brief_cap)
+        if brief_cap < cap:
+            cap, state, reason = brief_cap, 'YIELD', 'short-gap crossing approach'
 
         # Movers: lead traffic in the path and predicted crossings.
         for o in items:
             if not o['moving']:
                 continue
+            crossing_zone = (not self.static_pass_managed
+                and any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
+                and abs(o['v_d']) >= cfg.moving_speed_mps
+                and abs(o['v_d']) > abs(o['v_s']))
+            crossing_extra = 0. if crossing_zone else 2.
             off = offset_at(o['s'])
             ahead = o['s'] - o['l'] - front_s
             if ahead < -cfg.front_extent_m:
@@ -1166,7 +1504,7 @@ class RouteAvoidance:
                     if lead < cap:
                         cap, state, reason = lead, 'FOLLOW_LEAD', 'following a lead mover'
                     continue
-                stop = stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s)
+                stop = stopping_speed(ahead - cfg.stop_gap_m + crossing_extra, cfg.brake_mps2, cfg.reaction_s)
                 traffic_cap = min(traffic_cap, stop)
                 if stop < cap:
                     cap, state, reason = stop, 'YIELD', 'mover in the path'
@@ -1185,7 +1523,7 @@ class RouteAvoidance:
                     hit = True
                     break
             if hit:
-                stop = stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s)
+                stop = stopping_speed(ahead - cfg.stop_gap_m + crossing_extra, cfg.brake_mps2, cfg.reaction_s)
                 traffic_cap = min(traffic_cap, stop)
                 if stop < cap:
                     cap, state, reason = stop, 'YIELD', 'predicted crossing at s+%.1f m' % (

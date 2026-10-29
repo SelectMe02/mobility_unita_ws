@@ -5,6 +5,7 @@ All geometry and speed limits belong to this vehicle and its saved map.
 """
 from dataclasses import dataclass
 import math
+import time
 
 
 def distance(a, b):
@@ -433,7 +434,7 @@ class LocalAvoidancePlanner:
                     # Rounded rectangle: asymmetric front/rear vehicle extent.
                     lx = max(-self.rear_extent-longitudinal, 0., longitudinal-self.front_extent)
                     ly = max(0., abs(lateral)-self.half_width)
-                    if math.hypot(lx, ly) < obstacle.radius+self.margin:
+                    if math.hypot(lx, ly) < obstacle.radius+(.1 if self.pass_sector == 4 else self.margin):
                         return travelled+ratio*length
             travelled += length
         return float('inf')
@@ -467,6 +468,17 @@ class LocalAvoidancePlanner:
         stopping_distance = speed_mps*self.reaction_s + speed_mps**2/(2.*self.decel)
         if collision_distance <= max(1., stopping_distance):
             return self._decision('BLOCKED', path, 0., reason='route_pass_obstructed')
+        if sector == 4:
+            # Distance is already rear-axle travel to body collision: do not
+            # subtract the front overhang a second time. Use continuous braking.
+            room = max(0., collision_distance-.25)
+            cap = (max(0., math.sqrt((self.decel*self.reaction_s)**2+2.*self.decel*room)
+                       -self.decel*self.reaction_s)*3.6 if math.isfinite(room) else float('inf'))
+            if cap <= 0.:
+                return self._decision('BLOCKED',path,0.,reason='route_pass_obstructed')
+            self.reset_for_r1_handoff()
+            return self._decision('PASSING',path,min(self.effective_pass_speed_kmh,cap),
+                                  reason='selected_route_pass')
         if math.isfinite(collision_distance):
             cap = self._stop_cap(collision_distance)
             if cap <= 0.:
@@ -478,8 +490,24 @@ class LocalAvoidancePlanner:
         return self._decision('PASSING', path, self.effective_pass_speed_kmh,
                               reason='selected_route_pass')
 
-    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, force_r1=False):
+    def plan(self, index, ego_xy, speed_mps, obstacles, ego_yaw=None, force_r1=False,
+             crossing_yield=False, stamp=None):
         self.pass_sector = self.sectors[index]
+        # This memory only vetoes starting an overtake; it never holds a brake.
+        now = time.monotonic() if stamp is None else float(stamp)
+        recent = getattr(self, '_crossing_pass_veto', []) if crossing_yield else []
+        recent = [h for h in recent if 0. <= now-h[0] <= 2.]
+        tx, ty = self._tangent(index)
+        crossers = []
+        if crossing_yield:
+            for o in obstacles:
+                lateral = -ty*o.vx+tx*o.vy
+                longitudinal = tx*o.vx+ty*o.vy
+                if (abs(lateral) >= .5
+                        and abs(lateral) > abs(longitudinal)):
+                    crossers.append(o)
+                    recent.append((now, o.x, o.y, o.vx, o.vy))
+        self._crossing_pass_veto = recent
         if force_r1 and self.transition is not None and self.transition['target'] != 1:
             self.reset_for_r1_handoff()
         # See lane endings early enough to decelerate before merging back.
@@ -606,15 +634,38 @@ class LocalAvoidancePlanner:
                              and threat[1].length >= 2.5
                              and (threat[1].kind == 'dynamic' or
                                   (threat[1].velocity_reliable and threat[2] >= .5)))
+        def recent_crosser(o):
+            for t, x, y, vx, vy in recent:
+                dx, dy = vx*(now-t), vy*(now-t)
+                length2 = dx*dx+dy*dy
+                alpha = max(0., min(1., ((o.x-x)*dx+(o.y-y)*dy)/length2)) if length2 > 1e-9 else 0.
+                # A static label may also freeze the centre at the last
+                # observation. Match the short swept segment, not just its end.
+                if distance((o.x, o.y), (x+alpha*dx, y+alpha*dy)) <= 1.:
+                    return True
+            return False
+        crossing_episode = False
+        for t, x, y, vx, vy in recent:
+            along = tx*(x-ego_xy[0])+ty*(y-ego_xy[1])
+            lateral = -ty*(x-ego_xy[0])+tx*(y-ego_xy[1])
+            end_lateral = lateral+(-ty*vx+tx*vy)*(now-t)
+            if (0. < along < 25. and min(lateral,end_lateral) <= 2.
+                    and max(lateral,end_lateral) >= -2.):
+                crossing_episode = True
+                break
+        crossing_threat = (crossing_yield and threat is not None
+                           and (crossing_episode or any(threat[1] is o for o in crossers)
+                                or recent_crosser(threat[1])))
         candidates = [preferred]
         if current != preferred and not force_r1:
             candidates.append(current)
-        if follow_vehicle_s5:
+        if follow_vehicle_s5 or crossing_threat:
             candidates = [current]
         elif threat and not force_r1 and not unconfirmed_s5:
             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
         candidates = list(dict.fromkeys(candidates))
-        waiting = ('s5_follow_vehicle' if follow_vehicle_s5 else
+        waiting = ('crossing_yield_no_overtake' if crossing_threat else
+                   's5_follow_vehicle' if follow_vehicle_s5 else
                    'unconfirmed_obstacle' if unconfirmed_s5 else '')
         slow_enough = (speed_mps <= self.effective_pass_speed_kmh/3.6+1.
                        or self._any_speed_lane_change(index))

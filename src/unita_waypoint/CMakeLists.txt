@@ -234,6 +234,7 @@ catkin_install_python(PROGRAMS scripts/gps_waypoint_follower.py
   scripts/30run.py
   scripts/map_tunner.py
   scripts/map_debug.py
+  scripts/master_reconnecting_process.py
   scripts/map_waypoint_calibration.py
   scripts/extract_stoplines.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
@@ -262,6 +263,7 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_extract_stoplines.py)
   catkin_add_nosetests(test/test_map_tunner.py)
   catkin_add_nosetests(test/test_map_debug.py)
+  catkin_add_nosetests(test/test_debug_reconnect.py)
   catkin_add_nosetests(test/test_tracking_debug.py)
   catkin_add_nosetests(test/test_raceline_selection.py)
   catkin_add_nosetests(test/test_local_avoidance.py)

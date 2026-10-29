@@ -1,0 +1,281 @@
+--- a/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
++++ b/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
+@@ -26,7 +26,6 @@
+     def __init__(self, lidar_offset=1.4):
+         self.lidar_offset = lidar_offset
+         self.ftg = FollowTheGap(Config(lidar_to_rear_x_m=lidar_offset,
+-            mapped_corridor_observation=True,
+             max_speed_mps=25./3.6, max_range_m=30., local_planning_range_m=20.))
+         self.reset()
+ 
+@@ -38,7 +37,7 @@
+         self.entered = None
+         self.profile = None
+         self.join = None
+-        self.exit_profile = None
++        self.end_return_profile = None
+         self.status = dict(source='LOCAL_PATH', state='IDLE', safe_distance_m=0., reason='')
+ 
+     def safe(self, planner, profile, items, speed, points, pose):
+@@ -55,10 +54,11 @@
+         if profile is None or profile.end_s <= s:
+             return s, 'no forward path'
+         low, high = sorted((0., planner.static_pass_zone[4]))
+-        # Saved lane centres bound two lanes, not the road surface. Use
+-        # their lane-width envelope and the oriented body plus side margin.
+-        lane_half = abs(planner.static_pass_zone[4])*.5
+-        cfg = planner.config
++        # Only the mandatory end return uses lane width instead of centres.
++        if getattr(profile, 'r2_end_return', False):
++            room = max(0., abs(planner.static_pass_zone[4])*.5
++                       - planner.config.vehicle_half_width_m-.15)
++            low, high = low-room, high+room
+         end, reason = profile.end_s, 'path end'
+         clear, blocker, hit, _ = planner._s4_swept_check(profile, items, s, speed)
+         if not clear:
+@@ -75,17 +75,12 @@
+         cfg = planner.config
+         for a in samples:
+             d = profile.offset_at(a)
++            if not low-1e-6 <= d <= high+1e-6:
++                return max(s, a-.25), 'saved corridor boundary'
+             center, segment = planner.route.pose(a, d)
+             tangent = planner.route.tangents[segment]
+             slope = (profile.offset_at(a+.05)-profile.offset_at(a-.05))/.1
+             angle = math.atan2(tangent[1], tangent[0])+math.atan(slope)
+-            relative = math.atan(slope)
+-            half_width = cfg.vehicle_half_width_m*abs(math.cos(relative))+.15
+-            ends = (-cfg.rear_extent_m*math.sin(relative), cfg.front_extent_m*math.sin(relative))
+-            if (d+min(ends)-half_width < low-lane_half-1e-6
+-                    or d+max(ends)+half_width > high+lane_half+1e-6):
+-                return max(s, a-.25), 'lane envelope boundary'
+-
+             dx, dy = world[:, 0]-center[0], world[:, 1]-center[1]
+             along = dx*math.cos(angle)+dy*math.sin(angle)
+             lateral = -dx*math.sin(angle)+dy*math.cos(angle)
+@@ -101,6 +96,7 @@
+         if profile is not None and abs(profile.offset_at(profile.end_s)) < .05:
+             base = profile
+             class Continuation:
++                r2_end_return = getattr(base, "r2_end_return", False)
+                 end_s = min(planner.route.s[-1], max(base.end_s, planner.last_s+planner.config.path_length_m))
+                 def offset_at(self, a):
+                     return base.offset_at(a) if a < base.end_s else 0.
+@@ -130,47 +126,39 @@
+                        offset_now_m=profile.offset_at(s) if profile else decision.offset_now_m,
+                        reason='S4 '+source+' safe prefix: '+reason)
+ 
+-    def exit_return(self, planner, decision, points, pose, speed):
+-        """Prefer a feasible R1 return anywhere in S4, and retain it."""
++    def return_at_r2_end(self, planner, decision, points, pose, speed):
++        """At R2 end commit to R1, independently of FTG mode/timers."""
+         s = planner.last_s
+-        if self.exit_profile is not None:
+-            result = self.follow_prefix(planner, decision, self.exit_profile, points, pose,
+-                                        speed, 'RECOVERY')
+-            if result.speed_cap_mps > .1:
+-                return result
+-            # A newly blocked return must allow another route/FTG search.
+-            self.exit_profile = None
+-            self.mode = 'route'
+-        if self.exit_profile is None:
++        if self.end_return_profile is None:
++            if s < planner.static_pass_zone[2]:
++                return None
+             lo, hi = planner.route.window(s-2., s+3.)
+-            _, d, seg = planner.route.project(pose[0], pose[1], lo, hi)
+-            tangent = planner.route.tangents[seg]
++            _, d, segment = planner.route.project(pose[0], pose[1], lo, hi)
++            if abs(d) <= .25:
++                return None
++            tangent = planner.route.tangents[segment]
+             error = math.atan2(math.sin(pose[2]-math.atan2(tangent[1], tangent[0])),
+                                math.cos(pose[2]-math.atan2(tangent[1], tangent[0])))
+-            if abs(d) < .25 or abs(error) > math.radians(35.):
+-                return None
+-            # Search a gradual return, not a short bridge to a path already
+-            # near R1. Actual obstacles and curvature still veto each choice.
+             for length in (12., 16., 20.):
+-                end = min(s+length, planner.static_pass_zone[3]+8., planner.route.s[-1])
++                end = min(s+length, planner.route.s[-1])
+                 if end-s < 4.:
+                     continue
+-                candidate = Profile([s, end], [d, 0.], [math.tan(error), 0.])
++                candidate = Profile([s,end], [d,0.], [math.tan(error),0.])
+                 candidate.curve = BPoly.from_derivatives(
+-                    [s, end], [[d, math.tan(error), 0.], [0., 0., 0.]])
+-                if self.safe(planner, candidate, decision.obstacles, speed, points, pose):
+-                    self.exit_profile = candidate
+-                    self.mode = 'recover'
++                    [s,end], [[d,math.tan(error),0.], [0.,0.,0.]])
++                candidate.r2_end_return = True
++                if self.safe(planner,candidate,decision.obstacles,speed,points,pose):
++                    self.end_return_profile = candidate
+                     break
+-        if self.exit_profile is None:
++        if self.end_return_profile is None:
+             return None
+-        return self.follow_prefix(planner, decision, self.exit_profile, points, pose,
+-                                  speed, 'RECOVERY')
++        self.mode = 'recover'
++        return self.follow_prefix(planner,decision,self.end_return_profile,
++                                  points,pose,speed,'RECOVERY')
+ 
+     def apply(self, planner, decision, points, pose, speed, stamp, permitted=True):
+-        if (self.exit_profile is not None
+-                and planner.last_s < self.exit_profile.end_s):
+-            # Finish the already checked return; do not drop steering at CP4.
++        if (self.end_return_profile is not None
++                and planner.last_s < self.end_return_profile.end_s):
+             planner.static_pass_managed = True
+         if not planner.static_pass_managed:
+             self.reset()
+@@ -188,16 +176,15 @@
+                     and not any(o['moving'] for o in decision.obstacles)
+                     and len(points) >= 10 and np.isfinite(points).all())
+         if eligible:
+-            returning = self.exit_return(planner, decision, points, pose, speed)
++            returning = self.return_at_r2_end(planner,decision,points,pose,speed)
+             if returning is not None:
+                 return returning
+         normal_profile = self.anchored_route(planner, pose) if eligible else None
+         local = (self.follow_prefix(planner, decision, normal_profile, points, pose,
+                                     speed, 'LOCAL_PATH') if normal_profile is not None else None)
+         local_status = dict(self.status)
+-        checked = local if local is not None else decision
+-        blocked = (not checked.path or (checked.speed_cap_mps <= .1
+-                   and checked.state in ('WAIT_PASS', 'PASSING')))
++        blocked = (not decision.path or (decision.speed_cap_mps <= .1
++                   and decision.state in ('WAIT_PASS', 'PASSING')))
+         if blocked:
+             if self.bad_since is None:
+                 self.bad_since = stamp
+--- a/src/leo_avoidance/src/leo_avoidance/ftg_local.py
++++ b/src/leo_avoidance/src/leo_avoidance/ftg_local.py
+@@ -17,7 +17,6 @@
+ 
+ @dataclass(frozen=True)
+ class Config:
+-    mapped_corridor_observation: bool = False
+     lidar_to_rear_x_m: float = 1.4
+     vehicle_half_width_m: float = 0.946
+     side_margin_m: float = 0.4
+@@ -1310,13 +1309,6 @@
+         # Rear-quarter returns are included in the avoidance scan but cannot
+         # certify clear distance for forward acceleration.
+         observed_range_m = float(np.percentile(forward_radii, 95.))
+-        if cfg.mapped_corridor_observation and direction_trusted:
+-            # S4: side returns do not measure visibility along the chosen gap.
+-            along = points[:, 0]*math.cos(bearing_rad)+points[:, 1]*math.sin(bearing_rad)
+-            across = -points[:, 0]*math.sin(bearing_rad)+points[:, 1]*math.cos(bearing_rad)
+-            seen = along[(along > 0.) & (abs(across) <= cfg.vehicle_half_width_m+cfg.side_margin_m)]
+-            if len(seen):
+-                observed_range_m = float(np.percentile(seen, 95.))
+         safe_clearance_m = min(front_clearance_m, observed_range_m -
+                                front_bumper_from_lidar_m) - cfg.side_margin_m
+         target_speed_mps = min(target_speed_mps,
+--- a/src/leo_avoidance/test/test_s4_ftg_fallback.py
++++ b/src/leo_avoidance/test/test_s4_ftg_fallback.py
+@@ -12,8 +12,6 @@
+         self.p.static_pass_managed = True
+         self.p.last_s = 20.
+         self.f = S4Fallback()
+-        # These tests isolate FTG fallback when no direct return is available.
+-        self.f.exit_return = Mock(return_value=None)
+         self.f.ftg = Mock()
+         self.f.ftg.plan.return_value = Plan(5., 0., 'gap fits', 20., 4.)
+         self.points = np.array([[float(x), -7., .2] for x in range(25)])
+@@ -163,73 +161,27 @@
+ if __name__ == '__main__':
+     unittest.main()
+ 
+-class ReturnBoundaryTests(S4FallbackTests):
+-    def test_small_inward_connection_passes_without_ftg(self):
+-        profile = Profile([20.,28.,40.],[-3.29168,-3.,0.],[.08,.1,0.])
+-        pose=(20.,-3.29168,.08)
+-        end, reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,pose)
+-        self.assertGreater(end,28.)
+-        self.assertNotEqual(reason,'saved corridor boundary')
+-
+-    def test_real_lane_envelope_exit_is_rejected(self):
+-        profile=Profile([20.,28.,40.],[-3.8,-3.,0.],[0.,.1,0.])
+-        end,reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,(20.,-3.8,0.))
+-        self.assertEqual(end,20.)
+-        self.assertEqual(reason,'lane envelope boundary')
+-
+-    def test_small_initial_outward_heading_can_align(self):
+-        profile=Profile([20.,28.,40.],[-3.2065,-3.2,0.],[-.0625,0.,0.])
+-        end,reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,(20.,-3.2065,-.0625))
+-        self.assertGreater(end,28.)
+-
+-    def test_return_exception_does_not_skip_obstacles(self):
+-        profile=Profile([20.,28.,40.],[-3.29,-3.,0.],[.08,.1,0.])
+-        obstacle=dict(s=21.,d=-3.29,l=1.,r=.5,id=1,moving=False,v_s=0.,v_d=0.)
+-        end,reason=self.f.clear_prefix(self.p,profile,[obstacle],0.,self.points,(20.,-3.29,.08))
+-        self.assertEqual(end,20.)
+-        self.assertIn('obstacle',reason)
+-
+-    def test_final_local_stop_arms_fallback_even_if_original_moves(self):
+-        self.p.active=_Pass(10.,15.,30.,45.,-3.2,25.)
+-        self.f.exit_return=Mock(return_value=None)
+-        self.f.anchored_route=Mock(return_value=self.p.active)
+-        stopped=Decision('PASSING',[(20.,-3.2),(30.,-3.2)],0.,'boundary')
+-        self.f.follow_prefix=Mock(return_value=stopped)
+-        self.f.ftg.plan.return_value=Plan(0.,0.,'no gap',0.,0.)
+-        moving=Decision('PASSING',[(20.,-3.2),(30.,-3.2)],5.,'passing')
+-        for t in (1.,1.2,1.41):self.tick(t,moving)
+-        self.assertEqual(self.f.mode,'ftg')
+-
+-class ExitReturnTests(unittest.TestCase):
+-    def test_late_return_is_latched_and_collision_checked(self):
+-        p=RouteAvoidance([(0.,0.),(100.,0.)])
+-        p.set_static_pass_zone(0.,10.,40.,47.,-3.2)
+-        p.last_s=39.;p.static_pass_managed=True
++class R2EndReturnTests(unittest.TestCase):
++    def test_only_at_end_returns_and_retains_path(self):
++        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,40.,47.,-3.2)
++        p.static_pass_managed=True;p.last_s=39.9
+         f=S4Fallback();pts=np.array([[x,-10.,.2] for x in range(25)])
+         d=Decision('PASSING',[],5.,'passing')
+-        out=f.exit_return(p,d,pts,(39.,-3.29,.017),0.)
+-        self.assertIsNotNone(out)
+-        self.assertGreater(out.speed_cap_mps,0.)
+-        profile=f.exit_profile
++        self.assertIsNone(f.return_at_r2_end(p,d,pts,(39.9,-3.29,.017),0.))
++        p.last_s=40.
++        result=f.apply(p,d,pts,(40.,-3.29,.017),0.,1.)
++        self.assertGreater(result.speed_cap_mps,0.)
++        self.assertEqual(f.status['source'],'RECOVERY')
++        profile=f.end_return_profile
+         self.assertAlmostEqual(profile.offset_at(profile.end_s),0.)
+-        f.exit_return(p,d,pts,(39.,-3.29,.017),0.)
+-        self.assertIs(f.exit_profile,profile)
+-        d.obstacles=[dict(s=40.,d=-3.2,l=1.,r=1.,id=1,moving=False,v_s=0.,v_d=0.)]
+-        self.assertIsNone(f.exit_return(p,d,pts,(39.,-3.29,.017),0.))
++        p.last_s=48.;p.static_pass_managed=False
++        f.apply(p,d,pts,(48.,profile.offset_at(48.),.017),0.,1.1)
++        self.assertIs(f.end_return_profile,profile)
++        self.assertTrue(p.static_pass_managed)
+ 
+-    def test_new_return_allowed_away_from_exit(self):
+-        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
+-        p.last_s=20.;f=S4Fallback()
+-        result=f.exit_return(p,Decision('PASSING',[],5.,'passing'),
+-                         np.empty((0,3)),(20.,-3.2,0.),0.)
+-        self.assertIsNotNone(result)
+-        self.assertGreater(result.speed_cap_mps,0.)
+-
+-    def test_apply_selects_return_immediately_before_exit_zone(self):
+-        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
+-        p.last_s=20.;p.static_pass_managed=True
+-        f=S4Fallback();pts=np.array([[x,-10.,.2] for x in range(25)])
+-        result=f.apply(p,Decision('WAIT_PASS',[],0.,'waiting'),pts,(20.,-3.2065,-.0625),0.,1.)
+-        self.assertEqual(f.status['source'],'RECOVERY')
+-        self.assertGreater(result.speed_cap_mps,0.)
+-        self.assertAlmostEqual(result.path[-1][1],0.)
++    def test_end_return_keeps_actual_obstacle_stop(self):
++        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,40.,47.,-3.2)
++        p.last_s=40.;f=S4Fallback()
++        obstacle=dict(s=41.,d=-3.2,l=1.,r=1.,id=1,moving=False,v_s=0.,v_d=0.)
++        d=Decision('PASSING',[],5.,'passing',obstacles=[obstacle])
++        self.assertIsNone(f.return_at_r2_end(p,d,np.empty((0,3)),(40.,-3.2,0.),0.))

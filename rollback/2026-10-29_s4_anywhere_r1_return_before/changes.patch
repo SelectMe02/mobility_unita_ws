@@ -1,0 +1,158 @@
+--- a/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
++++ b/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
+@@ -7,7 +7,7 @@
+ import time
+ from dataclasses import replace
+ import numpy as np
+-from scipy.interpolate import CubicHermiteSpline
++from scipy.interpolate import CubicHermiteSpline, BPoly
+ from leo_avoidance.ftg_local import FollowTheGap, Config
+ from leo_avoidance.route_avoidance import stopping_speed
+ 
+@@ -55,22 +55,10 @@
+         if profile is None or profile.end_s <= s:
+             return s, 'no forward path'
+         low, high = sorted((0., planner.static_pass_zone[4]))
+-        # A centreline is not a road edge. Permit only a small existing
+-        # tracking error that monotonically returns into the saved corridor.
+-        # Keep normal paths and all body/obstacle checks unchanged.
++        # Saved lane centres bound two lanes, not the road surface. Use
++        # their lane-width envelope and the oriented body plus side margin.
++        lane_half = abs(planner.static_pass_zone[4])*.5
+         cfg = planner.config
+-        allowance = max(0., min(.2, abs(planner.static_pass_zone[4])*.5
+-                                - cfg.vehicle_half_width_m-cfg.side_margin_m))
+-        outside = lambda d: max(low-d, d-high, 0.)
+-        start_d = profile.offset_at(s)
+-        lo, hi = planner.route.window(s-2., s+3.)
+-        _, ego_d, _ = planner.route.project(pose[0], pose[1], lo, hi)
+-        join = min(s+8., profile.end_s)
+-        errors = [outside(profile.offset_at(a))
+-                  for a in np.r_[np.arange(s, join, .25), join]]
+-        returning = (0. < errors[0] <= allowance and abs(start_d-ego_d) <= .05
+-                     and errors[-1] <= 1e-6
+-                     and all(b <= a+1e-6 for a, b in zip(errors, errors[1:])))
+         end, reason = profile.end_s, 'path end'
+         clear, blocker, hit, _ = planner._s4_swept_check(profile, items, s, speed)
+         if not clear:
+@@ -87,13 +75,17 @@
+         cfg = planner.config
+         for a in samples:
+             d = profile.offset_at(a)
+-            if (not low-1e-6 <= d <= high+1e-6
+-                    and not (returning and a <= join and outside(d) <= errors[0]+1e-6)):
+-                return max(s, a-.25), 'saved corridor boundary'
+             center, segment = planner.route.pose(a, d)
+             tangent = planner.route.tangents[segment]
+             slope = (profile.offset_at(a+.05)-profile.offset_at(a-.05))/.1
+             angle = math.atan2(tangent[1], tangent[0])+math.atan(slope)
++            relative = math.atan(slope)
++            half_width = cfg.vehicle_half_width_m*abs(math.cos(relative))+.15
++            ends = (-cfg.rear_extent_m*math.sin(relative), cfg.front_extent_m*math.sin(relative))
++            if (d+min(ends)-half_width < low-lane_half-1e-6
++                    or d+max(ends)+half_width > high+lane_half+1e-6):
++                return max(s, a-.25), 'lane envelope boundary'
++
+             dx, dy = world[:, 0]-center[0], world[:, 1]-center[1]
+             along = dx*math.cos(angle)+dy*math.sin(angle)
+             lateral = -dx*math.sin(angle)+dy*math.cos(angle)
+@@ -139,10 +131,16 @@
+                        reason='S4 '+source+' safe prefix: '+reason)
+ 
+     def exit_return(self, planner, decision, points, pose, speed):
+-        """Commit to a body-checked R1 return before the saved R2 ends."""
++        """Prefer a feasible R1 return anywhere in S4, and retain it."""
+         s = planner.last_s
+-        if self.exit_profile is None and s < planner.static_pass_zone[2]-12.:
+-            return None
++        if self.exit_profile is not None:
++            result = self.follow_prefix(planner, decision, self.exit_profile, points, pose,
++                                        speed, 'RECOVERY')
++            if result.speed_cap_mps > .1:
++                return result
++            # A newly blocked return must allow another route/FTG search.
++            self.exit_profile = None
++            self.mode = 'route'
+         if self.exit_profile is None:
+             lo, hi = planner.route.window(s-2., s+3.)
+             _, d, seg = planner.route.project(pose[0], pose[1], lo, hi)
+@@ -158,6 +156,8 @@
+                 if end-s < 4.:
+                     continue
+                 candidate = Profile([s, end], [d, 0.], [math.tan(error), 0.])
++                candidate.curve = BPoly.from_derivatives(
++                    [s, end], [[d, math.tan(error), 0.], [0., 0., 0.]])
+                 if self.safe(planner, candidate, decision.obstacles, speed, points, pose):
+                     self.exit_profile = candidate
+                     self.mode = 'recover'
+--- a/src/leo_avoidance/test/test_s4_ftg_fallback.py
++++ b/src/leo_avoidance/test/test_s4_ftg_fallback.py
+@@ -12,6 +12,8 @@
+         self.p.static_pass_managed = True
+         self.p.last_s = 20.
+         self.f = S4Fallback()
++        # These tests isolate FTG fallback when no direct return is available.
++        self.f.exit_return = Mock(return_value=None)
+         self.f.ftg = Mock()
+         self.f.ftg.plan.return_value = Plan(5., 0., 'gap fits', 20., 4.)
+         self.points = np.array([[float(x), -7., .2] for x in range(25)])
+@@ -169,14 +171,16 @@
+         self.assertGreater(end,28.)
+         self.assertNotEqual(reason,'saved corridor boundary')
+ 
+-    def test_outward_large_or_nonreturning_connection_is_rejected(self):
+-        for values, slopes in [([-3.5,-3.,0.],[.1,.1,0.]),
+-                               ([-3.29,-3.29,-3.29],[0.,0.,0.]),
+-                               ([-3.29,-3.,0.],[-.1,.1,0.])]:
+-            profile=Profile([20.,28.,40.],values,slopes)
+-            end,reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,(20.,values[0],0.))
+-            self.assertEqual(end,20.)
+-            self.assertEqual(reason,'saved corridor boundary')
++    def test_real_lane_envelope_exit_is_rejected(self):
++        profile=Profile([20.,28.,40.],[-3.8,-3.,0.],[0.,.1,0.])
++        end,reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,(20.,-3.8,0.))
++        self.assertEqual(end,20.)
++        self.assertEqual(reason,'lane envelope boundary')
++
++    def test_small_initial_outward_heading_can_align(self):
++        profile=Profile([20.,28.,40.],[-3.2065,-3.2,0.],[-.0625,0.,0.])
++        end,reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,(20.,-3.2065,-.0625))
++        self.assertGreater(end,28.)
+ 
+     def test_return_exception_does_not_skip_obstacles(self):
+         profile=Profile([20.,28.,40.],[-3.29,-3.,0.],[.08,.1,0.])
+@@ -187,6 +191,7 @@
+ 
+     def test_final_local_stop_arms_fallback_even_if_original_moves(self):
+         self.p.active=_Pass(10.,15.,30.,45.,-3.2,25.)
++        self.f.exit_return=Mock(return_value=None)
+         self.f.anchored_route=Mock(return_value=self.p.active)
+         stopped=Decision('PASSING',[(20.,-3.2),(30.,-3.2)],0.,'boundary')
+         self.f.follow_prefix=Mock(return_value=stopped)
+@@ -210,10 +215,21 @@
+         f.exit_return(p,d,pts,(39.,-3.29,.017),0.)
+         self.assertIs(f.exit_profile,profile)
+         d.obstacles=[dict(s=40.,d=-3.2,l=1.,r=1.,id=1,moving=False,v_s=0.,v_d=0.)]
+-        self.assertEqual(f.exit_return(p,d,pts,(39.,-3.29,.017),0.).speed_cap_mps,0.)
+-
+-    def test_no_new_return_away_from_exit(self):
++        self.assertIsNone(f.exit_return(p,d,pts,(39.,-3.29,.017),0.))
++
++    def test_new_return_allowed_away_from_exit(self):
+         p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
+         p.last_s=20.;f=S4Fallback()
+-        self.assertIsNone(f.exit_return(p,Decision('PASSING',[],5.,'passing'),
+-                         np.empty((0,3)),(20.,-3.2,0.),0.))
++        result=f.exit_return(p,Decision('PASSING',[],5.,'passing'),
++                         np.empty((0,3)),(20.,-3.2,0.),0.)
++        self.assertIsNotNone(result)
++        self.assertGreater(result.speed_cap_mps,0.)
++
++    def test_apply_selects_return_immediately_before_exit_zone(self):
++        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
++        p.last_s=20.;p.static_pass_managed=True
++        f=S4Fallback();pts=np.array([[x,-10.,.2] for x in range(25)])
++        result=f.apply(p,Decision('WAIT_PASS',[],0.,'waiting'),pts,(20.,-3.2065,-.0625),0.,1.)
++        self.assertEqual(f.status['source'],'RECOVERY')
++        self.assertGreater(result.speed_cap_mps,0.)
++        self.assertAlmostEqual(result.path[-1][1],0.)

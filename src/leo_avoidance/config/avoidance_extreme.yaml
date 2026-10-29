@@ -1,0 +1,26 @@
+# Loaded AFTER avoidance_local.yaml by extreme.launch only.
+blackout_speed_policy: true
+blackout_max_speed_kmh: 30.0
+blackout_pending_speed_kmh: 28.0
+blackout_passing_speed_kmh: 25.0
+blackout_recovery_accel_mps2: 1.2
+target_accel_mps2: 0.8
+passing_voxel_m: 0.25
+passing_cluster_link_m: 0.75
+passing_min_voxels: 3
+passing_confirm_scans: 2
+passing_clear_scans: 3
+passing_recovery_s: 0.4
+passing_scan_gap_s: 0.3
+passing_match_distance_m: 1.5
+passing_wall_inset_m: 0.8
+passing_gap_slow_width_m: 2.7
+passing_gap_fast_width_m: 4.0
+# Explicitly retain the requested safety envelope.
+max_range_m: 30.0
+local_planning_range_m: 16.5
+reaction_s: 0.4
+brake_mps2: 4.0
+emergency_brake_mps2: 6.0
+side_margin_m: 0.4
+vehicle_half_width_m: 0.946

@@ -7,7 +7,7 @@ import math
 import time
 from dataclasses import replace
 import numpy as np
-from scipy.interpolate import CubicHermiteSpline
+from scipy.interpolate import CubicHermiteSpline, BPoly
 from leo_avoidance.ftg_local import FollowTheGap, Config
 from leo_avoidance.route_avoidance import stopping_speed
 
@@ -23,7 +23,8 @@ class Profile:
 
 
 class S4Fallback:
-    def __init__(self, lidar_offset=1.4):
+    def __init__(self, lidar_offset=1.4, ftg_enabled=False):
+        self.ftg_enabled = ftg_enabled
         self.lidar_offset = lidar_offset
         self.ftg = FollowTheGap(Config(lidar_to_rear_x_m=lidar_offset,
             max_speed_mps=25./3.6, max_range_m=30., local_planning_range_m=20.))
@@ -37,6 +38,7 @@ class S4Fallback:
         self.entered = None
         self.profile = None
         self.join = None
+        self.end_return_profile = None
         self.status = dict(source='LOCAL_PATH', state='IDLE', safe_distance_m=0., reason='')
 
     def safe(self, planner, profile, items, speed, points, pose):
@@ -44,7 +46,7 @@ class S4Fallback:
         return profile is not None and end >= profile.end_s-1e-6
 
     def clear_prefix(self, planner, profile, items, speed, points, pose):
-        """Rear-axle progress certified by body, corridor and current scan.
+        """Rear-axle progress checked against obstacles, curvature and current scan.
 
         A distant conflict bounds progress instead of vetoing the whole path.
         Unknown remembered footprints remain obstacles, never presumed empty.
@@ -52,7 +54,6 @@ class S4Fallback:
         s = planner.last_s
         if profile is None or profile.end_s <= s:
             return s, 'no forward path'
-        low, high = sorted((0., planner.static_pass_zone[4]))
         end, reason = profile.end_s, 'path end'
         clear, blocker, hit, _ = planner._s4_swept_check(profile, items, s, speed)
         if not clear:
@@ -69,8 +70,6 @@ class S4Fallback:
         cfg = planner.config
         for a in samples:
             d = profile.offset_at(a)
-            if not low-1e-6 <= d <= high+1e-6:
-                return max(s, a-.25), 'saved corridor boundary'
             center, segment = planner.route.pose(a, d)
             tangent = planner.route.tangents[segment]
             slope = (profile.offset_at(a+.05)-profile.offset_at(a-.05))/.1
@@ -80,7 +79,7 @@ class S4Fallback:
             lateral = -dx*math.sin(angle)+dy*math.cos(angle)
             if np.any((along >= -cfg.rear_extent_m-.15)
                       & (along <= cfg.front_extent_m+.15)
-                      & (abs(lateral) <= cfg.vehicle_half_width_m+cfg.side_margin_m+.15)):
+                      & (abs(lateral) <= cfg.vehicle_half_width_m+.15)):
                 return max(s, a-.25), 'current LiDAR body overlap'
         return end, reason
 
@@ -90,6 +89,7 @@ class S4Fallback:
         if profile is not None and abs(profile.offset_at(profile.end_s)) < .05:
             base = profile
             class Continuation:
+                r2_end_return = getattr(base, "r2_end_return", False)
                 end_s = min(planner.route.s[-1], max(base.end_s, planner.last_s+planner.config.path_length_m))
                 def offset_at(self, a):
                     return base.offset_at(a) if a < base.end_s else 0.
@@ -119,7 +119,40 @@ class S4Fallback:
                        offset_now_m=profile.offset_at(s) if profile else decision.offset_now_m,
                        reason='S4 '+source+' safe prefix: '+reason)
 
+    def return_at_r2_end(self, planner, decision, points, pose, speed):
+        """From 6 m before R2 end, commit to R1 without FTG mode/timers."""
+        s = planner.last_s
+        if self.end_return_profile is None:
+            if s < planner.static_pass_zone[2]-6.:
+                return None
+            lo, hi = planner.route.window(s-2., s+3.)
+            _, d, segment = planner.route.project(pose[0], pose[1], lo, hi)
+            if abs(d) <= .25:
+                return None
+            tangent = planner.route.tangents[segment]
+            error = math.atan2(math.sin(pose[2]-math.atan2(tangent[1], tangent[0])),
+                               math.cos(pose[2]-math.atan2(tangent[1], tangent[0])))
+            for length in (12., 16., 20.):
+                end = min(s+length, planner.route.s[-1])
+                if end-s < 4.:
+                    continue
+                candidate = Profile([s,end], [d,0.], [math.tan(error),0.])
+                candidate.curve = BPoly.from_derivatives(
+                    [s,end], [[d,math.tan(error),0.], [0.,0.,0.]])
+                candidate.r2_end_return = True
+                if self.safe(planner,candidate,decision.obstacles,speed,points,pose):
+                    self.end_return_profile = candidate
+                    break
+        if self.end_return_profile is None:
+            return None
+        self.mode = 'recover'
+        return self.follow_prefix(planner,decision,self.end_return_profile,
+                                  points,pose,speed,'RECOVERY')
+
     def apply(self, planner, decision, points, pose, speed, stamp, permitted=True):
+        if (self.end_return_profile is not None
+                and planner.last_s < self.end_return_profile.end_s):
+            planner.static_pass_managed = True
         if not planner.static_pass_managed:
             self.reset()
             return decision
@@ -135,9 +168,25 @@ class S4Fallback:
         eligible = (permitted and decision.traffic_speed_cap_mps > .1
                     and not any(o['moving'] for o in decision.obstacles)
                     and len(points) >= 10 and np.isfinite(points).all())
+        if eligible:
+            returning = self.return_at_r2_end(planner,decision,points,pose,speed)
+            if returning is not None:
+                return returning
         normal_profile = self.anchored_route(planner, pose) if eligible else None
+        if normal_profile is not None:
+            clear, blocker, hit, peak = planner._s4_swept_check(
+                normal_profile, [], planner.last_s, speed)
+            if not clear and blocker is None:
+                repaired = self.reconnect_route(planner, decision, points, pose, speed)
+                if repaired is not None:
+                    normal_profile = repaired
         local = (self.follow_prefix(planner, decision, normal_profile, points, pose,
                                     speed, 'LOCAL_PATH') if normal_profile is not None else None)
+        if not self.ftg_enabled:
+            self.mode = 'route'
+            if local is not None:
+                return local
+            return decision
         local_status = dict(self.status)
         blocked = (not decision.path or (decision.speed_cap_mps <= .1
                    and decision.state in ('WAIT_PASS', 'PASSING')))
@@ -249,6 +298,38 @@ class S4Fallback:
                                    'recover': 'RECOVERY'}[self.mode],
                            state='STOP', safe_distance_m=0., reason=reason)
         return replace(decision, speed_cap_mps=0., reason='S4 '+reason)
+
+    def reconnect_route(self, planner, decision, points, pose, speed):
+        """Replace only the connection; preserve the chosen route after join."""
+        normal, s = planner.active, planner.last_s
+        if normal is None:
+            return None
+        lo, hi = planner.route.window(s-2., s+3.)
+        _, d, segment = planner.route.project(pose[0],pose[1],lo,hi)
+        tangent = planner.route.tangents[segment]
+        error = math.atan2(math.sin(pose[2]-math.atan2(tangent[1],tangent[0])),
+                           math.cos(pose[2]-math.atan2(tangent[1],tangent[0])))
+        for distance in (10.,12.,16.,20.,24.):
+            join = min(s+distance, normal.end_s)
+            if join-s < 2.:
+                continue
+            target = normal.offset_at(join)
+            slope = (normal.offset_at(join+.05)-normal.offset_at(join-.05))/.1
+            second = (normal.offset_at(join+.05)-2*target+normal.offset_at(join-.05))/.0025
+            curve = BPoly.from_derivatives([s,join],
+                    [[d,math.tan(error),0.],[target,slope,second]])
+            class Connection:
+                end_s = normal.end_s
+                def offset_at(self, a, curve=curve, join=join):
+                    if a >= join:
+                        return normal.offset_at(a)
+                    if a < s:
+                        return d+(a-s)*math.tan(error)
+                    return float(curve(a))
+            candidate = Connection()
+            if self.safe(planner,candidate,decision.obstacles,speed,points,pose):
+                return candidate
+        return None
 
     def anchored_route(self, planner, pose):
         normal, s = planner.active, planner.last_s

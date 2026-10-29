@@ -11,7 +11,7 @@ class S4FallbackTests(unittest.TestCase):
         self.p.set_static_pass_zone(0., 10., 80., 95., -3.2)
         self.p.static_pass_managed = True
         self.p.last_s = 20.
-        self.f = S4Fallback()
+        self.f = S4Fallback(ftg_enabled=True)
         self.f.ftg = Mock()
         self.f.ftg.plan.return_value = Plan(5., 0., 'gap fits', 20., 4.)
         self.points = np.array([[float(x), -7., .2] for x in range(25)])
@@ -95,10 +95,17 @@ class S4FallbackTests(unittest.TestCase):
         self.assertIs(self.tick(3.), self.d)
         self.assertEqual(self.f.mode, 'route')
 
-    def test_boundary_and_curvature_rejection(self):
-        for profile in (Profile([20., 36.], [-1., -5.], [0., 0.]),
-                        Profile([20., 22.], [-1., -3.], [0., 0.])):
-            self.assertFalse(self.f.safe(self.p, profile, [], 0., self.points, self.pose))
+    def test_centerline_does_not_veto_clear_path_but_curvature_still_checked(self):
+        profile = Profile([20., 36.], [-1., -5.], [0., 0.])
+        self.assertTrue(self.f.safe(self.p, profile, [], 0., self.points, self.pose))
+        sharp = Profile([20.,22.],[-1.,-3.],[0.,0.])
+        self.assertFalse(self.f.safe(self.p, sharp, [], 0., self.points, self.pose))
+
+    def test_small_r2_offset_can_return_without_centerline_veto(self):
+        profile=Profile([20.,40.],[-3.30,0.],[.10,0.])
+        end,reason=self.f.clear_prefix(self.p,profile,[],0.,np.empty((0,3)),(20.,-3.30,.10))
+        self.assertEqual(reason,'path end')
+        self.assertEqual(end,40.)
 
     def test_distant_blocker_allows_stoppable_prefix(self):
         profile = Profile([20., 60.], [-1., -1.], [0., 0.])
@@ -160,3 +167,81 @@ class S4FallbackTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class R2EndReturnTests(unittest.TestCase):
+    def test_only_at_end_returns_and_retains_path(self):
+        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,40.,47.,-3.2)
+        p.static_pass_managed=True;p.last_s=33.9
+        f=S4Fallback();pts=np.array([[x,-10.,.2] for x in range(25)])
+        d=Decision('PASSING',[],5.,'passing')
+        self.assertIsNone(f.return_at_r2_end(p,d,pts,(33.9,-3.29,.017),0.))
+        p.last_s=34.
+        result=f.apply(p,d,pts,(34.,-3.29,.017),0.,1.)
+        self.assertGreater(result.speed_cap_mps,0.)
+        self.assertEqual(f.status['source'],'RECOVERY')
+        profile=f.end_return_profile
+        self.assertAlmostEqual(profile.offset_at(profile.end_s),0.)
+        p.last_s=profile.end_s-.5;p.static_pass_managed=False
+        f.apply(p,d,pts,(p.last_s,profile.offset_at(p.last_s),.017),0.,1.1)
+        self.assertIs(f.end_return_profile,profile)
+        self.assertTrue(p.static_pass_managed)
+
+    def test_end_return_keeps_actual_obstacle_stop(self):
+        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,40.,47.,-3.2)
+        p.last_s=40.;f=S4Fallback()
+        obstacle=dict(s=41.,d=-3.2,l=1.,r=1.,id=1,moving=False,v_s=0.,v_d=0.)
+        d=Decision('PASSING',[],5.,'passing',obstacles=[obstacle])
+        self.assertIsNone(f.return_at_r2_end(p,d,np.empty((0,3)),(40.,-3.2,0.),0.))
+
+
+class S4LocalOnlyTests(unittest.TestCase):
+    def test_default_does_not_call_ftg_even_when_local_is_blocked(self):
+        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
+        p.static_pass_managed=True;p.last_s=20.
+        f=S4Fallback();f.ftg=Mock()
+        d=Decision('WAIT_PASS',[],0.,'no safe local path')
+        points=np.array([[float(x),-7.,.2] for x in range(25)])
+        for t in (1.,1.2,1.5,2.):
+            f.apply(p,d,points,(20.,0.,0.),0.,t)
+        f.ftg.plan.assert_not_called()
+        self.assertEqual(f.mode,'route')
+
+    def test_reduced_margin_keeps_body_collision_check(self):
+        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
+        p.last_s=20.;p.static_pass_managed=True
+        profile=Profile([20.,40.],[0.,0.],[0.,0.])
+        obj=dict(s=25.,d=1.5,l=.3,r=.2,id=1,moving=False,v_s=0.,v_d=0.)
+        self.assertTrue(p._s4_swept_check(profile,[obj],20.,0.)[0])
+        p.static_pass_managed=False
+        self.assertFalse(p._s4_swept_check(profile,[obj],20.,0.)[0])
+        p.static_pass_managed=True;obj['d']=1.
+        self.assertFalse(p._s4_swept_check(profile,[obj],20.,0.)[0])
+
+class SteeringConnectionTests(unittest.TestCase):
+    def planner(self):
+        p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,80.,95.,-3.2)
+        p.last_s=20.;p.static_pass_managed=True
+        return p
+
+    def test_s4_uses_configured_steering_capacity_and_slows_curve(self):
+        p=self.planner()
+        class Curve:
+            end_s=21.
+            def offset_at(self,s):return .08*(s-20.)**2
+        c=Curve()
+        self.assertAlmostEqual(p.s4_curvature_limit(),np.tan(np.radians(29.))/3.)
+        self.assertTrue(p._s4_swept_check(c,[],20.,0.)[0])
+        self.assertLess(p._s4_curve_speed(c,20.,0.)*3.6,17.)
+        p.static_pass_managed=False
+        self.assertFalse(p._s4_swept_check(c,[],20.,0.)[0])
+
+    def test_reconnection_preserves_tail_and_rejects_collision(self):
+        p=self.planner();p.active=Profile([20.,30.,60.],[-1.,0.,0.],[0.,0.,0.])
+        f=S4Fallback();pts=np.empty((0,3));d=Decision('PASSING',[],5.,'test')
+        c=f.reconnect_route(p,d,pts,(20.,-3.2,0.),0.)
+        self.assertIsNotNone(c)
+        self.assertAlmostEqual(c.offset_at(20.),-3.2)
+        self.assertEqual(c.offset_at(50.),p.active.offset_at(50.))
+        self.assertTrue(p._s4_swept_check(c,[],20.,0.)[0])
+        d.obstacles=[dict(s=21.,d=-3.2,l=1.,r=1.,id=1,moving=False,v_s=0.,v_d=0.)]
+        self.assertIsNone(f.reconnect_route(p,d,pts,(20.,-3.2,0.),0.))

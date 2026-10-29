@@ -1,0 +1,63 @@
+--- a/src/control/scripts/competition_udp_control_local.py
++++ b/src/control/scripts/competition_udp_control_local.py
+@@ -36,6 +36,7 @@
+         if not math.isfinite(self.yaw_offset) or not math.isfinite(self.rate) or not 1 <= self.rate <= 200:
+             raise ValueError('invalid yaw offset / send rate (1..200 Hz)')
+         self.encoder = CompetitionCommandEncoder(
++            release_to_keyboard=bool(rospy.get_param('~release_to_keyboard', True)),
+             gear=int(rospy.get_param('~gear', 4)),
+             max_steering_deg=float(rospy.get_param('~max_steering_deg', 40.0)),
+             steering_sign=float(rospy.get_param('~steering_sign', 1)),
+@@ -130,7 +131,7 @@
+         with self.lock:
+             self.enabled = request.data
+             self.watchdog.set_command(None, time.monotonic())
+-        return SetBoolResponse(success=True, message='UDP takeover enabled' if request.data else 'UDP takeover disabled; releasing to keyboard')
++        return SetBoolResponse(success=True, message='UDP takeover enabled' if request.data else 'UDP takeover disabled; exit policy applied')
+ 
+     def command_callback(self, message):
+         try:
+@@ -227,7 +228,9 @@
+                                 self.sock.sendto(self.encoder.stop(), self.destination)
+                                 self.sock.sendto(self.encoder.release(), self.destination)
+                             self.was_active = False
+-                        state = 'PAUSED: competition takeover disabled; keyboard mode requested'
++                        state = ('PAUSED: competition takeover disabled; keyboard mode requested'
++                                 if self.encoder.release_to_keyboard else
++                                 'PAUSED: competition takeover disabled; AutoMode brake sent')
+                 self.status_pub.publish(String(data=state))
+                 if state != self.last_state:
+                     rospy.loginfo('%s', state)
+--- a/src/control/src/unita_control/competition_protocol_local.py
++++ b/src/control/src/unita_control/competition_protocol_local.py
+@@ -8,6 +8,10 @@
+ 
+ class CompetitionCommandEncoder(CommandEncoder):
+     """Keep existing validation/scaling, explicitly request UDP AutoMode=2."""
++    def __init__(self, *args, release_to_keyboard=True, **kwargs):
++        super().__init__(*args, **kwargs)
++        self.release_to_keyboard = release_to_keyboard
++
+     def encode(self, cmd_type, velocity, acceleration, accel, brake, steering):
+         # Regulation v1.2 permits pedal control only on the competition link.
+         if cmd_type != 1:
+@@ -21,7 +25,7 @@
+ 
+     def release(self):
+         packet = bytearray(self.stop())
+-        packet[30] = 1  # Keyboard mode, without a ROS Event service.
++        packet[30] = 1 if self.release_to_keyboard else 2
+         return bytes(packet)
+ 
+ 
+--- a/src/unita_launch/launch/extreme.launch
++++ b/src/unita_launch/launch/extreme.launch
+@@ -69,6 +69,8 @@
+     <param name="morai_ip" value="$(arg morai_ip)"/>
+     <param name="morai_port" value="$(arg morai_port)"/>
+     <param name="status_port" value="$(arg status_port)"/>
++    <!-- Competition: retain ctrl mode 2 even on shutdown/control release. -->
++    <param name="release_to_keyboard" value="false"/>
+     <param name="simulator_s11_no_stop" value="$(arg simulator_s11_no_stop)"/>
+     <param name="heading_source" value="imu"/>
+     <param name="steering_sign" value="1.0"/>

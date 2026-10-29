@@ -1,0 +1,1 @@
+S4 only: bounded monotonic inward recovery from existing lateral error (max 0.2m, additionally bounded by half lane spacing minus body half width and side margin). Rejoin within 8m; obstacle/body checks retained. FTG entry uses final checked local result; priority and hysteresis unchanged. Recorded geometry reproduces return to path end; no closed-loop run performed.

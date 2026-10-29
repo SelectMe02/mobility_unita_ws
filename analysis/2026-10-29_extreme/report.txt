@@ -1,0 +1,104 @@
+extreme.launch 구현 및 검증 — 2026-10-29
+
+실행: roslaunch unita_launch extreme.launch log:=true
+final.launch와 원본 map_tunner_project.json은 수정 전 백업과 바이트 단위로 동일하다.
+새 launch는 동일한 노드/토픽/센서/신호 제어를 사용한다. 차이는 waypoint_file 기본값과
+leo_driving_state에 추가로 읽는 avoidance_extreme.yaml뿐이다.
+
+55 -> 59 km/h
+- map_extreme_project.json은 현재 원본 지도의 사본이며 speed_kmh=55인 1,406개
+  포인트만 59로 변경했다. 좌표, 차선, 다른 속도는 그대로다.
+- S14는 원본과 완전히 동일하며 40 km/h로 남아 있다.
+- 이 지도는 별도 사본이다. 이후 원본 지도를 편집해도 자동 동기화되지 않는다.
+- 속도는 상한이다. 곡률/장애물/신호 제한이 더 낮으면 그 제한이 적용된다.
+
+FTG 변경
+- ftg_local.py Config: blackout_speed_policy 기본 false. final의 기존 동작 유지.
+- _blackout_phase: 벽 제거 및 벽 안쪽 여유 확인 후, 전방 차체 경로에 걸리는
+  최소 3개 고유 voxel의 연결 클러스터만 후보로 사용한다. 단일 점/벽에 붙은 조각/
+  경로 밖 측면 물체/앞범퍼 뒤의 물체는 새로운 PASSING 근거가 아니다.
+- 클러스터의 세계 좌표 위치가 다음 스캔에도 연결되어야 2회 확인으로 PASSING.
+  반복 timestamp는 확인 횟수를 늘리지 않고 .3초 초과 간격은 연속성을 끊는다.
+- PASSING에서 3회 clear면 RECOVERY, 이후 .4초 clear 유지면 WALL_FOLLOW.
+  RECOVERY 중 유효 침범 클러스터 재등장은 첫 관측부터 PASSING으로 돌아간다.
+- 상태 판정에서 제외한 점도 원래 충돌 검사에서는 제거하지 않는다. 첫 스캔부터
+  현재 정지거리의 nominal body path 검사, front clearance, swept-path, 동적 횡단
+  제동이 적용된다. 새 정책에서는 검증된 gap이 없으면 정지한다.
+- wall_follow_weight는 조향/출구 방향 보간에 남고, extreme의 속도 상한 계산에서
+  제거된다. 기존 final에서는 원래 속도 보간을 그대로 사용한다.
+
+속도 계산
+기존: 안전 제한들의 최솟값에 min(지도속도, 5 + weight*(지도속도-5)) m/s를 추가.
+      PASSING이면 weight=0이 되어 5m/s(18km/h) 상한이 걸릴 수 있었다.
+신규: min(지도속도, 30km/h, 조향 기반 속도, 전방 정지거리 속도, 벽 간격 속도,
+          관측거리 속도, swept-path 속도, 동적/횡단 제한, 상태별 속도/회피 gap 제한).
+      그 뒤 기존 장애물 제한 유지 및 목표 가속률 제한. 감속은 즉시 적용한다.
+      BLACKOUT 출력에서도 다시 30/3.6 m/s로 제한하여 출구의 wall_follow 신호가
+      바뀌어도 음영 모드에서 상한을 넘지 않게 한다. GPS 모드에는 이 상한이 없다.
+
+상태                  목표속도 상한            목표 상승률
+WALL_FOLLOW           30km/h                   1.2m/s²
+AVOID_PENDING         28km/h                   0.8m/s²
+PASSING               25km/h                   0.8m/s²
+RECOVERY              30km/h                   1.2m/s²
+모든 상태에서 안전 제한이 우선. PASSING의 gap 폭 2.7~4.0m에 따라 회피 상한을
+기존 near_obstacle_speed(기본 2m/s)~25km/h로 보간하며 조향/거리 제한도 적용한다.
+최소 벽 간격 미달의 기존 2m/s 제한, 급박한 충돌/센서 이상 정지는 유지한다.
+
+설정 기본값과 적용값
+새 Config 항목의 수치 기본값은 avoidance_extreme.yaml의 명시값과 같다.
+단 blackout_speed_policy는 코드 기본 false / extreme YAML true다.
+avoidance_local.yaml과 final.launch는 새 정책을 활성화하지 않는다.
+extreme.launch는 기존 avoidance_local.yaml 뒤에 avoidance_extreme.yaml을 읽는다.
+새 ROS private parameters (leo_driving_state):
+blackout_speed_policy=true, blackout_max_speed_kmh=30,
+blackout_pending_speed_kmh=28, blackout_passing_speed_kmh=25,
+blackout_recovery_accel_mps2=1.2,
+passing_voxel_m=.25, passing_cluster_link_m=.75, passing_min_voxels=3,
+passing_confirm_scans=2, passing_clear_scans=3, passing_recovery_s=.4,
+passing_scan_gap_s=.3, passing_match_distance_m=1.5, passing_wall_inset_m=.8,
+passing_gap_slow_width_m=2.7, passing_gap_fast_width_m=4.0.
+기존 target_accel_mps2=.8을 pending/passing에 사용한다.
+보존/명시한 안전값: max_range_m=30, local_planning_range_m=16.5, reaction_s=.4,
+brake_mps2=4, emergency_brake_mps2=6, side_margin_m=.4, vehicle_half_width_m=.946.
+이들 YAML 값은 roslaunch --dump-params로 실제 적용됨을 확인했다.
+런타임 UI의 기존 wall_follow_min_speed_mps는 final에는 유효하지만 extreme에는
+속도 제한으로 사용되지 않는다. 다른 기존 안전용 UI 제한은 유지한다.
+
+검증
+새 테스트: test_extreme_blackout.py. CMake nosetests에도 등록.
+지도 40/55에서도 30 상한, 정상 GPS 비적용, 벽-only 30 도달, 노이즈/측면/후방/
+벽 조각의 PASSING 제외, 2스캔 확인/3스캔 해제/.4초 복귀/재등장, 반복·단절 스캔,
+급박한 단일점 정지, 막힌 gap 정지, 1.2 가속률, 출구 최종 출력 상한,
+기존 측면 돌발 침범 정지, 지도 변경 범위를 검사했다.
+기존 FTG/출구 재합류/센서 watchdog/odometry/S4/S5 테스트와 함께 실행했다.
+정확한 개수/결과는 tests.json 참조.
+
+기록 입력 재생
+원본: analysis/2026-10-21_s14_heading/224300_heading_evidence.json 및 해당 raw LiDAR bag.
+원래 기록 평균: 실측 18.73km/h, 목표 18.88km/h.
+183개 cloud에 현재 공통 설정을 적용한 수정 전/후 비교:
+                           수정 전       extreme
+평균 목표속도 km/h         17.88         23.81
+최대 목표속도 km/h         26.66         30.00
+PASSING 진입 횟수          9             0
+PASSING 누적 시간 s        8.44          0
+AVOID_PENDING 누적 s       0             0.30
+WALL_FOLLOW 평균 km/h      19.26         24.03
+30km/h 초과                0             0 (부동소수 오차 1e-8 허용)
+기능 비활성화한 현 코드와 수정 전 코드의 183개 출력 차이: 0.
+raw 데이터 및 집계는 replay.json, 재생 코드는 replay.py.
+시간 집계는 샘플 간격을 최대 .3초로 제한하며 기록 누락 구간은 지속 시간으로
+과대 계산하지 않는다. 27~30 목표는 안전한 직선 벽-only 합성 테스트에서 충족했다.
+이 실제 기록의 모든 WALL_FOLLOW 장면에서 27km/h 이상을 보장하지는 않는다.
+
+한계 및 MORAI 확인 사항
+- 실제 cloud를 사용했지만 pose/출구 guidance와 scan pairing은 기록으로 재구성했다.
+  기존 원본 목표 평균과 재생 수정 전 평균이 다른 이유도 입력/현재 설정 차이다.
+- 동일한 기록 차량 궤적에서 planner만 비교했다. 수정 후 실측 주행 평균이 23.81로
+  올라갔다는 뜻이 아니다. 폐루프 차량 동역학 검증이 아니다.
+- PASSING이 이 기록에서 0이라는 결과만으로 모든 유효 장애물 대응이 검증된 것은
+  아니다. 유효 장애물의 PASSING/정지는 별도 합성 테스트에서 확인했다.
+- 실제 30km/h에서 조향 추종, 급작스러운 출현의 제동거리, 클러스터 부분 가림,
+  출구 재합류, 처리 지연/stale 정지를 MORAI에서 확인해야 한다.
+- 30km/h는 코드의 최종 목표 상한이다. 실제 속도의 제어 오버슈트까지 보장하지 않는다.

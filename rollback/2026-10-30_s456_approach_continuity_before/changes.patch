@@ -1,0 +1,172 @@
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -129,6 +129,7 @@
+                                             len(route.lengths))[0]
+                               for p in (line[0], line[-1])]
+                     self.planner.pass_speed_25_ranges.append(tuple(bounds))
++                    self.planner.approach_continuity_ranges.append(tuple(bounds))
+                     if int(sector['number']) == 5:
+                         self.planner.vehicle_follow_ranges.append(tuple(bounds))
+         # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -232,6 +232,7 @@
+         self.route = RouteFrame(points)
+         self.crosswalks = sorted(crosswalks)
+         self.crosswalk_hold = None  # crosswalk start currently occupied on the route
++        self.approach_continuity_ranges = []
+         self.pedestrian_hold_ranges = []
+         self.pedestrian_hold = None
+         self.pedestrian_holds = []
+@@ -246,6 +247,7 @@
+         self.r1_only_ranges = []
+         self.static_memory = []
+         self.static_pass_managed = False
++        self._brief_approaches = {}
+         self.s4_motion_history = {}
+         self.s4_mobile_until = {}
+         self._s4_search_after = -math.inf
+@@ -260,6 +262,7 @@
+         self.person_d = {}
+         self.static_memory = []
+         self.static_pass_managed = False
++        self._brief_approaches = {}
+         self.s4_motion_history = {}
+         self.s4_mobile_until = {}
+         self._s4_search_after = -math.inf
+@@ -657,7 +660,7 @@
+             return vd
+         return None
+ 
+-    def _interrupted_crossing_approach(self, o, speed, front_s):
++    def _interrupted_crossing_approach(self, o, speed, front_s, max_gap=.4):
+         """Short-gap, shape-tolerant evidence for immediate braking only.
+ 
+         Never creates a persistent pedestrian hold or changes classification.
+@@ -674,7 +677,7 @@
+         if (not .2 <= span <= .65 or a[2]*b[2] <= 0.
+                 or max(v[1] for v in h)-min(v[1] for v in h) > .8
+                 or max(v[3] for v in h)-min(v[3] for v in h) > .4
+-                or any(not .05 <= y[0]-x[0] <= .4 or
++                or any(not .05 <= y[0]-x[0] <= max_gap or
+                        abs(y[2])-abs(x[2]) > .1 for x, y in zip(h, h[1:]))):
+             return False
+         direction = -math.copysign(1., b[2])
+@@ -696,6 +699,55 @@
+         return (0. < ahead <= horizon
+                 and entry <= min(cfg.predict_s, arrival+cfg.arrival_after_s)
+                 and leave >= max(0., arrival-cfg.arrival_before_s))
++
++    def _brief_approach_cap(self, items, speed, s_ego, front_s, offset_at):
++        """Bounded evidence bridge; never renew from missing/uncertain scans.
++
++        Existing occupancy and pedestrian holds remain independent vetoes.
++        Only explicit S4/S5/S6 map ranges enable this extra early brake.
++        """
++        now, cfg = self.observation_time, self.config
++        if not any(a <= s_ego <= b for a, b in self.approach_continuity_ranges):
++            self._brief_approaches.clear()
++            return math.inf
++        memories = self._brief_approaches
++        for o in items:
++            if (o['l'] <= .6 and o['r'] <= 1.2
++                    and any(a <= o['s'] <= b for a, b in self.approach_continuity_ranges)
++                    and self._interrupted_crossing_approach(o, speed, front_s, max_gap=.55)):
++                sample = self.s4_motion_history[o['id']][-1][0]
++                old = memories.get(o['id'])
++                if old is None or sample > old['seen']:
++                    memories[o['id']] = dict(o, seen=sample, clear=0, checked=-math.inf)
++        cap = math.inf
++        for key, h in list(memories.items()):
++            age = now-h['seen']
++            if not 0. <= age <= .55 or h['s']+h['l'] < s_ego-cfg.rear_extent_m:
++                del memories[key]
++                continue
++            # Any current object can veto clearance, regardless of track ID.
++            risk = False
++            for o in items:
++                if not s_ego-cfg.rear_extent_m-o['l'] <= o['s'] <= h['s']+cfg.stop_gap_m:
++                    continue
++                d = o['d']-offset_at(o['s'])
++                band = cfg.band(o['r'])
++                history = self.s4_motion_history.get(o['id'], [])
++                inward = (len(history) >= 2 and now-history[-1][0] <= .2
++                          and abs(history[-1][2]) < abs(history[-2][2])-.02)
++                risk |= abs(d) <= band or inward or (d*o.get('v_d', 0.) < 0.
++                    and abs(d)-band <= abs(o['v_d'])*cfg.predict_s)
++            observer = getattr(self, 'clearance_observer', None)
++            if now > h['checked']:
++                h['clear'] = h['clear']+1 if (not risk and observer is not None
++                                             and observer(h, offset_at)) else 0
++                h['checked'] = now
++            if h['clear'] >= 2:
++                del memories[key]
++                continue
++            cap = min(cap, stopping_speed(h['s']-h['l']-front_s-cfg.stop_gap_m,
++                                          cfg.brake_mps2, cfg.reaction_s))
++        return cap
+ 
+     def _note_pedestrian(self, o, binding=True, tentative=False, approach_vd=None):
+         """Start or refresh the pedestrian hold for a mover that made Ego yield.
+@@ -1405,6 +1457,11 @@
+                     if stop < cap:
+                         cap, state, reason = stop, 'YIELD', 'measured crossing approach'
+ 
++        brief_cap = self._brief_approach_cap(items, speed, s_ego, front_s, offset_at)
++        traffic_cap = min(traffic_cap, brief_cap)
++        if brief_cap < cap:
++            cap, state, reason = brief_cap, 'YIELD', 'short-gap crossing approach'
++
+         # Movers: lead traffic in the path and predicted crossings.
+         for o in items:
+             if not o['moving']:
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -968,3 +968,47 @@
+     assert not p._interrupted_crossing_approach(dict(o,s=90.),6.,9.)
+     p.observation_time=1.7
+     assert not p._interrupted_crossing_approach(o,6.,9.)
++
++
++def test_s456_short_gap_bridge_is_bounded_and_scoped():
++    p=hold_planner();p.approach_continuity_ranges=[(0.,30.)]
++    p.observation_time=8.681
++    p.s4_motion_history[12]=[(8.081,15.,3.65,.31,.22,False),
++        (8.581,14.8,2.60,.26,.34,False),(8.681,14.9,2.40,.37,.51,False)]
++    o=dict(id=12,s=14.9,d=2.40,l=.37,r=.51,v_d=0.)
++    assert not p._interrupted_crossing_approach(o,6.84,10.)
++    assert p._brief_approach_cap([o],6.84,6.,10.,lambda s:0.) < 6.84
++    p.observation_time=8.780
++    assert p._brief_approach_cap([],6.84,6.7,10.7,lambda s:0.) < 6.84
++    p.observation_time=9.24
++    assert math.isinf(p._brief_approach_cap([],0.,6.7,10.7,lambda s:0.))
++    p.observation_time=8.681
++    assert math.isinf(p._brief_approach_cap([o],6.84,40.,44.,lambda s:0.))
++    assert not p._brief_approaches
++
++
++def test_s456_bridge_clearance_needs_observation_and_respects_other_objects():
++    p=hold_planner();p.approach_continuity_ranges=[(0.,30.)]
++    h=dict(id=1,s=15.,d=2.,l=.3,r=.3,seen=1.,clear=0,checked=1.)
++    p._brief_approaches={1:h};p.clearance_observer=lambda h,o:True
++    p.observation_time=1.1
++    occupied=dict(id=99,s=14.,d=0.,l=.3,r=.3,v_d=0.)
++    assert not math.isinf(p._brief_approach_cap([occupied],0.,6.,10.,lambda s:0.))
++    assert h['clear']==0
++    for t in [1.2,1.3]:
++        p.observation_time=t
++        cap=p._brief_approach_cap([],0.,6.,10.,lambda s:0.)
++    assert math.isinf(cap)
++    p.reset();assert not p._brief_approaches
++
++
++def test_s456_bridge_does_not_admit_static_or_expanding_boxes():
++    p=hold_planner();p.approach_continuity_ranges=[(0.,30.)]
++    p.observation_time=1.4
++    for values in [[(3.,.3),(3.,.3),(3.,.3)],
++                   [(3.5,.2),(3.3,.4),(3.1,.6)]]:
++        p.s4_motion_history[1]=[(1.+i*.2,15.,d,.3,r,False)
++                               for i,(d,r) in enumerate(values)]
++        o=dict(id=1,s=15.,d=values[-1][0],l=.3,r=values[-1][1],v_d=0.)
++        assert math.isinf(p._brief_approach_cap([o],6.,6.,10.,lambda s:0.))
++        assert not p._brief_approaches

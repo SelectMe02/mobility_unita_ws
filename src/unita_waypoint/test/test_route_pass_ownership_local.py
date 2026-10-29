@@ -42,7 +42,7 @@ class RoutePassOwnershipTests(ownership.ReturnOwnershipTests):
 
     def test_selected_path_blocker_stops_and_is_rechecked(self):
         obj = self.passing()
-        obj.obstacles = [module.Obstacle(48., 3.5, 1., kind='static')]
+        obj.obstacles = [module.Obstacle(44., 3.5, 1., kind='static')]
         self.run_loop(obj)
         self.assertEqual(obj.stop_reason, 'planner_blocked:route_pass_obstructed')
         self.assertFalse(obj.commands)
@@ -52,7 +52,7 @@ class RoutePassOwnershipTests(ownership.ReturnOwnershipTests):
 
     def test_moving_crossing_of_selected_path_is_not_ignored(self):
         obj = self.passing()
-        obj.obstacles = [module.Obstacle(48., 6., .4, vy=-1., kind='dynamic')]
+        obj.obstacles = [module.Obstacle(44., 4.7, .4, vy=-1., kind='dynamic')]
         self.run_loop(obj)
         self.assertEqual(obj.stop_reason, 'planner_blocked:route_pass_obstructed')
 

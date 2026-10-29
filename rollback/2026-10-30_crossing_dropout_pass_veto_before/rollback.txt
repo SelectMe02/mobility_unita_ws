@@ -1,0 +1,1 @@
+이번 S5 및 기존 S6 횡단 보호 구간의 동적→정적 전환·ID 변경 시 추월 시작 억제와 횡단 중 별도 정적 검출의 신규 회피 억제 수정만 롤백해줘. 기존 보행자 감속·정지·관측 기반 재출발, S4 회피와 final/extreme 설정은 유지하고 rollback/2026-10-30_crossing_dropout_pass_veto_before/changes.patch만 역적용해줘.

@@ -129,6 +129,8 @@ class RouteAvoidanceNode:
                                             len(route.lengths))[0]
                               for p in (line[0], line[-1])]
                     self.planner.pass_speed_25_ranges.append(tuple(bounds))
+                    if int(sector['number']) in (5, 6):
+                        self.planner.approach_continuity_ranges.append(tuple(bounds))
                     if int(sector['number']) == 5:
                         self.planner.vehicle_follow_ranges.append(tuple(bounds))
         # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.
@@ -140,6 +142,11 @@ class RouteAvoidanceNode:
             s_last = route.project(points[last, 0], points[last, 1], 0, len(route.lengths))[0]
             self.planner.ignored_s_ranges.append((s_first, s_last))
             rospy.loginfo('Route avoidance ignores obstacles at s %.1f..%.1f m', s_first, s_last)
+        # Lane restriction only: unlike waypoint_only, all obstacle checks remain.
+        for first, last in point_id_ranges(waypoint_file, rospy.get_param('~r1_only_point_ids', '')):
+            bounds = [route.project(points[i, 0], points[i, 1], 0, len(route.lengths))[0]
+                      for i in (first, last)]
+            self.planner.r1_only_ranges.append(tuple(bounds))
         # Crossing-pedestrian hold: only where the competition places them.
         bounds = pedestrian_hold_points(waypoint_file,
                                         int(rospy.get_param('~pedestrian_hold_sector', 0)))
@@ -176,6 +183,8 @@ class RouteAvoidanceNode:
         self.processed_epoch = 0
         self.last_worker_ros_time = None
         self.closed = False
+        self.drive_mode = None
+        self.route_reanchor_pending = False
         self.pub = rospy.Publisher('/leo/route_avoidance', String, queue_size=1)
         self.debug = PerceptionDebug('/leo/route_debug')
         self.debug_lidar_z = float(rospy.get_param('~lidar_to_rear_z_m', 1.23))
@@ -183,6 +192,7 @@ class RouteAvoidanceNode:
                          String, self.on_lane_geometry, queue_size=1, buff_size=2 ** 22)
         rospy.Subscriber(rospy.get_param('~pose_topic', '/localization/pose'),
                          PoseStamped, self.on_pose, queue_size=1)
+        rospy.Subscriber('/leo/driving_mode', String, self.on_drive_mode, queue_size=1)
         rospy.Subscriber(rospy.get_param('~speed_topic', '/competition/ego_speed_kmh'),
                          Float64, self.on_speed, queue_size=1)
         rospy.Subscriber(rospy.get_param('~signal_status_topic', '/leo/signal_status'),
@@ -245,6 +255,14 @@ class RouteAvoidanceNode:
         self.tracker.tracks = kept
         return removed
 
+    def on_drive_mode(self, message):
+        with self.lock:
+            previous = getattr(self, 'drive_mode', None)
+            self.drive_mode = message.data
+            if previous in ('BLACKOUT', 'HOLD') and message.data == 'GPS':
+                # Reanchor in the worker; keep live pedestrian/obstacle evidence.
+                self.route_reanchor_pending = True
+
     def on_pose(self, message):
         if message.header.frame_id != 'map':
             return
@@ -255,8 +273,14 @@ class RouteAvoidanceNode:
             with self.lock:
                 if self.closed:
                     return
-                if self.poses and stamp < self.poses[-1][0]:
-                    self._reset_inputs_locked()
+                if self.poses:
+                    previous_stamp, previous_pose = self.poses[-1]
+                    dt = stamp - previous_stamp
+                    jump = math.hypot(p.x-previous_pose[0], p.y-previous_pose[1])
+                    # 60 m/s bound plus 5 m localization allowance. A scene
+                    # relocation invalidates both spatial tracks and progress.
+                    if dt < 0. or jump > 5. + 60.*max(0., dt):
+                        self._reset_inputs_locked()
                 self.pose = ((p.x, p.y, yaw), time.monotonic())
                 if not self.poses or stamp > self.poses[-1][0]:
                     self.poses.append((stamp, (p.x, p.y, yaw)))
@@ -335,6 +359,9 @@ class RouteAvoidanceNode:
                 self.planner.reset()
                 self.s4_fallback.reset()
                 self.processed_epoch = self.input_epoch
+            if getattr(self, 'route_reanchor_pending', False):
+                self.planner.last_s = None
+                self.route_reanchor_pending = False
             samples = list(self.poses)
             retained = deque(maxlen=self.pending.maxlen)
             selected = None

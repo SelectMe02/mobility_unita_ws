@@ -1,0 +1,1 @@
+Baseline: reversed anywhere_r1_return, exit_return, then return_boundary patches, in that order. This patch only adds R2-end-triggered R1 return. Restores pre-return_boundary S4 policy before endpoint. Body obstacles and traffic caps remain. No closed-loop validation. The end_only_request_before patch separately restores entire pre-request state.

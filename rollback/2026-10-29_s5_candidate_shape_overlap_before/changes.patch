@@ -1,0 +1,83 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -637,6 +637,18 @@
+                     and abs(o['v_s']) >= 2. * abs(o['v_d']))):
+             self.pedestrian_hold = previous_hold
+             return  # traffic along the lane is not a crossing pedestrian
++        if tentative and abs(o['d']) > cfg.band(o['r'])+.3:
++            samples = self.s4_motion_history.get(o['id'], [])[-2:]
++            if len(samples) == 2:
++                a, b = samples
++                # Both lateral faces must translate inward. One expanding
++                # face moving the centre is not evidence of a walking object.
++                direction = -math.copysign(1., o['d'])
++                lower = ((b[2]-b[4])-(a[2]-a[4]))*direction
++                upper = ((b[2]+b[4])-(a[2]+a[4]))*direction
++                if min(lower, upper) < .05:
++                    self.pedestrian_hold = previous_hold
++                    return
+         history = self.person_d.get(o['id'], ())
+         if self.pedestrian_hold is None:
+             path = list(history) + [o['d']]
+@@ -810,6 +822,21 @@
+             return None
+         ahead = hold['s'] - hold['l'] - front_s
+         if hold.get('tentative'):
++            relative = hold['d']-offset_at(hold['s'])
++            band = cfg.band(hold.get('last_r', cfg.pedestrian_half_m))
++            if abs(relative) > band+.3:
++                vd = hold.get('vd', 0.)
++                approaching = relative*vd < 0. and abs(vd) >= .2
++                arrival = max(0., ahead)/max(speed, 3.)
++                entry = max(0., (abs(relative)-band)/max(abs(vd), .01))
++                leave = (abs(relative)+band)/max(abs(vd), .01)
++                overlap = (approaching and entry <= min(cfg.predict_s, arrival+cfg.arrival_after_s)
++                           and leave >= max(0., arrival-cfg.arrival_before_s))
++                if not overlap:
++                    # Preserve observation history without braking for a
++                    # longitudinal distance to something outside our path.
++                    hold['cap'] = math.inf
++                    return math.inf
+             # A candidate outside the path limits approach speed, without
+             # permanently latching a zero cap from one noisy displacement.
+             hold['cap'] = min(10./3.6, stopping_speed(max(0., ahead-cfg.stop_gap_m),
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -639,7 +639,7 @@
+              last_r=.160616, last_l=.224780, stationary_scans=1)
+     p.pedestrian_hold = h
+     p.observation_time = 10.4
+-    assert p._single_pedestrian_hold_cap([], 0.,445.65135,449.49635,lambda s:0.) == 0.
++    assert math.isinf(p._single_pedestrian_hold_cap([], 0.,445.65135,449.49635,lambda s:0.))
+     p.observation_time = 10.7
+     assert p._single_pedestrian_hold_cap([], 0.,445.65135,449.49635,lambda s:0.) is None
+ 
+@@ -783,3 +783,28 @@
+     a = ordinary.update((0.,0.),7.,obs)
+     b = crossing.update((0.,0.),7.,obs)
+     assert b.speed_cap_mps < a.speed_cap_mps
++
++
++def test_recorded_222319_shape_expansion_does_not_admit_pedestrian():
++    p=planner();p.set_pedestrian_hold_ranges([(0.,100.)])
++    for i,(y,r,l) in enumerate([(-3.54,.23,.31),(-3.15,.59,.57)]):
++        result=p.update((10.,0.),6.4,[RouteObstacle(14.8,y,r,half_length=l,track_id=12)],stamp=1.+i*.1)
++    assert p.pedestrian_hold is None
++    assert math.isinf(result.speed_cap_mps)
++
++
++def test_real_translation_still_admits_early_candidate():
++    p=planner();p.set_pedestrian_hold_ranges([(0.,100.)])
++    for i,y in enumerate([-3.54,-3.15]):
++        result=p.update((0.,0.),6.4,[RouteObstacle(14.8,y,.35,half_length=.3,track_id=12)],stamp=1.+i*.1)
++    assert p.pedestrian_hold is not None
++    assert result.speed_cap_mps <= 10./3.6
++
++
++def test_off_path_candidate_needs_overlap_for_longitudinal_stop():
++    for vd,expect_brake in [(0.,False),(-2.,False),(2.,True)]:
++        p=hold_planner();h=candidate_boundary_hold()
++        h.update(s=447.,d=-3.15,l=.57,last_r=.59,vd=vd,stationary_scans=0)
++        p.pedestrian_hold=h;p.observation_time=10.1
++        cap=p._single_pedestrian_hold_cap([],6.4,442.2,446.045,lambda s:0.)
++        assert (cap == 0.) if expect_brake else math.isinf(cap)

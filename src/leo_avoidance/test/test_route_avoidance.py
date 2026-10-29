@@ -17,6 +17,26 @@ def planner(lane_changes=LEFT_LANE, **overrides):
     return RouteAvoidance(ROUTE, RouteAvoidanceConfig(**overrides), lane_changes)
 
 
+def test_r1_only_zone_disables_offset_path_but_keeps_obstacle_braking():
+    p = planner()
+    p.r1_only_ranges = [(0., 100.)]
+    d = p.update((0., 0.), 5., [RouteObstacle(25., 0., 1.)])
+    assert p.active is None
+    assert all(abs(y) < 1e-6 for x,y in d.path)
+    assert math.isfinite(d.speed_cap_mps)
+    p.reset()
+    p.update((101., 0.), 5., [RouteObstacle(140., 0., 1.)])
+    assert p.active is not None
+
+
+def test_r1_only_zone_keeps_dynamic_crossing_stop():
+    p = planner()
+    p.r1_only_ranges = [(0., 100.)]
+    d = p.update((0., 0.), 5., [RouteObstacle(5., 0., .4, vy=-2., dynamic=True)])
+    assert d.speed_cap_mps == 0.
+    assert p.active is None
+
+
 def test_s5_vehicle_initial_static_label_and_motion_dropout_do_not_start_pass():
     avoid = planner()
     avoid.vehicle_follow_ranges = [(0., 100.)]
@@ -612,6 +632,45 @@ def candidate_boundary_hold():
                 seen_at=10., vd=0.)
 
 
+def test_recorded_unconfirmed_17_lost_outside_releases():
+    p = hold_planner()
+    h = candidate_boundary_hold()
+    h.update(ids={17}, s=447.340486, d=-2.748178, l=.224780,
+             last_r=.160616, last_l=.224780, stationary_scans=1)
+    p.pedestrian_hold = h
+    p.observation_time = 10.4
+    assert math.isinf(p._single_pedestrian_hold_cap([], 0.,445.65135,449.49635,lambda s:0.))
+    p.observation_time = 10.7
+    assert p._single_pedestrian_hold_cap([], 0.,445.65135,449.49635,lambda s:0.) is None
+
+
+def test_lost_candidate_approaching_or_inside_is_not_expired():
+    for d,vd in [(-2.,2.),(-.5,0.)]:
+        p = hold_planner();h=candidate_boundary_hold()
+        h.update(d=d,vd=vd)
+        p.pedestrian_hold=h;p.observation_time=12.
+        assert p._single_pedestrian_hold_cap([],0.,444.,447.845,lambda s:0.) is not None
+
+
+def test_unclassified_consistent_approach_slows_before_quarter_meter_step():
+    p=planner();p.set_pedestrian_hold_ranges([(0.,100.)])
+    for i in range(3):
+        d=p.update((0.,0.),6.6,[RouteObstacle(18.,3.5-.18*i,.35,
+                     half_length=.3,track_id=60)],stamp=1.+i*.1)
+    assert p.pedestrian_hold is not None
+    assert p.pedestrian_hold.get('tentative')
+    assert d.speed_cap_mps <= 10./3.6
+
+
+def test_early_candidate_ignores_stationary_departing_and_far_objects():
+    for start,step,ahead in [(3.5,0.,18.),(3.5,.18,18.),(3.5,-.18,60.)]:
+        p=planner();p.set_pedestrian_hold_ranges([(0.,100.)])
+        for i in range(3):
+            p.update((0.,0.),6.6,[RouteObstacle(ahead,start+step*i,.35,
+                        half_length=.3,track_id=60)],stamp=1.+i*.1)
+        assert p.pedestrian_hold is None
+
+
 def boundary_observation(**changes):
     result = dict(id=33, s=446.95228, d=-3.2564, r=.575039, l=.601724,
                   moving=False, v_s=0., v_d=0.)
@@ -674,10 +733,301 @@ def test_unconfirmed_outward_candidate_releases_only_after_observed_departure():
     assert p.pedestrian_hold is None
 
 
-def test_missing_candidate_still_requires_evidence_not_timeout():
+def test_missing_nonapproaching_outside_candidate_does_not_latch_forever():
     p = hold_planner()
     p.pedestrian_hold = candidate_boundary_hold()
     for i in range(1, 100):
         p.observation_time = 10.+i*.1
         p._single_pedestrian_hold_cap([], 0., 444.5376, 448.3826, lambda s: 0.)
+    assert p.pedestrian_hold is None
+
+
+def test_crossing_static_dropout_does_not_start_pass_after_r1_only_end():
+    p = planner()
+    p.r1_only_ranges = [(0., 10.)]
+    p.set_pedestrian_hold_ranges([(0., 100.)])
+    for i, (y, moving) in enumerate(((3., True), (2.7, True), (1., False))):
+        p.update((11., 0.), 0., [RouteObstacle(20., y, .85, vy=-3. if moving else 0.,
+                    dynamic=moving, track_id=49, half_length=.36)], stamp=i*.1)
+    assert p.active is None
+    d = p.update((11., 0.), 0., [], stamp=.4)
+    assert all(abs(y)<1e-6 for x,y in d.path)
+    # Ordinary static passing after point restriction remains available.
+    q = planner()
+    q.r1_only_ranges = [(0., 10.)]
+    q.set_pedestrian_hold_ranges([(0.,100.)])
+    q.update((11., 0.), 0., [RouteObstacle(40., 0., .8, track_id=2)])
+    assert q.active is not None
+
+
+def test_wide_unclassified_crossing_brakes_without_persistent_hold():
+    p = planner(lane_changes=[])
+    p.set_pedestrian_hold_ranges([(0.,100.)])
+    for i, y in enumerate((3.4, 3.2, 3.0)):
+        d = p.update((0.,0.), 7., [RouteObstacle(12., y, .8, track_id=9,
+                    half_length=.3)], stamp=i*.1)
+    assert d.reason == 'measured crossing approach'
+    assert d.speed_cap_mps < 7.
+    assert p.pedestrian_hold is None
+    d = p.update((0.,0.), 7., [], stamp=.3)
+    assert math.isinf(d.speed_cap_mps)
+    for y in (3.,3.,3.):
+        d = p.update((0.,0.),7.,[RouteObstacle(12.,y,.8,track_id=10,half_length=.3)])
+    assert math.isinf(d.speed_cap_mps)
+
+
+def test_crossing_zone_removes_extra_two_metres_only_for_lateral_mover():
+    obs = [RouteObstacle(12., 0., .8, vy=2., dynamic=True,track_id=3)]
+    ordinary, crossing = planner(lane_changes=[]), planner(lane_changes=[])
+    crossing.set_pedestrian_hold_ranges([(0.,100.)])
+    a = ordinary.update((0.,0.),7.,obs)
+    b = crossing.update((0.,0.),7.,obs)
+    assert b.speed_cap_mps < a.speed_cap_mps
+
+
+def test_recorded_222319_shape_expansion_does_not_admit_pedestrian():
+    p=planner();p.set_pedestrian_hold_ranges([(0.,100.)])
+    for i,(y,r,l) in enumerate([(-3.54,.23,.31),(-3.15,.59,.57)]):
+        result=p.update((10.,0.),6.4,[RouteObstacle(14.8,y,r,half_length=l,track_id=12)],stamp=1.+i*.1)
+    assert p.pedestrian_hold is None
+    assert math.isinf(result.speed_cap_mps)
+
+
+def test_real_translation_still_admits_early_candidate():
+    p=planner();p.set_pedestrian_hold_ranges([(0.,100.)])
+    for i,y in enumerate([-3.54,-3.15]):
+        result=p.update((0.,0.),6.4,[RouteObstacle(14.8,y,.35,half_length=.3,track_id=12)],stamp=1.+i*.1)
     assert p.pedestrian_hold is not None
+    assert result.speed_cap_mps <= 10./3.6
+
+
+def test_off_path_candidate_needs_overlap_for_longitudinal_stop():
+    for vd,expect_brake in [(0.,False),(-2.,False),(2.,True)]:
+        p=hold_planner();h=candidate_boundary_hold()
+        h.update(s=447.,d=-3.15,l=.57,last_r=.59,vd=vd,stationary_scans=0)
+        p.pedestrian_hold=h;p.observation_time=10.1
+        cap=p._single_pedestrian_hold_cap([],6.4,442.2,446.045,lambda s:0.)
+        assert (cap == 0.) if expect_brake else math.isinf(cap)
+
+
+def test_recorded_223140_shape_growth_does_not_create_four_mps_candidate():
+    p = planner(); p.set_pedestrian_hold_ranges([(0., 100.)])
+    for i, (s, d, r, l) in enumerate([
+            (14.7, -3.49, .25, .30),
+            (14.938794, -3.08407654, .58189747, .56387565)]):
+        result = p.update((10., 0.), 6.4,
+            [RouteObstacle(s, d, r, half_length=l, track_id=3)], stamp=1.+i*.1)
+    assert p.pedestrian_hold is None
+    assert math.isinf(result.speed_cap_mps)
+
+
+def test_candidate_motion_refreshes_on_stationary_and_outward_observations():
+    for delta in (0., -.12):
+        p = hold_planner(); h = candidate_boundary_hold()
+        h.update(vd=4.0636, stationary_scans=0)
+        p.pedestrian_hold = h; p.observation_time = 10.1
+        o = boundary_observation(d=h['d']+delta)
+        o.update(r=h['last_r'], l=h['last_l'], s=h['s'], v_d=0., moving=False)
+        cap = p._single_pedestrian_hold_cap([o], 6.4, 442.2, 446.045, lambda s: 0.)
+        assert math.isinf(cap)
+        assert abs(h['vd']-delta/.1) < 1e-6
+        assert h['velocity_at'] == 10.1
+
+
+def test_same_id_shape_growth_invalidates_velocity_instead_of_becoming_lost():
+    p = hold_planner(); h = candidate_boundary_hold()
+    h.update(d=-3.54, last_r=.18, last_l=.30, l=.30, vd=4.0636)
+    p.pedestrian_hold = h; p.observation_time = 10.1
+    o = boundary_observation(d=-3.10)
+    o.update(r=.74585, l=.64942, s=h['s'], v_d=0., moving=False)
+    cap = p._single_pedestrian_hold_cap([o], 6.4, 442.2, 446.045, lambda s: 0.)
+    assert math.isinf(cap)
+    assert h['vd'] == 0. and h['lost_scans'] == 0
+    assert h['seen_at'] == 10.1
+    assert not h['confirmed_crossing']
+
+
+def test_tentative_association_cannot_jump_to_opposite_roadside():
+    p = hold_planner(); h = candidate_boundary_hold()
+    h.update(d=-3.54, vd=4.0636)
+    p.observation_time = 12.8
+    o = boundary_observation(d=7.86)
+    o.update(id=21, s=h['s'])
+    assert not p._hold_match(h, o)
+    # Same-ID nearby observations can correct the bad extrapolation.
+    o.update(id=33, d=-3.5)
+    assert p._hold_match(h, o)
+    p.observation_time = 10.1
+    o.update(id=54, d=-3.4)
+    assert p._hold_match(h, o)
+
+
+def test_distant_stale_candidate_velocity_expires_but_near_crossing_is_retained():
+    p = hold_planner(); h = candidate_boundary_hold()
+    h.update(d=-4., vd=1., velocity_at=10.)
+    p.observation_time = 10.6
+    assert p._candidate_velocity(h) == 0.
+    h.update(d=-2., vd=2.)
+    assert p._candidate_velocity(h) == 2.
+    h.update(d=-4., vd=1., velocity_at=10.5)
+    assert p._candidate_velocity(h) == 1.
+
+
+def test_corridor_visibility_uses_traversing_rays_not_missing_detections():
+    import numpy as np
+    from leo_avoidance.observed_clearance import corridor_observed_clear
+    corners = [[6., -1.8], [6., 1.8], [10., 1.8], [10., -1.8]]
+    angles = np.radians(np.arange(-20., 20., .1))
+    # Returns land on far ground, but cross the inspected corridor at body height.
+    rays = np.column_stack((20.*np.cos(angles), 20.*np.sin(angles), np.full(len(angles), -1.23)))
+    assert corridor_observed_clear(rays, corners)
+    assert not corridor_observed_clear([], corners)
+    assert not corridor_observed_clear(rays[::30], corners)
+    assert not corridor_observed_clear(np.vstack((rays, [[5., 0., 0.]])), corners)
+    # Rays which reach the ground before the corridor cannot certify it clear.
+    near_ground = rays.copy(); near_ground[:, :2] *= .2
+    assert not corridor_observed_clear(near_ground, corners)
+    low_rays = rays.copy(); low_rays[:, 2] = -4.
+    assert not corridor_observed_clear(low_rays, corners)
+
+
+def test_orphan_candidate_releases_without_original_id_after_positive_observation():
+    p = hold_planner(); h = candidate_boundary_hold()
+    h.update(s=459.6, d=-2.14, l=.38, last_l=.38, last_r=.29,
+             vd=2.6, velocity_at=10., stationary_scans=0)
+    p.pedestrian_hold = h
+    p.clearance_observer = lambda h, offset: True
+    for i in range(8):
+        p.observation_time = 12.+i*.1
+        cap = p._single_pedestrian_hold_cap([], 0., 451., 454.845, lambda s: 0.)
+        if cap is None:break
+    assert p.pedestrian_hold is None
+
+
+def test_current_occupant_or_second_approacher_vetoes_orphan_release():
+    for d, vd in ((0., 0.), (-2.5, 2.)):
+        p = hold_planner(); h = candidate_boundary_hold()
+        h.update(s=459.6, d=-2.14, l=.38, last_l=.38, last_r=.29,
+                 vd=2.6, velocity_at=10., stationary_scans=0)
+        p.pedestrian_hold = h
+        p.clearance_observer = lambda h, offset: True
+        other = dict(id=999, s=457., d=d, l=.3, r=.3, v_s=0., v_d=vd, moving=bool(vd))
+        for i in range(20):
+            p.observation_time = 12.+i*.1
+            cap = p._single_pedestrian_hold_cap([other], 0., 451., 454.845, lambda s: 0.)
+            assert cap == 0.
+        assert p.pedestrian_hold is h
+        assert h['visible_clear_scans'] == 0
+
+
+def test_crossing_new_id_frozen_position_does_not_start_static_pass():
+    p = planner(); p.set_pedestrian_hold_ranges([(0., 100.)])
+    p.update((0., 0.), 0., [RouteObstacle(20., 0., .4, vy=2., dynamic=True,
+                                       track_id=201, half_length=.3)], stamp=1.)
+    p.update((0., 0.), 0., [RouteObstacle(20., 0., .4, track_id=202,
+                                       half_length=.3)], stamp=2.5)
+    assert p.active is None
+    # The veto is not a stop latch when the scene clears.
+    result = p.update((0., 0.), 0., [], stamp=2.6)
+    assert result.speed_cap_mps > 0.
+    # A different static block away from that short swept region still passes.
+    p.update((0., 0.), 0., [RouteObstacle(35., 0., .5, track_id=203)], stamp=3.1)
+    assert p.active is not None
+
+
+def test_separate_static_fragment_cannot_start_pass_during_crossing():
+    p = planner(); p.set_pedestrian_hold_ranges([(0.,100.)])
+    p.update((0.,0.),0.,[RouteObstacle(15.,-1.,.4,vy=2.,dynamic=True,track_id=10),
+                         RouteObstacle(20.,0.,.4,track_id=11)],stamp=1.)
+    assert p.active is None
+
+
+def test_interrupted_crossing_approach_accepts_recorded_shape_and_scan_gap():
+    p=hold_planner();p.observation_time=211.079
+    p.s4_motion_history[231]=[(210.473,452.9,3.52,.30,.20,False),
+        (210.576,452.4,3.36,.62,.34,False),(210.680,452.1,3.16,.29,.41,False),
+        (211.079,452.8,2.34,.39,.57,False)]
+    o=dict(id=231,s=452.8,d=2.34,l=.39,r=.57)
+    assert p._early_pedestrian_approach(o,6.55,448.) is None
+    assert p._interrupted_crossing_approach(o,6.55,448.)
+    assert p.pedestrian_hold is None
+
+
+def test_interrupted_crossing_rejects_shape_growth_departure_and_stale_input():
+    p=hold_planner();p.observation_time=1.4
+    for values in [[(-3.5,.2),(-3.3,.4),(-3.1,.6)],
+                   [(-3.,.3),(-3.,.3),(-3.,.3)],
+                   [(-3.,.3),(-3.3,.3),(-3.6,.3)]]:
+        p.s4_motion_history[1]=[(1.+i*.2,15.,d,.3,r,False) for i,(d,r) in enumerate(values)]
+        o=dict(id=1,s=15.,d=values[-1][0],l=.3,r=values[-1][1])
+        assert not p._interrupted_crossing_approach(o,6.,9.)
+    p.s4_motion_history[1]=[(1.,15.,3.4,.3,.3,False),(1.2,15.,3.,.3,.3,False),
+                             (1.4,15.,2.6,.3,.3,False)]
+    o=dict(id=1,s=15.,d=2.6,l=.3,r=.3)
+    assert p._interrupted_crossing_approach(o,6.,9.)
+    assert not p._interrupted_crossing_approach(dict(o,s=90.),6.,9.)
+    p.observation_time=1.7
+    assert not p._interrupted_crossing_approach(o,6.,9.)
+
+
+def test_s456_short_gap_bridge_is_bounded_and_scoped():
+    p=hold_planner();p.approach_continuity_ranges=[(0.,30.)]
+    p.observation_time=8.681
+    p.s4_motion_history[12]=[(8.081,15.,3.65,.31,.22,False),
+        (8.581,14.8,2.60,.26,.34,False),(8.681,14.9,2.40,.37,.51,False)]
+    o=dict(id=12,s=14.9,d=2.40,l=.37,r=.51,v_d=0.)
+    assert not p._interrupted_crossing_approach(o,6.84,10.)
+    assert p._brief_approach_cap([o],6.84,6.,10.,lambda s:0.) < 6.84
+    p.observation_time=8.780
+    assert p._brief_approach_cap([],6.84,6.7,10.7,lambda s:0.) < 6.84
+    p.observation_time=9.24
+    assert math.isinf(p._brief_approach_cap([],0.,6.7,10.7,lambda s:0.))
+    p.observation_time=8.681
+    assert math.isinf(p._brief_approach_cap([o],6.84,40.,44.,lambda s:0.))
+    assert not p._brief_approaches
+
+
+def test_s456_bridge_clearance_needs_observation_and_respects_other_objects():
+    p=hold_planner();p.approach_continuity_ranges=[(0.,30.)]
+    h=dict(id=1,s=15.,d=2.,l=.3,r=.3,seen=1.,clear=0,checked=1.)
+    p._brief_approaches={1:h};p.clearance_observer=lambda h,o:True
+    p.observation_time=1.1
+    occupied=dict(id=99,s=14.,d=0.,l=.3,r=.3,v_d=0.)
+    assert not math.isinf(p._brief_approach_cap([occupied],0.,6.,10.,lambda s:0.))
+    assert h['clear']==0
+    for t in [1.2,1.3]:
+        p.observation_time=t
+        cap=p._brief_approach_cap([],0.,6.,10.,lambda s:0.)
+    assert math.isinf(cap)
+    p.reset();assert not p._brief_approaches
+
+
+def test_s456_bridge_does_not_admit_static_or_expanding_boxes():
+    p=hold_planner();p.approach_continuity_ranges=[(0.,30.)]
+    p.observation_time=1.4
+    for values in [[(3.,.3),(3.,.3),(3.,.3)],
+                   [(3.5,.2),(3.3,.4),(3.1,.6)]]:
+        p.s4_motion_history[1]=[(1.+i*.2,15.,d,.3,r,False)
+                               for i,(d,r) in enumerate(values)]
+        o=dict(id=1,s=15.,d=values[-1][0],l=.3,r=values[-1][1],v_d=0.)
+        assert math.isinf(p._brief_approach_cap([o],6.,6.,10.,lambda s:0.))
+        assert not p._brief_approaches
+
+
+def test_route_window_reacquires_after_backward_scene_relocation():
+    p=planner();p.last_s=300.;p.observation_time=12.
+    s,d=p._locate_ego(40.,1.)
+    assert abs(s-40.)<1e-6 and abs(d-1.)<1e-6
+    assert p.observation_time==12.
+    decision=p.update((41.,1.),5.,[],stamp=12.1)
+    assert math.dist(decision.path[0],(41.,1.))<2.
+
+
+def test_route_window_preserves_normal_s4_offset_and_rejects_distant_snap():
+    p=planner();p.last_s=100.
+    sentinel=object();p.active=sentinel
+    p._locate_ego(105.,3.5)
+    assert p.active is sentinel
+    p.last_s=300.
+    p._locate_ego(40.,20.)
+    assert p.last_s>250.  # No nearby route: don't silently snap anywhere.

@@ -1,0 +1,1 @@
+이번 디버그 launch의 실행 지도 자동 전환·ROS 마스터 재시작 자동 재연결 수정만 롤백해줘. final.launch와 extreme.launch 및 주행 로직은 유지하고 rollback/2026-10-29_debug_reconnect_before/changes.patch만 역적용해줘.

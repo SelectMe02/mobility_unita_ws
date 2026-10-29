@@ -30,7 +30,7 @@ class MapDebugProjectTest(unittest.TestCase):
         save_project(self.path, self.saved)
         with patch.object(map_debug, 'DEBUG_PROJECT_FILE', self.path), \
                 patch.object(map_debug.rospy, 'get_param', side_effect=lambda name, default=None:
-                          '/tmp/ignored_project_override.json' if name == '~project_file' else default), \
+                          str(self.path) if name == '~project_file' else default), \
                 patch.object(map_debug.rospy, 'Publisher', return_value=MagicMock()), \
                 patch.object(map_debug.rospy, 'Subscriber'), \
                 patch.object(map_debug.rospy, 'Timer'), \
@@ -45,6 +45,24 @@ class MapDebugProjectTest(unittest.TestCase):
         with patch.object(map_debug.rospy.Time, 'now', return_value=map_debug.rospy.Time(0)):
             self.debug.publish_paths()
         return self.debug.marker_pub.publish.call_args.args[0].markers
+
+    def test_active_launch_map_switches_both_directions_without_debug_restart(self):
+        import os
+        extreme = Path(self.folder.name) / 'extreme.json'
+        changed = copy.deepcopy(self.saved)
+        changed['sectors'][0]['racelines']['1'][0]['speed_kmh'] = 59
+        save_project(extreme, changed)
+        stamp = self.path.stat().st_mtime_ns
+        os.utime(extreme, ns=(stamp, stamp))
+        for path, expected in ((extreme, 59), (self.path, self.saved['sectors'][0]['racelines']['1'][0]['speed_kmh'])):
+            self.debug.next_project_check = 0.
+            with patch.object(map_debug.rospy, 'get_param', return_value=str(path)), \
+                    patch.object(self.debug, 'publish_paths') as publish, \
+                    patch.object(self.debug, 'log_project_counts'):
+                self.debug.reload_project_if_changed()
+            self.assertEqual(self.debug.project_file, path.resolve())
+            self.assertEqual(self.debug.project['sectors'][0]['racelines']['1'][0]['speed_kmh'], expected)
+            publish.assert_called_once()
 
     def test_startup_uses_exact_saved_json_and_publishes_entire_raceline3(self):
         self.assertEqual(self.debug.project, self.saved)
@@ -99,9 +117,9 @@ class MapDebugProjectTest(unittest.TestCase):
         self.assertEqual(line.points[0].x, self.saved['sectors'][10]['racelines']['3'][0]['x'])
         self.test_save_reloads_appended_points_and_republishes()
 
-    def test_debug_uses_fixed_project_even_when_ros_parameter_requests_another_file(self):
+    def test_debug_honors_project_parameter_and_keeps_original_default(self):
         self.assertEqual(self.debug.project_file, self.path.resolve())
-        # The production constant is the user's explicitly required path.
+        # Default stays on the original project until an active launch is detected.
         self.assertEqual(str(map_debug.DEBUG_PROJECT_FILE),
                          '/home/unita/unita_ws/src/unita_waypoint/config/map_tunner_project.json')
 

@@ -1,0 +1,111 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -983,6 +983,11 @@
+         # Static blocks in Ego's own lane ahead of the bumper (or beside it while passing).
+         follow_zone = any(a <= s_ego < b for a, b in self.vehicle_follow_ranges)
+         def static_pass_candidate(o):
++            # A brief static label must not turn a recent crosser into a pass.
++            if (not self.static_pass_managed
++                    and any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
++                    and o['id'] in self.s4_mobile_until):
++                return False
+             if not follow_zone or o['l'] < 1.25:
+                 return True
+             # Initial/dropout static labels must not start a car overtake.
+@@ -1208,10 +1213,29 @@
+                     self._note_pedestrian(o, tentative=True,
+                         approach_vd=self._early_pedestrian_approach(o, speed, front_s))
+ 
++        # Geometry-based early braking also covers fragmented/wide detections
++        # that cannot enter the strict person-sized hold. No persistent latch:
++        # only fresh, coherent approach and overlapping arrival times qualify.
++        if self.active is None and not self.static_pass_managed:
++            for o in items:
++                if (any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
++                        and o['l'] <= .6 and o['r'] <= 1.2
++                        and self._early_pedestrian_approach(o, speed, front_s) is not None):
++                    stop = stopping_speed(o['s']-o['l']-front_s-cfg.stop_gap_m,
++                                          cfg.brake_mps2, cfg.reaction_s)
++                    traffic_cap = min(traffic_cap, stop)
++                    if stop < cap:
++                        cap, state, reason = stop, 'YIELD', 'measured crossing approach'
++
+         # Movers: lead traffic in the path and predicted crossings.
+         for o in items:
+             if not o['moving']:
+                 continue
++            crossing_zone = (not self.static_pass_managed
++                and any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
++                and abs(o['v_d']) >= cfg.moving_speed_mps
++                and abs(o['v_d']) > abs(o['v_s']))
++            crossing_extra = 0. if crossing_zone else 2.
+             off = offset_at(o['s'])
+             ahead = o['s'] - o['l'] - front_s
+             if ahead < -cfg.front_extent_m:
+@@ -1230,7 +1254,7 @@
+                     if lead < cap:
+                         cap, state, reason = lead, 'FOLLOW_LEAD', 'following a lead mover'
+                     continue
+-                stop = stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s)
++                stop = stopping_speed(ahead - cfg.stop_gap_m + crossing_extra, cfg.brake_mps2, cfg.reaction_s)
+                 traffic_cap = min(traffic_cap, stop)
+                 if stop < cap:
+                     cap, state, reason = stop, 'YIELD', 'mover in the path'
+@@ -1249,7 +1273,7 @@
+                     hit = True
+                     break
+             if hit:
+-                stop = stopping_speed(ahead - cfg.stop_gap_m + 2., cfg.brake_mps2, cfg.reaction_s)
++                stop = stopping_speed(ahead - cfg.stop_gap_m + crossing_extra, cfg.brake_mps2, cfg.reaction_s)
+                 traffic_cap = min(traffic_cap, stop)
+                 if stop < cap:
+                     cap, state, reason = stop, 'YIELD', 'predicted crossing at s+%.1f m' % (
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -740,3 +740,46 @@
+         p.observation_time = 10.+i*.1
+         p._single_pedestrian_hold_cap([], 0., 444.5376, 448.3826, lambda s: 0.)
+     assert p.pedestrian_hold is None
++
++
++def test_crossing_static_dropout_does_not_start_pass_after_r1_only_end():
++    p = planner()
++    p.r1_only_ranges = [(0., 10.)]
++    p.set_pedestrian_hold_ranges([(0., 100.)])
++    for i, (y, moving) in enumerate(((3., True), (2.7, True), (1., False))):
++        p.update((11., 0.), 0., [RouteObstacle(20., y, .85, vy=-3. if moving else 0.,
++                    dynamic=moving, track_id=49, half_length=.36)], stamp=i*.1)
++    assert p.active is None
++    d = p.update((11., 0.), 0., [], stamp=.4)
++    assert all(abs(y)<1e-6 for x,y in d.path)
++    # Ordinary static passing after point restriction remains available.
++    q = planner()
++    q.r1_only_ranges = [(0., 10.)]
++    q.set_pedestrian_hold_ranges([(0.,100.)])
++    q.update((11., 0.), 0., [RouteObstacle(40., 0., .8, track_id=2)])
++    assert q.active is not None
++
++
++def test_wide_unclassified_crossing_brakes_without_persistent_hold():
++    p = planner(lane_changes=[])
++    p.set_pedestrian_hold_ranges([(0.,100.)])
++    for i, y in enumerate((3.4, 3.2, 3.0)):
++        d = p.update((0.,0.), 7., [RouteObstacle(12., y, .8, track_id=9,
++                    half_length=.3)], stamp=i*.1)
++    assert d.reason == 'measured crossing approach'
++    assert d.speed_cap_mps < 7.
++    assert p.pedestrian_hold is None
++    d = p.update((0.,0.), 7., [], stamp=.3)
++    assert math.isinf(d.speed_cap_mps)
++    for y in (3.,3.,3.):
++        d = p.update((0.,0.),7.,[RouteObstacle(12.,y,.8,track_id=10,half_length=.3)])
++    assert math.isinf(d.speed_cap_mps)
++
++
++def test_crossing_zone_removes_extra_two_metres_only_for_lateral_mover():
++    obs = [RouteObstacle(12., 0., .8, vy=2., dynamic=True,track_id=3)]
++    ordinary, crossing = planner(lane_changes=[]), planner(lane_changes=[])
++    crossing.set_pedestrian_hold_ranges([(0.,100.)])
++    a = ordinary.update((0.,0.),7.,obs)
++    b = crossing.update((0.,0.),7.,obs)
++    assert b.speed_cap_mps < a.speed_cap_mps

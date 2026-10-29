@@ -1,0 +1,1 @@
+S4 curvature bound uses tan(s4_max_steering_rad)/s4_wheelbase_m, wired to follower values in semi.launch. Existing curvature speed cap remains. Rebuild only invalid-curvature connection and preserve original tail; all obstacle checks retained. Latest 22:00:25 snapshot no longer fails curvature but then encounters obstacle #4; no complete closed-loop clearance claimed.

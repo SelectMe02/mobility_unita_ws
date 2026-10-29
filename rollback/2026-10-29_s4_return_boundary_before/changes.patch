@@ -1,0 +1,87 @@
+--- a/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
++++ b/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
+@@ -53,6 +53,22 @@
+         if profile is None or profile.end_s <= s:
+             return s, 'no forward path'
+         low, high = sorted((0., planner.static_pass_zone[4]))
++        # A centreline is not a road edge. Permit only a small existing
++        # tracking error that monotonically returns into the saved corridor.
++        # Keep normal paths and all body/obstacle checks unchanged.
++        cfg = planner.config
++        allowance = max(0., min(.2, abs(planner.static_pass_zone[4])*.5
++                                - cfg.vehicle_half_width_m-cfg.side_margin_m))
++        outside = lambda d: max(low-d, d-high, 0.)
++        start_d = profile.offset_at(s)
++        lo, hi = planner.route.window(s-2., s+3.)
++        _, ego_d, _ = planner.route.project(pose[0], pose[1], lo, hi)
++        join = min(s+8., profile.end_s)
++        errors = [outside(profile.offset_at(a))
++                  for a in np.r_[np.arange(s, join, .25), join]]
++        returning = (0. < errors[0] <= allowance and abs(start_d-ego_d) <= .05
++                     and errors[-1] <= 1e-6
++                     and all(b <= a+1e-6 for a, b in zip(errors, errors[1:])))
+         end, reason = profile.end_s, 'path end'
+         clear, blocker, hit, _ = planner._s4_swept_check(profile, items, s, speed)
+         if not clear:
+@@ -69,7 +85,8 @@
+         cfg = planner.config
+         for a in samples:
+             d = profile.offset_at(a)
+-            if not low-1e-6 <= d <= high+1e-6:
++            if (not low-1e-6 <= d <= high+1e-6
++                    and not (returning and a <= join and outside(d) <= errors[0]+1e-6)):
+                 return max(s, a-.25), 'saved corridor boundary'
+             center, segment = planner.route.pose(a, d)
+             tangent = planner.route.tangents[segment]
+@@ -139,8 +156,9 @@
+         local = (self.follow_prefix(planner, decision, normal_profile, points, pose,
+                                     speed, 'LOCAL_PATH') if normal_profile is not None else None)
+         local_status = dict(self.status)
+-        blocked = (not decision.path or (decision.speed_cap_mps <= .1
+-                   and decision.state in ('WAIT_PASS', 'PASSING')))
++        checked = local if local is not None else decision
++        blocked = (not checked.path or (checked.speed_cap_mps <= .1
++                   and checked.state in ('WAIT_PASS', 'PASSING')))
+         if blocked:
+             if self.bad_since is None:
+                 self.bad_since = stamp
+--- a/src/leo_avoidance/test/test_s4_ftg_fallback.py
++++ b/src/leo_avoidance/test/test_s4_ftg_fallback.py
+@@ -160,3 +160,37 @@
+ 
+ if __name__ == '__main__':
+     unittest.main()
++
++class ReturnBoundaryTests(S4FallbackTests):
++    def test_small_inward_connection_passes_without_ftg(self):
++        profile = Profile([20.,28.,40.],[-3.29168,-3.,0.],[.08,.1,0.])
++        pose=(20.,-3.29168,.08)
++        end, reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,pose)
++        self.assertGreater(end,28.)
++        self.assertNotEqual(reason,'saved corridor boundary')
++
++    def test_outward_large_or_nonreturning_connection_is_rejected(self):
++        for values, slopes in [([-3.5,-3.,0.],[.1,.1,0.]),
++                               ([-3.29,-3.29,-3.29],[0.,0.,0.]),
++                               ([-3.29,-3.,0.],[-.1,.1,0.])]:
++            profile=Profile([20.,28.,40.],values,slopes)
++            end,reason=self.f.clear_prefix(self.p,profile,[],0.,self.points,(20.,values[0],0.))
++            self.assertEqual(end,20.)
++            self.assertEqual(reason,'saved corridor boundary')
++
++    def test_return_exception_does_not_skip_obstacles(self):
++        profile=Profile([20.,28.,40.],[-3.29,-3.,0.],[.08,.1,0.])
++        obstacle=dict(s=21.,d=-3.29,l=1.,r=.5,id=1,moving=False,v_s=0.,v_d=0.)
++        end,reason=self.f.clear_prefix(self.p,profile,[obstacle],0.,self.points,(20.,-3.29,.08))
++        self.assertEqual(end,20.)
++        self.assertIn('obstacle',reason)
++
++    def test_final_local_stop_arms_fallback_even_if_original_moves(self):
++        self.p.active=_Pass(10.,15.,30.,45.,-3.2,25.)
++        self.f.anchored_route=Mock(return_value=self.p.active)
++        stopped=Decision('PASSING',[(20.,-3.2),(30.,-3.2)],0.,'boundary')
++        self.f.follow_prefix=Mock(return_value=stopped)
++        self.f.ftg.plan.return_value=Plan(0.,0.,'no gap',0.,0.)
++        moving=Decision('PASSING',[(20.,-3.2),(30.,-3.2)],5.,'passing')
++        for t in (1.,1.2,1.41):self.tick(t,moving)
++        self.assertEqual(self.f.mode,'ftg')

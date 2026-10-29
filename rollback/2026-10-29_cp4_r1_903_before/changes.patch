@@ -1,0 +1,118 @@
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -140,6 +140,11 @@
+             s_last = route.project(points[last, 0], points[last, 1], 0, len(route.lengths))[0]
+             self.planner.ignored_s_ranges.append((s_first, s_last))
+             rospy.loginfo('Route avoidance ignores obstacles at s %.1f..%.1f m', s_first, s_last)
++        # Lane restriction only: unlike waypoint_only, all obstacle checks remain.
++        for first, last in point_id_ranges(waypoint_file, rospy.get_param('~r1_only_point_ids', '')):
++            bounds = [route.project(points[i, 0], points[i, 1], 0, len(route.lengths))[0]
++                      for i in (first, last)]
++            self.planner.r1_only_ranges.append(tuple(bounds))
+         # Crossing-pedestrian hold: only where the competition places them.
+         bounds = pedestrian_hold_points(waypoint_file,
+                                         int(rospy.get_param('~pedestrian_hold_sector', 0)))
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -241,6 +241,7 @@
+         self.static_pass_zone = None
+         self.pass_speed_25_ranges = []
+         self.vehicle_follow_ranges = []  # S5 only: classify cars before static passing.
++        self.r1_only_ranges = []
+         self.static_memory = []
+         self.static_pass_managed = False
+         self.s4_motion_history = {}
+@@ -910,6 +911,9 @@
+             cfg = replace(cfg, pass_speed_kmh=25.)
+         items = self._to_route(obstacles, s_ego)
+         items = self._retain_static_blocks(items, s_ego)
++        r1_only = any(a <= s_ego <= b for a, b in self.r1_only_ranges)
++        if r1_only:
++            self.active = None
+         front_s = s_ego + cfg.front_extent_m
+         state, reason = 'FOLLOW', 'clear'
+         cap = math.inf
+@@ -1010,6 +1014,8 @@
+             full = max(s_ego + cfg.min_ramp_in_m, full_s) if creep else full_s
+             hold_end, end_s = max(hold_end, full), max(end_s, full + cfg.ramp_out_m)
+             offsets = self.pass_offsets(ramp_start, end_s)
++            if r1_only:
++                offsets = []
+             if self.static_pass_managed:
+                 offsets = []  # S4 searches swept paths below, not lane strips.
+             clear, blocker, pass_offset = False, None, None
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -15,6 +15,26 @@
+ 
+ def planner(lane_changes=LEFT_LANE, **overrides):
+     return RouteAvoidance(ROUTE, RouteAvoidanceConfig(**overrides), lane_changes)
++
++
++def test_r1_only_zone_disables_offset_path_but_keeps_obstacle_braking():
++    p = planner()
++    p.r1_only_ranges = [(0., 100.)]
++    d = p.update((0., 0.), 5., [RouteObstacle(25., 0., 1.)])
++    assert p.active is None
++    assert all(abs(y) < 1e-6 for x,y in d.path)
++    assert math.isfinite(d.speed_cap_mps)
++    p.reset()
++    p.update((101., 0.), 5., [RouteObstacle(140., 0., 1.)])
++    assert p.active is not None
++
++
++def test_r1_only_zone_keeps_dynamic_crossing_stop():
++    p = planner()
++    p.r1_only_ranges = [(0., 100.)]
++    d = p.update((0., 0.), 5., [RouteObstacle(5., 0., .4, vy=-2., dynamic=True)])
++    assert d.speed_cap_mps == 0.
++    assert p.active is None
+ 
+ 
+ def test_s5_vehicle_initial_static_label_and_motion_dropout_do_not_start_pass():
+--- a/src/unita_launch/launch/semi.launch
++++ b/src/unita_launch/launch/semi.launch
+@@ -25,6 +25,8 @@
+   <!-- Map Tuner point IDs (S12-S13 tollgate, 30 km/h in the project file):
+        follow the waypoints only, no obstacle avoidance there. -->
+   <arg name="waypoint_only_point_ids" default="3496-3572"/>
++  <!-- CP4 through saved R1 point 903: keep R1, retain all obstacle braking. -->
++  <arg name="r1_only_point_ids" default="708-903"/>
+   <!-- MORAI S11: all stop requests become a 30 km/h target. -->
+   <arg name="simulator_s11_no_stop" default="true"/>
+   <arg name="sector11_min_speed_kmh" default="30.0"/>
+@@ -170,6 +172,7 @@
+   <!-- ===== start-CP7, CP11-start, tunnel: Leo follower ===== -->
+   <!-- Its debug topics move under /leo so the two followers never mix. -->
+   <node pkg="unita_waypoint" type="gps_waypoint_follower_local.py" name="leo_waypoint_follower" output="screen">
++    <param name="r1_only_point_ids" value="$(arg r1_only_point_ids)"/>
+     <remap from="/waypoint_path" to="/leo/waypoint_path"/>
+     <remap from="/waypoint_debug/target_speed_kmh" to="/leo/waypoint_debug/target_speed_kmh"/>
+     <remap from="/waypoint_debug/current_speed_kmh" to="/leo/waypoint_debug/current_speed_kmh"/>
+@@ -236,6 +239,7 @@
+   </node>
+   <node pkg="leo_avoidance" type="route_avoidance_node.py" name="leo_route_avoidance"
+         output="screen" required="true">
++    <param name="r1_only_point_ids" value="$(arg r1_only_point_ids)"/>
+     <param name="waypoint_file" value="$(arg waypoint_file)"/>
+     <!-- Driving pose: stays fresh across the GPS-to-LiDAR handoff at the portal. -->
+     <param name="pose_topic" value="/leo/driving_pose"/>
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
+@@ -474,6 +474,7 @@
+         # Obstacles inside are ignored, and no avoidance runs while inside.
+         self.waypoint_only_ranges = self.point_id_ranges(
+             rospy.get_param('~waypoint_only_point_ids', ''))
++        self.r1_only_ranges = self.point_id_ranges(rospy.get_param('~r1_only_point_ids', ''))
+         if self.waypoint_only_ranges:
+             self.route_tree = cKDTree(np.asarray(self.waypoints, dtype=float))
+         if self.enable_local_avoidance:
+@@ -1465,6 +1466,8 @@
+             self.find_nearest_waypoint()
+ 
+         force_r1 = self.prepare_r1_handoff(now)
++        force_r1 = force_r1 or any(lo <= self.current_waypoint_index <= hi
++                                  for lo, hi in getattr(self, 'r1_only_ranges', []))
+         self.debug_trace['r1_handoff_active'] = force_r1
+         self.update_dynamic_lookahead()
+ 

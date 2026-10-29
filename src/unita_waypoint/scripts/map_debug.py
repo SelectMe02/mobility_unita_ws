@@ -52,7 +52,8 @@ class MapDebug:
         reference_path = rospy.get_param('~waypoint_file', str(config / 'waypoints.csv'))
         image_path = rospy.get_param('~image_file', str(config / 'kcity_map_sim.png'))
         calibration_path = rospy.get_param('~calibration_file', str(config / 'map_tunner_calibration.yaml'))
-        self.project_file = DEBUG_PROJECT_FILE.resolve()
+        self.project_file = Path(rospy.get_param('~project_file', str(DEBUG_PROJECT_FILE))).resolve()
+        self.follow_active_project = rospy.get_param('~follow_active_project', True)
         self.project = load_project(self.project_file)
         self.raceline_config = rospy.get_param('~raceline_config', str(config / 'raceline_layout.yaml'))
         self.raceline_width_override = rospy.get_param('~raceline_width', None)
@@ -158,7 +159,7 @@ class MapDebug:
             rospy.Subscriber('/leo/waypoint_debug/'+suffix, kind, callback,
                              callback_args='leo', queue_size=1)
         self.update_perception_subscriptions('raceline')
-        rospy.Timer(rospy.Duration(0.1), self.refresh)
+        rospy.Timer(rospy.Duration(0.1), self.refresh, reset=True)
         self.log_project_counts()
 
     def log_project_counts(self):
@@ -173,10 +174,18 @@ class MapDebug:
             return
         self.next_project_check = now + 1.0
         try:
-            stamp = self.project_file.stat().st_mtime_ns
-            if stamp == self.project_stamp:
+            project_file = self.project_file
+            if getattr(self, 'follow_active_project', True):
+                try:
+                    active = rospy.get_param('/leo_waypoint_follower/waypoint_file', '')
+                except OSError:
+                    active = ''  # A stopped master must not block local map reloads.
+                if isinstance(active, str) and Path(active).suffix.lower() == '.json':
+                    project_file = Path(active).resolve()
+            stamp = project_file.stat().st_mtime_ns
+            if project_file == self.project_file and stamp == self.project_stamp:
                 return
-            project = load_project(self.project_file)
+            project = load_project(project_file)
             route, sectors = primary_route(project)
             xy = np.asarray([(point['x'], point['y']) for point in route])
             width = raceline_layout_settings(project, self.raceline_config)
@@ -185,6 +194,7 @@ class MapDebug:
             rospy.logwarn_throttle(5, 'Could not reload saved map project: %s', error)
             return
         self.project, self.route, self.sectors, self.xy = project, route, sectors, xy
+        self.project_file = project_file
         self.project_stamp = stamp
         self.saved_lane_corridor = corridor
         if self.live_lane_geometry is None:

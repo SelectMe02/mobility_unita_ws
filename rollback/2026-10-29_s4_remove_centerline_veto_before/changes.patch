@@ -1,0 +1,95 @@
+--- a/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
++++ b/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
+@@ -45,7 +45,7 @@
+         return profile is not None and end >= profile.end_s-1e-6
+ 
+     def clear_prefix(self, planner, profile, items, speed, points, pose):
+-        """Rear-axle progress certified by body, corridor and current scan.
++        """Rear-axle progress checked against obstacles, curvature and current scan.
+ 
+         A distant conflict bounds progress instead of vetoing the whole path.
+         Unknown remembered footprints remain obstacles, never presumed empty.
+@@ -53,12 +53,6 @@
+         s = planner.last_s
+         if profile is None or profile.end_s <= s:
+             return s, 'no forward path'
+-        low, high = sorted((0., planner.static_pass_zone[4]))
+-        # Only the mandatory end return uses lane width instead of centres.
+-        if getattr(profile, 'r2_end_return', False):
+-            room = max(0., abs(planner.static_pass_zone[4])*.5
+-                       - planner.config.vehicle_half_width_m-.15)
+-            low, high = low-room, high+room
+         end, reason = profile.end_s, 'path end'
+         clear, blocker, hit, _ = planner._s4_swept_check(profile, items, s, speed)
+         if not clear:
+@@ -75,8 +69,6 @@
+         cfg = planner.config
+         for a in samples:
+             d = profile.offset_at(a)
+-            if not low-1e-6 <= d <= high+1e-6:
+-                return max(s, a-.25), 'saved corridor boundary'
+             center, segment = planner.route.pose(a, d)
+             tangent = planner.route.tangents[segment]
+             slope = (profile.offset_at(a+.05)-profile.offset_at(a-.05))/.1
+@@ -127,10 +119,10 @@
+                        reason='S4 '+source+' safe prefix: '+reason)
+ 
+     def return_at_r2_end(self, planner, decision, points, pose, speed):
+-        """At R2 end commit to R1, independently of FTG mode/timers."""
++        """From 6 m before R2 end, commit to R1 without FTG mode/timers."""
+         s = planner.last_s
+         if self.end_return_profile is None:
+-            if s < planner.static_pass_zone[2]:
++            if s < planner.static_pass_zone[2]-6.:
+                 return None
+             lo, hi = planner.route.window(s-2., s+3.)
+             _, d, segment = planner.route.project(pose[0], pose[1], lo, hi)
+--- a/src/leo_avoidance/test/test_s4_ftg_fallback.py
++++ b/src/leo_avoidance/test/test_s4_ftg_fallback.py
+@@ -95,10 +95,17 @@
+         self.assertIs(self.tick(3.), self.d)
+         self.assertEqual(self.f.mode, 'route')
+ 
+-    def test_boundary_and_curvature_rejection(self):
+-        for profile in (Profile([20., 36.], [-1., -5.], [0., 0.]),
+-                        Profile([20., 22.], [-1., -3.], [0., 0.])):
+-            self.assertFalse(self.f.safe(self.p, profile, [], 0., self.points, self.pose))
++    def test_centerline_does_not_veto_clear_path_but_curvature_still_checked(self):
++        profile = Profile([20., 36.], [-1., -5.], [0., 0.])
++        self.assertTrue(self.f.safe(self.p, profile, [], 0., self.points, self.pose))
++        sharp = Profile([20.,22.],[-1.,-3.],[0.,0.])
++        self.assertFalse(self.f.safe(self.p, sharp, [], 0., self.points, self.pose))
++
++    def test_small_r2_offset_can_return_without_centerline_veto(self):
++        profile=Profile([20.,40.],[-3.30,0.],[.10,0.])
++        end,reason=self.f.clear_prefix(self.p,profile,[],0.,np.empty((0,3)),(20.,-3.30,.10))
++        self.assertEqual(reason,'path end')
++        self.assertEqual(end,40.)
+ 
+     def test_distant_blocker_allows_stoppable_prefix(self):
+         profile = Profile([20., 60.], [-1., -1.], [0., 0.])
+@@ -164,18 +171,18 @@
+ class R2EndReturnTests(unittest.TestCase):
+     def test_only_at_end_returns_and_retains_path(self):
+         p=RouteAvoidance([(0.,0.),(100.,0.)]);p.set_static_pass_zone(0.,10.,40.,47.,-3.2)
+-        p.static_pass_managed=True;p.last_s=39.9
++        p.static_pass_managed=True;p.last_s=33.9
+         f=S4Fallback();pts=np.array([[x,-10.,.2] for x in range(25)])
+         d=Decision('PASSING',[],5.,'passing')
+-        self.assertIsNone(f.return_at_r2_end(p,d,pts,(39.9,-3.29,.017),0.))
+-        p.last_s=40.
+-        result=f.apply(p,d,pts,(40.,-3.29,.017),0.,1.)
++        self.assertIsNone(f.return_at_r2_end(p,d,pts,(33.9,-3.29,.017),0.))
++        p.last_s=34.
++        result=f.apply(p,d,pts,(34.,-3.29,.017),0.,1.)
+         self.assertGreater(result.speed_cap_mps,0.)
+         self.assertEqual(f.status['source'],'RECOVERY')
+         profile=f.end_return_profile
+         self.assertAlmostEqual(profile.offset_at(profile.end_s),0.)
+-        p.last_s=48.;p.static_pass_managed=False
+-        f.apply(p,d,pts,(48.,profile.offset_at(48.),.017),0.,1.1)
++        p.last_s=profile.end_s-.5;p.static_pass_managed=False
++        f.apply(p,d,pts,(p.last_s,profile.offset_at(p.last_s),.017),0.,1.1)
+         self.assertIs(f.end_return_profile,profile)
+         self.assertTrue(p.static_pass_managed)
+ 

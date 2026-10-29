@@ -1,0 +1,157 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -1071,6 +1071,20 @@
+             cfg = replace(cfg, pass_speed_kmh=25.)
+         items = self._to_route(obstacles, s_ego)
+         items = self._retain_static_blocks(items, s_ego)
++        # Classification/ID dropout must not authorize passing a crosser.
++        # This short spatial history ONLY gates new paths, never braking.
++        now = self.observation_time
++        recent = [h for h in getattr(self, '_crossing_pass_history', [])
++                  if 0. <= now-h[0] <= 2.]
++        if self.static_pass_managed:
++            recent = []
++        else:
++            for o in items:
++                if (any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
++                        and abs(o['v_d']) >= .5 and abs(o['v_d']) > abs(o['v_s'])):
++                    recent.append((now, o['s'], o['d'], o['v_s'], o['v_d']))
++        self._crossing_pass_history = recent
++
+         r1_only = any(a <= s_ego <= b for a, b in self.r1_only_ranges)
+         if r1_only:
+             self.active = None
+@@ -1085,11 +1099,31 @@
+ 
+         # Static blocks in Ego's own lane ahead of the bumper (or beside it while passing).
+         follow_zone = any(a <= s_ego < b for a, b in self.vehicle_follow_ranges)
++        def recent_crossing_position(o):
++            for t, along, lateral, vs, vd in recent:
++                ds, dd = vs*(now-t), vd*(now-t)
++                length2 = ds*ds+dd*dd
++                alpha = max(0., min(1., ((o['s']-along)*ds+(o['d']-lateral)*dd)/length2)) if length2 > 1e-9 else 0.
++                if math.hypot(o['s']-along-alpha*ds, o['d']-lateral-alpha*dd) <= 1.:
++                    return True
++            return False
++
++        crossing_episode = (not self.static_pass_managed
++            and any(a <= s_ego <= b for a, b in self.pedestrian_hold_ranges)
++            and any(0. < along-front_s < 25.
++                    and min(lateral, lateral+vd*(now-t)) <= cfg.band(.6)
++                    and max(lateral, lateral+vd*(now-t)) >= -cfg.band(.6)
++                    for t, along, lateral, vs, vd in recent))
++
+         def static_pass_candidate(o):
++            if crossing_episode:
++                return False  # a separate static fragment must not initiate a pass
++
+             # A brief static label must not turn a recent crosser into a pass.
+             if (not self.static_pass_managed
+                     and any(a <= o['s'] <= b for a, b in self.pedestrian_hold_ranges)
+-                    and o['id'] in self.s4_mobile_until):
++                    and (o['id'] in self.s4_mobile_until or recent_crossing_position(o)
++                         or any(self._hold_match(h, o) for h in self.pedestrian_holds))):
+                 return False
+             if not follow_zone or o['l'] < 1.25:
+                 return True
+--- a/src/unita_waypoint/scripts/local_avoidance_core_local.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core_local.py
+@@ -503,7 +503,7 @@
+             for o in obstacles:
+                 lateral = -ty*o.vx+tx*o.vy
+                 longitudinal = tx*o.vx+ty*o.vy
+-                if (o.kind == 'dynamic' and abs(lateral) >= .5
++                if (abs(lateral) >= .5
+                         and abs(lateral) > abs(longitudinal)):
+                     crossers.append(o)
+                     recent.append((now, o.x, o.y, o.vx, o.vy))
+@@ -635,10 +635,26 @@
+                              and (threat[1].kind == 'dynamic' or
+                                   (threat[1].velocity_reliable and threat[2] >= .5)))
+         def recent_crosser(o):
+-            return any(distance((o.x, o.y), (x+vx*(now-t), y+vy*(now-t))) <= 1.
+-                       for t, x, y, vx, vy in recent)
++            for t, x, y, vx, vy in recent:
++                dx, dy = vx*(now-t), vy*(now-t)
++                length2 = dx*dx+dy*dy
++                alpha = max(0., min(1., ((o.x-x)*dx+(o.y-y)*dy)/length2)) if length2 > 1e-9 else 0.
++                # A static label may also freeze the centre at the last
++                # observation. Match the short swept segment, not just its end.
++                if distance((o.x, o.y), (x+alpha*dx, y+alpha*dy)) <= 1.:
++                    return True
++            return False
++        crossing_episode = False
++        for t, x, y, vx, vy in recent:
++            along = tx*(x-ego_xy[0])+ty*(y-ego_xy[1])
++            lateral = -ty*(x-ego_xy[0])+tx*(y-ego_xy[1])
++            end_lateral = lateral+(-ty*vx+tx*vy)*(now-t)
++            if (0. < along < 25. and min(lateral,end_lateral) <= 2.
++                    and max(lateral,end_lateral) >= -2.):
++                crossing_episode = True
++                break
+         crossing_threat = (crossing_yield and threat is not None
+-                           and (any(threat[1] is o for o in crossers)
++                           and (crossing_episode or any(threat[1] is o for o in crossers)
+                                 or recent_crosser(threat[1])))
+         candidates = [preferred]
+         if current != preferred and not force_r1:
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -918,3 +918,25 @@
+             assert cap == 0.
+         assert p.pedestrian_hold is h
+         assert h['visible_clear_scans'] == 0
++
++
++def test_crossing_new_id_frozen_position_does_not_start_static_pass():
++    p = planner(); p.set_pedestrian_hold_ranges([(0., 100.)])
++    p.update((0., 0.), 0., [RouteObstacle(20., 0., .4, vy=2., dynamic=True,
++                                       track_id=201, half_length=.3)], stamp=1.)
++    p.update((0., 0.), 0., [RouteObstacle(20., 0., .4, track_id=202,
++                                       half_length=.3)], stamp=2.5)
++    assert p.active is None
++    # The veto is not a stop latch when the scene clears.
++    result = p.update((0., 0.), 0., [], stamp=2.6)
++    assert result.speed_cap_mps > 0.
++    # A different static block away from that short swept region still passes.
++    p.update((0., 0.), 0., [RouteObstacle(35., 0., .5, track_id=203)], stamp=3.1)
++    assert p.active is not None
++
++
++def test_separate_static_fragment_cannot_start_pass_during_crossing():
++    p = planner(); p.set_pedestrian_hold_ranges([(0.,100.)])
++    p.update((0.,0.),0.,[RouteObstacle(15.,-1.,.4,vy=2.,dynamic=True,track_id=10),
++                         RouteObstacle(20.,0.,.4,track_id=11)],stamp=1.)
++    assert p.active is None
+--- a/src/unita_waypoint/test/test_crossing_yield_interval_local.py
++++ b/src/unita_waypoint/test/test_crossing_yield_interval_local.py
+@@ -29,3 +29,29 @@
+         p.plan(0,(0.,0.),0.,[Obstacle(10.,0.,.5,vy=1.,kind='dynamic')],crossing_yield=True,stamp=0.)
+         p.plan(0,(0.,0.),0.,[],crossing_yield=False,stamp=.1)
+         self.assertEqual(p._crossing_pass_veto,[])
++
++    def test_static_dropout_at_last_position_not_only_predicted_endpoint(self):
++        p=self.planner()
++        p.plan(0,(0.,0.),0.,[Obstacle(18.,0.,.5,vy=2.,kind='dynamic')],
++               crossing_yield=True,stamp=1.)
++        d=p.plan(0,(0.,0.),0.,[Obstacle(18.,0.,.5,kind='static')],
++                 crossing_yield=True,stamp=2.5)
++        self.assertIsNone(p.transition)
++        self.assertEqual(d.reason,'crossing_yield_no_overtake')
++        p.plan(0,(0.,0.),0.,[Obstacle(18.,0.,.5,kind='static')],
++               crossing_yield=True,stamp=3.1)
++        self.assertIsNotNone(p.transition)
++
++    def test_measured_lateral_motion_before_dynamic_label_vetoes_pass(self):
++        p=self.planner()
++        p.plan(0,(0.,0.),0.,[Obstacle(18.,0.,.5,vy=2.,kind='unknown')],
++               crossing_yield=True,stamp=1.)
++        p.plan(0,(0.,0.),0.,[Obstacle(18.,0.,.5,kind='static')],
++               crossing_yield=True,stamp=1.2)
++        self.assertIsNone(p.transition)
++
++    def test_separate_static_fragment_during_crossing_does_not_start_pass(self):
++        p=self.planner()
++        p.plan(0,(0.,0.),0.,[Obstacle(15.,-1.,.4,vy=2.,kind='dynamic'),
++                             Obstacle(20.,0.,.4,kind='static')],crossing_yield=True,stamp=1.)
++        self.assertIsNone(p.transition)

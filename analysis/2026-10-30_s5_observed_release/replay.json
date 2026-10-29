@@ -1,0 +1,427 @@
+{
+  "scans": 83,
+  "old_clear": 0,
+  "new_clear": 45,
+  "release_at_s": 82.22334551811218,
+  "limitations": [
+    "Reconstructed rounded hold and stopped pose, recorded raw scans and route obstacles from 80-90 seconds.",
+    "Tests orphan-hold release only, not closed-loop vehicle acceleration or the complete original planner replay."
+  ],
+  "rows": [
+    {
+      "t": 80.0076413154602,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 80.11268377304077,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 80.2354063987732,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 80.35146379470825,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 80.47827863693237,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 80.58712077140808,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 80.79633736610413,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 80.89765572547913,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 81.00905847549438,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 81.11002469062805,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 81.2226197719574,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 81.32301354408264,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 81.42866277694702,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 81.54617667198181,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 81.65776324272156,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 81.89399433135986,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 81.99067568778992,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 82.11434841156006,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 82.22334551811218,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 82.34111499786377,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 82.4430878162384,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 82.56400513648987,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 82.66889357566833,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 82.79100131988525,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 82.89488291740417,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 83.00636768341064,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 83.12966561317444,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 83.23308944702148,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 83.35057663917542,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 83.45235061645508,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 83.68395900726318,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 83.7995548248291,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 83.92048716545105,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.04015827178955,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.14367771148682,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.24676632881165,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.35849976539612,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.47193336486816,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 84.5755410194397,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.67415189743042,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.79520654678345,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 84.90792155265808,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 85.00961637496948,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 85.12911462783813,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 85.24107217788696,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 85.34197759628296,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 85.45795798301697,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 85.57762956619263,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 85.70103359222412,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 85.91167831420898,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 86.01255440711975,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 86.12820887565613,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 86.23984575271606,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 86.36488389968872,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 86.46597242355347,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 86.57223868370056,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 86.68892979621887,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 86.79351234436035,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 86.90587544441223,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 87.02145719528198,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 87.1308228969574,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 87.24645733833313,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 87.47506189346313,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 87.57384300231934,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 87.68886590003967,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 87.79644393920898,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 87.90645027160645,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 88.01574110984802,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 88.13540267944336,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 88.26668858528137,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 88.39017033576965,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 88.49891686439514,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 88.6243884563446,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 88.7378921508789,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 88.9727692604065,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 89.10179400444031,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 89.21323013305664,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 89.34649538993835,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 89.45847678184509,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 89.56990909576416,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 89.68931794166565,
+      "old_clear": false,
+      "new_clear": false
+    },
+    {
+      "t": 89.80362105369568,
+      "old_clear": false,
+      "new_clear": true
+    },
+    {
+      "t": 89.91840982437134,
+      "old_clear": false,
+      "new_clear": true
+    }
+  ]
+}

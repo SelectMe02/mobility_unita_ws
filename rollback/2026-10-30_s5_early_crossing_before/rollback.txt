@@ -1,0 +1,1 @@
+이번 경로 밖 횡단 객체의 짧은 검출 공백·형상 변화에 대한 조기 감속 보완만 롤백해줘. 기존 보행자 정지·관측 기반 재출발·횡단 중 추월 억제, S4 회피와 final/extreme 설정은 유지하고 rollback/2026-10-30_s5_early_crossing_before/changes.patch만 역적용해줘.
