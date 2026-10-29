@@ -1,0 +1,161 @@
+"""S4-only short-horizon FTG fallback with validated, latched handoffs.
+
+Never erase obstacle memory or bypass traffic caps. FTG supplies direction;
+its complete generated path still has to fit the saved corridor and body.
+"""
+import math
+from dataclasses import replace
+import numpy as np
+from scipy.interpolate import CubicHermiteSpline
+from leo_avoidance.ftg_local import FollowTheGap, Config
+from leo_avoidance.route_avoidance import stopping_speed
+
+
+class Profile:
+    def __init__(self, knots, values, slopes):
+        self.start_s, self.end_s = knots[0], knots[-1]
+        self.curve = CubicHermiteSpline(knots, values, slopes)
+
+    def offset_at(self, s):
+        edge = float(np.clip(s, self.start_s, self.end_s))
+        return float(self.curve(edge)+(s-edge)*self.curve(edge, 1))
+
+
+class S4Fallback:
+    def __init__(self, lidar_offset=1.4):
+        self.lidar_offset = lidar_offset
+        self.ftg = FollowTheGap(Config(lidar_to_rear_x_m=lidar_offset,
+            max_speed_mps=25./3.6, max_range_m=30., local_planning_range_m=20.))
+        self.reset()
+
+    def reset(self):
+        self.mode = 'route'
+        self.last_stamp = None
+        self.bad_since = self.good_since = None
+        self.bad_scans = self.good_scans = 0
+        self.entered = None
+        self.profile = None
+        self.join = None
+
+    def safe(self, planner, profile, items, speed, points, pose):
+        s = planner.last_s
+        if profile is None or profile.end_s <= s+1.:
+            return False
+        low, high = sorted((0., planner.static_pass_zone[4]))
+        samples = np.arange(s, profile.end_s+.01, .25)
+        if any(not low-1e-6 <= profile.offset_at(a) <= high+1e-6 for a in samples):
+            return False
+        if not planner._s4_swept_check(profile, items, s, speed)[0]:
+            return False
+        # Also test current scan points, including untracked small returns.
+        xy = np.asarray(points, float).reshape(-1, 3)[:, :2]
+        c, sn = math.cos(pose[2]), math.sin(pose[2])
+        px = xy[:, 0]+self.lidar_offset
+        world = np.column_stack((pose[0]+c*px-sn*xy[:, 1],
+                                 pose[1]+sn*px+c*xy[:, 1]))
+        cfg = planner.config
+        for a in samples:
+            d = profile.offset_at(a)
+            center, segment = planner.route.pose(a, d)
+            tangent = planner.route.tangents[segment]
+            slope = (profile.offset_at(a+.05)-profile.offset_at(a-.05))/.1
+            angle = math.atan2(tangent[1], tangent[0])+math.atan(slope)
+            dx, dy = world[:, 0]-center[0], world[:, 1]-center[1]
+            along = dx*math.cos(angle)+dy*math.sin(angle)
+            lateral = -dx*math.sin(angle)+dy*math.cos(angle)
+            if np.any((along >= -cfg.rear_extent_m-.15)
+                      & (along <= cfg.front_extent_m+.15)
+                      & (abs(lateral) <= cfg.vehicle_half_width_m+cfg.side_margin_m+.15)):
+                return False
+        return True
+
+    def apply(self, planner, decision, points, pose, speed, stamp, permitted=True):
+        if not planner.static_pass_managed:
+            self.reset()
+            return decision
+        fresh = self.last_stamp is None or stamp > self.last_stamp
+        if self.last_stamp is not None and (stamp < self.last_stamp or stamp-self.last_stamp > .5):
+            self.reset()
+        if not fresh:
+            return replace(decision, speed_cap_mps=0., reason='S4 fallback awaiting fresh scan') if self.mode != 'route' else decision
+        self.last_stamp = stamp
+        blocked = (not decision.path or (decision.speed_cap_mps <= .1
+                   and decision.state in ('WAIT_PASS', 'PASSING')))
+        if blocked:
+            if self.bad_since is None:
+                self.bad_since = stamp
+            self.bad_scans += 1
+        else:
+            self.bad_since, self.bad_scans = None, 0
+        if self.mode == 'route':
+            if not (self.bad_scans >= 3 and stamp-self.bad_since >= .4):
+                return decision
+            self.mode, self.entered = 'ftg', stamp
+        # Traffic, moving objects and invalid scan input are never bypassed.
+        if (not permitted or decision.traffic_speed_cap_mps <= .1
+                or any(o['moving'] for o in decision.obstacles)
+                or len(points) < 10 or not np.isfinite(points).all()):
+            self.good_since, self.good_scans = None, 0
+            return replace(decision, speed_cap_mps=0., reason='S4 fallback safety hold')
+        s = planner.last_s
+        lo, hi = planner.route.window(s-2., s+3.)
+        _, d, _ = planner.route.project(pose[0], pose[1], lo, hi)
+        _, segment = planner.route.pose(s)
+        tangent = planner.route.tangents[segment]
+        heading = math.atan2(tangent[1], tangent[0])
+        error = math.atan2(math.sin(pose[2]-heading), math.cos(pose[2]-heading))
+        if abs(error) > math.radians(35.):
+            return replace(decision, speed_cap_mps=0., reason='S4 fallback heading outside corridor')
+        slope = math.tan(error)
+        normal = planner.active
+        recovered = normal is not None and not blocked and decision.speed_cap_mps > .5
+        self.good_scans = self.good_scans+1 if recovered else 0
+        self.good_since = (stamp if self.good_since is None else self.good_since) if recovered else None
+        if self.mode == 'recover' and s >= self.join and recovered:
+            route_slope = (normal.offset_at(s+.05)-normal.offset_at(s-.05))/.1
+            if (abs(d-normal.offset_at(s)) <= .25
+                    and abs(error-math.atan(route_slope)) <= math.radians(5.)):
+                self.reset()
+                return decision
+        if (self.mode == 'ftg' and recovered and self.good_scans >= 5
+                and stamp-self.good_since >= .6 and stamp-self.entered >= 1.):
+            join = min(s+8., normal.end_s-1.)
+            if join-s >= 2.:
+                knots = [s]+list(np.arange(join, normal.end_s, 1.))+[normal.end_s]
+                values = [d]+[normal.offset_at(a) for a in knots[1:]]
+                slopes = [slope]+[(normal.offset_at(a+.05)-normal.offset_at(a-.05))/.1 for a in knots[1:]]
+                bridge = Profile(knots, values, slopes)
+                if self.safe(planner, bridge, decision.obstacles, speed, points, pose):
+                    self.profile, self.mode, self.join = bridge, 'recover', join
+        if self.mode == 'recover' and not self.safe(planner, self.profile, decision.obstacles, speed, points, pose):
+            self.mode, self.entered = 'ftg', stamp
+            self.good_since, self.good_scans = None, 0
+            self.profile = None
+        ftg = self.ftg.plan(points, speed, -error, wall_follow=False,
+                            ego_pose=pose, stamp=stamp, route_trusted=True)
+        if ftg.speed_mps <= 0.:
+            return replace(decision, speed_cap_mps=0., reason='S4 FTG has no safe gap')
+        # Keep a still-safe trajectory instead of chasing each scan's gap.
+        if (self.profile is None or self.profile.end_s-s < 8.
+                or not self.safe(planner, self.profile, decision.obstacles, speed, points, pose)):
+            self.profile = None
+            for length in (16., 12., 8.):
+                end = min(s+length, planner.static_pass_zone[3])
+                if end-s < 8.:
+                    continue
+                target_d = d+math.tan(error+ftg.target_bearing_rad)*min(8., length*.5)
+                target_d = float(np.clip(target_d, min(0., planner.static_pass_zone[4]), max(0., planner.static_pass_zone[4])))
+                candidate = Profile([s, end], [d, target_d], [slope, 0.])
+                if self.safe(planner, candidate, decision.obstacles, speed, points, pose):
+                    self.profile = candidate
+                    break
+        if self.profile is None:
+            return replace(decision, speed_cap_mps=0., reason='S4 FTG corridor/body check blocked')
+        profile = self.profile
+        cap = min(ftg.speed_mps, planner.config.pass_speed_kmh/3.6,
+                  decision.traffic_speed_cap_mps, planner._s4_curve_speed(profile, s, speed),
+                  stopping_speed(profile.end_s-s-2., planner.config.brake_mps2, planner.config.reaction_s))
+        path = [planner.route.pose(a, profile.offset_at(a))[0]
+                for a in np.arange(s, profile.end_s+.01, .5)]
+        return replace(decision, state='PASSING', path=path, speed_cap_mps=cap,
+                       offset_now_m=profile.offset_at(s), reason='S4 '+self.mode+' validated path')

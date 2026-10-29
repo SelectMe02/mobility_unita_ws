@@ -1,0 +1,94 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core.py
+@@ -1048,7 +1048,32 @@
+         if roundabout is not None:
+             self.obstacle_horizon_path = path_prefix(current_path, self.obstacle_horizon_m)
+             return roundabout
+-        threat = self._lead(current_path, ego_xy, obstacles)
++        lead_obstacles = obstacles
++        if (self.sectors[index] == 5 and self.transition is None
++                and current == preferred
++                and distance(ego_xy, available[current]) <= .5):
++            # S5's parallel traffic stays in its saved lane. A transient
++            # inflated box must not turn an established neighbouring vehicle
++            # into our leader. Keep every object for candidate/merge checks.
++            def adjacent_vehicle(o):
++                if (not o.confirmed or not o.lane_stable or o.lane_sector != 5
++                        or o.kind != 'dynamic' or o.length < 2.5
++                        or o.raceline == current or o.raceline not in available):
++                    return False
++                own_path = [self._lane_point(o.raceline, point, i)
++                            for i, point, _ in ahead]
++                own = project_polyline((o.x, o.y), [p for p in own_path if p is not None])
++                ours = project_polyline((o.x, o.y), current_path)
++                if ours is not None and o.velocity_reliable:
++                    tx, ty = ours[2]
++                    side = -ty*(o.x-ego_xy[0])+tx*(o.y-ego_xy[1])
++                    lateral_speed = -ty*o.vx+tx*o.vy
++                    if side*lateral_speed < 0. and abs(lateral_speed) > .3:
++                        return False  # measured approach toward our lane
++                return (own is not None and ours is not None
++                        and own[0] <= 1. and own[0]+.5 < ours[0])
++            lead_obstacles = [o for o in obstacles if not adjacent_vehicle(o)]
++        threat = self._lead(current_path, ego_xy, lead_obstacles)
+         candidates = []
+         if current != preferred:
+             candidates.append(preferred)
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s5_adjacent_vehicle_lead.py
+@@ -0,0 +1,55 @@
++"""S5 lane-keeping must not tail stable parallel traffic with noisy boxes."""
++import unittest
++from dataclasses import replace
++from local_avoidance_core import LocalAvoidancePlanner, Obstacle
++
++class S5AdjacentVehicleTests(unittest.TestCase):
++    def planner(self, sector=5):
++        route = [(float(i), 0.) for i in range(100)]
++        return LocalAvoidancePlanner(route, [sector]*100,
++            {2: [(float(i), -3.5) for i in range(100)]})
++
++    def car(self, **kw):
++        return replace(Obstacle(6., -2.6, 3., length=4., width=3.6,
++            kind='dynamic', confirmed=True, velocity_reliable=False,
++            raceline=2, lane_sector=5, lane_stable=True,
++            lane_boundary_crossing=True, track_id=48), **kw)
++
++    def test_no_stop_or_lane_change_for_fluctuating_adjacent_vehicle(self):
++        p = self.planner()
++        for width in (1.7, 3.5, 1.7, 3.6, 4.5):
++            d = p.plan(0, (0., 0.), 4., [self.car(width=width)], desired_speed_mps=7.)
++            self.assertEqual(d.state, 'RACELINE')
++            self.assertGreater(d.speed_cap_kmh, 0.)
++            self.assertIsNone(p.transition)
++
++    def test_current_lane_or_uncertain_vehicle_keeps_lead_protection(self):
++        for car in (self.car(raceline=1), self.car(lane_stable=False),
++                    self.car(lane_sector=4), self.car(confirmed=False),
++                    self.car(velocity_reliable=True, vy=1.),
++                    self.car(y=-.5), self.car(length=.6, width=.6, y=0.)):
++            p = self.planner()
++            d = p.plan(0, (0., 0.), 4., [car], desired_speed_mps=7.)
++            self.assertNotEqual(d.state, 'RACELINE')
++
++    def test_pedestrian_and_static_object_not_exempt(self):
++        for car in (self.car(kind='static'), self.car(length=.6)):
++            p = self.planner()
++            d = p.plan(0, (0., 0.), 4., [car], desired_speed_mps=7.)
++            self.assertNotEqual(d.state, 'RACELINE')
++
++    def test_other_sectors_unchanged(self):
++        for sector in (4, 6, 11):
++            p = self.planner(sector)
++            d = p.plan(0, (0., 0.), 4., [self.car()], desired_speed_mps=7.)
++            self.assertNotEqual(d.state, 'RACELINE')
++
++    def test_transition_checks_still_see_adjacent_vehicle(self):
++        p = self.planner()
++        p.transition = dict(source=1, target=2, start=0., length=30.,
++                            state='OVERTAKING', locked=False)
++        d = p.plan(0, (0., 0.), 4., [self.car()], desired_speed_mps=7.)
++        self.assertLess(d.speed_cap_kmh, 25.)
++
++if __name__ == '__main__':
++    unittest.main()

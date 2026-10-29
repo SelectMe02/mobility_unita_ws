@@ -1,0 +1,148 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -376,6 +376,7 @@
+         # Repeatedly measured geometry takes precedence over the same track's
+         # accumulated envelope. Commit the same shape to memory, so loss on
+         # the next scan cannot resurrect an obsolete inflated envelope.
++        stable_shapes = []
+         for o in items:
+             # Use a fresh bounded observation window, not every view from
+             # the last second. Keep the union of these views (not just the
+@@ -397,7 +398,70 @@
+                         shape[center_key], shape[size_key] = (low+high)/2., (high-low)/2.
+                     self.static_memory = [h for h in self.static_memory if h['id'] != o['id']]
+                     self.static_memory.append(shape)
+-        return items + [dict(o) for o in self.static_memory]
++                    stable_shapes.append(shape)
++        self._s4_reconcile_memory(items, stable_shapes)
++        return items + [dict(h) for h in self.static_memory
++                        if not any(o['id'] == h['id'] and self._s4_contains(o, h)
++                                   for o in items if not o['moving'])]
++
++    @staticmethod
++    def _s4_contains(outer, inner):
++        return all(abs(outer[c]-inner[c])+inner[e] <= outer[e]+1e-6
++                   for c, e in (('s', 'l'), ('d', 'r')))
++
++    @staticmethod
++    def _s4_uncovered(old, observed):
++        """Disjoint rectangles of old evidence outside a live footprint."""
++        x0, x1 = old['s']-old['l'], old['s']+old['l']
++        y0, y1 = old['d']-old['r'], old['d']+old['r']
++        a, b = max(x0, observed['s']-observed['l']), min(x1, observed['s']+observed['l'])
++        c, d = max(y0, observed['d']-observed['r']), min(y1, observed['d']+observed['r'])
++        if a >= b or c >= d:
++            return [old]
++        result = []
++        for lo, hi, bottom, top in ((x0, a, y0, y1), (b, x1, y0, y1),
++                                    (a, b, y0, c), (a, b, d, y1)):
++            if hi-lo > 1e-6 and top-bottom > 1e-6:
++                result.append(dict(old, s=(lo+hi)/2., l=(hi-lo)/2.,
++                                   d=(bottom+top)/2., r=(top-bottom)/2.))
++        return result
++
++    def _s4_reconcile_memory(self, items, stable_shapes):
++        """Reconcile absent IDs using stable footprints and measured free space.
++
++        Keep ambiguous/occluded evidence. Time or proximity alone never
++        removes it. Replacement memory survives subsequent observation loss.
++        """
++        live_ids = {o['id'] for o in items}
++        observer = getattr(self, 'static_clearance_observer', None)
++        retained = []
++        for h in self.static_memory:
++            if h['id'] in live_ids:
++                retained.append(h)
++                continue
++            matches = [o for o in stable_shapes if o['id'] != h['id']
++                       and abs(o['s']-h['s']) < o['l']+h['l']
++                       and abs(o['d']-h['d']) < o['r']+h['r']]
++            accounted = False
++            if len(matches) == 1:
++                remaining = self._s4_uncovered(h, matches[0])
++                accounted = not remaining or (observer is not None and all(
++                    not any(abs(o['s']-part['s']) < o['l']+part['l']
++                            and abs(o['d']-part['d']) < o['r']+part['r']
++                            for o in items if not o['moving']) and observer(part)
++                    for part in remaining))
++            previous = h.get('reconcile_stamp', -math.inf)
++            if self.observation_time > previous:
++                if not accounted or self.observation_time-previous > .5:
++                    h['reconcile_scans'], h['reconcile_since'] = 0, self.observation_time
++                h['reconcile_stamp'] = self.observation_time
++                if accounted:
++                    h['reconcile_scans'] = h.get('reconcile_scans', 0)+1
++            if (accounted and h.get('reconcile_scans', 0) >= 5
++                    and self.observation_time-h.get('reconcile_since', self.observation_time) >= .5):
++                continue
++            retained.append(h)
++        self.static_memory = retained
+ 
+     def set_pedestrian_hold_ranges(self, ranges):
+         """[(start_s, end_s)] on the base lap where crossing pedestrians are held."""
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -402,3 +402,63 @@
+         d = p.update((133., p.active.offset_at(133.)), 0.,
+                      [RouteObstacle(137., -3.2, .3, half_length=.3, track_id=1)])
+         self.assertEqual(d.speed_cap_mps, 0.)
++
++class S4IdentityMemoryTests(unittest.TestCase):
++    def planner(self):
++        p = RouteAvoidance([(0., 0.), (400., 0.)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        return p
++
++    def box(self, identity, s=129., d=0., r=.8, l=.7):
++        return dict(id=identity, s=s, d=d, r=r, l=l,
++                    moving=False, v_s=0., v_d=0.)
++
++    def observe(self, p, boxes, stamp):
++        p.observation_time = stamp
++        return p._retain_static_blocks(boxes, 110.)
++
++    def test_reidentified_box_replaces_memory_and_survives_dropout(self):
++        p = self.planner()
++        self.observe(p, [self.box(1)], 1.)
++        for i in range(15):
++            result = self.observe(p, [self.box(2)], 1.1+i*.1)
++        self.assertEqual([h['id'] for h in p.static_memory], [2])
++        self.assertEqual(len(result), 1)
++        self.assertEqual([h['id'] for h in self.observe(p, [], 2.6)], [2])
++
++    def test_partial_match_requires_visible_empty_remainder(self):
++        for visible in (False, True):
++            p = self.planner()
++            p.static_clearance_observer = lambda h: visible
++            self.observe(p, [self.box(1, r=1.2)], 1.)
++            for i in range(15):
++                self.observe(p, [self.box(2, r=.7)], 1.1+i*.1)
++            self.assertEqual(any(h['id'] == 1 for h in p.static_memory), not visible)
++
++    def test_different_nearby_obstacle_is_not_identity_match(self):
++        p = self.planner()
++        self.observe(p, [self.box(1)], 1.)
++        for i in range(15):
++            self.observe(p, [self.box(2, s=132.)], 1.1+i*.1)
++        self.assertEqual({h['id'] for h in p.static_memory}, {1, 2})
++
++    def test_simultaneously_visible_ids_are_not_merged(self):
++        p = self.planner()
++        for i in range(15):
++            self.observe(p, [self.box(1), self.box(2, d=.3)], 1.+i*.1)
++        self.assertEqual({h['id'] for h in p.static_memory}, {1, 2})
++
++    def test_repeated_stamp_cannot_release_old_id(self):
++        p = self.planner()
++        self.observe(p, [self.box(1)], 1.)
++        for i in range(4):
++            self.observe(p, [self.box(2)], 1.1+i*.1)
++        for i in range(20):
++            self.observe(p, [self.box(2)], 1.4)
++        self.assertIn(1, [h['id'] for h in p.static_memory])
++
++    def test_unobserved_memory_is_not_expired_by_time(self):
++        p = self.planner()
++        self.observe(p, [self.box(1)], 1.)
++        self.observe(p, [], 100.)
++        self.assertEqual([h['id'] for h in p.static_memory], [1])

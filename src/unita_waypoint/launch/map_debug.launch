@@ -12,6 +12,8 @@
   <arg name="valid_topic" default="/localization/valid"/>
   <arg name="speed_topic" default="/competition/ego_speed_kmh"/>
   <arg name="obstacles_topic" default="/waypoint_debug/obstacles"/>
+  <!-- Actual S4 steering source, safe prefix distance and stop reason. -->
+  <arg name="route_avoidance_topic" default="/leo/route_avoidance"/>
   <!-- User supplied body dimensions, with the rear axle as the pose origin. -->
   <arg name="vehicle_front_m" default="3.845"/>
   <arg name="vehicle_rear_m" default="0.790"/>
@@ -29,6 +31,7 @@
     <param name="valid_topic" value="$(arg valid_topic)"/>
     <param name="speed_topic" value="$(arg speed_topic)"/>
     <param name="obstacles_topic" value="$(arg obstacles_topic)"/>
+    <param name="route_avoidance_topic" value="$(arg route_avoidance_topic)"/>
     <param name="vehicle_front_m" value="$(arg vehicle_front_m)"/>
     <param name="vehicle_rear_m" value="$(arg vehicle_rear_m)"/>
     <param name="vehicle_half_width_m" value="$(arg vehicle_half_width_m)"/>

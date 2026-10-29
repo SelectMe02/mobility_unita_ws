@@ -1,0 +1,147 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -467,6 +467,16 @@
+         cfg = self.config
+         return o['r'] <= cfg.pedestrian_half_m and o['l'] <= cfg.pedestrian_half_m
+ 
++    def _held_person_sized(self, hold, o):
++        # Admission remains strict. Only an already-associated track gets a
++        # bounded 15 cm size hysteresis; position/motion matching still applies.
++        if self._person_sized(o):
++            return True
++        limit = self.config.pedestrian_half_m + .15
++        return (o['id'] in hold['ids'] and o['r'] <= limit and o['l'] <= limit
++                and abs(o['l']-hold['l']) <= .15
++                and abs(o['r']-hold.get('last_r', self.config.pedestrian_half_m)) <= .15)
++
+     def _hold_match(self, hold, o):
+         dt = max(0., self.observation_time-hold.get('seen_at', self.observation_time))
+         if abs(o['s']-hold['s']) > 1.5:
+@@ -564,11 +574,12 @@
+         if hold is None:
+             return None
+         cfg = self.config
+-        near = [o for o in items if self._person_sized(o) and self._hold_match(hold, o)]
++        near = [o for o in items if self._held_person_sized(hold, o) and self._hold_match(hold, o)]
+         if near:
+             o = min(near, key=lambda o: math.hypot(o['s'] - hold['s'], o['d'] - hold['d']))
+             previous_d, previous_s = hold['d'], hold['s']
+             dt = self.observation_time-hold.get('seen_at', self.observation_time)
++            fresh = 0. < dt <= .5
+             measured_vd = ((o['d']-previous_d)/dt if dt > .05 else hold.get('vd', 0.))
+             if abs(o['v_d']) > .2:
+                 hold['vd'] = o['v_d']
+@@ -592,8 +603,16 @@
+                 hold['approach_scans'] = (hold['approach_scans']+1
+                     if consistent and delta >= .1 else 0)
+                 hold['stationary_scans'] = (hold['stationary_scans']+1
+-                    if consistent and lateral > cfg.band(o['r']) + .3 and not o['moving']
++                    if fresh and consistent and lateral > cfg.band(o['r']) + .3 and not o['moving']
+                     and abs(o['d']-previous_d) < .1 else 0)
++                relative_d = o['d']-offset_at(o['s'])
++                previous_relative_d = previous_d-offset_at(previous_s)
++                # An unconfirmed candidate can leave without ever crossing.
++                # Require measured outward displacement, not a velocity flag.
++                outward = (fresh and consistent and lateral > cfg.band(o['r'])+.3
++                           and relative_d*previous_relative_d > 0.
++                           and lateral-abs(previous_relative_d) >= .05)
++                hold['departing_scans'] = hold.get('departing_scans', 0)+1 if outward else 0
+                 hold.update(last_r=o['r'], last_l=o['l'])
+                 # Candidate slowdown is reversible. Confirmed path occupancy
+                 # or sustained approach upgrades it to a persistent hazard.
+@@ -602,7 +621,7 @@
+                                  and abs(hold['initial_d'])-abs(o['d']) >= .4))
+                 if confirmed:
+                     hold.update(tentative=False, confirmed_crossing=True)
+-                elif hold['stationary_scans'] >= 4:
++                elif hold['stationary_scans'] >= 4 or hold['departing_scans'] >= 3:
+                     self.pedestrian_hold = None
+                     return None
+                 occupied = True
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -567,3 +567,84 @@
+     assert not rectangle_observed_clear(clear[::30], corners)
+     assert not rectangle_observed_clear(np.vstack((clear, [[3., 0., 0.]])), corners)
+     assert not rectangle_observed_clear(np.vstack((clear, [[6., 0., 0.]])), corners)
++
++
++def candidate_boundary_hold():
++    # 2026-10-29 15:44:08: candidate 53 associated with 33, just below .6 m.
++    return dict(ids={33, 53}, s=446.949249, d=-3.250417, l=.598334,
++                cap=0., full_brake=False, clear_scans=0, static_scans=0,
++                lost_scans=0, near=False, confirmed_crossing=False,
++                tentative=True, approach_scans=0, stationary_scans=3,
++                initial_d=-2.473532, last_r=.568877, last_l=.598334,
++                seen_at=10., vd=0.)
++
++
++def boundary_observation(**changes):
++    result = dict(id=33, s=446.95228, d=-3.2564, r=.575039, l=.601724,
++                  moving=False, v_s=0., v_d=0.)
++    result.update(changes)
++    return result
++
++
++def test_recorded_size_boundary_candidate_reconnects_and_releases():
++    p = hold_planner()
++    p.pedestrian_hold = candidate_boundary_hold()
++    p.observation_time = 10.1
++    assert p._single_pedestrian_hold_cap([boundary_observation()], 0., 444.5376,
++                                       448.3826, lambda s: 0.) is None
++    assert p.pedestrian_hold is None
++
++
++def test_size_hysteresis_does_not_admit_new_large_objects_or_large_growth():
++    p = hold_planner()
++    hold = candidate_boundary_hold()
++    assert not p._held_person_sized(hold, boundary_observation(id=999))
++    assert not p._held_person_sized(hold, boundary_observation(l=1.2))
++    assert not p._person_sized(boundary_observation())
++
++
++def test_matching_candidate_inside_path_upgrades_instead_of_releasing():
++    p = hold_planner()
++    hold = candidate_boundary_hold()
++    hold.update(d=-1.8, initial_d=-1.8, stationary_scans=3)
++    p.pedestrian_hold = hold
++    p.observation_time = 10.1
++    cap = p._single_pedestrian_hold_cap([boundary_observation(d=-1.8)], 0., 444.5376,
++                                       448.3826, lambda s: 0.)
++    assert cap == 0.
++    assert p.pedestrian_hold['confirmed_crossing']
++    assert not p.pedestrian_hold['tentative']
++
++
++def test_duplicate_scan_cannot_finish_candidate_stationary_release():
++    p = hold_planner()
++    p.pedestrian_hold = candidate_boundary_hold()
++    for _ in range(10):
++        p.observation_time = 10.
++        p._single_pedestrian_hold_cap([boundary_observation()], 0., 444.5376,
++                                     448.3826, lambda s: 0.)
++    assert p.pedestrian_hold is not None
++
++
++def test_unconfirmed_outward_candidate_releases_only_after_observed_departure():
++    p = hold_planner()
++    h = candidate_boundary_hold()
++    h.update(stationary_scans=0, d=-3., initial_d=-3.)
++    p.pedestrian_hold = h
++    for i in range(1, 4):
++        p.observation_time = 10.+i*.1
++        cap = p._single_pedestrian_hold_cap(
++            [boundary_observation(d=-3.-.1*i, moving=True, v_d=-1.)],
++            0., 444.5376, 448.3826, lambda s: 0.)
++        if i < 3:
++            assert cap is not None
++    assert p.pedestrian_hold is None
++
++
++def test_missing_candidate_still_requires_evidence_not_timeout():
++    p = hold_planner()
++    p.pedestrian_hold = candidate_boundary_hold()
++    for i in range(1, 100):
++        p.observation_time = 10.+i*.1
++        p._single_pedestrian_hold_cap([], 0., 444.5376, 448.3826, lambda s: 0.)
++    assert p.pedestrian_hold is not None

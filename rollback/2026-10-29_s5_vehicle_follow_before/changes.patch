@@ -1,0 +1,147 @@
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -129,6 +129,8 @@
+                                             len(route.lengths))[0]
+                               for p in (line[0], line[-1])]
+                     self.planner.pass_speed_25_ranges.append(tuple(bounds))
++                    if int(sector['number']) == 5:
++                        self.planner.vehicle_follow_ranges.append(tuple(bounds))
+         # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.
+         route = self.planner.route
+         self.planner.ignored_s_ranges = []
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -240,6 +240,7 @@
+         self.last_s = None
+         self.static_pass_zone = None
+         self.pass_speed_25_ranges = []
++        self.vehicle_follow_ranges = []  # S5 only: classify cars before static passing.
+         self.static_memory = []
+         self.static_pass_managed = False
+         self.s4_motion_history = {}
+@@ -913,7 +914,20 @@
+         offset_now = self.active.offset_at(s_ego) if self.active else 0.
+ 
+         # Static blocks in Ego's own lane ahead of the bumper (or beside it while passing).
+-        blocks = sorted((o for o in items if not o['moving'] and self._in_band(o, 0.)
++        follow_zone = any(a <= s_ego < b for a, b in self.vehicle_follow_ranges)
++        def static_pass_candidate(o):
++            if not follow_zone or o['l'] < 1.25:
++                return True
++            # Initial/dropout static labels must not start a car overtake.
++            # This only gates path creation: all obstacles remain in braking
++            # and pedestrian/crossing checks below, with their original data.
++            history = self.s4_motion_history.get(o['id'], [])
++            return (o['id'] not in self.s4_mobile_until
++                    and abs(o['v_s']) < cfg.moving_speed_mps
++                    and len(history) >= 3 and history[-1][0]-history[0][0] >= .6
++                    and max(h[1] for h in history)-min(h[1] for h in history) < .3
++                    and not any(h[5] for h in history))
++        blocks = sorted((o for o in items if not o['moving'] and static_pass_candidate(o) and self._in_band(o, 0.)
+                          and o['s'] + o['l'] > front_s - (cfg.front_extent_m
+                                                            if self.active else 0.)),
+                         key=lambda o: o['s'])
+--- a/src/leo_avoidance/test/test_route_avoidance.py
++++ b/src/leo_avoidance/test/test_route_avoidance.py
+@@ -15,6 +15,39 @@
+ 
+ def planner(lane_changes=LEFT_LANE, **overrides):
+     return RouteAvoidance(ROUTE, RouteAvoidanceConfig(**overrides), lane_changes)
++
++
++def test_s5_vehicle_initial_static_label_and_motion_dropout_do_not_start_pass():
++    avoid = planner()
++    avoid.vehicle_follow_ranges = [(0., 100.)]
++    for i in range(12):
++        dynamic = 2 <= i <= 6
++        car = RouteObstacle(40.+i*.3, 0., 1., vx=3. if dynamic else 0.,
++                            dynamic=dynamic, track_id=7, half_length=2.)
++        decision = avoid.update((0., 0.), 5., [car], stamp=i*.1)
++        assert avoid.active is None
++        assert all(abs(y)<1e-6 for x,y in decision.path)
++
++
++def test_s5_confirmed_static_vehicle_remains_avoidable():
++    avoid = planner()
++    avoid.vehicle_follow_ranges = [(0., 100.)]
++    for i in range(9):
++        avoid.update((0.,0.), 5., [RouteObstacle(40.,0.,1.,track_id=7,half_length=2.)],stamp=i*.1)
++    assert avoid.active is not None
++
++
++def test_s5_small_crossers_keep_identical_braking():
++    for size in (.25, .5):
++        a,b = planner(),planner()
++        b.vehicle_follow_ranges = [(0.,100.)]
++        for i in range(8):
++            person=RouteObstacle(12.,2.-i*.3,size,vy=-2.,dynamic=True,track_id=7,half_length=size)
++            before=a.update((0.,0.),5.,[person],stamp=i*.1)
++            after=b.update((0.,0.),5.,[person],stamp=i*.1)
++            assert before.state==after.state
++            assert before.speed_cap_mps==after.speed_cap_mps
++            assert before.path==after.path
+ 
+ 
+ def offset_at(decision, x):
+--- a/src/unita_waypoint/scripts/local_avoidance_core_local.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core_local.py
+@@ -600,13 +600,22 @@
+         # temporal classification before they can initiate an overtake.
+         unconfirmed_s5 = (self.sectors[index] == 5 and threat is not None
+                           and threat[1].kind == 'unknown')
++        # Only suppress initiating an overtake; keep lead-speed braking and
++        # crossing checks intact. Adjacent parallel cars were filtered above.
++        follow_vehicle_s5 = (self.sectors[index] == 5 and threat is not None
++                             and threat[1].length >= 2.5
++                             and (threat[1].kind == 'dynamic' or
++                                  (threat[1].velocity_reliable and threat[2] >= .5)))
+         candidates = [preferred]
+         if current != preferred and not force_r1:
+             candidates.append(current)
+-        if threat and not force_r1 and not unconfirmed_s5:
++        if follow_vehicle_s5:
++            candidates = [current]
++        elif threat and not force_r1 and not unconfirmed_s5:
+             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
+         candidates = list(dict.fromkeys(candidates))
+-        waiting = 'unconfirmed_obstacle' if unconfirmed_s5 else ''
++        waiting = ('s5_follow_vehicle' if follow_vehicle_s5 else
++                   'unconfirmed_obstacle' if unconfirmed_s5 else '')
+         slow_enough = (speed_mps <= self.effective_pass_speed_kmh/3.6+1.
+                        or self._any_speed_lane_change(index))
+         for lane in candidates:
+@@ -694,7 +703,7 @@
+         if threat:
+             cap = self._stop_cap(threat[0], threat[2])
+             cap = min(cap, edge_cap)
+-            if not slow_enough and len(available) > 1 and not unconfirmed_s5:
++            if not slow_enough and len(available) > 1 and not unconfirmed_s5 and not follow_vehicle_s5:
+                 cap = min(cap, self.effective_pass_speed_kmh)
+             return self._decision('TAILING', current_path if current != 1 else [], cap,
+                                   threat, waiting)
+--- a/src/unita_waypoint/test/test_s5_active_adjacent_local.py
++++ b/src/unita_waypoint/test/test_s5_active_adjacent_local.py
+@@ -41,6 +41,23 @@
+         self.assertNotEqual(d.state,'RACELINE')
+         self.assertLess(d.speed_cap_kmh,25.)
+ 
++    def test_same_lane_car_is_followed_then_released_when_it_leaves(self):
++        p=self.planner()
++        for x in (18., 12., 8.):
++            d=p.plan(0,(0.,0.),5.,[self.car(x=x,y=0.,radius=1.,raceline=1)])
++            self.assertEqual(d.state,'TAILING')
++            self.assertEqual(d.reason,'s5_follow_vehicle')
++            self.assertIsNone(p.transition)
++        d=p.plan(0,(0.,0.),5.,[self.car(x=8.)])
++        self.assertEqual(d.state,'RACELINE')
++        self.assertIsNone(p.transition)
++
++    def test_reliable_forward_motion_survives_static_label_dropout(self):
++        d=self.planner().plan(0,(0.,0.),5.,[
++            self.car(x=18.,y=0.,radius=1.,raceline=1,kind='static')])
++        self.assertEqual(d.state,'TAILING')
++        self.assertEqual(d.reason,'s5_follow_vehicle')
++
+ class ActiveS5InputTests(unittest.TestCase):
+     def test_callback_preserves_lane_and_vehicle_evidence(self):
+         import json

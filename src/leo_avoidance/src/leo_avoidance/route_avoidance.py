@@ -15,6 +15,7 @@ import math
 
 import numpy as np
 from scipy.spatial import cKDTree
+from leo_avoidance.s4_path_search import search_offsets
 
 
 @dataclass(frozen=True)
@@ -167,12 +168,25 @@ class _Pass:
     offset_m: float
     block_first_s: float
     quintic: bool = False
+    knots: tuple = ()
+    values: tuple = ()
+    slopes: tuple = ()
 
     def blend(self, t):
         t = max(0., min(1., t))
         return t*t*t*(10.-15.*t+6.*t*t) if self.quintic else smoothstep(t)
 
     def offset_at(self, s):
+        if self.knots:
+            if s <= self.knots[0]:
+                return self.values[0]+self.slopes[0]*(s-self.knots[0])
+            if s >= self.knots[-1]:
+                return 0.
+            i = min(len(self.knots)-2, max(0, int(np.searchsorted(self.knots, s))-1))
+            h = self.knots[i+1]-self.knots[i]
+            t = (s-self.knots[i])/h
+            return ((2*t**3-3*t*t+1)*self.values[i] + (t**3-2*t*t+t)*h*self.slopes[i]
+                    + (-2*t**3+3*t*t)*self.values[i+1] + (t**3-t*t)*h*self.slopes[i+1])
         if s <= self.ramp_start_s or s >= self.end_s:
             return 0.
         if s < self.full_s:
@@ -226,8 +240,12 @@ class RouteAvoidance:
         self.last_s = None
         self.static_pass_zone = None
         self.pass_speed_25_ranges = []
+        self.vehicle_follow_ranges = []  # S5 only: classify cars before static passing.
         self.static_memory = []
         self.static_pass_managed = False
+        self.s4_motion_history = {}
+        self.s4_mobile_until = {}
+        self._s4_search_after = -math.inf
 
     def reset(self):
         self.active = None
@@ -239,6 +257,49 @@ class RouteAvoidance:
         self.person_d = {}
         self.static_memory = []
         self.static_pass_managed = False
+        self.s4_motion_history = {}
+        self.s4_mobile_until = {}
+        self._s4_search_after = -math.inf
+
+    def _s4_mobile_sources(self, items):
+        """Remember measured motion before S4, without changing other planners.
+
+        A velocity-classification dropout must not turn a moving car's trail
+        into a permanent static footprint. Require common translation of both
+        box edges, not expansion of one visible face, for geometric evidence.
+        """
+        now = self.observation_time
+        self.s4_motion_history = {k: h for k, h in self.s4_motion_history.items()
+                                  if now-h[-1][0] <= 1.}
+        self.s4_mobile_until = {k: t for k, t in self.s4_mobile_until.items() if t >= now}
+        for o in items:
+            if o['id'] <= 0:
+                continue
+            history = self.s4_motion_history.setdefault(o['id'], [])
+            if history and now <= history[-1][0]:
+                continue
+            if history and math.hypot(o['s']-history[-1][1], o['d']-history[-1][2]) > 5.:
+                history.clear()
+                self.s4_mobile_until.pop(o['id'], None)
+            history.append((now, o['s'], o['d'], o['l'], o['r'], o['moving']))
+            history[:] = [h for h in history if now-h[0] <= 1.]
+            translated = False
+            if len(history) >= 3 and now-history[0][0] >= .25:
+                first, last = history[0], history[-1]
+                for axis, extent in ((1, 3), (2, 4)):
+                    low = (last[axis]-last[extent])-(first[axis]-first[extent])
+                    high = (last[axis]+last[extent])-(first[axis]+first[extent])
+                    common = min(abs(low), abs(high))
+                    direction = math.copysign(1., last[axis]-first[axis])
+                    consistent = all((b[axis]-a[axis])*direction >= -.1
+                                     for a, b in zip(history, history[1:]))
+                    if low*high > 0 and common >= .5 and common/(now-first[0]) >= .8 and consistent:
+                        translated = True
+            confirmed_motion = (len(history) >= 2 and o['moving'] and history[-2][5]
+                                and now-history[-2][0] <= .5)
+            if confirmed_motion or translated:
+                self.s4_mobile_until[o['id']] = now+2.
+        return set(self.s4_mobile_until)
 
     def set_static_pass_zone(self, start, full_start, full_end, end, offset):
         """Explicit saved S4 R2 corridor; approach/return stay within S4."""
@@ -247,29 +308,167 @@ class RouteAvoidance:
         self.static_pass_zone = (start, full_start, full_end, end, offset)
 
     def _retain_static_blocks(self, items, s_ego):
+        mobile_ids = self._s4_mobile_sources(items)
         zone = self.static_pass_zone
         self.static_pass_managed = bool(zone and zone[0] <= s_ego <= zone[3])
         if not self.static_pass_managed:
             self.static_memory = []
             return items
-        # Never interpret absence as free space. Keep a measured footprint
-        # until the rear bumper has passed it. Dynamic tracks remain live.
+        # Stable multi-scan shapes survive occlusion until the rear clears.
+        # A provisional single/jumping return only bridges a short dropout;
+        # it must not become a permanent obstacle without confirmation.
         cfg = self.config
         self.static_memory = [o for o in self.static_memory
-                              if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m]
+                              if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m
+                              and (o.get('shape_confirmed', False)
+                                   or self.observation_time-o.get('last_observed', self.observation_time) <= .6)]
+        # Each memory has one source. A live object remains in `items` and
+        # still undergoes all collision checks after its stale history clears.
+        self.static_memory = [h for h in self.static_memory
+                              if h['id'] not in mobile_ids]
+        retained = []
+        for h in self.static_memory:
+            previous = h.get('evidence_stamp', -math.inf)
+            fresh = self.observation_time > previous
+            if self.observation_time-previous > .5:
+                h['moving_seen'] = h['empty_seen'] = 0
+                h['empty_since'] = None
+            h['evidence_stamp'] = self.observation_time
+            ids = h.get('source_ids', [h['id']])
+            # A merged memory may contain another hidden static object.
+            # Such memories need measured free space, not one moving ID.
+            moving = len(ids) == 1 and any(o['moving'] and o['id'] > 0 and o['id'] in ids
+                         and .5 < math.hypot(o['s']-h['s'], o['d']-h['d']) < 8.
+                         for o in items)
+            h['moving_seen'] = h.get('moving_seen', 0)+1 if fresh and moving else 0
+            # A different, actually observed obstacle still occupying this
+            # footprint prevents deletion merely because one source moved.
+            occupied = any(not o['moving']
+                           and abs(o['s']-h['s']) <= o['l']+h['l']+.2
+                           and abs(o['d']-h['d']) <= o['r']+h['r']+.2 for o in items)
+            observer = getattr(self, 'static_clearance_observer', None)
+            clear = fresh and not occupied and observer is not None and observer(h)
+            if clear:
+                h['empty_seen'] = h.get('empty_seen', 0)+1
+                if h.get('empty_since') is None:
+                    h['empty_since'] = self.observation_time
+            else:
+                h['empty_seen'], h['empty_since'] = 0, None
+            moved = h['moving_seen'] >= 2 and not occupied
+            empty = (h['empty_seen'] >= 5 and h['empty_since'] is not None
+                     and self.observation_time-h['empty_since'] >= .5)
+            if not (moved or empty):
+                retained.append(h)
+        self.static_memory = retained
         for o in items:
-            if (o['moving'] or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
+            if (o['moving'] or o['id'] in mobile_ids or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
                     or not zone[1] <= o['s'] <= zone[2]):
                 continue
             match = next((h for h in self.static_memory
-                          if abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
+                          if h['id'] == o['id']
+                          and abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
             if match is None:
-                self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True))
+                self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True,
+                                               source_ids=[o['id']], last_observed=self.observation_time,
+                                               shape_confirmed=False))
             else:
+                match['last_observed'] = self.observation_time
+                ids = match.setdefault('source_ids', [match['id']])
+                if o['id'] not in ids:
+                    ids.append(o['id'])
                 low, high = min(match['s']-match['l'], o['s']-o['l']), max(match['s']+match['l'], o['s']+o['l'])
                 match['s'], match['l'] = (low+high)/2., (high-low)/2.
                 match['r'] = max(match['r'], o['r']+abs(o['d']-match['d']))
-        return items + [dict(o) for o in self.static_memory]
+        # Repeatedly measured geometry takes precedence over the same track's
+        # accumulated envelope. Commit the same shape to memory, so loss on
+        # the next scan cannot resurrect an obsolete inflated envelope.
+        stable_shapes = []
+        for o in items:
+            # Use a fresh bounded observation window, not every view from
+            # the last second. Keep the union of these views (not just the
+            # smallest/latest face) when replacing the historical envelope.
+            history = [h for h in self.s4_motion_history.get(o['id'], [])
+                       if self.observation_time-h[0] <= .45]
+            if (o['id'] > 0 and not o['moving'] and len(history) >= 3
+                    and self.observation_time-history[0][0] >= .25
+                    and all(not h[5] for h in history)
+                    and all(b[0]-a[0] <= .2 for a, b in zip(history, history[1:]))
+                    and all(np.ptp([h[axis] for h in history]) <= limit
+                            for axis, limit in ((1, .35), (2, .35), (3, .25), (4, .25)))):
+                if any(h['id'] == o['id'] for h in self.static_memory):
+                    shape = dict(o, v_s=0., v_d=0., remembered=True,
+                                 source_ids=[o['id']], last_observed=self.observation_time,
+                                 shape_confirmed=True)
+                    for axis, extent, center_key, size_key in ((1, 3, 's', 'l'), (2, 4, 'd', 'r')):
+                        low = min(h[axis]-h[extent] for h in history)
+                        high = max(h[axis]+h[extent] for h in history)
+                        shape[center_key], shape[size_key] = (low+high)/2., (high-low)/2.
+                    self.static_memory = [h for h in self.static_memory if h['id'] != o['id']]
+                    self.static_memory.append(shape)
+                    stable_shapes.append(shape)
+        self._s4_reconcile_memory(items, stable_shapes)
+        return items + [dict(h) for h in self.static_memory
+                        if not any(o['id'] == h['id'] and self._s4_contains(o, h)
+                                   for o in items if not o['moving'])]
+
+    @staticmethod
+    def _s4_contains(outer, inner):
+        return all(abs(outer[c]-inner[c])+inner[e] <= outer[e]+1e-6
+                   for c, e in (('s', 'l'), ('d', 'r')))
+
+    @staticmethod
+    def _s4_uncovered(old, observed):
+        """Disjoint rectangles of old evidence outside a live footprint."""
+        x0, x1 = old['s']-old['l'], old['s']+old['l']
+        y0, y1 = old['d']-old['r'], old['d']+old['r']
+        a, b = max(x0, observed['s']-observed['l']), min(x1, observed['s']+observed['l'])
+        c, d = max(y0, observed['d']-observed['r']), min(y1, observed['d']+observed['r'])
+        if a >= b or c >= d:
+            return [old]
+        result = []
+        for lo, hi, bottom, top in ((x0, a, y0, y1), (b, x1, y0, y1),
+                                    (a, b, y0, c), (a, b, d, y1)):
+            if hi-lo > 1e-6 and top-bottom > 1e-6:
+                result.append(dict(old, s=(lo+hi)/2., l=(hi-lo)/2.,
+                                   d=(bottom+top)/2., r=(top-bottom)/2.))
+        return result
+
+    def _s4_reconcile_memory(self, items, stable_shapes):
+        """Reconcile absent IDs using stable footprints and measured free space.
+
+        Keep ambiguous/occluded evidence. Time or proximity alone never
+        removes it. Replacement memory survives subsequent observation loss.
+        """
+        live_ids = {o['id'] for o in items}
+        observer = getattr(self, 'static_clearance_observer', None)
+        retained = []
+        for h in self.static_memory:
+            if h['id'] in live_ids:
+                retained.append(h)
+                continue
+            matches = [o for o in stable_shapes if o['id'] != h['id']
+                       and abs(o['s']-h['s']) < o['l']+h['l']
+                       and abs(o['d']-h['d']) < o['r']+h['r']]
+            accounted = False
+            if len(matches) == 1:
+                remaining = self._s4_uncovered(h, matches[0])
+                accounted = not remaining or (observer is not None and all(
+                    not any(abs(o['s']-part['s']) < o['l']+part['l']
+                            and abs(o['d']-part['d']) < o['r']+part['r']
+                            for o in items if not o['moving']) and observer(part)
+                    for part in remaining))
+            previous = h.get('reconcile_stamp', -math.inf)
+            if self.observation_time > previous:
+                if not accounted or self.observation_time-previous > .5:
+                    h['reconcile_scans'], h['reconcile_since'] = 0, self.observation_time
+                h['reconcile_stamp'] = self.observation_time
+                if accounted:
+                    h['reconcile_scans'] = h.get('reconcile_scans', 0)+1
+            if (accounted and h.get('reconcile_scans', 0) >= 5
+                    and self.observation_time-h.get('reconcile_since', self.observation_time) >= .5):
+                continue
+            retained.append(h)
+        self.static_memory = retained
 
     def set_pedestrian_hold_ranges(self, ranges):
         """[(start_s, end_s)] on the base lap where crossing pedestrians are held."""
@@ -348,10 +547,25 @@ class RouteAvoidance:
         cfg = self.config
         return o['r'] <= cfg.pedestrian_half_m and o['l'] <= cfg.pedestrian_half_m
 
+    def _held_person_sized(self, hold, o):
+        # Admission remains strict. Only an already-associated track gets a
+        # bounded 15 cm size hysteresis; position/motion matching still applies.
+        if self._person_sized(o):
+            return True
+        limit = self.config.pedestrian_half_m + .15
+        return (o['id'] in hold['ids'] and o['r'] <= limit and o['l'] <= limit
+                and abs(o['l']-hold['l']) <= .15
+                and abs(o['r']-hold.get('last_r', self.config.pedestrian_half_m)) <= .15)
+
     def _hold_match(self, hold, o):
         dt = max(0., self.observation_time-hold.get('seen_at', self.observation_time))
-        if dt > 3.01 or abs(o['s']-hold['s']) > 1.5:
+        if abs(o['s']-hold['s']) > 1.5:
             return False
+        if dt > 3.01:
+            # A stale velocity must not extrapolate indefinitely. Reconnect
+            # only a measured person close to the last occupied footprint;
+            # clear-space observations handle a person that has left it.
+            return abs(o['d']-hold['d']) <= .75
         vd = hold.get('vd', 0.)
         expected = hold['d'] + vd*dt
         if abs(o['d']-expected) > 1.5 + .3*dt:
@@ -440,11 +654,12 @@ class RouteAvoidance:
         if hold is None:
             return None
         cfg = self.config
-        near = [o for o in items if self._person_sized(o) and self._hold_match(hold, o)]
+        near = [o for o in items if self._held_person_sized(hold, o) and self._hold_match(hold, o)]
         if near:
             o = min(near, key=lambda o: math.hypot(o['s'] - hold['s'], o['d'] - hold['d']))
             previous_d, previous_s = hold['d'], hold['s']
             dt = self.observation_time-hold.get('seen_at', self.observation_time)
+            fresh = 0. < dt <= .5
             measured_vd = ((o['d']-previous_d)/dt if dt > .05 else hold.get('vd', 0.))
             if abs(o['v_d']) > .2:
                 hold['vd'] = o['v_d']
@@ -468,8 +683,16 @@ class RouteAvoidance:
                 hold['approach_scans'] = (hold['approach_scans']+1
                     if consistent and delta >= .1 else 0)
                 hold['stationary_scans'] = (hold['stationary_scans']+1
-                    if consistent and lateral > cfg.band(o['r']) + .3 and not o['moving']
+                    if fresh and consistent and lateral > cfg.band(o['r']) + .3 and not o['moving']
                     and abs(o['d']-previous_d) < .1 else 0)
+                relative_d = o['d']-offset_at(o['s'])
+                previous_relative_d = previous_d-offset_at(previous_s)
+                # An unconfirmed candidate can leave without ever crossing.
+                # Require measured outward displacement, not a velocity flag.
+                outward = (fresh and consistent and lateral > cfg.band(o['r'])+.3
+                           and relative_d*previous_relative_d > 0.
+                           and lateral-abs(previous_relative_d) >= .05)
+                hold['departing_scans'] = hold.get('departing_scans', 0)+1 if outward else 0
                 hold.update(last_r=o['r'], last_l=o['l'])
                 # Candidate slowdown is reversible. Confirmed path occupancy
                 # or sustained approach upgrades it to a persistent hazard.
@@ -478,7 +701,7 @@ class RouteAvoidance:
                                  and abs(hold['initial_d'])-abs(o['d']) >= .4))
                 if confirmed:
                     hold.update(tentative=False, confirmed_crossing=True)
-                elif hold['stationary_scans'] >= 4:
+                elif hold['stationary_scans'] >= 4 or hold['departing_scans'] >= 3:
                     self.pedestrian_hold = None
                     return None
                 occupied = True
@@ -495,6 +718,30 @@ class RouteAvoidance:
                         and hold['lost_scans'] < cfg.pedestrian_lost_release_scans)
             if hold.get('tentative') or hold.get('confirmed_crossing'):
                 occupied = True
+            observer = getattr(self, 'clearance_observer', None)
+            previous_clear_stamp = hold.get('clear_observation_stamp', -math.inf)
+            fresh = self.observation_time > previous_clear_stamp
+            if self.observation_time - previous_clear_stamp > .5:
+                hold['visible_clear_since'] = None
+                hold['visible_clear_scans'] = 0
+            hold['clear_observation_stamp'] = self.observation_time
+            visible_clear = (fresh and speed <= .3 and observer is not None
+                             and self.observation_time-hold.get('seen_at', self.observation_time) >= .6
+                             and observer(hold, offset_at))
+            if visible_clear:
+                if hold.get('visible_clear_since') is None:
+                    hold['visible_clear_since'] = self.observation_time
+                hold['visible_clear_scans'] = hold.get('visible_clear_scans', 0) + 1
+                if (hold['visible_clear_scans'] >= 5
+                        and self.observation_time-hold['visible_clear_since'] >= .5):
+                    self.pedestrian_hold = None
+                    return None
+            else:
+                hold['visible_clear_since'] = None
+                hold['visible_clear_scans'] = 0
+        if near:
+            hold['visible_clear_since'] = None
+            hold['visible_clear_scans'] = 0
         hold['clear_scans'] = 0 if occupied else hold['clear_scans'] + 1
         if (hold['s'] + hold['l'] < s_ego
                 or hold['clear_scans'] >= (3 if hold.get('confirmed_crossing') else cfg.pedestrian_release_scans)
@@ -531,7 +778,7 @@ class RouteAvoidance:
                 return False, o
         return True, None
 
-    def _s4_swept_check(self, profile, items, s_ego, speed):
+    def _s4_swept_check(self, profile, items, s_ego, speed, check_curvature=True):
         """Check oriented ego body against obstacle rectangles on the route.
 
         Sample the complete entry, hold and return, including rear overhang.
@@ -545,7 +792,7 @@ class RouteAvoidance:
             slope = (right-left)/.1
             curvature = abs((right-2*d+left)/.0025)/(1+slope*slope)**1.5
             peak = max(peak, curvature)
-            if peak > .14:
+            if check_curvature and peak > .14:
                 return False, None, s, peak
             angle = math.atan(slope)
             c, sn = math.cos(angle), math.sin(angle)
@@ -606,12 +853,56 @@ class RouteAvoidance:
                                         for v in (speed, min(speed, 3.)))):
                             return delayed
                         return candidate
+        return self._s4_adaptive_candidate(items, s_ego, speed, block_first)
+
+    def _s4_adaptive_candidate(self, items, s_ego, speed, block_first):
+        # Only static S4 geometry is optimized. Existing traffic checks still
+        # handle live movers; never plan a spline through their future path.
+        if any(o['moving'] for o in items):
+            return None
+        relevant = [o for o in items if o['r'] >= .4 and o['s'] > s_ego
+                    and (self._in_band(o, 0.) or self._in_band(o, self.static_pass_zone[4]))]
+        continuing = self.active is not None and bool(self.active.knots)
+        if not continuing and not any(a['id'] != b['id'] and abs(a['d']-b['d']) > 1.6
+                   and abs(a['s']-b['s']) > 3. for a in relevant for b in relevant):
+            return None  # Preserve the established single-block S4 behaviour.
+        if self.observation_time < getattr(self, '_s4_search_after', -math.inf):
+            return None
+        self._s4_search_after = self.observation_time+.5
+        initial = self.active.offset_at(s_ego) if self.active else 0.
+        slope = ((self.active.offset_at(s_ego+.05)-self.active.offset_at(s_ego-.05))/.1
+                 if self.active else 0.)
+        end, lane = self.static_pass_zone[3:]
+        solution = search_offsets(s_ego, end, initial, slope, lane, items, self.config)
+        if solution is None:
+            return None
+        knots, values, slopes = solution
+        path = _Pass(s_ego, s_ego+1., end-1., end, lane, block_first,
+                     knots=tuple(knots), values=tuple(values), slopes=tuple(slopes))
+        if self._s4_swept_check(path, items, s_ego, speed)[0]:
+            return path
         return None
 
+    def _s4_curve_speed(self, profile, s_ego, speed):
+        """Curvature-dependent speed with braking room for upcoming bends."""
+        cap = math.inf
+        for s in np.arange(s_ego, profile.end_s+.01, .5):
+            d = profile.offset_at(s)
+            left, right = profile.offset_at(s-.05), profile.offset_at(s+.05)
+            slope = (right-left)/.1
+            curvature = abs(right-2*d+left)/.0025/(1+slope*slope)**1.5
+            bend_speed = math.sqrt(3.1/max(curvature, .001))
+            room = max(0., s-s_ego-speed*self.config.reaction_s)
+            cap = min(cap, math.sqrt(bend_speed**2+2*self.config.brake_mps2*room))
+        return cap
+
     def update(self, ego_xy, ego_speed_mps, obstacles, stop_line_distance_m=None,
-               stop_line_permitted=True, stamp=None):
+               stop_line_permitted=True, stamp=None, clearance_observer=None,
+               static_clearance_observer=None):
         """Return the offset path (map points), a speed cap and the state."""
         self.observation_time = (float(stamp) if stamp is not None else self.observation_time + .1)
+        self.clearance_observer = clearance_observer
+        self.static_clearance_observer = static_clearance_observer
         cfg = self.config
         speed = max(0., ego_speed_mps if math.isfinite(ego_speed_mps) else 0.)
         s_ego, _ = self._locate_ego(*ego_xy)
@@ -629,13 +920,33 @@ class RouteAvoidance:
         offset_now = self.active.offset_at(s_ego) if self.active else 0.
 
         # Static blocks in Ego's own lane ahead of the bumper (or beside it while passing).
-        blocks = sorted((o for o in items if not o['moving'] and self._in_band(o, 0.)
+        follow_zone = any(a <= s_ego < b for a, b in self.vehicle_follow_ranges)
+        def static_pass_candidate(o):
+            if not follow_zone or o['l'] < 1.25:
+                return True
+            # Initial/dropout static labels must not start a car overtake.
+            # This only gates path creation: all obstacles remain in braking
+            # and pedestrian/crossing checks below, with their original data.
+            history = self.s4_motion_history.get(o['id'], [])
+            return (o['id'] not in self.s4_mobile_until
+                    and abs(o['v_s']) < cfg.moving_speed_mps
+                    and len(history) >= 3 and history[-1][0]-history[0][0] >= .6
+                    and max(h[1] for h in history)-min(h[1] for h in history) < .3
+                    and not any(h[5] for h in history))
+        blocks = sorted((o for o in items if not o['moving'] and static_pass_candidate(o) and self._in_band(o, 0.)
                          and o['s'] + o['l'] > front_s - (cfg.front_extent_m
                                                            if self.active else 0.)),
                         key=lambda o: o['s'])
         if self.active is not None:
+            if self.static_pass_managed and not self._s4_swept_check(self.active, items, s_ego, speed)[0]:
+                replacement = self._s4_adaptive_candidate(items, s_ego, speed, self.active.block_first_s)
+                if replacement is not None:
+                    self.active = replacement
+                    offset_now = self.active.offset_at(s_ego)
             # A further block soon after the current one extends the hold.
             for o in blocks:
+                if self.active.knots:
+                    break  # The complete multi-bend path has already been checked.
                 if o['s'] - o['l'] <= self.active.hold_end_s + cfg.merge_gap_m:
                     needed_hold = o['s'] + o['l'] + cfg.rear_extent_m + cfg.post_gap_m
                     if self.static_pass_managed and needed_hold > self.active.hold_end_s:
@@ -657,6 +968,18 @@ class RouteAvoidance:
                 clear, blocker, hit_s, _ = self._s4_swept_check(self.active, items, s_ego, speed)
                 if not clear:
                     cap = min(cap, stopping_speed(hit_s-s_ego, cfg.brake_mps2, cfg.reaction_s))
+            elif any(a <= s_ego <= b for a, b in self.pedestrian_hold_ranges):
+                # In S5 a stationary kerb-side person must intersect the
+                # actual remaining entry/return, not the old full-offset
+                # lane strip. Keep moving traffic's arrival checks intact.
+                clear, blocker = self._lane_clear(
+                    [o for o in items if o['moving']], self.active.offset_m,
+                    s_ego, self.active.end_s, speed)
+                static_clear, static_blocker, _, _ = self._s4_swept_check(
+                    self.active, [o for o in items if not o['moving']],
+                    s_ego, speed, check_curvature=False)
+                if not static_clear:
+                    clear, blocker = False, static_blocker
             beside = front_s >= self.active.block_first_s - cfg.pre_gap_m
             protected_pass = self.static_pass_managed or any(a <= s_ego <= b for a, b in self.pedestrian_hold_ranges)
             if not clear and not beside and not protected_pass:
@@ -710,8 +1033,8 @@ class RouteAvoidance:
             gap = block_first_s - front_s - cfg.stop_gap_m
             side = lambda offset: 'left' if offset > 0 else 'right'
             if clear and not stop_line_in_pass and (not creep or speed < .3):
-                self.active = _Pass(ramp_start, full, hold_end, end_s,
-                                    pass_offset, block_first_s, self.static_pass_managed)
+                self.active = s4_candidate or _Pass(ramp_start, full, hold_end, end_s,
+                                                   pass_offset, block_first_s, self.static_pass_managed)
                 offset_now = self.active.offset_at(s_ego)
                 state = 'PASSING'
                 reason = ('pulling out to the %s lane from behind a static block' if creep
@@ -740,6 +1063,8 @@ class RouteAvoidance:
                     state, reason = 'WAIT_PASS', 'S4 no collision-free swept path; preserving entry room'
         if self.active is not None:
             cap = min(cap, cfg.pass_speed_kmh / 3.6)
+            if self.active.knots:
+                cap = min(cap, self._s4_curve_speed(self.active, s_ego, speed))
             if self.active.quintic:
                 length = min(self.active.full_s-self.active.ramp_start_s,
                              self.active.end_s-self.active.hold_end_s)
@@ -774,6 +1099,16 @@ class RouteAvoidance:
                 continue
             occupied = False
             for o in items:
+                if (self.static_pass_managed and self.active is not None
+                        and not o['moving']
+                        and self.static_pass_zone[0] <= o['s'] - o['l']
+                        and o['s'] + o['l'] <= min(self.static_pass_zone[3],
+                                                  self.active.end_s)):
+                    # S4 contains static fixtures: the oriented swept-path
+                    # check above owns their clearance and braking. Do not
+                    # reinterpret them as pedestrians by size alone on the
+                    # global centerline. Outside S4 and movers stay protected.
+                    continue
                 person = (o['r'] <= cfg.crosswalk_person_m
                           and o['l'] <= cfg.crosswalk_person_m)
                 if not (start - o['l'] <= o['s'] <= end + o['l']):

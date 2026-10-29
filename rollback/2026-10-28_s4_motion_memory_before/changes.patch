@@ -1,0 +1,151 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -228,6 +228,8 @@
+         self.pass_speed_25_ranges = []
+         self.static_memory = []
+         self.static_pass_managed = False
++        self.s4_motion_history = {}
++        self.s4_mobile_until = {}
+ 
+     def reset(self):
+         self.active = None
+@@ -239,6 +241,48 @@
+         self.person_d = {}
+         self.static_memory = []
+         self.static_pass_managed = False
++        self.s4_motion_history = {}
++        self.s4_mobile_until = {}
++
++    def _s4_mobile_sources(self, items):
++        """Remember measured motion before S4, without changing other planners.
++
++        A velocity-classification dropout must not turn a moving car's trail
++        into a permanent static footprint. Require common translation of both
++        box edges, not expansion of one visible face, for geometric evidence.
++        """
++        now = self.observation_time
++        self.s4_motion_history = {k: h for k, h in self.s4_motion_history.items()
++                                  if now-h[-1][0] <= 1.}
++        self.s4_mobile_until = {k: t for k, t in self.s4_mobile_until.items() if t >= now}
++        for o in items:
++            if o['id'] <= 0:
++                continue
++            history = self.s4_motion_history.setdefault(o['id'], [])
++            if history and now <= history[-1][0]:
++                continue
++            if history and math.hypot(o['s']-history[-1][1], o['d']-history[-1][2]) > 5.:
++                history.clear()
++                self.s4_mobile_until.pop(o['id'], None)
++            history.append((now, o['s'], o['d'], o['l'], o['r'], o['moving']))
++            history[:] = [h for h in history if now-h[0] <= 1.]
++            translated = False
++            if len(history) >= 3 and now-history[0][0] >= .25:
++                first, last = history[0], history[-1]
++                for axis, extent in ((1, 3), (2, 4)):
++                    low = (last[axis]-last[extent])-(first[axis]-first[extent])
++                    high = (last[axis]+last[extent])-(first[axis]+first[extent])
++                    common = min(abs(low), abs(high))
++                    direction = math.copysign(1., last[axis]-first[axis])
++                    consistent = all((b[axis]-a[axis])*direction >= -.1
++                                     for a, b in zip(history, history[1:]))
++                    if low*high > 0 and common >= .5 and common/(now-first[0]) >= .8 and consistent:
++                        translated = True
++            confirmed_motion = (len(history) >= 2 and o['moving'] and history[-2][5]
++                                and now-history[-2][0] <= .5)
++            if confirmed_motion or translated:
++                self.s4_mobile_until[o['id']] = now+2.
++        return set(self.s4_mobile_until)
+ 
+     def set_static_pass_zone(self, start, full_start, full_end, end, offset):
+         """Explicit saved S4 R2 corridor; approach/return stay within S4."""
+@@ -247,6 +291,7 @@
+         self.static_pass_zone = (start, full_start, full_end, end, offset)
+ 
+     def _retain_static_blocks(self, items, s_ego):
++        mobile_ids = self._s4_mobile_sources(items)
+         zone = self.static_pass_zone
+         self.static_pass_managed = bool(zone and zone[0] <= s_ego <= zone[3])
+         if not self.static_pass_managed:
+@@ -257,6 +302,10 @@
+         cfg = self.config
+         self.static_memory = [o for o in self.static_memory
+                               if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m]
++        # Each memory has one source. A live object remains in `items` and
++        # still undergoes all collision checks after its stale history clears.
++        self.static_memory = [h for h in self.static_memory
++                              if h['id'] not in mobile_ids]
+         retained = []
+         for h in self.static_memory:
+             previous = h.get('evidence_stamp', -math.inf)
+@@ -292,11 +341,12 @@
+                 retained.append(h)
+         self.static_memory = retained
+         for o in items:
+-            if (o['moving'] or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
++            if (o['moving'] or o['id'] in mobile_ids or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
+                     or not zone[1] <= o['s'] <= zone[2]):
+                 continue
+             match = next((h for h in self.static_memory
+-                          if abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
++                          if h['id'] == o['id']
++                          and abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
+             if match is None:
+                 self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True,
+                                                source_ids=[o['id']]))
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -172,3 +172,54 @@
+         for _ in range(20):
+             p.update((120., 0.), 0., [], static_clearance_observer=lambda h: False)
+         self.assertTrue(p.static_memory)
++
++
++class S4MotionMemoryTests(unittest.TestCase):
++    def planner(self):
++        p = RouteAvoidance([(x, 0.) for x in range(401)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        return p
++
++    def test_pre_s4_lead_vehicle_cannot_leave_static_trail_on_dropout(self):
++        p = self.planner()
++        for i in range(3):
++            p.update((97., 0.), 0., [RouteObstacle(125.+i*.2, 0., .8, vx=2., dynamic=True, track_id=44)])
++        d = p.update((100., 0.), 0., [RouteObstacle(125.6, 0., .8, track_id=44)])
++        self.assertFalse(p.static_memory)
++        self.assertTrue(any(o['id'] == 44 for o in d.obstacles))
++
++    def test_measured_translation_does_not_grow_permanent_static_wall(self):
++        p = self.planner()
++        for i in range(8):
++            p.update((120., 0.), 0., [RouteObstacle(128.+i*.2, i*.15, .8,
++                     half_length=.5, track_id=84)])
++        self.assertFalse(p.static_memory)
++
++    def test_different_static_sources_never_merge_and_dropout_keeps_both(self):
++        p = self.planner()
++        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=44),
++                                RouteObstacle(130., .3, .8, track_id=84)])
++        self.assertEqual(len(p.static_memory), 2)
++        p.update((120., 0.), 0., [])
++        self.assertEqual(len(p.static_memory), 2)
++        self.assertTrue(all(len(h['source_ids']) == 1 for h in p.static_memory))
++
++    def test_changing_visible_face_is_not_translation(self):
++        p = self.planner()
++        for i in range(8):
++            # One edge stays fixed while the visible box grows.
++            p.update((120., 0.), 0., [RouteObstacle(129.+i*.1, 0., .8,
++                     half_length=.5+i*.1, track_id=4)])
++        self.assertTrue(p.static_memory)
++        self.assertNotIn(4, p.s4_mobile_until)
++
++    def test_stationary_vehicle_regains_static_protection_and_reset_clears_history(self):
++        p = self.planner()
++        for _ in range(3):
++            p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, vx=2., dynamic=True, track_id=4)])
++        for _ in range(32):
++            p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=4)])
++        self.assertTrue(p.static_memory)
++        p.reset()
++        self.assertFalse(p.s4_motion_history)
++        self.assertFalse(p.s4_mobile_until)

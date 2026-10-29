@@ -17,6 +17,39 @@ def planner(lane_changes=LEFT_LANE, **overrides):
     return RouteAvoidance(ROUTE, RouteAvoidanceConfig(**overrides), lane_changes)
 
 
+def test_s5_vehicle_initial_static_label_and_motion_dropout_do_not_start_pass():
+    avoid = planner()
+    avoid.vehicle_follow_ranges = [(0., 100.)]
+    for i in range(12):
+        dynamic = 2 <= i <= 6
+        car = RouteObstacle(40.+i*.3, 0., 1., vx=3. if dynamic else 0.,
+                            dynamic=dynamic, track_id=7, half_length=2.)
+        decision = avoid.update((0., 0.), 5., [car], stamp=i*.1)
+        assert avoid.active is None
+        assert all(abs(y)<1e-6 for x,y in decision.path)
+
+
+def test_s5_confirmed_static_vehicle_remains_avoidable():
+    avoid = planner()
+    avoid.vehicle_follow_ranges = [(0., 100.)]
+    for i in range(9):
+        avoid.update((0.,0.), 5., [RouteObstacle(40.,0.,1.,track_id=7,half_length=2.)],stamp=i*.1)
+    assert avoid.active is not None
+
+
+def test_s5_small_crossers_keep_identical_braking():
+    for size in (.25, .5):
+        a,b = planner(),planner()
+        b.vehicle_follow_ranges = [(0.,100.)]
+        for i in range(8):
+            person=RouteObstacle(12.,2.-i*.3,size,vy=-2.,dynamic=True,track_id=7,half_length=size)
+            before=a.update((0.,0.),5.,[person],stamp=i*.1)
+            after=b.update((0.,0.),5.,[person],stamp=i*.1)
+            assert before.state==after.state
+            assert before.speed_cap_mps==after.speed_cap_mps
+            assert before.path==after.path
+
+
 def offset_at(decision, x):
     return min(decision.path, key=lambda p: abs(p[0] - x))[1]
 
@@ -506,3 +539,145 @@ def test_person_last_seen_clear_then_lost_requires_observed_clearance():
     for _ in range(5):
         decision = avoid.update((128., 0.), 0., [person(140., 3.5, vy=1.5)])
     assert decision.state == 'FOLLOW'
+
+
+def test_lost_pedestrian_requires_measured_clear_space_before_release():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1., 1.5)
+    for _ in range(40):
+        decision = avoid.update((128., 0.), 0., [], clearance_observer=lambda h, o: False)
+    assert decision.state == 'YIELD'
+    # Fresh positive observations, not elapsed time alone, release the cap.
+    for _ in range(8):
+        decision = avoid.update((128., 0.), 0., [], clearance_observer=lambda h, o: True)
+    assert avoid.pedestrian_hold is None
+    assert decision.state == 'FOLLOW'
+    assert decision.speed_cap_mps > 0.
+
+
+def test_visibility_release_restarts_after_occlusion_and_duplicate_stamp():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1., 1.5)
+    start = avoid.observation_time + 1.
+    for _ in range(10):
+        avoid.update((128., 0.), 0., [], stamp=start, clearance_observer=lambda h, o: True)
+    assert avoid.pedestrian_hold is not None
+    for i in range(4):
+        avoid.update((128., 0.), 0., [], stamp=start+.1*(i+1), clearance_observer=lambda h, o: True)
+    avoid.update((128., 0.), 0., [], stamp=start+.5, clearance_observer=lambda h, o: False)
+    assert avoid.pedestrian_hold['visible_clear_scans'] == 0
+    assert avoid.pedestrian_hold is not None
+
+
+def test_visible_space_does_not_override_a_matching_person_or_moving_ego():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1., 1.5)
+    for _ in range(40):
+        avoid.update((128., 1.), 0., [person(140., -.5, vy=0.)],
+                     clearance_observer=lambda h, o: True)
+    assert avoid.pedestrian_hold is not None
+    for _ in range(20):
+        avoid.update((128., 0.), 2., [], clearance_observer=lambda h, o: True)
+    assert avoid.pedestrian_hold is not None
+
+
+def test_old_hold_can_reconnect_to_person_near_last_footprint():
+    avoid = hold_planner()
+    approach(avoid, 128., 0., 140., -1.3, -1., 1.5)
+    for _ in range(40):
+        avoid.update((128., 0.), 0., [])
+    avoid.update((128., 0.), 0., [person(140., -.5, vy=0., track_id=999)])
+    assert 999 in avoid.pedestrian_hold['ids']
+
+
+def test_observed_clearance_rejects_empty_sparse_and_occluded_scans():
+    from leo_avoidance.observed_clearance import rectangle_observed_clear
+    corners = [[5., -1.], [5., 1.], [7., 1.], [7., -1.]]
+    a = np.deg2rad(np.arange(-20., 20., .1))
+    clear = np.column_stack((15.*np.cos(a), 15.*np.sin(a), np.zeros(len(a))))
+    assert rectangle_observed_clear(clear, corners)
+    assert not rectangle_observed_clear([], corners)
+    assert not rectangle_observed_clear(clear[::30], corners)
+    assert not rectangle_observed_clear(np.vstack((clear, [[3., 0., 0.]])), corners)
+    assert not rectangle_observed_clear(np.vstack((clear, [[6., 0., 0.]])), corners)
+
+
+def candidate_boundary_hold():
+    # 2026-10-29 15:44:08: candidate 53 associated with 33, just below .6 m.
+    return dict(ids={33, 53}, s=446.949249, d=-3.250417, l=.598334,
+                cap=0., full_brake=False, clear_scans=0, static_scans=0,
+                lost_scans=0, near=False, confirmed_crossing=False,
+                tentative=True, approach_scans=0, stationary_scans=3,
+                initial_d=-2.473532, last_r=.568877, last_l=.598334,
+                seen_at=10., vd=0.)
+
+
+def boundary_observation(**changes):
+    result = dict(id=33, s=446.95228, d=-3.2564, r=.575039, l=.601724,
+                  moving=False, v_s=0., v_d=0.)
+    result.update(changes)
+    return result
+
+
+def test_recorded_size_boundary_candidate_reconnects_and_releases():
+    p = hold_planner()
+    p.pedestrian_hold = candidate_boundary_hold()
+    p.observation_time = 10.1
+    assert p._single_pedestrian_hold_cap([boundary_observation()], 0., 444.5376,
+                                       448.3826, lambda s: 0.) is None
+    assert p.pedestrian_hold is None
+
+
+def test_size_hysteresis_does_not_admit_new_large_objects_or_large_growth():
+    p = hold_planner()
+    hold = candidate_boundary_hold()
+    assert not p._held_person_sized(hold, boundary_observation(id=999))
+    assert not p._held_person_sized(hold, boundary_observation(l=1.2))
+    assert not p._person_sized(boundary_observation())
+
+
+def test_matching_candidate_inside_path_upgrades_instead_of_releasing():
+    p = hold_planner()
+    hold = candidate_boundary_hold()
+    hold.update(d=-1.8, initial_d=-1.8, stationary_scans=3)
+    p.pedestrian_hold = hold
+    p.observation_time = 10.1
+    cap = p._single_pedestrian_hold_cap([boundary_observation(d=-1.8)], 0., 444.5376,
+                                       448.3826, lambda s: 0.)
+    assert cap == 0.
+    assert p.pedestrian_hold['confirmed_crossing']
+    assert not p.pedestrian_hold['tentative']
+
+
+def test_duplicate_scan_cannot_finish_candidate_stationary_release():
+    p = hold_planner()
+    p.pedestrian_hold = candidate_boundary_hold()
+    for _ in range(10):
+        p.observation_time = 10.
+        p._single_pedestrian_hold_cap([boundary_observation()], 0., 444.5376,
+                                     448.3826, lambda s: 0.)
+    assert p.pedestrian_hold is not None
+
+
+def test_unconfirmed_outward_candidate_releases_only_after_observed_departure():
+    p = hold_planner()
+    h = candidate_boundary_hold()
+    h.update(stationary_scans=0, d=-3., initial_d=-3.)
+    p.pedestrian_hold = h
+    for i in range(1, 4):
+        p.observation_time = 10.+i*.1
+        cap = p._single_pedestrian_hold_cap(
+            [boundary_observation(d=-3.-.1*i, moving=True, v_d=-1.)],
+            0., 444.5376, 448.3826, lambda s: 0.)
+        if i < 3:
+            assert cap is not None
+    assert p.pedestrian_hold is None
+
+
+def test_missing_candidate_still_requires_evidence_not_timeout():
+    p = hold_planner()
+    p.pedestrian_hold = candidate_boundary_hold()
+    for i in range(1, 100):
+        p.observation_time = 10.+i*.1
+        p._single_pedestrian_hold_cap([], 0., 444.5376, 448.3826, lambda s: 0.)
+    assert p.pedestrian_hold is not None

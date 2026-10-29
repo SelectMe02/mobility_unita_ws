@@ -1,0 +1,1 @@
+160 function tests + 26 unittest cases passed under ROS Noetic workspace. Tests cover stable geometry commit followed by dropout, small single-scan rejection, continuing spline replan with one obstacle, curvature-dependent speed and existing S4/S5/FTG cases. No simulator run or full raw bag replay performed. Reverse apply checked.

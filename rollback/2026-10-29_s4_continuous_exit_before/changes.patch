@@ -1,0 +1,264 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -314,11 +314,14 @@
+         if not self.static_pass_managed:
+             self.static_memory = []
+             return items
+-        # Never interpret absence as free space. Keep a measured footprint
+-        # until the rear bumper has passed it. Dynamic tracks remain live.
++        # Stable multi-scan shapes survive occlusion until the rear clears.
++        # A provisional single/jumping return only bridges a short dropout;
++        # it must not become a permanent obstacle without confirmation.
+         cfg = self.config
+         self.static_memory = [o for o in self.static_memory
+-                              if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m]
++                              if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m
++                              and (o.get('shape_confirmed', False)
++                                   or self.observation_time-o.get('last_observed', self.observation_time) <= .6)]
+         # Each memory has one source. A live object remains in `items` and
+         # still undergoes all collision checks after its stale history clears.
+         self.static_memory = [h for h in self.static_memory
+@@ -366,8 +369,10 @@
+                           and abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
+             if match is None:
+                 self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True,
+-                                               source_ids=[o['id']]))
++                                               source_ids=[o['id']], last_observed=self.observation_time,
++                                               shape_confirmed=False))
+             else:
++                match['last_observed'] = self.observation_time
+                 ids = match.setdefault('source_ids', [match['id']])
+                 if o['id'] not in ids:
+                     ids.append(o['id'])
+@@ -392,7 +397,8 @@
+                             for axis, limit in ((1, .35), (2, .35), (3, .25), (4, .25)))):
+                 if any(h['id'] == o['id'] for h in self.static_memory):
+                     shape = dict(o, v_s=0., v_d=0., remembered=True,
+-                                 source_ids=[o['id']])
++                                 source_ids=[o['id']], last_observed=self.observation_time,
++                                 shape_confirmed=True)
+                     for axis, extent, center_key, size_key in ((1, 3, 's', 'l'), (2, 4, 'd', 'r')):
+                         low = min(h[axis]-h[extent] for h in history)
+                         high = max(h[axis]+h[extent] for h in history)
+--- a/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
++++ b/src/leo_avoidance/src/leo_avoidance/s4_ftg_fallback.py
+@@ -50,7 +50,7 @@
+         Unknown remembered footprints remain obstacles, never presumed empty.
+         """
+         s = planner.last_s
+-        if profile is None or profile.end_s <= s+1.:
++        if profile is None or profile.end_s <= s:
+             return s, 'no forward path'
+         low, high = sorted((0., planner.static_pass_zone[4]))
+         end, reason = profile.end_s, 'path end'
+@@ -85,16 +85,26 @@
+         return end, reason
+ 
+     def follow_prefix(self, planner, decision, profile, points, pose, speed, source, limit=math.inf):
++        # A completed return joins the saved route; it is not a stop line.
++        # Validate the continuation with the same body/scan checks.
++        if profile is not None and abs(profile.offset_at(profile.end_s)) < .05:
++            base = profile
++            class Continuation:
++                end_s = min(planner.route.s[-1], max(base.end_s, planner.last_s+planner.config.path_length_m))
++                def offset_at(self, a):
++                    return base.offset_at(a) if a < base.end_s else 0.
++            profile = Continuation()
+         end, reason = self.clear_prefix(planner, profile, decision.obstacles, speed, points, pose)
+         s, cfg = planner.last_s, planner.config
+         room = max(0., end-s)
+         # Stop short of the first unsafe rear-axle pose. Do not subtract
+         # another front overhang: the swept check already includes it.
+-        cap = min(limit, cfg.pass_speed_kmh/3.6, decision.traffic_speed_cap_mps,
+-                  stopping_speed(room-.75, cfg.brake_mps2, cfg.reaction_s))
+-        if profile is None or room < 5.:
+-            cap = 0.  # The follower requires a forward lookahead target.
+-        if profile is not None and room >= 5.:
++        cap = min(limit, cfg.pass_speed_kmh/3.6, decision.traffic_speed_cap_mps)
++        if reason != 'path end':
++            cap = min(cap, stopping_speed(room-.75, cfg.brake_mps2, cfg.reaction_s))
++        if profile is None:
++            cap = 0.
++        if profile is not None and room > .05:
+             class Prefix:
+                 end_s = end
+                 offset_at = staticmethod(profile.offset_at)
+@@ -182,7 +192,7 @@
+         if self.mode == 'recover' and not self.safe(planner, self.profile, decision.obstacles, speed, points, pose):
+             # A distant new conflict must not discard a usable connection.
+             end, _ = self.clear_prefix(planner, self.profile, decision.obstacles, speed, points, pose)
+-            if end-s < 5.:
++            if end-s < 1.:
+                 self.mode, self.entered = 'ftg', stamp
+                 self.good_since, self.good_scans = None, 0
+                 self.profile = None
+@@ -212,8 +222,8 @@
+                 target_d = float(np.clip(target_d, min(0., planner.static_pass_zone[4]), max(0., planner.static_pass_zone[4])))
+                 candidate = Profile([s, end], [d, target_d], [slope, 0.])
+                 clear_end, _ = self.clear_prefix(planner, candidate, decision.obstacles, speed, points, pose)
+-                improvement = 0. if best_end-s < 5. else 1.
+-                if clear_end-s >= 5. and clear_end > best_end+improvement:
++                improvement = 0. if best_end-s < 1. else 1.
++                if clear_end-s >= 1. and clear_end > best_end+improvement:
+                     best, best_end = candidate, clear_end
+             self.profile = best
+         if self.profile is None:
+--- a/src/leo_avoidance/test/test_s4_ftg_fallback.py
++++ b/src/leo_avoidance/test/test_s4_ftg_fallback.py
+@@ -122,6 +122,30 @@
+         self.assertEqual(result.speed_cap_mps, 0.)
+         self.assertEqual(self.f.status['state'], 'STOP')
+ 
++    def test_clear_return_end_connects_to_route_without_end_braking(self):
++        profile = Profile([20., 24.], [-.1, 0.], [0., 0.])
++        result = self.f.follow_prefix(self.p, self.d, profile, self.points,
++                                      self.pose, 0., 'LOCAL_PATH')
++        self.assertGreater(result.path[-1][0], 30.)
++        self.assertEqual(result.path[-1][1], 0.)
++        self.assertAlmostEqual(result.speed_cap_mps, self.p.config.pass_speed_kmh/3.6)
++
++    def test_under_five_meters_uses_stopping_distance_not_binary_stop(self):
++        profile = Profile([20., 60.], [-1., -1.], [0., 0.])
++        self.f.clear_prefix = lambda *args: (23.75, 'observed obstacle #1')
++        result = self.f.follow_prefix(self.p, self.d, profile, self.points,
++                                      self.pose, 0., 'LOCAL_PATH')
++        self.assertGreater(result.speed_cap_mps, 0.)
++        self.assertEqual(result.path[-1][0], 23.75)
++
++    def test_obstacle_on_continuation_is_still_checked(self):
++        profile = Profile([20., 24.], [-.1, 0.], [0., 0.])
++        self.d.obstacles = [dict(s=29.,d=0.,l=1.,r=1.,moving=False,id=1,v_s=0.,v_d=0.)]
++        result = self.f.follow_prefix(self.p, self.d, profile, self.points,
++                                      self.pose, 0., 'LOCAL_PATH')
++        self.assertLess(result.path[-1][0], 29.)
++        self.assertIn('obstacle',self.f.status['reason'])
++
+     def test_arming_ftg_does_not_replace_better_local_prefix(self):
+         self.p.active = _Pass(0., 10., 70., 90., -1., 30.)
+         self.d = Decision('PASSING', [(20., -1.), (90., 0.)], 0., 'far conflict')
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -13,7 +13,8 @@
+ 
+     def test_missing_block_keeps_pass_until_rear_clears(self):
+         p = self.planner()
+-        d = p.update((100., 0.), 8., [RouteObstacle(129., 0., .8, half_length=.3)])
++        for _ in range(5):
++            d = p.update((100., 0.), 8., [RouteObstacle(129., 0., .8, half_length=.3, track_id=1)])
+         self.assertEqual(d.state, 'PASSING')
+         active = p.active
+         self.assertTrue(active.quintic)
+@@ -206,8 +207,9 @@
+ 
+     def test_brief_motion_noise_and_occlusion_preserve_memory(self):
+         p = self.planner()
+-        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=86)])
+-        p.update((120., 0.), 0., [RouteObstacle(130., 0., .8, vx=2., dynamic=True, track_id=86)])
++        for _ in range(5):
++            p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=86)])
++        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, vx=2., dynamic=True, track_id=86)])
+         for _ in range(20):
+             p.update((120., 0.), 0., [], static_clearance_observer=lambda h: False)
+         self.assertTrue(p.static_memory)
+@@ -430,14 +432,16 @@
+         for visible in (False, True):
+             p = self.planner()
+             p.static_clearance_observer = lambda h: visible
+-            self.observe(p, [self.box(1, r=1.2)], 1.)
++            for t in (.6, .7, .8, .9, 1.):
++                self.observe(p, [self.box(1, r=1.2)], t)
+             for i in range(15):
+                 self.observe(p, [self.box(2, r=.7)], 1.1+i*.1)
+             self.assertEqual(any(h['id'] == 1 for h in p.static_memory), not visible)
+ 
+     def test_different_nearby_obstacle_is_not_identity_match(self):
+         p = self.planner()
+-        self.observe(p, [self.box(1)], 1.)
++        for t in (.6, .7, .8, .9, 1.):
++            self.observe(p, [self.box(1)], t)
+         for i in range(15):
+             self.observe(p, [self.box(2, s=132.)], 1.1+i*.1)
+         self.assertEqual({h['id'] for h in p.static_memory}, {1, 2})
+@@ -457,8 +461,17 @@
+             self.observe(p, [self.box(2)], 1.4)
+         self.assertIn(1, [h['id'] for h in p.static_memory])
+ 
+-    def test_unobserved_memory_is_not_expired_by_time(self):
+-        p = self.planner()
+-        self.observe(p, [self.box(1)], 1.)
++    def test_confirmed_occluded_memory_is_not_expired_by_time(self):
++        p = self.planner()
++        for t in (.6, .7, .8, .9, 1.):
++            self.observe(p, [self.box(1)], t)
+         self.observe(p, [], 100.)
+         self.assertEqual([h['id'] for h in p.static_memory], [1])
++
++    def test_unconfirmed_single_scan_memory_expires_but_live_item_remains(self):
++        p = self.planner()
++        self.observe(p, [self.box(15)], 1.)
++        self.assertTrue(self.observe(p, [], 1.5))
++        self.assertFalse(self.observe(p, [], 1.7))
++        live = self.observe(p, [self.box(15)], 1.8)
++        self.assertTrue(any(o['id'] == 15 and not o.get('remembered') for o in live))
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
+@@ -1338,15 +1338,18 @@
+             ('WAIT_SOLID_LINE', 'solid line beside the block; waiting'),
+             ('WAIT_PASS', 'static block ahead beyond pass planning'))
+ 
+-    def local_target(self, path):
++    def local_target(self, path, allow_short=False):
++        short_target = None
+         for x, y in path:
+             dx, dy = x-self.current_x, y-self.current_y
+             local_x = math.cos(self.current_yaw)*dx + math.sin(self.current_yaw)*dy
+             local_y = -math.sin(self.current_yaw)*dx + math.cos(self.current_yaw)*dy
+             ld = math.hypot(local_x, local_y)
++            if allow_short and local_x > .05 and ld > .2:
++                short_target = (self.current_waypoint_index, local_x, local_y, ld)
+             if local_x > 0. and ld >= self.lookahead_distance:
+                 return self.current_waypoint_index, local_x, local_y, ld
+-        return None
++        return short_target
+ 
+     def publish_local_path(self, points, source='local_planner'):
+         if not hasattr(self, 'debug_trace'):
+@@ -1522,12 +1525,17 @@
+                 route_speed_cap_kmh=(local_speed_cap if math.isfinite(local_speed_cap) else None))
+             if plan['path'] and not force_r1:
+                 self.publish_local_path(plan['path'], source='route_avoidance')
+-                target = self.local_target(plan['path'])
+-                if target is None:
++                s4_path = plan.get('static_pass_managed', False)
++                route_target = self.local_target(plan['path'], allow_short=s4_path)
++                if route_target is not None:
++                    target = route_target
++                elif not s4_path:
+                     self.stop_reason = 'route_path_no_forward_target'
+                     self.publish_full_stop()
+                     rospy.logwarn_throttle(2., 'Route avoidance path has no lookahead point')
+                     return
++                # S4 keeps the saved-route target if no forward local sample
++                # remains. The planner's collision/traffic cap still applies.
+         if getattr(self, 'enable_local_avoidance', False) and avoid:
+             if (self.obstacle_received is None or
+                     now-self.obstacle_received > .5 or
+--- a/src/unita_waypoint/test/test_route_pass_ownership_local.py
++++ b/src/unita_waypoint/test/test_route_pass_ownership_local.py
+@@ -84,3 +84,16 @@
+         obj.route_avoidance_callback(String(data=json.dumps(dict(
+             path=[(0., 0.), (1., 0.)], speed_cap_kmh=20., pass_active='false'))))
+         self.assertIsNone(obj.route_avoidance)
++
++
++class S4ShortTargetTests(unittest.TestCase):
++    def test_short_forward_target_is_s4_opt_in(self):
++        obj = module.GPSWaypointFollower.__new__(module.GPSWaypointFollower)
++        obj.current_x = obj.current_y = obj.current_yaw = 0.
++        obj.current_waypoint_index = 0
++        obj.lookahead_distance = 5.
++        path = [(0.,0.),(1.,.1),(3.,.2)]
++        self.assertIsNone(obj.local_target(path))
++        target = obj.local_target(path, allow_short=True)
++        self.assertEqual(target[1:3], (3.,.2))
++        self.assertIsNone(obj.local_target([(-1.,0.)], allow_short=True))

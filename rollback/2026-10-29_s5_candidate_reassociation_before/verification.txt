@@ -1,0 +1,1 @@
+166 function tests + 26 unittest cases passed. Includes logged S5 size-threshold values, candidate departure, occupied-path protection, duplicate scans, track loss, S4 regressions. Not a full raw bag replay or simulator validation.

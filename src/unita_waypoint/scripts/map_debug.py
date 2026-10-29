@@ -86,6 +86,7 @@ class MapDebug:
         self.ground_snapshot = None
         self.source_snapshots = {key: {} for key in ('raceline', 'leo', 'route', 'ftg')}
         self.guard_snapshot = None
+        self.s4_snapshot = None
         self.active_source = 'raceline'
         self.perception_view = 'auto'
         self.perception_subscription_source = None
@@ -147,6 +148,8 @@ class MapDebug:
         rospy.Subscriber('/leo/signal_status', String, self.on_guard_status, queue_size=1)
         rospy.Subscriber('/map_debug/perception_view', String, self.on_perception_view, queue_size=1)
         rospy.Subscriber('/leo/avoidance_status', String, self.on_ftg_status, queue_size=1)
+        rospy.Subscriber(rospy.get_param('~route_avoidance_topic', '/leo/route_avoidance'),
+                         String, self.on_s4_route_status, queue_size=1)
         for suffix, kind, callback in (
                 ('tracking_state', String, self.on_tracking_state),
                 ('local_path', NavPath, self.on_local_path),
@@ -746,6 +749,29 @@ class MapDebug:
             return
         self.guard_snapshot = (data, time.monotonic())
 
+    def on_s4_route_status(self, message):
+        try:
+            data = json.loads(message.data)
+            status = data.get('s4_tracking')
+            if not isinstance(status, dict) or not data.get('static_pass_managed'):
+                self.s4_snapshot = None
+                return
+            if status.get('source') not in ('LOCAL_PATH', 'FTG', 'RECOVERY'):
+                return
+            self.s4_snapshot = (dict(status), time.monotonic())
+        except (ValueError, TypeError, AttributeError):
+            return
+
+    def s4_tracking_status(self, now):
+        snapshot = getattr(self, 's4_snapshot', None)
+        if snapshot is None:
+            return None
+        status, received = snapshot
+        if now-received > .5:
+            return dict(source='STALE', state='UNKNOWN', safe_distance_m=0.,
+                        reason='S4 planner status missing/stale')
+        return dict(status)
+
     def on_ftg_status(self, message):
         try:
             data = json.loads(message.data)
@@ -844,6 +870,7 @@ class MapDebug:
         self.publish_obstacles(now)
         self.publish_local_path(now)
         parameters, parameter_error = self.parameter_status(now)
+        s4_tracking = self.s4_tracking_status(now)
         tracking = self.current_tracking(now)
         recent_state = tracking
         decision = dict(self.current_tracking(now, require_valid=False) or {})
@@ -881,7 +908,12 @@ class MapDebug:
             label.scale.z = 5.0
             label.text = '{:.1f}°'.format(math.degrees(yaw))
             label.color.r = label.color.g = label.color.b = label.color.a = 1.0
-            self.vehicle_pub.publish(MarkerArray(markers=[arrow, label]))
+            vehicle_markers = [arrow, label]
+            s4_label = marker('s4_tracking', 0, Marker.TEXT_VIEW_FACING)
+            # State is displayed in the settings panel, not over the vehicle.
+            s4_label.action = Marker.DELETE
+            vehicle_markers.append(s4_label)
+            self.vehicle_pub.publish(MarkerArray(markers=vehicle_markers))
             self.last_vehicle_visible = True
         else:
             x = y = yaw = sector = None
@@ -895,6 +927,7 @@ class MapDebug:
             'available': available, 'speed_kmh': speed, 'x': x, 'y': y,
             'heading_deg': math.degrees(yaw) if yaw is not None else None,
             'sector': sector, 'raceline': raceline,
+            's4_tracking': s4_tracking,
             'driving_state': recent_state.get('driving_state', 'RACELINE') if recent_state else None,
             'obstacle_kind': recent_state.get('obstacle_kind', '') if recent_state else '',
             'obstacle_distance_m': recent_state.get('obstacle_distance_m') if recent_state else None,

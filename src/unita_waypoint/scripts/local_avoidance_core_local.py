@@ -52,6 +52,12 @@ class Obstacle:
     vx: float = 0.
     vy: float = 0.
     kind: str = 'unknown'
+    length: float = 0.
+    raceline: int = 0
+    lane_sector: int = 0
+    lane_stable: bool = False
+    confirmed: bool = False
+    velocity_reliable: bool = False
 
 
 @dataclass
@@ -553,26 +559,71 @@ class LocalAvoidancePlanner:
             self.off_r1 = True
         off_r1 = self.off_r1
         current_path = self._path(ahead, ego_xy, current, progress)
-        threat = self._lead(current_path, ego_xy, obstacles)
+        lead_obstacles = obstacles
+        if (self.pass_sector == 5 and self.transition is None and not off_r1
+                and self.current_lane == preferred
+                and distance(ego_xy, available[self.current_lane]) <= .5):
+            def lane_distance(o, lane):
+                points = [self._lane_point(lane, point, i) for i, point, _ in ahead]
+                points = [point for point in points if point is not None]
+                best = (float('inf'), (0., 0.))
+                for a, b in zip(points, points[1:]):
+                    dx, dy = b[0]-a[0], b[1]-a[1]
+                    length2 = dx*dx+dy*dy
+                    if length2 <= 1e-9:
+                        continue
+                    t = max(0., min(1., ((o.x-a[0])*dx+(o.y-a[1])*dy)/length2))
+                    gap = distance((o.x, o.y), (a[0]+t*dx, a[1]+t*dy))
+                    if gap < best[0]:
+                        length = math.sqrt(length2)
+                        best = (gap, (dx/length, dy/length))
+                return best
+
+            def parallel_vehicle(o):
+                if (o.kind != 'dynamic' or o.length < 2.5 or not o.confirmed
+                        or not o.lane_stable or o.lane_sector != 5
+                        or o.raceline == self.current_lane or o.raceline not in available):
+                    return False
+                own, _ = lane_distance(o, o.raceline)
+                ours, (tx, ty) = lane_distance(o, self.current_lane)
+                if o.velocity_reliable:
+                    side = -ty*(o.x-ego_xy[0])+tx*(o.y-ego_xy[1])
+                    lateral_speed = -ty*o.vx+tx*o.vy
+                    if side*lateral_speed < 0. and abs(lateral_speed) > .3:
+                        return False
+                return own <= 1. and own+.5 < ours
+
+            lead_obstacles = [o for o in obstacles if not parallel_vehicle(o)]
+        threat = self._lead(current_path, ego_xy, lead_obstacles)
         # S5 road rings can produce large, jumping single-scan footprints.
         # Keep them in every stopping/gap check, but require the tracker's
         # temporal classification before they can initiate an overtake.
         unconfirmed_s5 = (self.sectors[index] == 5 and threat is not None
                           and threat[1].kind == 'unknown')
+        # Only suppress initiating an overtake; keep lead-speed braking and
+        # crossing checks intact. Adjacent parallel cars were filtered above.
+        follow_vehicle_s5 = (self.sectors[index] == 5 and threat is not None
+                             and threat[1].length >= 2.5
+                             and (threat[1].kind == 'dynamic' or
+                                  (threat[1].velocity_reliable and threat[2] >= .5)))
         candidates = [preferred]
         if current != preferred and not force_r1:
             candidates.append(current)
-        if threat and not force_r1 and not unconfirmed_s5:
+        if follow_vehicle_s5:
+            candidates = [current]
+        elif threat and not force_r1 and not unconfirmed_s5:
             candidates.extend(sorted(available, key=lambda n: distance(available[n], ego_xy)))
         candidates = list(dict.fromkeys(candidates))
-        waiting = 'unconfirmed_obstacle' if unconfirmed_s5 else ''
+        waiting = ('s5_follow_vehicle' if follow_vehicle_s5 else
+                   'unconfirmed_obstacle' if unconfirmed_s5 else '')
         slow_enough = (speed_mps <= self.effective_pass_speed_kmh/3.6+1.
                        or self._any_speed_lane_change(index))
         for lane in candidates:
             if lane not in available:
                 continue
             holding = self._path(ahead, ego_xy, lane, progress)
-            if len(holding) < 2 or self._lead(holding, ego_xy, obstacles):
+            holding_obstacles = lead_obstacles if lane == current and not off_r1 else obstacles
+            if len(holding) < 2 or self._lead(holding, ego_xy, holding_obstacles):
                 continue
             changing = lane != current or (lane == 1 and off_r1)
             returning = changing and lane == 1
@@ -606,7 +657,7 @@ class LocalAvoidancePlanner:
             # During steady driving a faster following vehicle is responsible
             # for its own gap. It must still block every lane-change candidate.
             tangent = self._tangent(index)
-            checked = obstacles if changing else [o for o in obstacles if
+            checked = obstacles if changing else [o for o in holding_obstacles if
                 (o.x-ego_xy[0])*tangent[0]+(o.y-ego_xy[1])*tangent[1] >= 0.]
             if not self._collision_free(path if changing else path[:2], checked,
                                         min(speed_mps, self.effective_pass_speed_kmh/3.6)
@@ -652,7 +703,7 @@ class LocalAvoidancePlanner:
         if threat:
             cap = self._stop_cap(threat[0], threat[2])
             cap = min(cap, edge_cap)
-            if not slow_enough and len(available) > 1 and not unconfirmed_s5:
+            if not slow_enough and len(available) > 1 and not unconfirmed_s5 and not follow_vehicle_s5:
                 cap = min(cap, self.effective_pass_speed_kmh)
             return self._decision('TAILING', current_path if current != 1 else [], cap,
                                   threat, waiting)

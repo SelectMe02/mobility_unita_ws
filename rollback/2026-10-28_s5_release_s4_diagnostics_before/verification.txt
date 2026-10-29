@@ -1,0 +1,1 @@
+160 test functions passed by direct invocation (runpy); pytest unavailable. Route node syntax parsed. No full bag replay or simulator validation. S4 behaviour unchanged; rosout stop diagnostics added. Lost pedestrian release requires measured visibility; missing or occluded coverage retains stop.

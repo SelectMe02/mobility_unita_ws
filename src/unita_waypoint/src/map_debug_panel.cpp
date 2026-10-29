@@ -64,6 +64,10 @@ MapDebugPanel::MapDebugPanel(QWidget* parent)
   auto* parameter_title = new QLabel(QString::fromUtf8("실시간 장애물·회피 설정"));
   parameter_title->setStyleSheet("font-weight: bold;");
   layout->addWidget(parameter_title);
+  s4_tracking_ = new QLabel(QString::fromUtf8("S4 회피 상태: 수신 대기"));
+  s4_tracking_->setWordWrap(true);
+  s4_tracking_->setTextFormat(Qt::PlainText);
+  layout->addWidget(s4_tracking_);
   auto* parameter_hint = new QLabel(QString::fromUtf8(
       "값 입력 후 Enter 또는 적용을 누르세요. 주행 노드가 적용한 값을 표시합니다."));
   parameter_hint->setWordWrap(true);
@@ -461,6 +465,33 @@ void MapDebugPanel::refresh() {
   }
   const auto document = QJsonDocument::fromJson(QByteArray::fromStdString(status));
   const auto data = document.object();
+  const auto tracking = data.value("s4_tracking").toObject();
+  const auto source = tracking.value("source").toString();
+  QString tracking_text;
+  if (data.isEmpty()) {
+    tracking_text = QString::fromUtf8("S4 회피 상태: 디버그 연결 대기");
+  } else if (tracking.isEmpty()) {
+    tracking_text = QString::fromUtf8("S4 회피 상태: 비활성 / 상태 수신 대기");
+  } else if (source == "STALE") {
+    tracking_text = QString::fromUtf8("S4 회피 상태: 상태 수신 끊김");
+  } else {
+    const QString mode = source == "LOCAL_PATH" ? QString::fromUtf8("로컬 경로 추종")
+        : source == "FTG" ? QString::fromUtf8("FTG 경로 추종")
+        : source == "RECOVERY" ? QString::fromUtf8("로컬 경로로 복귀 중")
+        : QString::fromUtf8("상태 확인 중");
+    tracking_text = QString::fromUtf8("S4 회피 상태: ") + mode;
+    if (tracking.value("state").toString() == "STOP")
+      tracking_text = QString::fromUtf8("S4 회피 상태: 정지 판단 — 선택 경로: ") + mode;
+    auto reason = tracking.value("reason").toString();
+    reason.replace("remembered obstacle #", QString::fromUtf8("기억된 장애물 #"));
+    reason.replace("observed obstacle #", QString::fromUtf8("관측 장애물 #"));
+    reason.replace("path end", QString::fromUtf8("계획 경로 끝까지 검사 완료"));
+    reason.replace("current LiDAR body overlap", QString::fromUtf8("현재 라이다 점과 차체 겹침"));
+    reason.replace("saved corridor boundary", QString::fromUtf8("설정된 주행 경계"));
+    tracking_text += QString::fromUtf8("\n진행 가능 거리: %1 m · 판단: %2")
+        .arg(tracking.value("safe_distance_m").toDouble(), 0, 'f', 1).arg(reason);
+  }
+  s4_tracking_->setText(tracking_text);
   refreshCamerasAndSignal();
   const auto vehicle = data.value("vehicle_dimensions").toObject();
   if (vehicle.value("front").isDouble() && vehicle.value("rear").isDouble()

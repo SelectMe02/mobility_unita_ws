@@ -1,0 +1,144 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -376,19 +376,28 @@
+         # Repeatedly measured geometry takes precedence over the same track's
+         # accumulated envelope. Commit the same shape to memory, so loss on
+         # the next scan cannot resurrect an obsolete inflated envelope.
+-        reobserved = set()
+         for o in items:
+-            history = self.s4_motion_history.get(o['id'], [])
++            # Use a fresh bounded observation window, not every view from
++            # the last second. Keep the union of these views (not just the
++            # smallest/latest face) when replacing the historical envelope.
++            history = [h for h in self.s4_motion_history.get(o['id'], [])
++                       if self.observation_time-h[0] <= .45]
+             if (o['id'] > 0 and not o['moving'] and len(history) >= 3
+                     and self.observation_time-history[0][0] >= .25
++                    and all(not h[5] for h in history)
++                    and all(b[0]-a[0] <= .2 for a, b in zip(history, history[1:]))
+                     and all(np.ptp([h[axis] for h in history]) <= limit
+                             for axis, limit in ((1, .35), (2, .35), (3, .25), (4, .25)))):
+-                reobserved.add(o['id'])
+                 if any(h['id'] == o['id'] for h in self.static_memory):
++                    shape = dict(o, v_s=0., v_d=0., remembered=True,
++                                 source_ids=[o['id']])
++                    for axis, extent, center_key, size_key in ((1, 3, 's', 'l'), (2, 4, 'd', 'r')):
++                        low = min(h[axis]-h[extent] for h in history)
++                        high = max(h[axis]+h[extent] for h in history)
++                        shape[center_key], shape[size_key] = (low+high)/2., (high-low)/2.
+                     self.static_memory = [h for h in self.static_memory if h['id'] != o['id']]
+-                    self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True,
+-                                                   source_ids=[o['id']]))
+-        return items + [dict(o) for o in self.static_memory if o['id'] not in reobserved]
++                    self.static_memory.append(shape)
++        return items + [dict(o) for o in self.static_memory]
+ 
+     def set_pedestrian_hold_ranges(self, ranges):
+         """[(start_s, end_s)] on the base lap where crossing pedestrians are held."""
+@@ -698,7 +707,7 @@
+                 return False, o
+         return True, None
+ 
+-    def _s4_swept_check(self, profile, items, s_ego, speed):
++    def _s4_swept_check(self, profile, items, s_ego, speed, check_curvature=True):
+         """Check oriented ego body against obstacle rectangles on the route.
+ 
+         Sample the complete entry, hold and return, including rear overhang.
+@@ -712,7 +721,7 @@
+             slope = (right-left)/.1
+             curvature = abs((right-2*d+left)/.0025)/(1+slope*slope)**1.5
+             peak = max(peak, curvature)
+-            if peak > .14:
++            if check_curvature and peak > .14:
+                 return False, None, s, peak
+             angle = math.atan(slope)
+             c, sn = math.cos(angle), math.sin(angle)
+@@ -875,6 +884,18 @@
+                 clear, blocker, hit_s, _ = self._s4_swept_check(self.active, items, s_ego, speed)
+                 if not clear:
+                     cap = min(cap, stopping_speed(hit_s-s_ego, cfg.brake_mps2, cfg.reaction_s))
++            elif any(a <= s_ego <= b for a, b in self.pedestrian_hold_ranges):
++                # In S5 a stationary kerb-side person must intersect the
++                # actual remaining entry/return, not the old full-offset
++                # lane strip. Keep moving traffic's arrival checks intact.
++                clear, blocker = self._lane_clear(
++                    [o for o in items if o['moving']], self.active.offset_m,
++                    s_ego, self.active.end_s, speed)
++                static_clear, static_blocker, _, _ = self._s4_swept_check(
++                    self.active, [o for o in items if not o['moving']],
++                    s_ego, speed, check_curvature=False)
++                if not static_clear:
++                    clear, blocker = False, static_blocker
+             beside = front_s >= self.active.block_first_s - cfg.pre_gap_m
+             protected_pass = self.static_pass_managed or any(a <= s_ego <= b for a, b in self.pedestrian_hold_ranges)
+             if not clear and not beside and not protected_pass:
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -507,7 +507,8 @@
+                 self.debug.clear('processing_expired', message.header)
+                 return
+             self.pub.publish(output)
+-        if cap <= .01 and (self.planner.static_pass_managed or self.planner.pedestrian_holds):
++        if cap <= .01 and (self.planner.static_pass_managed or self.planner.pedestrian_holds
++                           or self.planner.active is not None):
+             # rosout is recorded even when the route-specific JSON topic is
+             # not in a bag. Keep the evidence needed to diagnose a held stop.
+             rospy.loginfo_throttle(2., 'Route held-stop evidence: %s', json.dumps(dict(
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -350,3 +350,55 @@
+         self.assertGreater(straight_cap, 25./3.6)
+         self.assertLess(bend_cap, straight_cap)
+         self.assertGreater(p._s4_curve_speed(bend, 20., 5.), bend_cap)
++
++class RecentShapeAndS5PathTests(unittest.TestCase):
++    def test_recent_consistent_views_replace_old_view_but_keep_recent_union(self):
++        p = RouteAvoidance([(0., 0.), (400., 0.)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        for i in range(8):
++            radius = 1.4 if i < 3 else .7
++            d = .5 if i % 2 else .6
++            p.observation_time = 10.+i*.1
++            p._retain_static_blocks([dict(s=129., d=d, r=radius, l=.7,
++                id=5, moving=False, v_s=0., v_d=0.)], 110.)
++        h = p.static_memory[0]
++        self.assertLess(h['r'], .81)
++        self.assertLessEqual(h['d']-h['r'], -.2+1e-9)
++        self.assertGreaterEqual(h['d']+h['r'], 1.3-1e-9)
++        p.observation_time = 10.8
++        retained = p._retain_static_blocks([], 110.)
++        self.assertAlmostEqual(retained[0]['r'], h['r'])
++
++    def s5(self, scoped=True):
++        from leo_avoidance.route_avoidance import _Pass
++        p = RouteAvoidance([(0., 0.), (400., 0.)])
++        if scoped:
++            p.set_pedestrian_hold_ranges([(100., 200.)])
++        p.active = _Pass(80., 94., 110., 140., -3.2, 100.)
++        return p
++
++    def test_s5_stationary_person_outside_remaining_return_does_not_hold(self):
++        p = self.s5()
++        d = p.update((133., p.active.offset_at(133.)), 0.,
++                     [RouteObstacle(137., -3.2, .3, half_length=.3, track_id=1)])
++        self.assertEqual(d.state, 'PASSING')
++        self.assertGreater(d.speed_cap_mps, 0.)
++
++    def test_s5_person_on_remaining_return_still_stops(self):
++        p = self.s5()
++        d = p.update((133., p.active.offset_at(133.)), 0.,
++                     [RouteObstacle(137., -.3, .3, half_length=.3, track_id=1)])
++        self.assertEqual(d.speed_cap_mps, 0.)
++
++    def test_s5_moving_person_in_pass_lane_still_stops(self):
++        p = self.s5()
++        d = p.update((133., p.active.offset_at(133.)), 0.,
++                     [RouteObstacle(137., -3.2, .3, half_length=.3,
++                                    vy=1., dynamic=True, track_id=1)])
++        self.assertEqual(d.speed_cap_mps, 0.)
++
++    def test_outside_s5_lane_strip_behavior_unchanged(self):
++        p = self.s5(scoped=False)
++        d = p.update((133., p.active.offset_at(133.)), 0.,
++                     [RouteObstacle(137., -3.2, .3, half_length=.3, track_id=1)])
++        self.assertEqual(d.speed_cap_mps, 0.)

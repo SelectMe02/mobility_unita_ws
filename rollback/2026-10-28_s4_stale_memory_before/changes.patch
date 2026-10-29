@@ -1,0 +1,175 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -257,6 +257,40 @@
+         cfg = self.config
+         self.static_memory = [o for o in self.static_memory
+                               if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m]
++        retained = []
++        for h in self.static_memory:
++            previous = h.get('evidence_stamp', -math.inf)
++            fresh = self.observation_time > previous
++            if self.observation_time-previous > .5:
++                h['moving_seen'] = h['empty_seen'] = 0
++                h['empty_since'] = None
++            h['evidence_stamp'] = self.observation_time
++            ids = h.get('source_ids', [h['id']])
++            # A merged memory may contain another hidden static object.
++            # Such memories need measured free space, not one moving ID.
++            moving = len(ids) == 1 and any(o['moving'] and o['id'] > 0 and o['id'] in ids
++                         and .5 < math.hypot(o['s']-h['s'], o['d']-h['d']) < 8.
++                         for o in items)
++            h['moving_seen'] = h.get('moving_seen', 0)+1 if fresh and moving else 0
++            # A different, actually observed obstacle still occupying this
++            # footprint prevents deletion merely because one source moved.
++            occupied = any(not o['moving']
++                           and abs(o['s']-h['s']) <= o['l']+h['l']+.2
++                           and abs(o['d']-h['d']) <= o['r']+h['r']+.2 for o in items)
++            observer = getattr(self, 'static_clearance_observer', None)
++            clear = fresh and not occupied and observer is not None and observer(h)
++            if clear:
++                h['empty_seen'] = h.get('empty_seen', 0)+1
++                if h.get('empty_since') is None:
++                    h['empty_since'] = self.observation_time
++            else:
++                h['empty_seen'], h['empty_since'] = 0, None
++            moved = h['moving_seen'] >= 2 and not occupied
++            empty = (h['empty_seen'] >= 5 and h['empty_since'] is not None
++                     and self.observation_time-h['empty_since'] >= .5)
++            if not (moved or empty):
++                retained.append(h)
++        self.static_memory = retained
+         for o in items:
+             if (o['moving'] or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
+                     or not zone[1] <= o['s'] <= zone[2]):
+@@ -264,8 +298,12 @@
+             match = next((h for h in self.static_memory
+                           if abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
+             if match is None:
+-                self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True))
++                self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True,
++                                               source_ids=[o['id']]))
+             else:
++                ids = match.setdefault('source_ids', [match['id']])
++                if o['id'] not in ids:
++                    ids.append(o['id'])
+                 low, high = min(match['s']-match['l'], o['s']-o['l']), max(match['s']+match['l'], o['s']+o['l'])
+                 match['s'], match['l'] = (low+high)/2., (high-low)/2.
+                 match['r'] = max(match['r'], o['r']+abs(o['d']-match['d']))
+@@ -638,10 +676,12 @@
+         return None
+ 
+     def update(self, ego_xy, ego_speed_mps, obstacles, stop_line_distance_m=None,
+-               stop_line_permitted=True, stamp=None, clearance_observer=None):
++               stop_line_permitted=True, stamp=None, clearance_observer=None,
++               static_clearance_observer=None):
+         """Return the offset path (map points), a speed cap and the state."""
+         self.observation_time = (float(stamp) if stamp is not None else self.observation_time + .1)
+         self.clearance_observer = clearance_observer
++        self.static_clearance_observer = static_clearance_observer
+         cfg = self.config
+         speed = max(0., ego_speed_mps if math.isfinite(ego_speed_mps) else 0.)
+         s_ego, _ = self._locate_ego(*ego_xy)
+--- a/src/leo_avoidance/src/leo_avoidance/observed_clearance.py
++++ b/src/leo_avoidance/src/leo_avoidance/observed_clearance.py
+@@ -54,3 +54,19 @@
+             corners.append((c*dx+s*dy-lidar_to_rear_x_m, -s*dx+c*dy))
+         return rectangle_observed_clear(raw_points, corners)
+     return observed
++
++
++def static_clearance_observer(raw_points, pose, route, lidar_to_rear_x_m):
++    """Observed visibility of a remembered S4 footprint, not track absence."""
++    x, y, yaw = pose
++    c, s = math.cos(yaw), math.sin(yaw)
++
++    def observed(item):
++        corners = []
++        for ds, dd in ((-1., -1.), (-1., 1.), (1., 1.), (1., -1.)):
++            (px, py), _ = route.pose(item['s']+ds*(item['l']+.3),
++                                    item['d']+dd*(item['r']+.3))
++            dx, dy = px-x, py-y
++            corners.append((c*dx+s*dy-lidar_to_rear_x_m, -s*dx+c*dy))
++        return rectangle_observed_clear(raw_points, corners)
++    return observed
+--- a/src/leo_avoidance/scripts/route_avoidance_node.py
++++ b/src/leo_avoidance/scripts/route_avoidance_node.py
+@@ -23,7 +23,7 @@
+ 
+ from leo_avoidance.road_points import RoadPointConfig, boundary_mask, obstacle_points
+ from leo_avoidance.obstacle_tracker import ObstacleTracker
+-from leo_avoidance.observed_clearance import pedestrian_clearance_observer
++from leo_avoidance.observed_clearance import pedestrian_clearance_observer, static_clearance_observer
+ from leo_avoidance.route_avoidance import (RouteAvoidance, RouteAvoidanceConfig,
+                                            RouteObstacle)
+ from leo_guard.route_file import (load_lane_changes, load_route_points, load_survey,
+@@ -473,7 +473,10 @@
+                                        stop_line_permitted=permitted, stamp=stamp,
+                                        clearance_observer=pedestrian_clearance_observer(
+                                            raw_points, pose, self.planner.route,
+-                                           self.planner.config, self.lidar_to_rear_x_m))
++                                           self.planner.config, self.lidar_to_rear_x_m),
++                                       static_clearance_observer=static_clearance_observer(
++                                           raw_points, pose, self.planner.route,
++                                           self.lidar_to_rear_x_m))
+         cap = decision.speed_cap_mps
+         output = String(data=json.dumps(dict(
+             stamp=stamp, state=decision.state, reason=decision.reason,
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -119,3 +119,56 @@
+         self.assertTrue(obj.debug_trace['route_pass_owns'])
+         self.assertEqual(obj.stop_reason, 'planned_speed_zero')
+         self.assertFalse(obj.commands)
++
++
++class StaleMemoryTests(unittest.TestCase):
++    def planner(self):
++        p = RouteAvoidance([(x, 0.) for x in range(401)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        return p
++
++    def test_moving_source_removes_old_footprint_but_keeps_live_obstacle(self):
++        p = self.planner()
++        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=86)])
++        mover = RouteObstacle(132., 3., .8, vx=2., vy=1., dynamic=True, track_id=86)
++        p.update((120., 0.), 0., [mover])
++        self.assertTrue(p.static_memory)
++        result = p.update((120., 0.), 0., [mover])
++        self.assertFalse(p.static_memory)
++        self.assertTrue(any(o['id'] == 86 and o['moving'] for o in result.obstacles))
++
++    def test_confirmed_free_space_releases_wait_without_track_identity(self):
++        p = self.planner()
++        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=2)])
++        for _ in range(8):
++            result = p.update((120., 0.), 0., [], static_clearance_observer=lambda h: True)
++        self.assertFalse(p.static_memory)
++        self.assertEqual(result.state, 'FOLLOW')
++        self.assertGreater(result.speed_cap_mps, 0.)
++
++    def test_present_static_object_vetoes_clear_and_duplicate_timestamps(self):
++        p = self.planner()
++        block = RouteObstacle(129., 0., .8, track_id=2)
++        for _ in range(8):
++            p.update((120., 0.), 0., [block], static_clearance_observer=lambda h: True)
++        self.assertTrue(p.static_memory)
++        for _ in range(8):
++            p.update((120., 0.), 0., [], stamp=2., static_clearance_observer=lambda h: True)
++        self.assertTrue(p.static_memory)
++
++    def test_mover_does_not_erase_another_observed_static_object(self):
++        p = self.planner()
++        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=86)])
++        for _ in range(3):
++            p.update((120., 0.), 0., [
++                RouteObstacle(132., 3., .8, vx=2., vy=1., dynamic=True, track_id=86),
++                RouteObstacle(129., 0., .8, track_id=90)])
++        self.assertTrue(p.static_memory)
++
++    def test_brief_motion_noise_and_occlusion_preserve_memory(self):
++        p = self.planner()
++        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=86)])
++        p.update((120., 0.), 0., [RouteObstacle(130., 0., .8, vx=2., dynamic=True, track_id=86)])
++        for _ in range(20):
++            p.update((120., 0.), 0., [], static_clearance_observer=lambda h: False)
++        self.assertTrue(p.static_memory)

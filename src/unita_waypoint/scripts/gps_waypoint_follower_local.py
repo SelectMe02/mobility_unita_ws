@@ -1243,7 +1243,15 @@ class GPSWaypointFollower:
                     return
                 if item['kind'] not in ('static', 'dynamic', 'unknown'):
                     return
-                obstacles.append(Obstacle(*values, kind=item['kind']))
+                length = float(item.get('length', 0.))
+                if not math.isfinite(length) or length < 0.:
+                    return
+                obstacles.append(Obstacle(*values, kind=item['kind'], length=length,
+                    raceline=int(item.get('raceline', 0)),
+                    lane_sector=int(item.get('lane_sector', 0)),
+                    lane_stable=item.get('lane_stable') is True,
+                    confirmed=item.get('confirmed') is True,
+                    velocity_reliable=item.get('velocity_reliable') is True))
             corridor = getattr(self, 'lane_corridor', None)
             if corridor is None:
                 return
@@ -1330,15 +1338,18 @@ class GPSWaypointFollower:
             ('WAIT_SOLID_LINE', 'solid line beside the block; waiting'),
             ('WAIT_PASS', 'static block ahead beyond pass planning'))
 
-    def local_target(self, path):
+    def local_target(self, path, allow_short=False):
+        short_target = None
         for x, y in path:
             dx, dy = x-self.current_x, y-self.current_y
             local_x = math.cos(self.current_yaw)*dx + math.sin(self.current_yaw)*dy
             local_y = -math.sin(self.current_yaw)*dx + math.cos(self.current_yaw)*dy
             ld = math.hypot(local_x, local_y)
+            if allow_short and local_x > .05 and ld > .2:
+                short_target = (self.current_waypoint_index, local_x, local_y, ld)
             if local_x > 0. and ld >= self.lookahead_distance:
                 return self.current_waypoint_index, local_x, local_y, ld
-        return None
+        return short_target
 
     def publish_local_path(self, points, source='local_planner'):
         if not hasattr(self, 'debug_trace'):
@@ -1514,12 +1525,17 @@ class GPSWaypointFollower:
                 route_speed_cap_kmh=(local_speed_cap if math.isfinite(local_speed_cap) else None))
             if plan['path'] and not force_r1:
                 self.publish_local_path(plan['path'], source='route_avoidance')
-                target = self.local_target(plan['path'])
-                if target is None:
+                s4_path = plan.get('static_pass_managed', False)
+                route_target = self.local_target(plan['path'], allow_short=s4_path)
+                if route_target is not None:
+                    target = route_target
+                elif not s4_path:
                     self.stop_reason = 'route_path_no_forward_target'
                     self.publish_full_stop()
                     rospy.logwarn_throttle(2., 'Route avoidance path has no lookahead point')
                     return
+                # S4 keeps the saved-route target if no forward local sample
+                # remains. The planner's collision/traffic cap still applies.
         if getattr(self, 'enable_local_avoidance', False) and avoid:
             if (self.obstacle_received is None or
                     now-self.obstacle_received > .5 or

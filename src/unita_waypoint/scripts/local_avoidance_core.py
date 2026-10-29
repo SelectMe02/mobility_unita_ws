@@ -1048,7 +1048,32 @@ class LocalAvoidancePlanner:
         if roundabout is not None:
             self.obstacle_horizon_path = path_prefix(current_path, self.obstacle_horizon_m)
             return roundabout
-        threat = self._lead(current_path, ego_xy, obstacles)
+        lead_obstacles = obstacles
+        if (self.sectors[index] == 5 and self.transition is None
+                and current == preferred
+                and distance(ego_xy, available[current]) <= .5):
+            # S5's parallel traffic stays in its saved lane. A transient
+            # inflated box must not turn an established neighbouring vehicle
+            # into our leader. Keep every object for candidate/merge checks.
+            def adjacent_vehicle(o):
+                if (not o.confirmed or not o.lane_stable or o.lane_sector != 5
+                        or o.kind != 'dynamic' or o.length < 2.5
+                        or o.raceline == current or o.raceline not in available):
+                    return False
+                own_path = [self._lane_point(o.raceline, point, i)
+                            for i, point, _ in ahead]
+                own = project_polyline((o.x, o.y), [p for p in own_path if p is not None])
+                ours = project_polyline((o.x, o.y), current_path)
+                if ours is not None and o.velocity_reliable:
+                    tx, ty = ours[2]
+                    side = -ty*(o.x-ego_xy[0])+tx*(o.y-ego_xy[1])
+                    lateral_speed = -ty*o.vx+tx*o.vy
+                    if side*lateral_speed < 0. and abs(lateral_speed) > .3:
+                        return False  # measured approach toward our lane
+                return (own is not None and ours is not None
+                        and own[0] <= 1. and own[0]+.5 < ours[0])
+            lead_obstacles = [o for o in obstacles if not adjacent_vehicle(o)]
+        threat = self._lead(current_path, ego_xy, lead_obstacles)
         candidates = []
         if current != preferred:
             candidates.append(preferred)

@@ -1,0 +1,1 @@
+160 function tests + 22 unittest cases passed. Includes recorded 23:18:21 S4 obstacle geometry and active path reconstruction; adaptive path passes exact swept collision check. Not a full bag/control replay or simulator validation. Search limited to staggered S4 static objects; adaptive speed cap 12 km/h.

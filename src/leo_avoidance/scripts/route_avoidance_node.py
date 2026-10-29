@@ -23,6 +23,8 @@ from std_msgs.msg import Float64, String
 
 from leo_avoidance.road_points import RoadPointConfig, boundary_mask, obstacle_points
 from leo_avoidance.obstacle_tracker import ObstacleTracker
+from leo_avoidance.s4_ftg_fallback import S4Fallback
+from leo_avoidance.observed_clearance import pedestrian_clearance_observer, static_clearance_observer
 from leo_avoidance.route_avoidance import (RouteAvoidance, RouteAvoidanceConfig,
                                            RouteObstacle)
 from leo_guard.route_file import (load_lane_changes, load_route_points, load_survey,
@@ -92,6 +94,7 @@ class RouteAvoidanceNode:
     def __init__(self):
         self.lock = threading.Lock()
         self.lidar_to_rear_x_m = float(rospy.get_param('~lidar_to_rear_x_m', 1.4))
+        self.s4_fallback = S4Fallback(self.lidar_to_rear_x_m)
         self.input_timeout_s = float(rospy.get_param('~input_timeout_s', .35))
         self.max_pose_gap_s = float(rospy.get_param('~max_pose_age_s', .15))
         waypoint_file = rospy.get_param('~waypoint_file')
@@ -126,6 +129,8 @@ class RouteAvoidanceNode:
                                             len(route.lengths))[0]
                               for p in (line[0], line[-1])]
                     self.planner.pass_speed_25_ranges.append(tuple(bounds))
+                    if int(sector['number']) == 5:
+                        self.planner.vehicle_follow_ranges.append(tuple(bounds))
         # Same Map Tuner point-ID zones as the follower's waypoint_only_point_ids.
         route = self.planner.route
         self.planner.ignored_s_ranges = []
@@ -328,6 +333,7 @@ class RouteAvoidanceNode:
                 # invalidate an in-flight result through input_epoch instead.
                 self.tracker.reset()
                 self.planner.reset()
+                self.s4_fallback.reset()
                 self.processed_epoch = self.input_epoch
             samples = list(self.poses)
             retained = deque(maxlen=self.pending.maxlen)
@@ -469,7 +475,15 @@ class RouteAvoidanceNode:
                          or signal.get('release_stable') is True)
         decision = self.planner.update((x0, y0), speed, obstacles,
                                        stop_line_distance_m=stop_line,
-                                       stop_line_permitted=permitted, stamp=stamp)
+                                       stop_line_permitted=permitted, stamp=stamp,
+                                       clearance_observer=pedestrian_clearance_observer(
+                                           raw_points, pose, self.planner.route,
+                                           self.planner.config, self.lidar_to_rear_x_m),
+                                       static_clearance_observer=static_clearance_observer(
+                                           raw_points, pose, self.planner.route,
+                                           self.lidar_to_rear_x_m))
+        decision = self.s4_fallback.apply(self.planner, decision, points, pose,
+                                          speed, stamp, permitted)
         cap = decision.speed_cap_mps
         output = String(data=json.dumps(dict(
             stamp=stamp, state=decision.state, reason=decision.reason,
@@ -481,6 +495,9 @@ class RouteAvoidanceNode:
             # ownership lasts through the retained pass's return ramp.
             pass_active=self.planner.active is not None,
             static_pass_managed=self.planner.static_pass_managed,
+            s4_fallback_mode=self.s4_fallback.mode,
+            s4_tracking=(dict(self.s4_fallback.status, fallback_mode=self.s4_fallback.mode)
+                         if self.planner.static_pass_managed else None),
             pedestrian_hold=self.pedestrian_hold_status(),
             path=[[round(x, 3), round(y, 3)] for x, y in decision.path],
             obstacles=[dict(s=round(o['s'], 1), d=round(o['d'], 2), r=round(o['r'], 2),
@@ -500,6 +517,18 @@ class RouteAvoidanceNode:
                 self.debug.clear('processing_expired', message.header)
                 return
             self.pub.publish(output)
+        if cap <= .01 and (self.planner.static_pass_managed or self.planner.pedestrian_holds
+                           or self.planner.active is not None):
+            # rosout is recorded even when the route-specific JSON topic is
+            # not in a bag. Keep the evidence needed to diagnose a held stop.
+            rospy.loginfo_throttle(2., 'Route held-stop evidence: %s', json.dumps(dict(
+                stamp=stamp, reason=decision.reason, route_s=self.planner.last_s,
+                s4_tracking=self.s4_fallback.status,
+                static_pass_managed=self.planner.static_pass_managed,
+                active_pass=(vars(self.planner.active) if self.planner.active else None),
+                obstacles=decision.obstacles,
+                pedestrian_holds=[{k: sorted(v) if isinstance(v, set) else v
+                                   for k, v in h.items()} for h in self.planner.pedestrian_holds])))
         self.debug.publish(raw_points, points, message.header, pose,
                            offset=(self.lidar_to_rear_x_m, 0., self.debug_lidar_z),
                            mode='route_filtered', debug_point_stage=(

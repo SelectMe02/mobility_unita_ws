@@ -1,0 +1,123 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -374,8 +374,8 @@
+                 match['s'], match['l'] = (low+high)/2., (high-low)/2.
+                 match['r'] = max(match['r'], o['r']+abs(o['d']-match['d']))
+         # Repeatedly measured geometry takes precedence over the same track's
+-        # accumulated envelope. Keep the envelope for loss/unstable geometry;
+-        # do not apply two different shapes of one observed static object.
++        # accumulated envelope. Commit the same shape to memory, so loss on
++        # the next scan cannot resurrect an obsolete inflated envelope.
+         reobserved = set()
+         for o in items:
+             history = self.s4_motion_history.get(o['id'], [])
+@@ -384,6 +384,10 @@
+                     and all(np.ptp([h[axis] for h in history]) <= limit
+                             for axis, limit in ((1, .35), (2, .35), (3, .25), (4, .25)))):
+                 reobserved.add(o['id'])
++                if any(h['id'] == o['id'] for h in self.static_memory):
++                    self.static_memory = [h for h in self.static_memory if h['id'] != o['id']]
++                    self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True,
++                                                   source_ids=[o['id']]))
+         return items + [dict(o) for o in self.static_memory if o['id'] not in reobserved]
+ 
+     def set_pedestrian_hold_ranges(self, ranges):
+@@ -759,7 +763,8 @@
+             return None
+         relevant = [o for o in items if o['r'] >= .4 and o['s'] > s_ego
+                     and (self._in_band(o, 0.) or self._in_band(o, self.static_pass_zone[4]))]
+-        if not any(a['id'] != b['id'] and abs(a['d']-b['d']) > 1.6
++        continuing = self.active is not None and bool(self.active.knots)
++        if not continuing and not any(a['id'] != b['id'] and abs(a['d']-b['d']) > 1.6
+                    and abs(a['s']-b['s']) > 3. for a in relevant for b in relevant):
+             return None  # Preserve the established single-block S4 behaviour.
+         if self.observation_time < getattr(self, '_s4_search_after', -math.inf):
+@@ -778,6 +783,19 @@
+         if self._s4_swept_check(path, items, s_ego, speed)[0]:
+             return path
+         return None
++
++    def _s4_curve_speed(self, profile, s_ego, speed):
++        """Curvature-dependent speed with braking room for upcoming bends."""
++        cap = math.inf
++        for s in np.arange(s_ego, profile.end_s+.01, .5):
++            d = profile.offset_at(s)
++            left, right = profile.offset_at(s-.05), profile.offset_at(s+.05)
++            slope = (right-left)/.1
++            curvature = abs(right-2*d+left)/.0025/(1+slope*slope)**1.5
++            bend_speed = math.sqrt(3.1/max(curvature, .001))
++            room = max(0., s-s_ego-speed*self.config.reaction_s)
++            cap = min(cap, math.sqrt(bend_speed**2+2*self.config.brake_mps2*room))
++        return cap
+ 
+     def update(self, ego_xy, ego_speed_mps, obstacles, stop_line_distance_m=None,
+                stop_line_permitted=True, stamp=None, clearance_observer=None,
+@@ -922,7 +940,7 @@
+         if self.active is not None:
+             cap = min(cap, cfg.pass_speed_kmh / 3.6)
+             if self.active.knots:
+-                cap = min(cap, 12./3.6)
++                cap = min(cap, self._s4_curve_speed(self.active, s_ego, speed))
+             if self.active.quintic:
+                 length = min(self.active.full_s-self.active.ramp_start_s,
+                              self.active.end_s-self.active.hold_end_s)
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -257,3 +257,57 @@
+         p = RouteAvoidance([(0., 0.), (100., 0.)])
+         obstacle = dict(s=15., d=-1.6, l=2., r=4., v_s=0., v_d=0.)
+         self.assertIsNone(search_offsets(0., 35., 0., 0., -3.2, [obstacle], p.config))
++
++
++class S4ContinuationTests(unittest.TestCase):
++    def test_stable_shape_is_retained_after_loss_not_old_inflated_shape(self):
++        p = RouteAvoidance([(0., 0.), (400., 0.)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        p.static_memory = [dict(s=129., d=-3., r=2., l=2., id=5,
++                               moving=False, v_s=0., v_d=0., remembered=True, source_ids=[5])]
++        live = RouteObstacle(129.2, -3.2, .65, half_length=.6, track_id=5)
++        for i in range(6):
++            p.update((110., 0.), 0., [live], stamp=10.+.1*i)
++        memory = next(h for h in p.static_memory if h['id'] == 5)
++        self.assertAlmostEqual(memory['r'], .65)
++        self.assertAlmostEqual(memory['l'], .6)
++        before = {k: memory[k] for k in ('s', 'd', 'r', 'l')}
++        d = p.update((110., 0.), 0., [], stamp=10.6)
++        retained = next(o for o in d.obstacles if o.get('remembered'))
++        self.assertEqual(before, {k: retained[k] for k in before})
++
++    def test_single_small_observation_does_not_shrink_static_memory(self):
++        p = RouteAvoidance([(0., 0.), (400., 0.)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        p.update((110., 0.), 0., [RouteObstacle(129., 0., 1., half_length=1., track_id=5)])
++        p.update((110., 0.), 0., [RouteObstacle(129., 0., .4, half_length=.4, track_id=5)])
++        p.update((110., 0.), 0., [])
++        self.assertGreaterEqual(p.static_memory[0]['r'], 1.)
++
++    def test_started_spline_can_replan_with_only_one_remaining_obstacle(self):
++        from unittest.mock import patch
++        from leo_avoidance.route_avoidance import _Pass
++        p = RouteAvoidance([(0., 0.), (400., 0.)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        obstacle = dict(s=135., d=-5., r=.7, l=.6, id=5, moving=False, v_s=0., v_d=0.)
++        with patch('leo_avoidance.route_avoidance.search_offsets',
++                   return_value=([125., 136., 147.], [0., 0., 0.], [0., 0., 0.])) as search:
++            self.assertIsNone(p._s4_adaptive_candidate([obstacle], 125., 0., 129.))
++            search.assert_not_called()
++            p.active = _Pass(100., 110., 140., 147., -3.2, 129.,
++                             knots=(100., 125., 147.), values=(0., 0., 0.), slopes=(0., 0., 0.))
++            self.assertIsNotNone(p._s4_adaptive_candidate([obstacle], 125., 0., 129.))
++            search.assert_called_once()
++
++    def test_spline_speed_is_geometry_dependent_not_fixed_twelve(self):
++        from leo_avoidance.route_avoidance import _Pass
++        p = RouteAvoidance([(0., 0.), (400., 0.)])
++        straight = _Pass(0., 1., 29., 30., -3.2, 20.,
++                         knots=(0., 15., 30.), values=(0., 0., 0.), slopes=(0., 0., 0.))
++        bend = _Pass(0., 1., 29., 30., -3.2, 20.,
++                     knots=(0., 8., 16., 30.), values=(0., -3., 0., 0.), slopes=(0., 0., 0., 0.))
++        straight_cap = p._s4_curve_speed(straight, 0., 5.)
++        bend_cap = p._s4_curve_speed(bend, 0., 5.)
++        self.assertGreater(straight_cap, 25./3.6)
++        self.assertLess(bend_cap, straight_cap)
++        self.assertGreater(p._s4_curve_speed(bend, 20., 5.), bend_cap)

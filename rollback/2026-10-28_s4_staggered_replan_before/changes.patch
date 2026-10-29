@@ -1,0 +1,375 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -15,6 +15,7 @@
+ 
+ import numpy as np
+ from scipy.spatial import cKDTree
++from leo_avoidance.s4_path_search import search_offsets
+ 
+ 
+ @dataclass(frozen=True)
+@@ -167,12 +168,25 @@
+     offset_m: float
+     block_first_s: float
+     quintic: bool = False
++    knots: tuple = ()
++    values: tuple = ()
++    slopes: tuple = ()
+ 
+     def blend(self, t):
+         t = max(0., min(1., t))
+         return t*t*t*(10.-15.*t+6.*t*t) if self.quintic else smoothstep(t)
+ 
+     def offset_at(self, s):
++        if self.knots:
++            if s <= self.knots[0]:
++                return self.values[0]+self.slopes[0]*(s-self.knots[0])
++            if s >= self.knots[-1]:
++                return 0.
++            i = min(len(self.knots)-2, max(0, int(np.searchsorted(self.knots, s))-1))
++            h = self.knots[i+1]-self.knots[i]
++            t = (s-self.knots[i])/h
++            return ((2*t**3-3*t*t+1)*self.values[i] + (t**3-2*t*t+t)*h*self.slopes[i]
++                    + (-2*t**3+3*t*t)*self.values[i+1] + (t**3-t*t)*h*self.slopes[i+1])
+         if s <= self.ramp_start_s or s >= self.end_s:
+             return 0.
+         if s < self.full_s:
+@@ -228,6 +242,9 @@
+         self.pass_speed_25_ranges = []
+         self.static_memory = []
+         self.static_pass_managed = False
++        self.s4_motion_history = {}
++        self.s4_mobile_until = {}
++        self._s4_search_after = -math.inf
+ 
+     def reset(self):
+         self.active = None
+@@ -239,6 +256,49 @@
+         self.person_d = {}
+         self.static_memory = []
+         self.static_pass_managed = False
++        self.s4_motion_history = {}
++        self.s4_mobile_until = {}
++        self._s4_search_after = -math.inf
++
++    def _s4_mobile_sources(self, items):
++        """Remember measured motion before S4, without changing other planners.
++
++        A velocity-classification dropout must not turn a moving car's trail
++        into a permanent static footprint. Require common translation of both
++        box edges, not expansion of one visible face, for geometric evidence.
++        """
++        now = self.observation_time
++        self.s4_motion_history = {k: h for k, h in self.s4_motion_history.items()
++                                  if now-h[-1][0] <= 1.}
++        self.s4_mobile_until = {k: t for k, t in self.s4_mobile_until.items() if t >= now}
++        for o in items:
++            if o['id'] <= 0:
++                continue
++            history = self.s4_motion_history.setdefault(o['id'], [])
++            if history and now <= history[-1][0]:
++                continue
++            if history and math.hypot(o['s']-history[-1][1], o['d']-history[-1][2]) > 5.:
++                history.clear()
++                self.s4_mobile_until.pop(o['id'], None)
++            history.append((now, o['s'], o['d'], o['l'], o['r'], o['moving']))
++            history[:] = [h for h in history if now-h[0] <= 1.]
++            translated = False
++            if len(history) >= 3 and now-history[0][0] >= .25:
++                first, last = history[0], history[-1]
++                for axis, extent in ((1, 3), (2, 4)):
++                    low = (last[axis]-last[extent])-(first[axis]-first[extent])
++                    high = (last[axis]+last[extent])-(first[axis]+first[extent])
++                    common = min(abs(low), abs(high))
++                    direction = math.copysign(1., last[axis]-first[axis])
++                    consistent = all((b[axis]-a[axis])*direction >= -.1
++                                     for a, b in zip(history, history[1:]))
++                    if low*high > 0 and common >= .5 and common/(now-first[0]) >= .8 and consistent:
++                        translated = True
++            confirmed_motion = (len(history) >= 2 and o['moving'] and history[-2][5]
++                                and now-history[-2][0] <= .5)
++            if confirmed_motion or translated:
++                self.s4_mobile_until[o['id']] = now+2.
++        return set(self.s4_mobile_until)
+ 
+     def set_static_pass_zone(self, start, full_start, full_end, end, offset):
+         """Explicit saved S4 R2 corridor; approach/return stay within S4."""
+@@ -247,6 +307,7 @@
+         self.static_pass_zone = (start, full_start, full_end, end, offset)
+ 
+     def _retain_static_blocks(self, items, s_ego):
++        mobile_ids = self._s4_mobile_sources(items)
+         zone = self.static_pass_zone
+         self.static_pass_managed = bool(zone and zone[0] <= s_ego <= zone[3])
+         if not self.static_pass_managed:
+@@ -257,6 +318,10 @@
+         cfg = self.config
+         self.static_memory = [o for o in self.static_memory
+                               if s_ego-cfg.rear_extent_m <= o['s']+o['l']+cfg.post_gap_m]
++        # Each memory has one source. A live object remains in `items` and
++        # still undergoes all collision checks after its stale history clears.
++        self.static_memory = [h for h in self.static_memory
++                              if h['id'] not in mobile_ids]
+         retained = []
+         for h in self.static_memory:
+             previous = h.get('evidence_stamp', -math.inf)
+@@ -292,11 +357,12 @@
+                 retained.append(h)
+         self.static_memory = retained
+         for o in items:
+-            if (o['moving'] or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
++            if (o['moving'] or o['id'] in mobile_ids or not (self._in_band(o, 0.) or self._in_band(o, zone[4])) or o['r'] < .4
+                     or not zone[1] <= o['s'] <= zone[2]):
+                 continue
+             match = next((h for h in self.static_memory
+-                          if abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
++                          if h['id'] == o['id']
++                          and abs(h['s']-o['s']) < 2. and abs(h['d']-o['d']) < 1.5), None)
+             if match is None:
+                 self.static_memory.append(dict(o, v_s=0., v_d=0., remembered=True,
+                                                source_ids=[o['id']]))
+@@ -307,7 +373,18 @@
+                 low, high = min(match['s']-match['l'], o['s']-o['l']), max(match['s']+match['l'], o['s']+o['l'])
+                 match['s'], match['l'] = (low+high)/2., (high-low)/2.
+                 match['r'] = max(match['r'], o['r']+abs(o['d']-match['d']))
+-        return items + [dict(o) for o in self.static_memory]
++        # Repeatedly measured geometry takes precedence over the same track's
++        # accumulated envelope. Keep the envelope for loss/unstable geometry;
++        # do not apply two different shapes of one observed static object.
++        reobserved = set()
++        for o in items:
++            history = self.s4_motion_history.get(o['id'], [])
++            if (o['id'] > 0 and not o['moving'] and len(history) >= 3
++                    and self.observation_time-history[0][0] >= .25
++                    and all(np.ptp([h[axis] for h in history]) <= limit
++                            for axis, limit in ((1, .35), (2, .35), (3, .25), (4, .25)))):
++                reobserved.add(o['id'])
++        return items + [dict(o) for o in self.static_memory if o['id'] not in reobserved]
+ 
+     def set_pedestrian_hold_ranges(self, ranges):
+         """[(start_s, end_s)] on the base lap where crossing pedestrians are held."""
+@@ -673,6 +750,33 @@
+                                         for v in (speed, min(speed, 3.)))):
+                             return delayed
+                         return candidate
++        return self._s4_adaptive_candidate(items, s_ego, speed, block_first)
++
++    def _s4_adaptive_candidate(self, items, s_ego, speed, block_first):
++        # Only static S4 geometry is optimized. Existing traffic checks still
++        # handle live movers; never plan a spline through their future path.
++        if any(o['moving'] for o in items):
++            return None
++        relevant = [o for o in items if o['r'] >= .4 and o['s'] > s_ego
++                    and (self._in_band(o, 0.) or self._in_band(o, self.static_pass_zone[4]))]
++        if not any(a['id'] != b['id'] and abs(a['d']-b['d']) > 1.6
++                   and abs(a['s']-b['s']) > 3. for a in relevant for b in relevant):
++            return None  # Preserve the established single-block S4 behaviour.
++        if self.observation_time < getattr(self, '_s4_search_after', -math.inf):
++            return None
++        self._s4_search_after = self.observation_time+.5
++        initial = self.active.offset_at(s_ego) if self.active else 0.
++        slope = ((self.active.offset_at(s_ego+.05)-self.active.offset_at(s_ego-.05))/.1
++                 if self.active else 0.)
++        end, lane = self.static_pass_zone[3:]
++        solution = search_offsets(s_ego, end, initial, slope, lane, items, self.config)
++        if solution is None:
++            return None
++        knots, values, slopes = solution
++        path = _Pass(s_ego, s_ego+1., end-1., end, lane, block_first,
++                     knots=tuple(knots), values=tuple(values), slopes=tuple(slopes))
++        if self._s4_swept_check(path, items, s_ego, speed)[0]:
++            return path
+         return None
+ 
+     def update(self, ego_xy, ego_speed_mps, obstacles, stop_line_distance_m=None,
+@@ -704,8 +808,15 @@
+                                                            if self.active else 0.)),
+                         key=lambda o: o['s'])
+         if self.active is not None:
++            if self.static_pass_managed and not self._s4_swept_check(self.active, items, s_ego, speed)[0]:
++                replacement = self._s4_adaptive_candidate(items, s_ego, speed, self.active.block_first_s)
++                if replacement is not None:
++                    self.active = replacement
++                    offset_now = self.active.offset_at(s_ego)
+             # A further block soon after the current one extends the hold.
+             for o in blocks:
++                if self.active.knots:
++                    break  # The complete multi-bend path has already been checked.
+                 if o['s'] - o['l'] <= self.active.hold_end_s + cfg.merge_gap_m:
+                     needed_hold = o['s'] + o['l'] + cfg.rear_extent_m + cfg.post_gap_m
+                     if self.static_pass_managed and needed_hold > self.active.hold_end_s:
+@@ -780,8 +891,8 @@
+             gap = block_first_s - front_s - cfg.stop_gap_m
+             side = lambda offset: 'left' if offset > 0 else 'right'
+             if clear and not stop_line_in_pass and (not creep or speed < .3):
+-                self.active = _Pass(ramp_start, full, hold_end, end_s,
+-                                    pass_offset, block_first_s, self.static_pass_managed)
++                self.active = s4_candidate or _Pass(ramp_start, full, hold_end, end_s,
++                                                   pass_offset, block_first_s, self.static_pass_managed)
+                 offset_now = self.active.offset_at(s_ego)
+                 state = 'PASSING'
+                 reason = ('pulling out to the %s lane from behind a static block' if creep
+@@ -810,6 +921,8 @@
+                     state, reason = 'WAIT_PASS', 'S4 no collision-free swept path; preserving entry room'
+         if self.active is not None:
+             cap = min(cap, cfg.pass_speed_kmh / 3.6)
++            if self.active.knots:
++                cap = min(cap, 12./3.6)
+             if self.active.quintic:
+                 length = min(self.active.full_s-self.active.ramp_start_s,
+                              self.active.end_s-self.active.hold_end_s)
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -172,3 +172,88 @@
+         for _ in range(20):
+             p.update((120., 0.), 0., [], static_clearance_observer=lambda h: False)
+         self.assertTrue(p.static_memory)
++
++
++class S4MotionMemoryTests(unittest.TestCase):
++    def planner(self):
++        p = RouteAvoidance([(x, 0.) for x in range(401)])
++        p.set_static_pass_zone(98., 116., 140., 147., -3.2)
++        return p
++
++    def test_pre_s4_lead_vehicle_cannot_leave_static_trail_on_dropout(self):
++        p = self.planner()
++        for i in range(3):
++            p.update((97., 0.), 0., [RouteObstacle(125.+i*.2, 0., .8, vx=2., dynamic=True, track_id=44)])
++        d = p.update((100., 0.), 0., [RouteObstacle(125.6, 0., .8, track_id=44)])
++        self.assertFalse(p.static_memory)
++        self.assertTrue(any(o['id'] == 44 for o in d.obstacles))
++
++    def test_measured_translation_does_not_grow_permanent_static_wall(self):
++        p = self.planner()
++        for i in range(8):
++            p.update((120., 0.), 0., [RouteObstacle(128.+i*.2, i*.15, .8,
++                     half_length=.5, track_id=84)])
++        self.assertFalse(p.static_memory)
++
++    def test_different_static_sources_never_merge_and_dropout_keeps_both(self):
++        p = self.planner()
++        p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=44),
++                                RouteObstacle(130., .3, .8, track_id=84)])
++        self.assertEqual(len(p.static_memory), 2)
++        p.update((120., 0.), 0., [])
++        self.assertEqual(len(p.static_memory), 2)
++        self.assertTrue(all(len(h['source_ids']) == 1 for h in p.static_memory))
++
++    def test_changing_visible_face_is_not_translation(self):
++        p = self.planner()
++        for i in range(8):
++            # One edge stays fixed while the visible box grows.
++            p.update((120., 0.), 0., [RouteObstacle(129.+i*.1, 0., .8,
++                     half_length=.5+i*.1, track_id=4)])
++        self.assertTrue(p.static_memory)
++        self.assertNotIn(4, p.s4_mobile_until)
++
++    def test_stationary_vehicle_regains_static_protection_and_reset_clears_history(self):
++        p = self.planner()
++        for _ in range(3):
++            p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, vx=2., dynamic=True, track_id=4)])
++        for _ in range(32):
++            p.update((120., 0.), 0., [RouteObstacle(129., 0., .8, track_id=4)])
++        self.assertTrue(p.static_memory)
++        p.reset()
++        self.assertFalse(p.s4_motion_history)
++        self.assertFalse(p.s4_mobile_until)
++
++
++class S4AdaptivePathTests(unittest.TestCase):
++    def test_recorded_staggered_obstacles_replan_inside_saved_corridor(self):
++        from leo_avoidance.route_avoidance import _Pass
++        p = RouteAvoidance([(0., 0.), (500., 0.)])
++        p.set_static_pass_zone(297.906, 315.906, 339.906, 346.742, -3.2)
++        p.active = _Pass(310.4306, 324.4306, 332.3648, 346.3648, -2.08, 328.2756, True)
++        start = 319.2156
++        old_offset = p.active.offset_at(start)
++        live = [RouteObstacle(316.6575, -3.7998, .2015, half_length=.194, track_id=1),
++                RouteObstacle(328.3894, .09885, .6964, half_length=.7933, track_id=9),
++                RouteObstacle(333.9269, -5.0044, .7767, half_length=.6089, track_id=8),
++                RouteObstacle(342.0356, -5.2218, .5212, half_length=.1825, track_id=10)]
++        p.static_memory = [dict(s=328.5764, d=.4487, r=1.2062, l=.9984, id=9,
++                               moving=False, v_s=0., v_d=0., remembered=True, source_ids=[9]),
++                           dict(s=334.3255, d=-4.8135, r=1.2501, l=1.0274, id=8,
++                               moving=False, v_s=0., v_d=0., remembered=True, source_ids=[8])]
++        for i in range(14):
++            result = p.update((start, old_offset), 0., live, stamp=10.+.1*i)
++        self.assertTrue(p.active.knots)
++        self.assertGreater(result.speed_cap_mps, 0.)
++        self.assertAlmostEqual(p.active.offset_at(start), old_offset, places=4)
++        self.assertTrue(p._s4_swept_check(p.active, result.obstacles, start, 0.)[0])
++        self.assertAlmostEqual(p.active.offset_at(p.static_pass_zone[3]), 0.)
++        self.assertTrue(p.static_memory)  # evidence is retained for dropout
++        dropout = p.update((start, old_offset), 0., [], stamp=11.5)
++        self.assertTrue(any(o.get('remembered') for o in dropout.obstacles))
++
++    def test_search_cannot_go_outside_corridor_or_through_complete_blockage(self):
++        from leo_avoidance.s4_path_search import search_offsets
++        p = RouteAvoidance([(0., 0.), (100., 0.)])
++        obstacle = dict(s=15., d=-1.6, l=2., r=4., v_s=0., v_d=0.)
++        self.assertIsNone(search_offsets(0., 35., 0., 0., -3.2, [obstacle], p.config))
+--- /dev/null
++++ b/src/leo_avoidance/src/leo_avoidance/s4_path_search.py
+@@ -0,0 +1,61 @@
++"""Bounded S4-only spline search; callers must run the exact swept-body check."""
++import time
++import numpy as np
++from scipy.interpolate import CubicSpline
++from scipy.optimize import minimize
++
++
++def search_offsets(start, end, initial, slope, lane_offset, items, cfg, budget=.18):
++    if end-start < 8.:
++        return None
++    knots = np.linspace(start, end, max(5, min(10, int((end-start)/4.)+1)))
++    samples = np.arange(start, end, .25)
++    low, high = min(0., lane_offset), max(0., lane_offset)
++    half_l = (cfg.front_extent_m+cfg.rear_extent_m)/2.+.15
++    half_w = cfg.vehicle_half_width_m+cfg.side_margin_m+.15
++    center = (cfg.front_extent_m-cfg.rear_extent_m)/2.
++    deadline = time.monotonic()+budget
++    best = None
++
++    def evaluate(values):
++        nonlocal best
++        if time.monotonic() > deadline:
++            raise TimeoutError
++        y = np.r_[initial, values, 0.]
++        curve = CubicSpline(knots, y, bc_type=((1, slope), (1, 0.)))
++        d, derivative = curve(samples), curve(samples, 1)
++        curvature = np.abs(curve(samples, 2))/(1.+derivative**2)**1.5
++        angle = np.arctan(derivative)
++        c, sn = np.cos(angle), np.sin(angle)
++        es, ed = samples+c*center, d+sn*center
++        constraints = [d-low, high-d, .135-curvature]
++        for o in items:
++            ds, dd = o['s']-es, o['d']-ed
++            ol, ow = o['l'], o['r']
++            separation = np.maximum.reduce([
++                abs(ds)-(half_l*abs(c)+half_w*abs(sn)+ol),
++                abs(dd)-(half_l*abs(sn)+half_w*abs(c)+ow),
++                abs(ds*c+dd*sn)-(half_l+ol*abs(c)+ow*abs(sn)),
++                abs(-ds*sn+dd*c)-(half_w+ol*abs(sn)+ow*abs(c))])
++            constraints.append(separation-.04)
++        margins = np.concatenate(constraints)
++        if np.min(margins) >= -1e-5:
++            best = (knots.tolist(), y.tolist(), curve(knots, 1).tolist())
++        return curve, margins
++
++    def cost(values):
++        curve, _ = evaluate(values)
++        return float(np.mean(curve(samples)**2)*.02 + np.mean(curve(samples, 2)**2)*30.)
++
++    # Different initial offsets expose alternate sides of staggered obstacles.
++    for fraction in (.65, 1., .3):
++        try:
++            seed = np.full(len(knots)-2, lane_offset*fraction)
++            minimize(cost, seed, method='SLSQP', bounds=[(low, high)]*len(seed),
++                     constraints=[dict(type='ineq', fun=lambda v: evaluate(v)[1])],
++                     options=dict(maxiter=40, ftol=1e-5))
++        except TimeoutError:
++            break
++        if best is not None:
++            break
++    return best

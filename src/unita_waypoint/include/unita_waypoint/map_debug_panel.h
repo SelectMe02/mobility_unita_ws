@@ -69,6 +69,7 @@ class MapDebugPanel : public rviz::Panel {
   QLabel* raceline_;
   QLabel* raceline_width_;
   QLabel* parameter_message_;
+  QLabel* s4_tracking_;
   QLabel* rear_view_;
   QLabel* signal_light_;
   QLabel* signal_action_;

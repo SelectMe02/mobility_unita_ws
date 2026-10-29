@@ -84,3 +84,16 @@ class RoutePassOwnershipTests(ownership.ReturnOwnershipTests):
         obj.route_avoidance_callback(String(data=json.dumps(dict(
             path=[(0., 0.), (1., 0.)], speed_cap_kmh=20., pass_active='false'))))
         self.assertIsNone(obj.route_avoidance)
+
+
+class S4ShortTargetTests(unittest.TestCase):
+    def test_short_forward_target_is_s4_opt_in(self):
+        obj = module.GPSWaypointFollower.__new__(module.GPSWaypointFollower)
+        obj.current_x = obj.current_y = obj.current_yaw = 0.
+        obj.current_waypoint_index = 0
+        obj.lookahead_distance = 5.
+        path = [(0.,0.),(1.,.1),(3.,.2)]
+        self.assertIsNone(obj.local_target(path))
+        target = obj.local_target(path, allow_short=True)
+        self.assertEqual(target[1:3], (3.,.2))
+        self.assertIsNone(obj.local_target([(-1.,0.)], allow_short=True))

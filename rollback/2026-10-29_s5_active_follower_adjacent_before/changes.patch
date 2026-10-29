@@ -1,0 +1,162 @@
+--- a/src/unita_waypoint/scripts/local_avoidance_core_local.py
++++ b/src/unita_waypoint/scripts/local_avoidance_core_local.py
+@@ -52,6 +52,12 @@
+     vx: float = 0.
+     vy: float = 0.
+     kind: str = 'unknown'
++    length: float = 0.
++    raceline: int = 0
++    lane_sector: int = 0
++    lane_stable: bool = False
++    confirmed: bool = False
++    velocity_reliable: bool = False
+ 
+ 
+ @dataclass
+@@ -553,7 +559,42 @@
+             self.off_r1 = True
+         off_r1 = self.off_r1
+         current_path = self._path(ahead, ego_xy, current, progress)
+-        threat = self._lead(current_path, ego_xy, obstacles)
++        lead_obstacles = obstacles
++        if (self.pass_sector == 5 and self.transition is None and not off_r1
++                and self.current_lane == preferred
++                and distance(ego_xy, available[self.current_lane]) <= .5):
++            def lane_distance(o, lane):
++                points = [self._lane_point(lane, point, i) for i, point, _ in ahead]
++                points = [point for point in points if point is not None]
++                best = (float('inf'), (0., 0.))
++                for a, b in zip(points, points[1:]):
++                    dx, dy = b[0]-a[0], b[1]-a[1]
++                    length2 = dx*dx+dy*dy
++                    if length2 <= 1e-9:
++                        continue
++                    t = max(0., min(1., ((o.x-a[0])*dx+(o.y-a[1])*dy)/length2))
++                    gap = distance((o.x, o.y), (a[0]+t*dx, a[1]+t*dy))
++                    if gap < best[0]:
++                        length = math.sqrt(length2)
++                        best = (gap, (dx/length, dy/length))
++                return best
++
++            def parallel_vehicle(o):
++                if (o.kind != 'dynamic' or o.length < 2.5 or not o.confirmed
++                        or not o.lane_stable or o.lane_sector != 5
++                        or o.raceline == self.current_lane or o.raceline not in available):
++                    return False
++                own, _ = lane_distance(o, o.raceline)
++                ours, (tx, ty) = lane_distance(o, self.current_lane)
++                if o.velocity_reliable:
++                    side = -ty*(o.x-ego_xy[0])+tx*(o.y-ego_xy[1])
++                    lateral_speed = -ty*o.vx+tx*o.vy
++                    if side*lateral_speed < 0. and abs(lateral_speed) > .3:
++                        return False
++                return own <= 1. and own+.5 < ours
++
++            lead_obstacles = [o for o in obstacles if not parallel_vehicle(o)]
++        threat = self._lead(current_path, ego_xy, lead_obstacles)
+         # S5 road rings can produce large, jumping single-scan footprints.
+         # Keep them in every stopping/gap check, but require the tracker's
+         # temporal classification before they can initiate an overtake.
+@@ -572,7 +613,8 @@
+             if lane not in available:
+                 continue
+             holding = self._path(ahead, ego_xy, lane, progress)
+-            if len(holding) < 2 or self._lead(holding, ego_xy, obstacles):
++            holding_obstacles = lead_obstacles if lane == current and not off_r1 else obstacles
++            if len(holding) < 2 or self._lead(holding, ego_xy, holding_obstacles):
+                 continue
+             changing = lane != current or (lane == 1 and off_r1)
+             returning = changing and lane == 1
+@@ -606,7 +648,7 @@
+             # During steady driving a faster following vehicle is responsible
+             # for its own gap. It must still block every lane-change candidate.
+             tangent = self._tangent(index)
+-            checked = obstacles if changing else [o for o in obstacles if
++            checked = obstacles if changing else [o for o in holding_obstacles if
+                 (o.x-ego_xy[0])*tangent[0]+(o.y-ego_xy[1])*tangent[1] >= 0.]
+             if not self._collision_free(path if changing else path[:2], checked,
+                                         min(speed_mps, self.effective_pass_speed_kmh/3.6)
+--- a/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
++++ b/src/unita_waypoint/scripts/gps_waypoint_follower_local.py
+@@ -1243,7 +1243,15 @@
+                     return
+                 if item['kind'] not in ('static', 'dynamic', 'unknown'):
+                     return
+-                obstacles.append(Obstacle(*values, kind=item['kind']))
++                length = float(item.get('length', 0.))
++                if not math.isfinite(length) or length < 0.:
++                    return
++                obstacles.append(Obstacle(*values, kind=item['kind'], length=length,
++                    raceline=int(item.get('raceline', 0)),
++                    lane_sector=int(item.get('lane_sector', 0)),
++                    lane_stable=item.get('lane_stable') is True,
++                    confirmed=item.get('confirmed') is True,
++                    velocity_reliable=item.get('velocity_reliable') is True))
+             corridor = getattr(self, 'lane_corridor', None)
+             if corridor is None:
+                 return
+--- /dev/null
++++ b/src/unita_waypoint/test/test_s5_active_adjacent_local.py
+@@ -0,0 +1,62 @@
++import unittest
++from local_avoidance_core_local import LocalAvoidancePlanner, Obstacle
++
++class ActiveS5AdjacentTests(unittest.TestCase):
++    def planner(self, sector=5):
++        route=[(float(x), 0.) for x in range(100)]
++        return LocalAvoidancePlanner(route, [sector]*100,
++            {2:[(float(x), -3.5) for x in range(100)]})
++
++    def car(self, **kw):
++        values=dict(x=6., y=-3.3, radius=2.8, vx=2.7, kind='dynamic',
++            length=4., raceline=2, lane_sector=5, lane_stable=True,
++            confirmed=True, velocity_reliable=True)
++        values.update(kw)
++        return Obstacle(**values)
++
++    def test_adjacent_large_circle_does_not_block_any_keep_lane_check(self):
++        p=self.planner()
++        for radius in (2.2, 3., 4.5, 2.2):
++            d=p.plan(0, (0.,0.), 5., [self.car(radius=radius)])
++            self.assertEqual(d.state, 'RACELINE')
++            self.assertGreater(d.speed_cap_kmh, 0.)
++            self.assertIsNone(p.transition)
++
++    def test_our_lane_unknown_labels_pedestrian_and_approach_still_protected(self):
++        for kw in [dict(raceline=1),dict(lane_stable=False),dict(confirmed=False),
++                   dict(y=0.),dict(length=.6),dict(kind='unknown'),dict(vy=1.)]:
++            d=self.planner().plan(0, (0.,0.), 5., [self.car(**kw)])
++            self.assertNotEqual(d.state, 'RACELINE',kw)
++
++    def test_other_sectors_unchanged(self):
++        for sector in (4,6,11):
++            d=self.planner(sector).plan(0,(0.,0.),5.,[self.car()])
++            self.assertNotEqual(d.state,'RACELINE')
++
++    def test_lane_change_still_checks_adjacent_car(self):
++        p=self.planner()
++        p.transition=dict(source=1,target=2,start=0.,length=20.,state='OVERTAKING',
++                          shape='smooth',lateral=3.5)
++        d=p.plan(0,(0.,0.),5.,[self.car()])
++        self.assertNotEqual(d.state,'RACELINE')
++        self.assertLess(d.speed_cap_kmh,25.)
++
++class ActiveS5InputTests(unittest.TestCase):
++    def test_callback_preserves_lane_and_vehicle_evidence(self):
++        import json
++        from unittest.mock import Mock, patch
++        import rospy
++        from std_msgs.msg import String
++        from gps_waypoint_follower_local import GPSWaypointFollower
++        n=GPSWaypointFollower.__new__(GPSWaypointFollower)
++        n.lane_corridor=Mock()
++        n.lane_corridor.contains.return_value=[True]
++        n.waypoint_only_ranges=[]
++        car=dict(x=6.,y=-3.5,radius=3.,vx=2.,vy=0.,kind='dynamic',
++                 length=4.,raceline=2,lane_sector=5,lane_stable=True,
++                 confirmed=True,velocity_reliable=True)
++        with patch('gps_waypoint_follower_local.rospy.Time.now',return_value=rospy.Time(10.)):
++            n.obstacles_callback(String(data=json.dumps(dict(stamp=10.,frame_id='map',obstacles=[car]))))
++        self.assertEqual(n.obstacles[0].raceline,2)
++        self.assertEqual(n.obstacles[0].length,4.)
++        self.assertTrue(n.obstacles[0].lane_stable)

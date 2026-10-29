@@ -1,0 +1,67 @@
+--- a/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
++++ b/src/leo_avoidance/src/leo_avoidance/route_avoidance.py
+@@ -994,6 +994,16 @@
+                 continue
+             occupied = False
+             for o in items:
++                if (self.static_pass_managed and self.active is not None
++                        and not o['moving']
++                        and self.static_pass_zone[0] <= o['s'] - o['l']
++                        and o['s'] + o['l'] <= min(self.static_pass_zone[3],
++                                                  self.active.end_s)):
++                    # S4 contains static fixtures: the oriented swept-path
++                    # check above owns their clearance and braking. Do not
++                    # reinterpret them as pedestrians by size alone on the
++                    # global centerline. Outside S4 and movers stay protected.
++                    continue
+                 person = (o['r'] <= cfg.crosswalk_person_m
+                           and o['l'] <= cfg.crosswalk_person_m)
+                 if not (start - o['l'] <= o['s'] <= end + o['l']):
+--- a/src/leo_avoidance/test/test_s4_retained_pass.py
++++ b/src/leo_avoidance/test/test_s4_retained_pass.py
+@@ -28,6 +28,45 @@
+         self.assertIsNone(p.active)
+         self.assertFalse(p.static_memory)
+         self.assertFalse(p.static_pass_managed)
++
++    def test_s4_small_crosswalk_fixture_uses_actual_pass_clearance(self):
++        p = self.planner()
++        p.crosswalks = [(125., 132.)]
++        block = RouteObstacle(129., .5, .685, half_length=.192)
++        p.update((100., 0.), 5., [block])
++        self.assertIsNotNone(p.active)
++        d = p.update((120., p.active.offset_at(120.)), 3., [block])
++        self.assertEqual(d.state, 'PASSING')
++        self.assertGreater(d.speed_cap_mps, 0.)
++        self.assertIsNone(p.crosswalk_hold)
++
++    def test_s4_crosswalk_exception_does_not_clear_blocked_pass(self):
++        p = self.planner()
++        p.crosswalks = [(125., 132.)]
++        block = RouteObstacle(129., .5, .685, half_length=.192)
++        p.update((100., 0.), 5., [block])
++        d = p.update((120., p.active.offset_at(120.)), 0.,
++                     [block, RouteObstacle(125., -2., 3., half_length=1.)])
++        self.assertEqual(d.speed_cap_mps, 0.)
++
++    def test_s4_crosswalk_exception_keeps_dynamic_crossing_stop(self):
++        p = self.planner()
++        p.crosswalks = [(125., 132.)]
++        block = RouteObstacle(129., .5, .685, half_length=.192)
++        p.update((100., 0.), 5., [block])
++        d = p.update((120., p.active.offset_at(120.)), 0.,
++                     [block, RouteObstacle(128., .5, .3, vy=-1., dynamic=True)])
++        self.assertEqual(d.speed_cap_mps, 0.)
++        self.assertEqual(p.crosswalk_hold, 125.)
++
++    def test_after_s4_small_stationary_crosswalk_person_still_stops(self):
++        p = self.planner()
++        p.crosswalks = [(160., 165.)]
++        d = p.update((155., 0.), 0.,
++                     [RouteObstacle(162., .5, .3, half_length=.3)])
++        self.assertFalse(p.static_pass_managed)
++        self.assertEqual(d.speed_cap_mps, 0.)
++        self.assertEqual(p.crosswalk_hold, 160.)
+ 
+     def test_wait_does_not_clear_on_missed_detection(self):
+         p = self.planner()

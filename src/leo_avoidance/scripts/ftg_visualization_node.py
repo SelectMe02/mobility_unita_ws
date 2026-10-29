@@ -106,6 +106,12 @@ class FTGVisualizationNode:
             return
         state = status.get('state')
         color = ROUTE_STATE_COLORS.get(state, (.25, .85, 1.))
+        s4 = status.get('s4_tracking')
+        if isinstance(s4, dict):
+            color = {'LOCAL_PATH': (.1, 1., .3), 'FTG': (1., .6, .05),
+                     'RECOVERY': (.2, .8, 1.)}.get(s4.get('source'), color)
+            if s4.get('state') == 'STOP':
+                color = (1., .2, .2)
         markers = MarkerArray()
         clear = Marker()
         clear.header.frame_id = 'lidar'
@@ -153,6 +159,10 @@ class FTGVisualizationNode:
                 state, status.get('reason'), float(status.get('speed_cap_kmh') or 0.),
                 float(status.get('offset_m') or 0.)))
         text.lifetime = rospy.Duration(1.)
+        if isinstance(s4, dict):
+            text.text = 'S4 {} | {} | safe {:.1f}m | cap {:.1f}km/h\n{}'.format(
+                s4.get('source'), s4.get('state'), s4.get('safe_distance_m', 0.),
+                float(status.get('speed_cap_kmh') or 0.), s4.get('reason', ''))
         markers.markers.append(text)
         self.route_pub.publish(markers)
 
