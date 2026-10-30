@@ -7,7 +7,7 @@
 
 GPS/IMU 기반 위치추정, LiDAR 장애물 인식, YOLO 기반 신호등 인식, Waypoint 및 Raceline 경로 추종, 동적 장애물 회피, GPS 음영 구간 주행 등을 하나의 통합 시스템으로 구현하였습니다.
 
-최종 대회 주행에는 **`unita_launch/launch/extreme.launch`**를 사용하였습니다.
+최종 대회 주행에는 `unita_launch/launch/extreme.launch`를 사용하였습니다.
 
 ---
 
